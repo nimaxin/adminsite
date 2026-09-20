@@ -23,6 +23,16 @@ class UnknownFieldError(AdminSiteError):
         self.path = path or name
 
 
+class PermissionDeniedError(AdminSiteError):
+    """Raised when the current user may not do this."""
+
+    def __init__(self, action: str, subject: str = "") -> None:
+        where = f" {subject}" if subject else ""
+        super().__init__(f"You cannot {action}{where}.")
+        self.action = action
+        self.subject = subject
+
+
 class RecordNotFoundError(AdminSiteError):
     """Raised when a key does not match any record."""
 

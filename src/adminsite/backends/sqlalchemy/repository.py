@@ -21,6 +21,9 @@ ConditionBuilder = Callable[
     [ColumnElement[Any], FieldSchema], ColumnElement[bool] | None
 ]
 
+# Narrows every read to the rows the current user may see.
+Scope = Callable[[Select[Any]], Select[Any]]
+
 
 class SQLAlchemyRepository:
     """Reads records for one model, in as few queries as it can manage."""
@@ -37,9 +40,14 @@ class SQLAlchemyRepository:
         self.filters = tuple(filters)
         self._filters_by_name = {item.name: item for item in self.filters}
 
-    async def list(self, session: SessionAdapter, spec: QuerySpec) -> Page:
+    async def list(
+        self,
+        session: SessionAdapter,
+        spec: QuerySpec,
+        scope: Scope | None = None,
+    ) -> Page:
         """Read one page of records, loading what the page will show."""
-        statement = self.statement(spec)
+        statement = self.statement(spec, scope)
         wants_probe = spec.limit is not None and spec.count is CountMode.NONE
         fetch = spec.limit + 1 if wants_probe and spec.limit else spec.limit
 
@@ -56,7 +64,7 @@ class SQLAlchemyRepository:
             has_next = len(rows) > spec.limit
             rows = rows[: spec.limit]
         if spec.count is CountMode.EXACT:
-            total = await self.count(session, spec)
+            total = await self.count(session, spec, scope)
             has_next = spec.offset + len(rows) < total
 
         return Page(
@@ -67,9 +75,16 @@ class SQLAlchemyRepository:
             has_next=has_next,
         )
 
-    async def count(self, session: SessionAdapter, spec: QuerySpec) -> int:
+    async def count(
+        self,
+        session: SessionAdapter,
+        spec: QuerySpec,
+        scope: Scope | None = None,
+    ) -> int:
         """Count the records the query matches, ignoring the page."""
-        rows = self.base_statement().with_only_columns(*self._primary_key_columns())
+        rows = self.base_statement(scope).with_only_columns(
+            *self._primary_key_columns()
+        )
         rows = self.narrow(rows, spec)
         counted = select(func.count()).select_from(rows.subquery())
         return int(await session.scalar(counted) or 0)
@@ -79,9 +94,14 @@ class SQLAlchemyRepository:
         session: SessionAdapter,
         key: Any,
         paths: tuple[str, ...] = (),
+        scope: Scope | None = None,
     ) -> Any | None:
-        """Load one record by primary key, with the paths it will show."""
-        statement = self.base_statement().where(self.key_clause(key))
+        """Load one record by primary key, with the paths it will show.
+
+        A record outside the scope reads as missing, so a row the user may
+        not see cannot be opened, changed or deleted by guessing its key.
+        """
+        statement = self.base_statement(scope).where(self.key_clause(key))
         if paths:
             statement = statement.options(
                 *build_load_options(self.inspector, self.model, paths)
@@ -120,13 +140,14 @@ class SQLAlchemyRepository:
                 continue
             setattr(record, name, await self._linked(session, relation, value))
 
-    def base_statement(self) -> Select[Any]:
-        """The statement every read starts from."""
-        return select(self.model)
+    def base_statement(self, scope: Scope | None = None) -> Select[Any]:
+        """The statement every read starts from, narrowed to the scope."""
+        statement = select(self.model)
+        return statement if scope is None else scope(statement)
 
-    def statement(self, spec: QuerySpec) -> Select[Any]:
+    def statement(self, spec: QuerySpec, scope: Scope | None = None) -> Select[Any]:
         """Build the select for a page: search, filters, order, eager loads."""
-        statement = self.narrow(self.base_statement(), spec)
+        statement = self.narrow(self.base_statement(scope), spec)
         statement = self.apply_sort(statement, spec)
 
         if spec.paths:

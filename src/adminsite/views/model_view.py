@@ -1,14 +1,21 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
+from sqlalchemy import Select
+
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.exceptions import (
+    AdminSiteError,
+    FieldValidationError,
+    PermissionDeniedError,
+)
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.filters import Filter, FilterValue
-from adminsite.query import CountMode, QuerySpec, Sort
+from adminsite.query import CountMode, Page, QuerySpec, Sort
+from adminsite.security import Action, action_name
 from adminsite.text import RecordValues, pluralize, snake_case
 from adminsite.views.writing import (
     DeleteContext,
@@ -192,6 +199,66 @@ class ModelView:
         )
         return spec.page(page)
 
+    # Permissions. Four levels: the view, the action, the field and the row.
+
+    async def allows(
+        self, action: Action | str, *, request: Any = None, record: Any = None
+    ) -> bool:
+        """Whether the current user may do this, to this record."""
+        name = action_name(action)
+        if name == Action.CREATE:
+            return self.can_create
+        if name == Action.EDIT:
+            return self.can_edit
+        if name == Action.DELETE:
+            return self.can_delete
+        return True
+
+    async def ensure(
+        self, action: Action | str, *, request: Any = None, record: Any = None
+    ) -> None:
+        """Raise unless the current user may do this."""
+        if not await self.allows(action, request=request, record=record):
+            raise PermissionDeniedError(action_name(action), self.label_plural)
+
+    def scope_query(
+        self, statement: Select[Any], *, request: Any = None
+    ) -> Select[Any]:
+        """Narrow every read to the rows this user may see.
+
+        This runs on the list, the count, a single record, an export and a
+        bulk action, so a row can never leak through a path that forgot to
+        check.
+        """
+        return statement
+
+    def scope_for(self, request: Any = None) -> Scope:
+        """The scope as a function, ready to hand to the repository."""
+        return lambda statement: self.scope_query(statement, request=request)
+
+    # Reading records.
+
+    async def fetch_page(
+        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
+    ) -> Page:
+        """Read one page, within the scope and after a permission check."""
+        await self.ensure(Action.VIEW, request=request)
+        return await self.repository.list(session, spec, self.scope_for(request))
+
+    async def fetch_record(
+        self,
+        session: SessionAdapter,
+        key: Any,
+        *,
+        paths: Sequence[str] = (),
+        request: Any = None,
+    ) -> Any | None:
+        """Load one record, or nothing if it is missing or out of scope."""
+        await self.ensure(Action.VIEW, request=request)
+        return await self.repository.get(
+            session, key, tuple(paths), self.scope_for(request)
+        )
+
     # Writing.
 
     def parse_form(
@@ -234,6 +301,11 @@ class ModelView:
         refuse a change.
         """
         created = record is None
+        await self.ensure(
+            Action.CREATE if created else Action.EDIT,
+            request=request,
+            record=record,
+        )
         async with session.transaction():
             target = record if record is not None else self.repository.model()
             context = SaveContext(
@@ -257,6 +329,7 @@ class ModelView:
         self, session: SessionAdapter, record: Any, *, request: Any = None
     ) -> None:
         """Delete a record, running the hooks in one transaction."""
+        await self.ensure(Action.DELETE, request=request, record=record)
         async with session.transaction():
             context = DeleteContext(session=session, record=record, request=request)
             await self.before_delete(context)
