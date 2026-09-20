@@ -22,6 +22,7 @@ from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.query import CountMode, QuerySpec
 from adminsite.security import Permission
+from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.views import ModelView
 from adminsite.views.writing import FormResult
 
@@ -171,6 +172,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
 async def delete_record(admin: "Admin", request: Request) -> Response:
     """Delete one record and go back to the list."""
     view = find_view(admin, request)
+    await read_form(request)
 
     async with admin.database.session() as session:
         record = await view.fetch_record(session, read_key(request), request=request)
@@ -305,13 +307,52 @@ def key_text(key: Any) -> str:
 
 
 async def read_form(request: Request) -> dict[str, Any]:
-    """Read a submitted form, keeping every value of a repeated field."""
+    """Read a submitted form, after checking it came from the admin."""
     form = await request.form()
     data: dict[str, Any] = {}
     for key in form:
         values = form.getlist(key)
         data[key] = values if len(values) > 1 else values[0]
+
+    submitted = data.pop(FIELD_NAME, None) or request.headers.get(TOKEN_HEADER)
+    token = submitted if isinstance(submitted, str) else None
+    if not is_valid(request, token):
+        raise HTTPException(status_code=403, detail="This form has expired.")
     return data
+
+
+async def login_form(admin: "Admin", request: Request) -> Response:
+    """The sign in page."""
+    return await admin.render("login.html", request, {"error": ""})
+
+
+async def login(admin: "Admin", request: Request) -> Response:
+    """Check the details and let the user in."""
+    if admin.auth is None:
+        raise HTTPException(status_code=404, detail="Signing in is not set up.")
+
+    submitted = await read_form(request)
+    user = await admin.auth.sign_in(
+        request,
+        str(submitted.get("username", "")),
+        str(submitted.get("password", "")),
+    )
+    if user is None:
+        return await admin.render(
+            "login.html",
+            request,
+            {"error": "That username and password do not match."},
+            status_code=401,
+        )
+    return RedirectResponse(Urls(request).index(), status_code=303)
+
+
+async def logout(admin: "Admin", request: Request) -> Response:
+    """Sign the user out."""
+    await read_form(request)
+    if admin.auth is not None:
+        await admin.auth.sign_out(request)
+    return RedirectResponse(Urls(request).login(), status_code=303)
 
 
 async def run_action(admin: "Admin", request: Request) -> Response:

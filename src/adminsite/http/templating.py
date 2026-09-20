@@ -14,6 +14,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from adminsite.http.urls import Urls, sort_state
+from adminsite.security.csrf import hidden_input
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -53,6 +54,7 @@ class Templates:
             "urls": Urls(request),
             "groups": admin.views.grouped(),
             "user": request.scope.get("user_record"),
+            "csrf_input": hidden_input(request),
             "messages": read_messages(request),
             "view": None,
         }

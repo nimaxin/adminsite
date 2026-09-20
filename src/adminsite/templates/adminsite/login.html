@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · {{ title }}</title>
+<link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
+</head>
+<body class="flex h-full items-center justify-center font-sans text-[14px] antialiased">
+  <form class="card w-full max-w-sm p-6" method="post" action="{{ urls.login() }}">
+    {{ csrf_input | safe if csrf_input }}
+    <h1 class="mb-1 text-lg font-semibold">{{ title }}</h1>
+    <p class="mb-5 text-sm text-muted">Sign in to continue.</p>
+
+    {% if error %}
+      <p class="mb-4 rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
+        {{ error }}
+      </p>
+    {% endif %}
+
+    <div class="grid gap-4">
+      <div class="grid gap-1.5">
+        <label class="label" for="username">Username</label>
+        <input class="input" id="username" name="username" autocomplete="username" autofocus>
+      </div>
+      <div class="grid gap-1.5">
+        <label class="label" for="password">Password</label>
+        <input class="input" id="password" name="password" type="password"
+               autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary justify-center" type="submit">Sign in</button>
+    </div>
+  </form>
+</body>
+</html>
