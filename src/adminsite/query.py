@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from adminsite.filters.base import FilterValue
+
 DEFAULT_PAGE_SIZE = 25
 
 
@@ -38,6 +40,7 @@ class QuerySpec:
     paths: tuple[str, ...] = ()
     search: str = ""
     search_paths: tuple[str, ...] = ()
+    filters: tuple[FilterValue, ...] = ()
     sort: tuple[Sort, ...] = ()
     offset: int = 0
     limit: int | None = DEFAULT_PAGE_SIZE
@@ -54,6 +57,7 @@ class QuerySpec:
             "paths": self.paths,
             "search": self.search,
             "search_paths": self.search_paths,
+            "filters": self.filters,
             "sort": self.sort,
             "offset": self.offset,
             "limit": self.limit,

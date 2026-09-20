@@ -1,6 +1,6 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ColumnElement, Select, and_, false, func, or_, select
 from sqlalchemy.orm import aliased
@@ -12,18 +12,30 @@ from adminsite.exceptions import InvalidPathError
 from adminsite.query import CountMode, Page, QuerySpec
 from adminsite.schema import FieldPath, FieldSchema
 
+if TYPE_CHECKING:
+    from adminsite.backends.sqlalchemy.filters import SQLFilter
+
 NUMBER_TYPES = (int, float, Decimal)
+
+ConditionBuilder = Callable[
+    [ColumnElement[Any], FieldSchema], ColumnElement[bool] | None
+]
 
 
 class SQLAlchemyRepository:
     """Reads records for one model, in as few queries as it can manage."""
 
     def __init__(
-        self, model: type[Any], inspector: SQLAlchemyInspector | None = None
+        self,
+        model: type[Any],
+        inspector: SQLAlchemyInspector | None = None,
+        filters: Sequence["SQLFilter"] = (),
     ) -> None:
         self.model = model
         self.inspector = inspector or SQLAlchemyInspector()
         self.schema = self.inspector.inspect(model)
+        self.filters = tuple(filters)
+        self._filters_by_name = {item.name: item for item in self.filters}
 
     async def list(self, session: SessionAdapter, spec: QuerySpec) -> Page:
         """Read one page of records, loading what the page will show."""
@@ -58,9 +70,7 @@ class SQLAlchemyRepository:
     async def count(self, session: SessionAdapter, spec: QuerySpec) -> int:
         """Count the records the query matches, ignoring the page."""
         rows = self.base_statement().with_only_columns(*self._primary_key_columns())
-        condition = self.search_clause(spec)
-        if condition is not None:
-            rows = rows.where(condition)
+        rows = self.narrow(rows, spec)
         counted = select(func.count()).select_from(rows.subquery())
         return int(await session.scalar(counted) or 0)
 
@@ -83,19 +93,30 @@ class SQLAlchemyRepository:
         return select(self.model)
 
     def statement(self, spec: QuerySpec) -> Select[Any]:
-        """Build the select for a page: search, order and eager loads."""
-        statement = self.base_statement()
-
-        condition = self.search_clause(spec)
-        if condition is not None:
-            statement = statement.where(condition)
-
+        """Build the select for a page: search, filters, order, eager loads."""
+        statement = self.narrow(self.base_statement(), spec)
         statement = self.apply_sort(statement, spec)
 
         if spec.paths:
             statement = statement.options(
                 *build_load_options(self.inspector, self.model, spec.paths)
             )
+        return statement
+
+    def narrow(self, statement: Select[Any], spec: QuerySpec) -> Select[Any]:
+        """Apply the search and the filters, which every read shares.
+
+        The list, the count, an export and a bulk action all go through
+        here, so they always see the same records.
+        """
+        condition = self.search_clause(spec)
+        if condition is not None:
+            statement = statement.where(condition)
+
+        for value in spec.filters:
+            item = self._filters_by_name.get(value.name)
+            if item is not None:
+                statement = item.apply(statement, value, self)
         return statement
 
     def search_clause(self, spec: QuerySpec) -> ColumnElement[bool] | None:
@@ -163,14 +184,21 @@ class SQLAlchemyRepository:
             raise InvalidPathError(path, f"{action} needs a field, not a link.")
         return resolved, resolved.field
 
-    def _clause_for_path(self, path: str, term: str) -> ColumnElement[bool] | None:
-        resolved, field = self._resolve_field(path, "searching")
+    def condition_at(
+        self, path: str, build: ConditionBuilder, action: str = "filtering"
+    ) -> ColumnElement[bool] | None:
+        """Build a condition on the column a path names.
+
+        When the path crosses a relationship the condition is wrapped in
+        `has` or `any`, so no joins are added and no rows are duplicated.
+        """
+        resolved, field = self._resolve_field(path, action)
         owners = [self.model]
         for relation in resolved.relations:
             owners.append(relation.target)
 
         column = getattr(owners[-1], field.name)
-        clause: ColumnElement[bool] | None = self._match(column, field, term)
+        clause: ColumnElement[bool] | None = build(column, field)
         if clause is None:
             return None
 
@@ -181,6 +209,13 @@ class SQLAlchemyRepository:
                 attribute.any(clause) if relation.collection else attribute.has(clause)
             )
         return clause
+
+    def _clause_for_path(self, path: str, term: str) -> ColumnElement[bool] | None:
+        return self.condition_at(
+            path,
+            lambda column, field: self._match(column, field, term),
+            action="searching",
+        )
 
     def _match(
         self, column: ColumnElement[Any], field: FieldSchema, term: str
