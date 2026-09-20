@@ -1,0 +1,84 @@
+<div class="grid gap-1.5">
+  <label class="label" for="field-{{ row.path }}">
+    {{ row.label }}
+    {% if row.required %}<span class="text-faint">·  required</span>{% endif %}
+    {% if row.readonly %}<span class="text-faint">·  read only</span>{% endif %}
+  </label>
+
+  {% if row.readonly %}
+    <input class="input bg-surface text-muted" id="field-{{ row.path }}"
+           value="{{ row.display }}" disabled>
+
+  {% elif row.widget == "textarea" %}
+    <textarea class="input h-24 py-2" id="field-{{ row.path }}"
+              name="{{ row.path }}">{{ row.value }}</textarea>
+
+  {% elif row.widget == "checkbox" %}
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" class="accent-brand" id="field-{{ row.path }}"
+             name="{{ row.path }}" value="true"
+             {% if row.value %}checked{% endif %}>
+      <span class="text-muted">Yes</span>
+    </label>
+
+  {% elif row.widget == "select" %}
+    <select class="input" id="field-{{ row.path }}" name="{{ row.path }}">
+      {% if not row.required %}<option value="">Not set</option>{% endif %}
+      {% for choice in row.choices %}
+        <option value="{{ choice.value }}"
+                {% if choice.value in row.selected %}selected{% endif %}>
+          {{ choice.label }}
+        </option>
+      {% endfor %}
+    </select>
+
+  {% elif row.widget == "relation" %}
+    {% if row.searchable %}
+      <div class="relative" x-data="{ open: false, label: {{ row.picked_label|tojson }} }">
+        <input type="hidden" name="{{ row.path }}" value="{{ row.value }}"
+               x-ref="key" id="field-{{ row.path }}">
+        <div class="flex items-center gap-2">
+          <span class="input flex items-center" x-text="label || 'Nothing chosen'"></span>
+          <button class="btn" type="button" @click="open = !open">Choose</button>
+        </div>
+        <div class="absolute z-20 mt-1 w-full rounded-lg border border-line-strong bg-canvas p-1 shadow-lg"
+             x-show="open" x-cloak style="display: none">
+          <input class="input mb-1" type="search" placeholder="Search"
+                 hx-get="{{ urls.lookup(view, row.path) }}"
+                 hx-target="#options-{{ row.path }}"
+                 hx-trigger="keyup changed delay:250ms, focus"
+                 name="q">
+          <div id="options-{{ row.path }}" class="max-h-56 overflow-auto"></div>
+        </div>
+      </div>
+    {% else %}
+      <select class="input" id="field-{{ row.path }}" name="{{ row.path }}"
+              {% if row.field.collection %}multiple size="5"{% endif %}>
+        {% if not row.field.collection %}
+          <option value="">Not set</option>
+        {% endif %}
+        {% for choice in row.choices %}
+          <option value="{{ choice.value }}"
+                  {% if choice.value in row.selected %}selected{% endif %}>
+            {{ choice.label }}
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+  {% else %}
+    <input class="input" id="field-{{ row.path }}" name="{{ row.path }}"
+           value="{{ row.value }}"
+           type="{% if row.widget == 'number' %}text
+                 {%- elif row.widget in ('date', 'time', 'email') %}{{ row.widget }}
+                 {%- elif row.widget == 'datetime' %}datetime-local
+                 {%- else %}text{% endif %}"
+           {% if row.field.max_length %}maxlength="{{ row.field.max_length }}"{% endif %}>
+  {% endif %}
+
+  {% if row.error %}
+    <p class="text-[13px] text-danger">{{ row.error }}</p>
+  {% elif row.field.help_text %}
+    <p class="text-[13px] text-faint">{{ row.field.help_text }}</p>
+  {% endif %}
+</div>

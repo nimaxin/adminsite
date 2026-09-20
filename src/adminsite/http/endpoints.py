@@ -1,18 +1,27 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import RedirectResponse, Response
 
+from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.exceptions import AdminSiteError, RefusedError
+from adminsite.fields import RelationField
+from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.listing import (
     as_context,
     build_panels,
     read_list_request,
     wants_partial,
 )
+from adminsite.http.templating import add_message
+from adminsite.http.urls import Urls
+from adminsite.query import CountMode, QuerySpec
 from adminsite.security import Action
 from adminsite.views import ModelView
+from adminsite.views.writing import FormResult
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -58,6 +67,218 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     return await admin.render(template, request, context)
 
 
+async def create_form(admin: "Admin", request: Request) -> Response:
+    """The empty form for adding a record."""
+    view = find_view(admin, request)
+    await view.ensure(Action.CREATE, request=request)
+
+    async with admin.database.session() as session:
+        rows = await build_rows(admin, view, session, request=request)
+
+    return await admin.render("form.html", request, form_context(view, rows, request))
+
+
+async def create_record(admin: "Admin", request: Request) -> Response:
+    """Save a new record, or show the form again with what went wrong."""
+    view = find_view(admin, request)
+    await view.ensure(Action.CREATE, request=request)
+
+    result = view.parse_form(await read_form(request), request=request)
+    async with admin.database.session() as session:
+        if not result.ok:
+            return await form_again(admin, view, session, request, result)
+        try:
+            record = await view.save(session, result.values, request=request)
+            await session.commit()
+        except AdminSiteError as error:
+            return await form_again(admin, view, session, request, result, error)
+
+        key = view.identity_of(record)
+
+    add_message(request, f"{view.label} created.")
+    return RedirectResponse(Urls(request).detail(view, key), status_code=303)
+
+
+async def detail(admin: "Admin", request: Request) -> Response:
+    """One record, read only."""
+    view = find_view(admin, request)
+    record = await load_or_404(admin, view, request)
+
+    paths = view.get_form_fields(request, record)
+    rows = [(path, view.label_for(path), view.display(record, path)) for path in paths]
+
+    return await admin.render(
+        "detail.html",
+        request,
+        {
+            "view": view,
+            "record": record,
+            "key": view.identity_of(record),
+            "heading": view.title_of(record),
+            "rows": rows,
+            "can_edit": await view.allows(Action.EDIT, request=request, record=record),
+        },
+    )
+
+
+async def edit_form(admin: "Admin", request: Request) -> Response:
+    """The form for changing a record."""
+    view = find_view(admin, request)
+    record = await load_or_404(admin, view, request)
+    await view.ensure(Action.EDIT, request=request, record=record)
+
+    async with admin.database.session() as session:
+        rows = await build_rows(admin, view, session, record=record, request=request)
+
+    return await admin.render(
+        "form.html", request, form_context(view, rows, request, record)
+    )
+
+
+async def edit_record(admin: "Admin", request: Request) -> Response:
+    """Save a change, or show the form again with what went wrong."""
+    view = find_view(admin, request)
+    key = read_key(request)
+    submitted = await read_form(request)
+
+    async with admin.database.session() as session:
+        record = await view.fetch_record(
+            session, key, paths=view.get_form_fields(request), request=request
+        )
+        if record is None:
+            raise HTTPException(status_code=404, detail="No such record.")
+        await view.ensure(Action.EDIT, request=request, record=record)
+
+        result = view.parse_form(submitted, record=record, request=request)
+        if not result.ok:
+            return await form_again(admin, view, session, request, result, None, record)
+        try:
+            await view.save(session, result.values, record=record, request=request)
+            await session.commit()
+        except AdminSiteError as error:
+            return await form_again(
+                admin, view, session, request, result, error, record
+            )
+
+    add_message(request, f"{view.label} saved.")
+    return RedirectResponse(Urls(request).detail(view, key_text(key)), status_code=303)
+
+
+async def delete_record(admin: "Admin", request: Request) -> Response:
+    """Delete one record and go back to the list."""
+    view = find_view(admin, request)
+
+    async with admin.database.session() as session:
+        record = await view.fetch_record(session, read_key(request), request=request)
+        if record is None:
+            raise HTTPException(status_code=404, detail="No such record.")
+        await view.ensure(Action.DELETE, request=request, record=record)
+        try:
+            await view.delete(session, record, request=request)
+            await session.commit()
+        except RefusedError as error:
+            add_message(request, str(error), kind="error")
+            return RedirectResponse(Urls(request).list(view), status_code=303)
+
+    add_message(request, f"{view.label} deleted.")
+    return RedirectResponse(Urls(request).list(view), status_code=303)
+
+
+async def lookup(admin: "Admin", request: Request) -> Response:
+    """The records a relation field offers, narrowed by what was typed."""
+    view = find_view(admin, request)
+    path = request.path_params["path"]
+    item = view.field_for(path)
+    if not isinstance(item, RelationField):
+        raise HTTPException(status_code=404, detail=f"{path!r} is not a link.")
+
+    target = SQLAlchemyRepository(item.target, admin.inspector)
+    schema = admin.inspector.inspect(item.target)
+    spec = QuerySpec(
+        search=request.query_params.get("q", "").strip(),
+        search_paths=tuple(
+            name
+            for name, found in schema.fields.items()
+            if found.python_type is str and not found.primary_key
+        ),
+        limit=20,
+        count=CountMode.NONE,
+    )
+
+    async with admin.database.session() as session:
+        page = await target.list(session, spec)
+        choices = [
+            Choice(target.identity_of(record), title_for(admin, item, record))
+            for record in page
+        ]
+
+    return await admin.render(
+        "_lookup.html", request, {"view": view, "choices": choices}
+    )
+
+
+def form_context(
+    view: ModelView,
+    rows: list[FormRow],
+    request: Request,
+    record: Any = None,
+) -> dict[str, Any]:
+    """What both the create form and the edit form need."""
+    urls = Urls(request)
+    editing = record is not None
+    key = view.identity_of(record) if editing else ""
+    return {
+        "view": view,
+        "rows": rows,
+        "record": record,
+        "key": key,
+        "heading": view.title_of(record) if editing else f"New {view.label.lower()}",
+        "submit_label": "Save changes" if editing else f"Create {view.label.lower()}",
+        "action": urls.edit(view, key) if editing else urls.create(view),
+        "cancel_url": urls.detail(view, key) if editing else urls.list(view),
+        "can_delete": view.can_delete,
+        "form_error": "",
+    }
+
+
+async def form_again(
+    admin: "Admin",
+    view: ModelView,
+    session: SessionAdapter,
+    request: Request,
+    result: FormResult,
+    error: Exception | None = None,
+    record: Any = None,
+) -> Response:
+    """Show the form again, keeping what was typed and saying what failed."""
+    rows = await build_rows(
+        admin,
+        view,
+        session,
+        record=record,
+        submitted=result.values,
+        errors=result.errors,
+        request=request,
+    )
+    context = form_context(view, rows, request, record)
+    context["form_error"] = str(error) if error is not None else ""
+    return await admin.render("form.html", request, context, status_code=422)
+
+
+async def load_or_404(admin: "Admin", view: ModelView, request: Request) -> Any:
+    """Load the record the URL names, or raise a 404."""
+    async with admin.database.session() as session:
+        record = await view.fetch_record(
+            session,
+            read_key(request),
+            paths=view.get_form_fields(request),
+            request=request,
+        )
+    if record is None:
+        raise HTTPException(status_code=404, detail="No such record.")
+    return record
+
+
 def find_view(admin: "Admin", request: Request) -> ModelView:
     """The view the URL names, or a 404."""
     name = request.path_params.get("view", "")
@@ -65,3 +286,25 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
     if view is None:
         raise HTTPException(status_code=404, detail=f"No page at {name!r}.")
     return view
+
+
+def read_key(request: Request) -> Any:
+    """The primary key out of the URL, as one value or a tuple."""
+    raw = request.path_params["key"]
+    parts = raw.split(",")
+    return tuple(parts) if len(parts) > 1 else raw
+
+
+def key_text(key: Any) -> str:
+    """Write a key back the way it appears in a URL."""
+    return ",".join(key) if isinstance(key, tuple) else str(key)
+
+
+async def read_form(request: Request) -> dict[str, Any]:
+    """Read a submitted form, keeping every value of a repeated field."""
+    form = await request.form()
+    data: dict[str, Any] = {}
+    for key in form:
+        values = form.getlist(key)
+        data[key] = values if len(values) > 1 else values[0]
+    return data

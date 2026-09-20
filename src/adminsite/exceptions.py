@@ -23,6 +23,15 @@ class UnknownFieldError(AdminSiteError):
         self.path = path or name
 
 
+class RefusedError(AdminSiteError):
+    """Raise this from a hook to refuse a save or a delete.
+
+    The message is shown to the user on the form or above the list, and
+    the transaction is rolled back. Any other exception is a fault, and
+    is reported as one.
+    """
+
+
 class PermissionDeniedError(AdminSiteError):
     """Raised when the current user may not do this."""
 

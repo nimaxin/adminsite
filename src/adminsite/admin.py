@@ -64,6 +64,7 @@ class Admin:
 
     def routes(self) -> list[Route | Mount]:
         """Every route the admin answers."""
+        # The fixed paths come first, so a record cannot be called "new".
         return [
             Route("/", self._handler(endpoints.index), name="index"),
             Mount(
@@ -72,6 +73,46 @@ class Admin:
                 name="static",
             ),
             Route("/{view}", self._handler(endpoints.list_records), name="list"),
+            Route(
+                "/{view}/new",
+                self._handler(endpoints.create_form),
+                methods=["GET"],
+                name="create_form",
+            ),
+            Route(
+                "/{view}/new",
+                self._handler(endpoints.create_record),
+                methods=["POST"],
+                name="create",
+            ),
+            Route(
+                "/{view}/lookup/{path}",
+                self._handler(endpoints.lookup),
+                name="lookup",
+            ),
+            Route(
+                "/{view}/{key}",
+                self._handler(endpoints.detail),
+                name="detail",
+            ),
+            Route(
+                "/{view}/{key}/edit",
+                self._handler(endpoints.edit_form),
+                methods=["GET"],
+                name="edit_form",
+            ),
+            Route(
+                "/{view}/{key}/edit",
+                self._handler(endpoints.edit_record),
+                methods=["POST"],
+                name="edit",
+            ),
+            Route(
+                "/{view}/{key}/delete",
+                self._handler(endpoints.delete_record),
+                methods=["POST"],
+                name="delete",
+            ),
         ]
 
     async def render(

@@ -7,6 +7,7 @@ from adminsite.exceptions import (
     NotAModelError,
     PermissionDeniedError,
     RecordNotFoundError,
+    RefusedError,
     UnknownFieldError,
 )
 from adminsite.protocols import ModelInspector
@@ -39,6 +40,7 @@ __all__ = [
     "PermissionDeniedError",
     "QuerySpec",
     "RecordNotFoundError",
+    "RefusedError",
     "RelationDirection",
     "RelationSchema",
     "Sort",

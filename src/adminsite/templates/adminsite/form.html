@@ -1,0 +1,40 @@
+{% extends "adminsite/base.html" %}
+
+{% block page_title %}{{ heading }} · {{ title }}{% endblock %}
+
+{% block header %}
+  <div class="min-w-0">
+    <a class="text-[13px] text-muted hover:text-ink" href="{{ urls.list(view) }}">
+      {{ view.label_plural }}
+    </a>
+    <h1 class="truncate text-base font-semibold">{{ heading }}</h1>
+  </div>
+{% endblock %}
+
+{% block content %}
+<form class="mx-auto grid max-w-2xl gap-5 p-4 md:p-6" method="post" action="{{ action }}">
+  {{ csrf_input | safe if csrf_input }}
+  {% if form_error %}
+    <p class="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
+      {{ form_error }}
+    </p>
+  {% endif %}
+
+  {% for row in rows %}
+    {% include "adminsite/_field.html" %}
+  {% endfor %}
+
+  <div class="flex items-center gap-2 border-t border-line pt-4">
+    <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
+    <a class="btn" href="{{ cancel_url }}">Cancel</a>
+    <span class="flex-1"></span>
+    {% if can_delete and record is not none %}
+      <button class="btn btn-danger" type="submit" formmethod="post"
+              formaction="{{ urls.delete(view, key) }}"
+              onclick="return confirm('Delete this {{ view.label|lower }}? This cannot be undone.')">
+        Delete
+      </button>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "adminsite/base.html" %}
+
+{% block page_title %}{{ heading }} · {{ title }}{% endblock %}
+
+{% block header %}
+  <div class="min-w-0">
+    <a class="text-[13px] text-muted hover:text-ink" href="{{ urls.list(view) }}">
+      {{ view.label_plural }}
+    </a>
+    <h1 class="truncate text-base font-semibold">{{ heading }}</h1>
+  </div>
+{% endblock %}
+
+{% block header_actions %}
+  {% if can_edit %}
+    <a class="btn btn-primary" href="{{ urls.edit(view, key) }}">Edit</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl p-4 md:p-6">
+  <dl class="card divide-y divide-line">
+    {% for path, label, value in rows %}
+      <div class="grid gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm text-muted">{{ label }}</dt>
+        <dd class="text-sm sm:col-span-2">{{ value if value else "—" }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+</div>
+{% endblock %}
