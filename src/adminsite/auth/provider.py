@@ -1,8 +1,10 @@
-import secrets
 from collections.abc import Mapping
 from typing import Any
 
 from starlette.requests import Request
+
+from adminsite.auth.passwords import looks_hashed, verify_password
+from adminsite.exceptions import AdminSiteError
 
 SESSION_KEY = "adminsite_user"
 
@@ -53,20 +55,32 @@ class AuthProvider:
 
 
 class PasswordAuth(AuthProvider):
-    """Signs in against a fixed set of username and password pairs.
+    """Signs in against a fixed set of usernames and password hashes.
 
-    Useful for a small internal tool and for getting started. Anything
-    larger should subclass `AuthProvider` and check its own user table.
+    ```python
+    from adminsite.auth import PasswordAuth, hash_password
+
+    PasswordAuth({"nima": hash_password("letmein")})
+    ```
+
+    Passwords have to be hashed with `hash_password`, so a plain one
+    never ends up in your settings or your repository. This suits a
+    small internal tool. Anything larger should subclass `AuthProvider`
+    and check its own user table.
     """
 
     def __init__(self, users: Mapping[str, str]) -> None:
+        for username, stored in users.items():
+            if not looks_hashed(stored):
+                raise AdminSiteError(
+                    f"The password for {username!r} is not hashed. "
+                    "Use adminsite.auth.hash_password to hash it first."
+                )
         self.users = dict(users)
 
     async def verify(self, username: str, password: str) -> Any | None:
-        """Compare the password without leaking how much of it matched."""
+        """Check the password against the stored hash."""
         stored = self.users.get(username)
         if stored is None:
             return None
-        if not secrets.compare_digest(stored, password):
-            return None
-        return username
+        return username if verify_password(password, stored) else None

@@ -18,7 +18,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
-from adminsite.auth import PasswordAuth
+from adminsite.auth import PasswordAuth, hash_password
 from adminsite.fields import RelationField
 
 
@@ -132,7 +132,8 @@ admin = Admin(
     engine,
     title="Acme shop",
     views=[OrderView, CustomerView, ProductView],
-    auth=PasswordAuth({"nima": "letmein"}),
+    # Hash the password where you keep it, not here.
+    auth=PasswordAuth({"nima": hash_password("letmein")}),
     secret_key="change-this-before-you-deploy-anything",
 )
 app.mount("/admin", admin)

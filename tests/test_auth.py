@@ -6,7 +6,12 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.auth import AuthProvider, PasswordAuth
+from adminsite.auth import (
+    AuthProvider,
+    PasswordAuth,
+    hash_password,
+    verify_password,
+)
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from tests.models import Product
@@ -23,7 +28,7 @@ def build_admin(database: Database, auth: AuthProvider | None = None) -> Admin:
     site = Admin(
         database,
         title="Shop",
-        auth=auth or PasswordAuth({"nima": "letmein"}),
+        auth=auth or PasswordAuth({"nima": hash_password("letmein")}),
         secret_key=SECRET,
     )
     site.add_view(ProductView)
@@ -71,7 +76,7 @@ async def sign_in(client: httpx.AsyncClient) -> None:
 class TestSetup:
     def test_signing_in_needs_a_secret_key(self, database: Database) -> None:
         with pytest.raises(AdminSiteError, match="secret_key"):
-            Admin(database, auth=PasswordAuth({"a": "b"}))
+            Admin(database, auth=PasswordAuth({"a": hash_password("b")}))
 
 
 class TestSigningIn:
@@ -248,3 +253,27 @@ class TestCustomProvider:
             response = await client.get("/admin/products")
 
             assert response.status_code == 200
+
+
+class TestPasswordHashing:
+    def test_a_hash_does_not_contain_the_password(self) -> None:
+        stored = hash_password("letmein")
+
+        assert "letmein" not in stored
+        assert stored.startswith("pbkdf2_sha256$")
+
+    def test_the_same_password_hashes_differently_each_time(self) -> None:
+        assert hash_password("letmein") != hash_password("letmein")
+
+    def test_a_hash_verifies_only_the_right_password(self) -> None:
+        stored = hash_password("letmein")
+
+        assert verify_password("letmein", stored) is True
+        assert verify_password("letmeout", stored) is False
+
+    def test_rubbish_does_not_verify(self) -> None:
+        assert verify_password("letmein", "not-a-hash") is False
+
+    def test_plain_passwords_are_refused_at_startup(self) -> None:
+        with pytest.raises(AdminSiteError, match="not hashed"):
+            PasswordAuth({"nima": "letmein"})

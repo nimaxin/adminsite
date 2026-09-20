@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a1
 
-First working version. Not released yet.
+The first alpha. The shape of the API may still change before 0.1.0.
 
 - Read a model and describe it without any ORM detail, so another ORM can be supported later.
 - Fields that display, edit and convert values, chosen from the column types.
@@ -16,3 +16,5 @@ First working version. Not released yet.
 - Bulk actions over the chosen rows or over every row matching the filter.
 - CSV export of the filtered list.
 - Signing in, and a CSRF token on every form.
+
+`PasswordAuth` takes hashed passwords. Use `adminsite.auth.hash_password` to make one.

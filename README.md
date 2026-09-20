@@ -59,7 +59,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from adminsite import Admin, ModelView
-from adminsite.auth import PasswordAuth
+from adminsite.auth import PasswordAuth, hash_password
 
 engine = create_async_engine("postgresql+asyncpg://localhost/shop")
 app = FastAPI()
@@ -75,14 +75,16 @@ admin = Admin(
     engine,
     title="Acme",
     views=[CustomerView],
-    auth=PasswordAuth({"nima": "letmein"}),
+    auth=PasswordAuth({"nima": hash_password("letmein")}),
     secret_key="read this from your settings",
 )
 app.mount("/admin", admin)
 ```
 
-Signing in needs a `secret_key`, which signs the session cookie. `PasswordAuth` is for a small
-internal tool. For anything larger, subclass `AuthProvider` and check your own user table.
+Signing in needs a `secret_key`, which signs the session cookie. `PasswordAuth` takes hashed
+passwords, so run `hash_password` once and keep the result in your settings, never the password
+itself. It suits a small internal tool. For anything larger, subclass `AuthProvider` and check
+your own user table.
 
 ## Writing a view
 
