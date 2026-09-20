@@ -4,8 +4,16 @@
       <thead>
         <tr>
           {% for path in columns %}
+            {% set state = sort_state(request, path) %}
             <th class="heading-cell {% if view.field_for(path).widget == 'number' %}text-right{% endif %}">
-              {{ view.label_for(path) }}
+              <a class="inline-flex items-center gap-1 hover:text-ink"
+                 href="{{ urls.sorted_by(path) }}"
+                 hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
+                 hx-swap="outerHTML" hx-push-url="true">
+                {{ view.label_for(path) }}
+                {% if state == "asc" %}<span class="text-ink">&uarr;</span>{% endif %}
+                {% if state == "desc" %}<span class="text-ink">&darr;</span>{% endif %}
+              </a>
             </th>
           {% endfor %}
           <th class="heading-cell w-10"></th>
@@ -51,9 +59,13 @@
       {% endif %}
     </span>
     <span class="flex-1"></span>
+    {% set previous = urls.here(page=page_number - 1 if page_number > 2 else None) %}
+    {% set next = urls.here(page=page_number + 1) %}
     <a class="btn btn-sm {% if not page.has_previous %}pointer-events-none opacity-40{% endif %}"
-       href="{{ urls.here(page=page_number - 1 if page_number > 1 else None) }}">Previous</a>
+       href="{{ previous }}" hx-get="{{ previous }}" hx-target="#records"
+       hx-swap="outerHTML" hx-push-url="true">Previous</a>
     <a class="btn btn-sm {% if not page.has_next %}pointer-events-none opacity-40{% endif %}"
-       href="{{ urls.here(page=page_number + 1) }}">Next</a>
+       href="{{ next }}" hx-get="{{ next }}" hx-target="#records"
+       hx-swap="outerHTML" hx-push-url="true">Next</a>
   </div>
 </div>

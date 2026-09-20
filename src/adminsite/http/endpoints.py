@@ -5,7 +5,12 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
-from adminsite.query import CountMode
+from adminsite.http.listing import (
+    as_context,
+    build_panels,
+    read_list_request,
+    wants_partial,
+)
 from adminsite.security import Action
 from adminsite.views import ModelView
 
@@ -31,26 +36,26 @@ async def index(admin: "Admin", request: Request) -> Response:
 
 
 async def list_records(admin: "Admin", request: Request) -> Response:
-    """One page of records."""
+    """One page of records, with the search, filters and sort applied."""
     view = find_view(admin, request)
-    page_number = read_page(request)
+    read = read_list_request(request, view)
 
-    spec = view.build_spec(request=request, page=page_number)
+    spec = view.build_spec(
+        request=request,
+        search=read.search,
+        filters=read.values,
+        sort=read.sort,
+        page=read.page,
+    )
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
+        panels = await build_panels(view, session, spec, request)
 
-    return await admin.render(
-        "list.html",
-        request,
-        {
-            "view": view,
-            "page": page,
-            "page_number": page_number,
-            "columns": view.get_list_display(request),
-            "can_create": await view.allows(Action.CREATE, request=request),
-            "count_mode": view.count_mode is CountMode.EXACT,
-        },
-    )
+    context = as_context(view, request, spec, page, panels, read)
+    context["can_create"] = await view.allows(Action.CREATE, request=request)
+
+    template = "_table.html" if wants_partial(request) else "list.html"
+    return await admin.render(template, request, context)
 
 
 def find_view(admin: "Admin", request: Request) -> ModelView:
@@ -60,13 +65,3 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
     if view is None:
         raise HTTPException(status_code=404, detail=f"No page at {name!r}.")
     return view
-
-
-def read_page(request: Request) -> int:
-    """The page number asked for, which is 1 unless it is a sane number."""
-    raw = request.query_params.get("page", "1")
-    try:
-        number = int(raw)
-    except ValueError:
-        return 1
-    return max(number, 1)
