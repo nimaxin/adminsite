@@ -14,6 +14,7 @@ from sqlalchemy.pool import StaticPool
 from adminsite.backends.sqlalchemy import Database
 from tests.factories import build_sample_data
 from tests.models import Base
+from tests.support import Backend
 
 # One in-memory database per test, kept alive by a single pooled connection.
 SYNC_URL = "sqlite://"
@@ -74,7 +75,16 @@ def async_session_factory(
 
 
 @pytest.fixture(params=["async", "sync"])
-def database(request: pytest.FixtureRequest) -> Database:
+def backend(request: pytest.FixtureRequest) -> Backend:
     """The same database twice, once behind an async engine and once sync."""
-    engine = request.getfixturevalue(f"{request.param}_engine")
-    return Database(engine)
+    if request.param == "async":
+        engine: AsyncEngine = request.getfixturevalue("async_engine")
+        return Backend(Database(engine), engine.sync_engine, is_async=True)
+    sync: Engine = request.getfixturevalue("sync_engine")
+    return Backend(Database(sync), sync, is_async=False)
+
+
+@pytest.fixture
+def database(backend: Backend) -> Database:
+    """The database behind the current backend."""
+    return backend.database
