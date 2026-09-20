@@ -1,7 +1,7 @@
 from enum import StrEnum
 
 
-class Action(StrEnum):
+class Permission(StrEnum):
     """The things a user can be allowed to do with a view."""
 
     VIEW = "view"
@@ -11,6 +11,6 @@ class Action(StrEnum):
     EXPORT = "export"
 
 
-def action_name(action: "Action | str") -> str:
-    """Read an action as plain text, so custom actions work too."""
-    return action.value if isinstance(action, Action) else action
+def permission_name(permission: "Permission | str") -> str:
+    """Read a permission as plain text, so custom ones work too."""
+    return permission.value if isinstance(permission, Permission) else permission

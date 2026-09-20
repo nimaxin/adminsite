@@ -86,6 +86,17 @@ class Admin:
                 name="create",
             ),
             Route(
+                "/{view}/export",
+                self._handler(endpoints.export_records),
+                name="export",
+            ),
+            Route(
+                "/{view}/action/{name}",
+                self._handler(endpoints.run_action),
+                methods=["POST"],
+                name="action",
+            ),
+            Route(
                 "/{view}/lookup/{path}",
                 self._handler(endpoints.lookup),
                 name="lookup",

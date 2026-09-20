@@ -5,7 +5,7 @@ from sqlalchemy import Select, select
 
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import PermissionDeniedError
-from adminsite.security import Action
+from adminsite.security import Permission
 from adminsite.views import ModelView
 from tests.models import Customer, Order
 
@@ -30,11 +30,11 @@ class ReadOnlyOrders(ModelView, model=Order):
 
 class ByRole(ModelView, model=Order):
     async def allows(
-        self, action: Action | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> bool:
-        if action == Action.DELETE:
+        if action == Permission.DELETE:
             return bool(request == "manager")
-        if action == Action.EDIT and record is not None:
+        if action == Permission.EDIT and record is not None:
             return bool(record.status != "shipped")
         return True
 
@@ -113,10 +113,10 @@ class TestActionPermissions:
     async def test_flags_refuse_the_action(self, database: Database) -> None:
         view = ReadOnlyOrders()
 
-        assert await view.allows(Action.VIEW) is True
-        assert await view.allows(Action.CREATE) is False
-        assert await view.allows(Action.EDIT) is False
-        assert await view.allows(Action.DELETE) is False
+        assert await view.allows(Permission.VIEW) is True
+        assert await view.allows(Permission.CREATE) is False
+        assert await view.allows(Permission.EDIT) is False
+        assert await view.allows(Permission.DELETE) is False
 
     async def test_saving_is_refused_when_creating_is_not_allowed(
         self, database: Database
@@ -138,8 +138,8 @@ class TestActionPermissions:
     async def test_permission_can_depend_on_the_user(self, database: Database) -> None:
         view = ByRole()
 
-        assert await view.allows(Action.DELETE, request="manager") is True
-        assert await view.allows(Action.DELETE, request="support") is False
+        assert await view.allows(Permission.DELETE, request="manager") is True
+        assert await view.allows(Permission.DELETE, request="support") is False
 
     async def test_permission_can_depend_on_the_record(
         self, database: Database
@@ -148,8 +148,8 @@ class TestActionPermissions:
         shipped = Order(status="shipped")
         pending = Order(status="pending")
 
-        assert await view.allows(Action.EDIT, record=shipped) is False
-        assert await view.allows(Action.EDIT, record=pending) is True
+        assert await view.allows(Permission.EDIT, record=shipped) is False
+        assert await view.allows(Permission.EDIT, record=pending) is True
 
     async def test_a_refused_delete_leaves_the_record(self, database: Database) -> None:
         view = ByRole()

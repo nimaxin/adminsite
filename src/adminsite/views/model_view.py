@@ -1,8 +1,12 @@
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from sqlalchemy import Select
 
+if TYPE_CHECKING:
+    from adminsite.actions.selection import Selection
+
+from adminsite.actions.action import Action, action_of
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
@@ -15,7 +19,7 @@ from adminsite.exceptions import (
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.filters import Filter, FilterValue
 from adminsite.query import CountMode, Page, QuerySpec, Sort
-from adminsite.security import Action, action_name
+from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, pluralize, snake_case
 from adminsite.views.writing import (
     DeleteContext,
@@ -84,6 +88,7 @@ class ModelView:
         self.label_plural = self.label_plural or self.schema.label_plural
 
         self._overrides = {field.name: field for field in self.fields}
+        self._actions = self._collect_actions()
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, Field] = {}
@@ -199,27 +204,59 @@ class ModelView:
         )
         return spec.page(page)
 
+    # Actions.
+
+    def get_actions(self, request: Any = None) -> tuple[Action, ...]:
+        """The bulk actions this view offers, in the order they appear."""
+        return tuple(self._actions.values())
+
+    def action_named(self, name: str) -> Action:
+        """Find an action by name, or say it is not there."""
+        try:
+            return self._actions[name]
+        except KeyError:
+            raise AdminSiteError(
+                f"{type(self).__name__} has no action called {name!r}."
+            ) from None
+
+    async def run_action(
+        self, found: Action, selection: "Selection", *, request: Any = None
+    ) -> str:
+        """Run an action and return what to tell the user."""
+        await self.ensure(found.permission, request=request)
+        handler = getattr(self, found.method)
+        message = await handler(selection)
+        return str(message) if message else f"{found.label} done."
+
+    def _collect_actions(self) -> dict[str, Action]:
+        found: dict[str, Action] = {}
+        for name in dir(type(self)):
+            marked = action_of(getattr(type(self), name, None))
+            if marked is not None:
+                found[marked.name] = marked
+        return found
+
     # Permissions. Four levels: the view, the action, the field and the row.
 
     async def allows(
-        self, action: Action | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> bool:
         """Whether the current user may do this, to this record."""
-        name = action_name(action)
-        if name == Action.CREATE:
+        name = permission_name(action)
+        if name == Permission.CREATE:
             return self.can_create
-        if name == Action.EDIT:
+        if name == Permission.EDIT:
             return self.can_edit
-        if name == Action.DELETE:
+        if name == Permission.DELETE:
             return self.can_delete
         return True
 
     async def ensure(
-        self, action: Action | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> None:
         """Raise unless the current user may do this."""
         if not await self.allows(action, request=request, record=record):
-            raise PermissionDeniedError(action_name(action), self.label_plural)
+            raise PermissionDeniedError(permission_name(action), self.label_plural)
 
     def scope_query(
         self, statement: Select[Any], *, request: Any = None
@@ -242,7 +279,7 @@ class ModelView:
         self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
     ) -> Page:
         """Read one page, within the scope and after a permission check."""
-        await self.ensure(Action.VIEW, request=request)
+        await self.ensure(Permission.VIEW, request=request)
         return await self.repository.list(session, spec, self.scope_for(request))
 
     async def fetch_record(
@@ -254,7 +291,7 @@ class ModelView:
         request: Any = None,
     ) -> Any | None:
         """Load one record, or nothing if it is missing or out of scope."""
-        await self.ensure(Action.VIEW, request=request)
+        await self.ensure(Permission.VIEW, request=request)
         return await self.repository.get(
             session, key, tuple(paths), self.scope_for(request)
         )
@@ -302,7 +339,7 @@ class ModelView:
         """
         created = record is None
         await self.ensure(
-            Action.CREATE if created else Action.EDIT,
+            Permission.CREATE if created else Permission.EDIT,
             request=request,
             record=record,
         )
@@ -329,7 +366,7 @@ class ModelView:
         self, session: SessionAdapter, record: Any, *, request: Any = None
     ) -> None:
         """Delete a record, running the hooks in one transaction."""
-        await self.ensure(Action.DELETE, request=request, record=record)
+        await self.ensure(Permission.DELETE, request=request, record=record)
         async with session.transaction():
             context = DeleteContext(session=session, record=record, request=request)
             await self.before_delete(context)

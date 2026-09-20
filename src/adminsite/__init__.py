@@ -19,13 +19,12 @@ from adminsite.schema import (
     RelationDirection,
     RelationSchema,
 )
-from adminsite.security import Action
+from adminsite.security import Permission
 from adminsite.views import ModelView, ViewRegistry
 
 __version__ = version("adminsite")
 
 __all__ = [
-    "Action",
     "Admin",
     "AdminSiteError",
     "CountMode",
@@ -37,6 +36,7 @@ __all__ = [
     "ModelView",
     "NotAModelError",
     "Page",
+    "Permission",
     "PermissionDeniedError",
     "QuerySpec",
     "RecordNotFoundError",

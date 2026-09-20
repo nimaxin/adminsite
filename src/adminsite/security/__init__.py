@@ -1,3 +1,3 @@
-from adminsite.security.permissions import Action, action_name
+from adminsite.security.permissions import Permission, permission_name
 
-__all__ = ["Action", "action_name"]
+__all__ = ["Permission", "permission_name"]

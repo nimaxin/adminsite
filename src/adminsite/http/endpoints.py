@@ -3,12 +3,14 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import func, select
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import RedirectResponse, Response, StreamingResponse
 
+from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import RelationField
+from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.listing import (
     as_context,
@@ -19,7 +21,7 @@ from adminsite.http.listing import (
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.query import CountMode, QuerySpec
-from adminsite.security import Action
+from adminsite.security import Permission
 from adminsite.views import ModelView
 from adminsite.views.writing import FormResult
 
@@ -32,7 +34,7 @@ async def index(admin: "Admin", request: Request) -> Response:
     counts = []
     async with admin.database.session() as session:
         for view in admin.views:
-            if not await view.allows(Action.VIEW, request=request):
+            if not await view.allows(Permission.VIEW, request=request):
                 continue
             total = await session.scalar(
                 select(func.count()).select_from(
@@ -61,7 +63,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         panels = await build_panels(view, session, spec, request)
 
     context = as_context(view, request, spec, page, panels, read)
-    context["can_create"] = await view.allows(Action.CREATE, request=request)
+    context["can_create"] = await view.allows(Permission.CREATE, request=request)
 
     template = "_table.html" if wants_partial(request) else "list.html"
     return await admin.render(template, request, context)
@@ -70,7 +72,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 async def create_form(admin: "Admin", request: Request) -> Response:
     """The empty form for adding a record."""
     view = find_view(admin, request)
-    await view.ensure(Action.CREATE, request=request)
+    await view.ensure(Permission.CREATE, request=request)
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, request=request)
@@ -81,7 +83,7 @@ async def create_form(admin: "Admin", request: Request) -> Response:
 async def create_record(admin: "Admin", request: Request) -> Response:
     """Save a new record, or show the form again with what went wrong."""
     view = find_view(admin, request)
-    await view.ensure(Action.CREATE, request=request)
+    await view.ensure(Permission.CREATE, request=request)
 
     result = view.parse_form(await read_form(request), request=request)
     async with admin.database.session() as session:
@@ -116,7 +118,9 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": view.identity_of(record),
             "heading": view.title_of(record),
             "rows": rows,
-            "can_edit": await view.allows(Action.EDIT, request=request, record=record),
+            "can_edit": await view.allows(
+                Permission.EDIT, request=request, record=record
+            ),
         },
     )
 
@@ -125,7 +129,7 @@ async def edit_form(admin: "Admin", request: Request) -> Response:
     """The form for changing a record."""
     view = find_view(admin, request)
     record = await load_or_404(admin, view, request)
-    await view.ensure(Action.EDIT, request=request, record=record)
+    await view.ensure(Permission.EDIT, request=request, record=record)
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, record=record, request=request)
@@ -147,7 +151,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
         )
         if record is None:
             raise HTTPException(status_code=404, detail="No such record.")
-        await view.ensure(Action.EDIT, request=request, record=record)
+        await view.ensure(Permission.EDIT, request=request, record=record)
 
         result = view.parse_form(submitted, record=record, request=request)
         if not result.ok:
@@ -172,7 +176,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
         record = await view.fetch_record(session, read_key(request), request=request)
         if record is None:
             raise HTTPException(status_code=404, detail="No such record.")
-        await view.ensure(Action.DELETE, request=request, record=record)
+        await view.ensure(Permission.DELETE, request=request, record=record)
         try:
             await view.delete(session, record, request=request)
             await session.commit()
@@ -308,3 +312,67 @@ async def read_form(request: Request) -> dict[str, Any]:
         values = form.getlist(key)
         data[key] = values if len(values) > 1 else values[0]
     return data
+
+
+async def run_action(admin: "Admin", request: Request) -> Response:
+    """Run a bulk action over the chosen rows, or over every match."""
+    view = find_view(admin, request)
+    found = view.action_named(request.path_params["name"])
+
+    submitted = await read_form(request)
+    keys = submitted.get("keys", [])
+    chosen = keys if isinstance(keys, list) else [keys]
+    read = read_list_request(request, view)
+    spec = view.build_spec(
+        request=request,
+        search=read.search,
+        filters=read.values,
+        sort=read.sort,
+    )
+
+    async with admin.database.session() as session:
+        selection = Selection(
+            view=view,
+            session=session,
+            spec=spec,
+            keys=tuple(chosen),
+            everything=submitted.get("everything") == "1",
+            request=request,
+        )
+        try:
+            message = await view.run_action(found, selection, request=request)
+            await session.commit()
+        except RefusedError as error:
+            add_message(request, str(error), kind="error")
+            return back_to_list(request, view)
+
+    add_message(request, message)
+    return back_to_list(request, view)
+
+
+async def export_records(admin: "Admin", request: Request) -> Response:
+    """Stream the current list as CSV, filters and all."""
+    view = find_view(admin, request)
+    await view.ensure(Permission.EXPORT, request=request)
+
+    read = read_list_request(request, view)
+    spec = view.build_spec(
+        request=request,
+        search=read.search,
+        filters=read.values,
+        sort=read.sort,
+    ).replace(limit=None, offset=0, count=CountMode.NONE)
+
+    filename = f"{view.name}.csv"
+    return StreamingResponse(
+        stream_csv(admin, view, spec, request),
+        media_type="text/csv",
+        headers={"content-disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def back_to_list(request: Request, view: ModelView) -> RedirectResponse:
+    """Return to the list the action was started from."""
+    query = request.url.query
+    target = Urls(request).list(view)
+    return RedirectResponse(f"{target}?{query}" if query else target, status_code=303)

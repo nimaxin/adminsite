@@ -144,4 +144,5 @@ def as_context(
         "sort": sort_value(spec),
         "spec": spec,
         "export_params": export_params(request),
+        "actions": view.get_actions(request),
     }

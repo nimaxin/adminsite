@@ -1,54 +1,112 @@
-<div id="records" class="flex min-h-0 flex-1 flex-col">
-  <div class="min-h-0 flex-1 overflow-auto">
-    <table class="w-full border-collapse">
-      <thead>
-        <tr>
-          {% for path in columns %}
-            {% set state = sort_state(request, path) %}
-            <th class="heading-cell {% if view.field_for(path).widget == 'number' %}text-right{% endif %}">
-              <a class="inline-flex items-center gap-1 hover:text-ink"
-                 href="{{ urls.sorted_by(path) }}"
-                 hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
-                 hx-swap="outerHTML" hx-push-url="true">
-                {{ view.label_for(path) }}
-                {% if state == "asc" %}<span class="text-ink">&uarr;</span>{% endif %}
-                {% if state == "desc" %}<span class="text-ink">&darr;</span>{% endif %}
-              </a>
-            </th>
-          {% endfor %}
-          <th class="heading-cell w-10"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in page %}
-          <tr class="hover:bg-surface">
-            {% for path in columns %}
-              <td class="cell {% if view.field_for(path).widget == 'number' %}text-right tabular-nums{% endif %}">
-                {% if loop.first %}
-                  <a class="text-brand hover:underline"
-                     href="{{ urls.detail(view, view.identity_of(row)) }}">
-                    {{ view.display(row, path) or view.title_of(row) }}
-                  </a>
-                {% else %}
-                  {{ view.display(row, path) }}
-                {% endif %}
-              </td>
-            {% endfor %}
-            <td class="cell text-right">
-              <a class="text-muted hover:text-ink"
-                 href="{{ urls.edit(view, view.identity_of(row)) }}">Edit</a>
-            </td>
-          </tr>
-        {% else %}
-          <tr>
-            <td class="p-10 text-center text-sm text-muted" colspan="{{ columns|length + 1 }}">
-              No {{ view.label_plural|lower }} to show.
-            </td>
-          </tr>
+<div id="records" class="flex min-h-0 flex-1 flex-col"
+     x-data="{ picked: 0, everything: false }">
+  <form method="post" class="flex min-h-0 flex-1 flex-col"
+        x-ref="actions" action="{{ urls.action(view, '') }}">
+    {{ csrf_input | safe if csrf_input }}
+    <input type="hidden" name="everything" :value="everything ? '1' : ''">
+
+    {% if actions %}
+      <div class="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-4 py-2 md:px-6"
+           x-show="picked > 0" x-cloak style="display: none">
+        <span class="text-sm">
+          <span x-text="picked"></span> selected
+        </span>
+        {% if page.total is not none %}
+          <button class="text-sm text-brand underline" type="button"
+                  x-show="!everything && picked >= {{ page|length }}"
+                  @click="everything = true">
+            Select all {{ "{:,}".format(page.total) }} matching
+          </button>
+          <span class="text-sm text-muted" x-show="everything">
+            All {{ "{:,}".format(page.total) }} matching rows are selected.
+          </span>
+        {% endif %}
+        <span class="flex-1"></span>
+        {% for item in actions %}
+          <button class="btn btn-sm {% if item.dangerous %}btn-danger{% endif %}"
+                  type="submit"
+                  formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+                  {% if item.needs_confirming %}
+                    onclick="return confirm({{ item.confirm|tojson }})"
+                  {% endif %}>
+            {{ item.label }}
+          </button>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
+      </div>
+    {% endif %}
+
+    <div class="min-h-0 flex-1 overflow-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr>
+            {% if actions %}
+              <th class="heading-cell w-10">
+                <input type="checkbox" class="accent-brand" aria-label="Select this page"
+                       @change="
+                         $refs.actions.querySelectorAll('input[name=keys]')
+                           .forEach(box => box.checked = $event.target.checked);
+                         picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
+                         everything = false;
+                       ">
+              </th>
+            {% endif %}
+            {% for path in columns %}
+              {% set state = sort_state(request, path) %}
+              <th class="heading-cell {% if view.field_for(path).widget == 'number' %}text-right{% endif %}">
+                <a class="inline-flex items-center gap-1 hover:text-ink"
+                   href="{{ urls.sorted_by(path) }}"
+                   hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
+                   hx-swap="outerHTML" hx-push-url="true">
+                  {{ view.label_for(path) }}
+                  {% if state == "asc" %}<span class="text-ink">&uarr;</span>{% endif %}
+                  {% if state == "desc" %}<span class="text-ink">&darr;</span>{% endif %}
+                </a>
+              </th>
+            {% endfor %}
+            <th class="heading-cell w-10"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in page %}
+            {% set key = view.identity_of(row) %}
+            <tr class="hover:bg-surface">
+              {% if actions %}
+                <td class="cell">
+                  <input type="checkbox" class="accent-brand" name="keys" value="{{ key }}"
+                         aria-label="Select this row"
+                         @change="
+                           picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
+                           everything = false;
+                         ">
+                </td>
+              {% endif %}
+              {% for path in columns %}
+                <td class="cell {% if view.field_for(path).widget == 'number' %}text-right tabular-nums{% endif %}">
+                  {% if loop.first %}
+                    <a class="text-brand hover:underline" href="{{ urls.detail(view, key) }}">
+                      {{ view.display(row, path) or view.title_of(row) }}
+                    </a>
+                  {% else %}
+                    {{ view.display(row, path) }}
+                  {% endif %}
+                </td>
+              {% endfor %}
+              <td class="cell text-right">
+                <a class="text-muted hover:text-ink" href="{{ urls.edit(view, key) }}">Edit</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td class="p-10 text-center text-sm text-muted"
+                  colspan="{{ columns|length + 2 }}">
+                No {{ view.label_plural|lower }} to show.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
 
   <div class="flex items-center gap-3 border-t border-line px-4 py-2.5 text-[13px] text-muted md:px-6">
     <span>
