@@ -71,8 +71,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "C4", "SIM", "TC", "RUF", "D"]
-# Classes and functions carry the documentation, modules and packages do not.
-ignore = ["D100", "D104", "D107"]
+# Classes and functions carry the documentation, modules and packages do not,
+# and a dunder says what it is by its name.
+ignore = ["D100", "D104", "D105", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
