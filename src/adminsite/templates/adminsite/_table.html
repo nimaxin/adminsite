@@ -1,0 +1,59 @@
+<div id="records" class="flex min-h-0 flex-1 flex-col">
+  <div class="min-h-0 flex-1 overflow-auto">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr>
+          {% for path in columns %}
+            <th class="heading-cell {% if view.field_for(path).widget == 'number' %}text-right{% endif %}">
+              {{ view.label_for(path) }}
+            </th>
+          {% endfor %}
+          <th class="heading-cell w-10"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page %}
+          <tr class="hover:bg-surface">
+            {% for path in columns %}
+              <td class="cell {% if view.field_for(path).widget == 'number' %}text-right tabular-nums{% endif %}">
+                {% if loop.first %}
+                  <a class="text-brand hover:underline"
+                     href="{{ urls.detail(view, view.identity_of(row)) }}">
+                    {{ view.display(row, path) or view.title_of(row) }}
+                  </a>
+                {% else %}
+                  {{ view.display(row, path) }}
+                {% endif %}
+              </td>
+            {% endfor %}
+            <td class="cell text-right">
+              <a class="text-muted hover:text-ink"
+                 href="{{ urls.edit(view, view.identity_of(row)) }}">Edit</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td class="p-10 text-center text-sm text-muted" colspan="{{ columns|length + 1 }}">
+              No {{ view.label_plural|lower }} to show.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex items-center gap-3 border-t border-line px-4 py-2.5 text-[13px] text-muted md:px-6">
+    <span>
+      {% if page.total is not none %}
+        {{ page.first_position }} to {{ page.last_position }} of {{ "{:,}".format(page.total) }}
+      {% else %}
+        {{ page.first_position }} to {{ page.last_position }}
+      {% endif %}
+    </span>
+    <span class="flex-1"></span>
+    <a class="btn btn-sm {% if not page.has_previous %}pointer-events-none opacity-40{% endif %}"
+       href="{{ urls.here(page=page_number - 1 if page_number > 1 else None) }}">Previous</a>
+    <a class="btn btn-sm {% if not page.has_next %}pointer-events-none opacity-40{% endif %}"
+       href="{{ urls.here(page=page_number + 1) }}">Next</a>
+  </div>
+</div>

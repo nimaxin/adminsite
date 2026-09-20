@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@source "../src/adminsite/templates";
+
+/* Dark mode follows the browser, unless the viewer picked a side. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) *));
+
+@theme {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+  --color-on-brand: var(--on-brand);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  --canvas: oklch(0.995 0 0);
+  --surface: oklch(0.98 0.002 34);
+  --raised: oklch(0.96 0.002 34);
+  --ink: oklch(0.2 0 0);
+  --muted: oklch(0.44 0 0);
+  --faint: oklch(0.62 0 0);
+  --line: oklch(0.9 0.002 34);
+  --line-strong: oklch(0.84 0.002 34);
+  --brand: hsl(152.9 60% 42%);
+  --brand-soft: hsl(147.6 72.5% 94%);
+  --brand-line: hsl(151.3 66.9% 76%);
+  --on-brand: oklch(0.99 0 0);
+  --warn: hsl(30.3 80.3% 40%);
+  --danger: hsl(9.9 82% 43.5%);
+  --danger-soft: hsl(7.1 100% 97%);
+  --info: hsl(217 70% 45%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: oklch(0.19 0.005 159);
+    --surface: oklch(0.165 0.005 159);
+    --raised: oklch(0.235 0.005 159);
+    --ink: oklch(0.95 0.005 159);
+    --muted: oklch(0.72 0.005 159);
+    --faint: oklch(0.58 0.005 159);
+    --line: oklch(0.27 0.005 159);
+    --line-strong: oklch(0.34 0.005 159);
+    --brand: hsl(153.1 60.2% 52.7%);
+    --brand-soft: hsl(155.5 100% 11%);
+    --brand-line: hsl(154.9 100% 22%);
+    --on-brand: oklch(0.16 0.01 159);
+    --warn: hsl(38.9 100% 60%);
+    --danger: hsl(10.2 77.9% 62%);
+    --danger-soft: hsl(7.5 51.3% 17%);
+    --info: hsl(217 80% 72%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --canvas: oklch(0.19 0.005 159);
+  --surface: oklch(0.165 0.005 159);
+  --raised: oklch(0.235 0.005 159);
+  --ink: oklch(0.95 0.005 159);
+  --muted: oklch(0.72 0.005 159);
+  --faint: oklch(0.58 0.005 159);
+  --line: oklch(0.27 0.005 159);
+  --line-strong: oklch(0.34 0.005 159);
+  --brand: hsl(153.1 60.2% 52.7%);
+  --brand-soft: hsl(155.5 100% 11%);
+  --brand-line: hsl(154.9 100% 22%);
+  --on-brand: oklch(0.16 0.01 159);
+  --warn: hsl(38.9 100% 60%);
+  --danger: hsl(10.2 77.9% 62%);
+  --danger-soft: hsl(7.5 51.3% 17%);
+  --info: hsl(217 80% 72%);
+}
+
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-8 items-center gap-2 rounded-md border border-line-strong
+      bg-canvas px-3 text-sm whitespace-nowrap hover:bg-raised;
+  }
+  .btn-primary {
+    @apply border-brand bg-brand text-on-brand font-medium hover:brightness-110;
+  }
+  .btn-danger {
+    @apply border-danger/40 text-danger hover:bg-danger-soft;
+  }
+  .btn-quiet {
+    @apply border-dashed text-muted;
+  }
+  .btn-sm {
+    @apply h-7 px-2.5 text-[13px];
+  }
+  .input {
+    @apply h-9 w-full rounded-md border border-line bg-canvas px-3 text-sm
+      outline-none focus:border-line-strong focus:ring-2 focus:ring-brand/25;
+  }
+  .label {
+    @apply text-sm text-muted;
+  }
+  .chip {
+    @apply inline-flex h-8 items-center gap-1.5 rounded-md border border-line
+      bg-raised pl-3 pr-1 text-sm;
+  }
+  .card {
+    @apply rounded-xl border border-line bg-canvas;
+  }
+  .nav-item {
+    @apply flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted
+      hover:bg-raised hover:text-ink;
+  }
+  .nav-item-on {
+    @apply bg-raised text-ink font-medium;
+  }
+  .cell {
+    @apply h-11 border-b border-line/70 px-3 text-sm whitespace-nowrap;
+  }
+  .heading-cell {
+    @apply sticky top-0 z-10 h-9 border-b border-line bg-canvas px-3 text-left
+      text-[13px] font-normal text-muted;
+  }
+}

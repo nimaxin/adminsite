@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block page_title %}{{ title }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
+<script src="{{ urls.static('htmx.min.js') }}" defer></script>
+<script src="{{ urls.static('alpine.min.js') }}" defer></script>
+<script>
+  try {
+    const saved = localStorage.getItem("adminsite-theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (error) {}
+  function switchTheme() {
+    const root = document.documentElement;
+    const dark = root.dataset.theme
+      ? root.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
+  }
+</script>
+</head>
+<body class="h-full font-sans text-[14px] antialiased">
+<div class="flex h-full">
+  <aside class="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
+    <a href="{{ urls.index() }}" class="flex h-14 items-center gap-2.5 border-b border-line px-4">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M4 3h12v5l-4 3v6H8v-6L4 8z" fill="none" stroke="var(--brand)" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      <span class="font-semibold">{{ title }}</span>
+    </a>
+    <nav class="flex-1 overflow-y-auto p-2">
+      {% for group, views in groups %}
+        <div class="mb-4">
+          {% if group %}
+            <h2 class="mb-1 px-2.5 text-xs text-faint">{{ group }}</h2>
+          {% endif %}
+          {% for item in views %}
+            <a href="{{ urls.list(item) }}"
+               class="nav-item {% if view and view.name == item.name %}nav-item-on{% endif %}">
+              {{ item.label_plural }}
+            </a>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </nav>
+    <div class="flex items-center gap-2 border-t border-line px-4 py-3 text-sm text-muted">
+      {% if user %}
+        <span class="flex-1 truncate">{{ user }}</span>
+        <form method="post" action="{{ urls.logout() }}">
+          {{ csrf_input | safe if csrf_input }}
+          <button class="btn btn-sm" type="submit">Sign out</button>
+        </form>
+      {% else %}
+        <span class="flex-1"></span>
+      {% endif %}
+      <button class="btn btn-sm" type="button" onclick="switchTheme()" aria-label="Switch theme">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex min-w-0 flex-1 flex-col">
+    <header class="flex h-14 items-center gap-3 border-b border-line px-4 md:px-6">
+      <a href="{{ urls.index() }}" class="font-semibold md:hidden">{{ title }}</a>
+      <div class="min-w-0 flex-1">
+        {% block header %}{% endblock %}
+      </div>
+      {% block header_actions %}{% endblock %}
+    </header>
+
+    {% if messages %}
+      <div class="border-b border-line px-4 py-2 md:px-6">
+        {% for message in messages %}
+          <p class="text-sm {% if message.kind == 'error' %}text-danger{% else %}text-muted{% endif %}">
+            {{ message.text }}
+          </p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="min-h-0 flex-1 overflow-auto">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+</body>
+</html>

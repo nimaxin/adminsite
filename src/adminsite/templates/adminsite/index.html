@@ -1,0 +1,20 @@
+{% extends "adminsite/base.html" %}
+
+{% block header %}<h1 class="text-base font-semibold">{{ title }}</h1>{% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+  {% if counts %}
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {% for item, count in counts %}
+        <a href="{{ urls.list(item) }}" class="card p-4 hover:border-line-strong">
+          <div class="text-sm text-muted">{{ item.label_plural }}</div>
+          <div class="mt-1 font-mono text-2xl">{{ "{:,}".format(count) }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-sm text-muted">No models are registered yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
