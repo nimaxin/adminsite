@@ -1,4 +1,4 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
@@ -8,9 +8,9 @@ from sqlalchemy.orm import aliased
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.exceptions import InvalidPathError
+from adminsite.exceptions import InvalidPathError, RecordNotFoundError
 from adminsite.query import CountMode, Page, QuerySpec
-from adminsite.schema import FieldPath, FieldSchema
+from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationSchema
 
 if TYPE_CHECKING:
     from adminsite.backends.sqlalchemy.filters import SQLFilter
@@ -87,6 +87,38 @@ class SQLAlchemyRepository:
                 *build_load_options(self.inspector, self.model, paths)
             )
         return (await session.scalars(statement)).unique().first()
+
+    async def create(self, session: SessionAdapter, values: Mapping[str, Any]) -> Any:
+        """Build a record from the given values and put it in the session."""
+        record = self.model()
+        await self.apply_values(session, record, values)
+        await session.add(record)
+        await session.flush()
+        return record
+
+    async def update(
+        self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
+    ) -> Any:
+        """Change a record, leaving anything not given as it was."""
+        await self.apply_values(session, record, values)
+        await session.flush()
+        return record
+
+    async def delete(self, session: SessionAdapter, record: Any) -> None:
+        """Remove a record."""
+        await session.delete(record)
+        await session.flush()
+
+    async def apply_values(
+        self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
+    ) -> None:
+        """Write values onto a record, loading any records they link to."""
+        for name, value in values.items():
+            relation = self.schema.relations.get(name)
+            if relation is None:
+                setattr(record, name, value)
+                continue
+            setattr(record, name, await self._linked(session, relation, value))
 
     def base_statement(self) -> Select[Any]:
         """The statement every read starts from."""
@@ -172,6 +204,44 @@ class SQLAlchemyRepository:
         """Write the primary key of a record as one string, for a URL."""
         values = [str(getattr(record, name)) for name in self.schema.primary_key]
         return ",".join(values)
+
+    async def _linked(
+        self, session: SessionAdapter, relation: RelationSchema, value: Any
+    ) -> Any:
+        if relation.collection:
+            keys = value or ()
+            return [await self._load_linked(session, relation, key) for key in keys]
+        if value is None or value == "":
+            return None
+        return await self._load_linked(session, relation, value)
+
+    async def _load_linked(
+        self, session: SessionAdapter, relation: RelationSchema, key: Any
+    ) -> Any:
+        if isinstance(key, relation.target):
+            return key
+        target = self.inspector.inspect(relation.target)
+        wanted = self._as_key(target, key)
+        record = await session.get(relation.target, wanted)
+        if record is None:
+            raise RecordNotFoundError(relation.target, key)
+        return record
+
+    def _as_key(self, target: ModelSchema, key: Any) -> Any:
+        values = key if isinstance(key, tuple) else (key,)
+        converted = [
+            self._coerce(target.field_named(name).python_type, value)
+            for name, value in zip(target.primary_key, values, strict=False)
+        ]
+        return converted[0] if len(converted) == 1 else tuple(converted)
+
+    def _coerce(self, python_type: type[Any], value: Any) -> Any:
+        if isinstance(value, python_type):
+            return value
+        try:
+            return python_type(value)
+        except (TypeError, ValueError, ArithmeticError, InvalidOperation):
+            return value
 
     # The annotation says Sequence because this class has a method named
     # list, which shadows the builtin inside the class body.

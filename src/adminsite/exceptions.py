@@ -23,6 +23,15 @@ class UnknownFieldError(AdminSiteError):
         self.path = path or name
 
 
+class RecordNotFoundError(AdminSiteError):
+    """Raised when a key does not match any record."""
+
+    def __init__(self, model: type[object], key: object) -> None:
+        super().__init__(f"No {model.__name__} has the key {key!r}.")
+        self.model = model
+        self.key = key
+
+
 class FieldValidationError(AdminSiteError):
     """Raised when a submitted value cannot be stored in a field."""
 

@@ -1,14 +1,21 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.exceptions import AdminSiteError
+from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.filters import Filter, FilterValue
 from adminsite.query import CountMode, QuerySpec, Sort
 from adminsite.text import RecordValues, pluralize, snake_case
+from adminsite.views.writing import (
+    DeleteContext,
+    FormData,
+    FormResult,
+    SaveContext,
+)
 
 
 class ModelView:
@@ -185,6 +192,89 @@ class ModelView:
         )
         return spec.page(page)
 
+    # Writing.
+
+    def parse_form(
+        self,
+        data: FormData,
+        *,
+        record: Any = None,
+        request: Any = None,
+    ) -> FormResult:
+        """Read a submitted form into values, collecting any messages."""
+        result = FormResult()
+        readonly = set(self.get_readonly_fields(request, record))
+
+        for path in self.get_form_fields(request, record):
+            if path in readonly:
+                continue
+            item = self.field_for(path)
+            raw = data.get(path)
+            try:
+                if isinstance(item, RelationField) and item.collection:
+                    result.values[path] = item.parse_many(_as_list(raw))
+                else:
+                    result.values[path] = item.parse(_as_text(raw))
+            except FieldValidationError as error:
+                result.errors[path] = error.message
+
+        return result
+
+    async def save(
+        self,
+        session: SessionAdapter,
+        values: Mapping[str, Any],
+        *,
+        record: Any = None,
+        request: Any = None,
+    ) -> Any:
+        """Create or change a record, running the hooks in one transaction.
+
+        A hook that raises rolls the whole save back, so business rules can
+        refuse a change.
+        """
+        created = record is None
+        async with session.transaction():
+            target = record if record is not None else self.repository.model()
+            context = SaveContext(
+                session=session,
+                record=target,
+                values=values,
+                created=created,
+                request=request,
+            )
+            await self.before_save(context)
+
+            await self.repository.apply_values(session, target, values)
+            if created:
+                await session.add(target)
+            await session.flush()
+
+            await self.after_save(context)
+        return target
+
+    async def delete(
+        self, session: SessionAdapter, record: Any, *, request: Any = None
+    ) -> None:
+        """Delete a record, running the hooks in one transaction."""
+        async with session.transaction():
+            context = DeleteContext(session=session, record=record, request=request)
+            await self.before_delete(context)
+            await self.repository.delete(session, record)
+            await self.after_delete(context)
+
+    async def before_save(self, context: SaveContext) -> None:
+        """Runs before the values are written. Raise to refuse the save."""
+
+    async def after_save(self, context: SaveContext) -> None:
+        """Runs after the flush, while the transaction is still open."""
+
+    async def before_delete(self, context: DeleteContext) -> None:
+        """Runs before a record is deleted. Raise to refuse the delete."""
+
+    async def after_delete(self, context: DeleteContext) -> None:
+        """Runs after the delete, while the transaction is still open."""
+
     def _build_filters(self) -> tuple[SQLFilter, ...]:
         repository = SQLAlchemyRepository(self.model, self.inspector)
         built: list[SQLFilter] = []
@@ -202,3 +292,21 @@ class ModelView:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(model={self.model.__name__})"
+
+
+def _as_text(raw: str | Sequence[str] | None) -> str | None:
+    """Read one value out of form data, which may hold several."""
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        return raw
+    return raw[0] if raw else None
+
+
+def _as_list(raw: str | Sequence[str] | None) -> list[str]:
+    """Read every value out of form data."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [raw]
+    return list(raw)
