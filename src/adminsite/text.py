@@ -1,4 +1,6 @@
 import re
+from collections.abc import Mapping
+from typing import Any
 
 _SEPARATORS = re.compile(r"[_\s]+")
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
@@ -35,3 +37,23 @@ def pluralize(word: str) -> str:
 def snake_case(name: str) -> str:
     """Turn a class name into snake case, so `OrderItem` becomes order_item."""
     return _CAMEL_BOUNDARY.sub("_", name).lower()
+
+
+class RecordValues(Mapping[str, Any]):
+    """Reads attributes of a record the way `str.format` reads a mapping.
+
+    A missing attribute reads as empty, so a template such as
+    `{name} ({email})` never raises while rendering a page.
+    """
+
+    def __init__(self, record: Any) -> None:
+        self._record = record
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self._record, key, "")
+
+    def __iter__(self) -> Any:
+        return iter(())
+
+    def __len__(self) -> int:
+        return 0

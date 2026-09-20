@@ -1,24 +1,9 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from typing import Any
 
 from adminsite.fields.base import Field
 from adminsite.schema import RelationSchema
-
-
-class RecordValues(Mapping[str, Any]):
-    """Reads attributes of a record the way `str.format` reads a mapping."""
-
-    def __init__(self, record: Any) -> None:
-        self._record = record
-
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self._record, key, "")
-
-    def __iter__(self) -> Any:
-        return iter(())
-
-    def __len__(self) -> int:
-        return 0
+from adminsite.text import RecordValues
 
 
 class RelationField(Field):
