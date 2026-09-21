@@ -5,10 +5,11 @@ from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, func, select
+from sqlalchemy import ColumnElement, Select, false, func, select
 
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError
 from adminsite.filters.base import (
     Filter,
@@ -259,10 +260,19 @@ class RelationFilter(SQLFilter):
         self, value: FilterValue, repository: SQLAlchemyRepository
     ) -> ColumnElement[bool] | None:
         """Match records linked to any of the chosen keys."""
-        return repository.condition_at(
-            f"{self.path}.{self.key}",
-            lambda column, field: column.in_(list(value.values)),
-        )
+
+        def build(
+            column: ColumnElement[Any], field: FieldSchema
+        ) -> ColumnElement[bool] | None:
+            keys = []
+            for raw in value.values:
+                try:
+                    keys.append(to_column_type(field.python_type, raw))
+                except ValueError:
+                    continue
+            return column.in_(keys) if keys else false()
+
+        return repository.condition_at(f"{self.path}.{self.key}", build)
 
 
 class TextFilter(SQLFilter):

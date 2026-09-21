@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from sqlalchemy import Select
+from sqlalchemy.exc import IntegrityError
 
 if TYPE_CHECKING:
     from adminsite.actions.selection import Selection
@@ -15,6 +16,7 @@ from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
     PermissionDeniedError,
+    RefusedError,
 )
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.filters import Filter, FilterValue
@@ -377,23 +379,30 @@ class ModelView:
             request=request,
             record=record,
         )
-        async with session.transaction():
-            target = record if record is not None else self.repository.model()
-            context = SaveContext(
-                session=session,
-                record=target,
-                values=values,
-                created=created,
-                request=request,
-            )
-            await self.before_save(context)
+        try:
+            async with session.transaction():
+                target = record if record is not None else self.repository.model()
+                context = SaveContext(
+                    session=session,
+                    record=target,
+                    values=values,
+                    created=created,
+                    request=request,
+                )
+                await self.before_save(context)
 
-            await self.repository.apply_values(session, target, values)
-            if created:
-                await session.add(target)
-            await session.flush()
+                await self.repository.apply_values(session, target, values)
+                if created:
+                    await session.add(target)
+                await session.flush()
 
-            await self.after_save(context)
+                await self.after_save(context)
+        except IntegrityError as error:
+            raise RefusedError(
+                f"This {self.label.lower()} could not be saved, because it "
+                "clashes with another record. A value that must be unique "
+                "may already be taken."
+            ) from error
         return target
 
     async def delete(
@@ -401,11 +410,17 @@ class ModelView:
     ) -> None:
         """Delete a record, running the hooks in one transaction."""
         await self.ensure(Permission.DELETE, request=request, record=record)
-        async with session.transaction():
-            context = DeleteContext(session=session, record=record, request=request)
-            await self.before_delete(context)
-            await self.repository.delete(session, record)
-            await self.after_delete(context)
+        try:
+            async with session.transaction():
+                context = DeleteContext(session=session, record=record, request=request)
+                await self.before_delete(context)
+                await self.repository.delete(session, record)
+                await self.after_delete(context)
+        except IntegrityError as error:
+            raise RefusedError(
+                f"This {self.label.lower()} cannot be deleted, because other "
+                "records still refer to it."
+            ) from error
 
     async def before_save(self, context: SaveContext) -> None:
         """Runs before the values are written. Raise to refuse the save."""

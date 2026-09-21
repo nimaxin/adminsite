@@ -8,6 +8,7 @@ from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views.writing import SaveContext
 from tests.models import Customer, Order, Product
+from tests.support import spare_product
 
 
 class ProductView(ModelView, model=Product):
@@ -226,11 +227,29 @@ class TestDeleting:
     async def test_a_record_is_deleted(
         self, client: httpx.AsyncClient, database: Database
     ) -> None:
-        response = await client.post("/admin/products/3/delete")
+        key = await spare_product(database)
+
+        response = await client.post(f"/admin/products/{key}/delete")
 
         assert response.status_code == 303
         async with database.session() as session:
-            assert await session.get(Product, 3) is None
+            assert await session.get(Product, key) is None
+
+    async def test_a_record_still_in_use_is_kept_and_the_user_told(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        response = await client.post("/admin/products/1/delete")
+
+        assert response.status_code == 303
+        async with database.session() as session:
+            assert await session.get(Product, 1) is not None
+
+    async def test_a_key_that_is_not_a_number_is_not_found(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/products/not-a-number")
+
+        assert response.status_code == 404
 
     async def test_deleting_something_gone_is_not_found(
         self, client: httpx.AsyncClient

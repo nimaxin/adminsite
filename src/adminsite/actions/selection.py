@@ -2,10 +2,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import Select, delete, false, func, select, update
 from sqlalchemy.sql import Executable
 
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.query import QuerySpec
 
 if TYPE_CHECKING:
@@ -95,11 +96,10 @@ class Selection:
     def _key_condition(self) -> Any:
         column = self._primary_key_column()
         field = self.view.schema.field_named(self.view.schema.primary_key[0])
-        wanted = [self._as_key(field.python_type, key) for key in self.keys]
-        return column.in_(wanted)
-
-    def _as_key(self, python_type: type[Any], key: str) -> Any:
-        try:
-            return python_type(key)
-        except (TypeError, ValueError, ArithmeticError):
-            return key
+        wanted = []
+        for key in self.keys:
+            try:
+                wanted.append(to_column_type(field.python_type, key))
+            except ValueError:
+                continue
+        return column.in_(wanted) if wanted else false()

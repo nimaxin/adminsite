@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response, StreamingResponse
@@ -384,7 +385,17 @@ async def run_action(admin: "Admin", request: Request) -> Response:
             message = await view.run_action(found, selection, request=request)
             await session.commit()
         except RefusedError as error:
+            await session.rollback()
             add_message(request, str(error), kind="error")
+            return back_to_list(request, view)
+        except IntegrityError:
+            await session.rollback()
+            add_message(
+                request,
+                f"{found.label} was not done, because other records still "
+                "refer to some of these.",
+                kind="error",
+            )
             return back_to_list(request, view)
 
     add_message(request, message)

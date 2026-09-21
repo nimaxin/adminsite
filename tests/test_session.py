@@ -12,6 +12,7 @@ from adminsite.backends.sqlalchemy import (
 )
 from adminsite.exceptions import AdminSiteError
 from tests.models import Customer, Order, Product
+from tests.support import spare_product
 
 
 class TestDatabase:
@@ -93,14 +94,15 @@ class TestWriting:
             assert saved.price == Decimal("42.00")
 
     async def test_a_record_is_deleted(self, database: Database) -> None:
+        key = await spare_product(database)
         async with database.session() as session:
-            product = await session.scalar(select(Product))
+            product = await session.get(Product, key)
             assert product is not None
 
             await session.delete(product)
             await session.commit()
 
-            assert await session.get(Product, product.id) is None
+            assert await session.get(Product, key) is None
 
     async def test_a_change_is_undone_by_rolling_back(self, database: Database) -> None:
         async with database.session() as session:

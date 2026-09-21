@@ -38,3 +38,30 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --all-groups
       - run: uv run pytest -q
+
+  postgres:
+    name: Tests on Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: adminsite
+          POSTGRES_PASSWORD: adminsite
+          POSTGRES_DB: adminsite
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U adminsite"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ADMINSITE_POSTGRES_URL: postgresql://adminsite:adminsite@localhost:5432/adminsite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups
+      - run: uv run pytest -q

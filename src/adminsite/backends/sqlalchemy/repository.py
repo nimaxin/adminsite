@@ -8,6 +8,7 @@ from sqlalchemy.orm import aliased
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
 from adminsite.query import CountMode, Page, QuerySpec
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationSchema
@@ -217,8 +218,17 @@ class SQLAlchemyRepository:
                 str(key),
                 f"{self.model.__name__} needs {len(columns)} key values.",
             )
+        try:
+            converted = [
+                to_column_type(self.schema.field_named(name).python_type, value)
+                for name, value in zip(self.schema.primary_key, values, strict=True)
+            ]
+        except ValueError:
+            # A key that cannot be the column's type matches nothing, so the
+            # caller shows "not found" rather than a database error.
+            return false()
         return and_(
-            *(column == value for column, value in zip(columns, values, strict=True))
+            *(column == value for column, value in zip(columns, converted, strict=True))
         )
 
     def identity_of(self, record: Any) -> str:
@@ -250,19 +260,14 @@ class SQLAlchemyRepository:
 
     def _as_key(self, target: ModelSchema, key: Any) -> Any:
         values = key if isinstance(key, tuple) else (key,)
-        converted = [
-            self._coerce(target.field_named(name).python_type, value)
-            for name, value in zip(target.primary_key, values, strict=False)
-        ]
-        return converted[0] if len(converted) == 1 else tuple(converted)
-
-    def _coerce(self, python_type: type[Any], value: Any) -> Any:
-        if isinstance(value, python_type):
-            return value
         try:
-            return python_type(value)
-        except (TypeError, ValueError, ArithmeticError, InvalidOperation):
-            return value
+            converted = [
+                to_column_type(target.field_named(name).python_type, value)
+                for name, value in zip(target.primary_key, values, strict=False)
+            ]
+        except ValueError:
+            raise RecordNotFoundError(target.model, key) from None
+        return converted[0] if len(converted) == 1 else tuple(converted)
 
     # The annotation says Sequence because this class has a method named
     # list, which shadows the builtin inside the class body.

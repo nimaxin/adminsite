@@ -5,12 +5,13 @@ import pytest
 from sqlalchemy import func, select
 
 from adminsite.backends.sqlalchemy import Database
-from adminsite.exceptions import RecordNotFoundError
+from adminsite.exceptions import RecordNotFoundError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.query import QuerySpec
 from adminsite.views import ModelView
 from adminsite.views.writing import DeleteContext, SaveContext
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
+from tests.support import spare_product
 
 
 class ProductView(ModelView, model=Product):
@@ -179,14 +180,37 @@ class TestDeleting:
     async def test_a_record_is_deleted(
         self, database: Database, products: ProductView
     ) -> None:
+        key = await spare_product(database)
         async with database.session() as session:
-            record = await session.scalar(select(Product))
+            record = await session.get(Product, key)
             assert record is not None
-            key = record.id
 
             await products.delete(session, record)
 
             assert await session.get(Product, key) is None
+
+    async def test_a_record_still_in_use_is_refused_with_a_reason(
+        self, database: Database, products: ProductView
+    ) -> None:
+        async with database.session() as session:
+            record = await session.get(Product, 1)
+            assert record is not None
+
+            with pytest.raises(RefusedError, match="other records still refer"):
+                await products.delete(session, record)
+
+            assert await session.get(Product, 1) is not None
+
+    async def test_a_duplicate_unique_value_is_refused_with_a_reason(
+        self, database: Database
+    ) -> None:
+        view = CustomerView()
+        async with database.session() as session:
+            with pytest.raises(RefusedError, match="must be unique"):
+                await view.save(
+                    session,
+                    {"name": "Someone", "email": "lena@fischer.de", "region": "DE"},
+                )
 
     async def test_deleting_a_parent_takes_its_children(
         self, database: Database, orders: OrderView
@@ -361,13 +385,14 @@ class TestHooks:
             async def after_delete(self, context: DeleteContext) -> None:
                 names.append(context.record.name)
 
+        key = await spare_product(database)
         async with database.session() as session:
-            record = await session.scalar(select(Product))
+            record = await session.get(Product, key)
             assert record is not None
 
             await Logging().delete(session, record)
 
-            assert names == [record.name]
+            assert names == ["Gift card"]
 
 
 class TestRoundTrip:

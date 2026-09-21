@@ -41,7 +41,7 @@ validation come from your models.
 - **Hooks that run inside the transaction** and receive the session, so a business rule can read
   other tables and refuse a save.
 - **Async or sync.** Give it an `AsyncEngine` or a plain `Engine`. Everything above the session
-  adapter is written once.
+  adapter is written once. Tested on SQLite and on Postgres, with asyncpg and psycopg.
 - **No Node, no CDN.** The CSS and JavaScript are built into the package.
 
 ## Installing
@@ -144,7 +144,9 @@ class OrderView(ModelView, model=Order):
 
 The selection is either the rows that were ticked or every row the current search and filters
 match. `selection.update` and `selection.delete` are single statements and skip the save hooks;
-`selection.records()` loads the records when the hooks matter.
+`selection.records()` loads the records when the hooks matter. Because `selection.delete` never
+loads the records, it relies on the database for cascades: give the foreign keys `ondelete="CASCADE"`
+where children should go with their parent.
 
 ## Custom filters
 
@@ -182,6 +184,14 @@ uv sync --all-groups
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 uv run mypy src tests
+```
+
+The tests run on SQLite by default, async and sync. To run every database test against Postgres
+as well, start one and point the tests at it:
+
+```
+docker run -d --name adminsite-postgres -p 55432:5432   -e POSTGRES_USER=adminsite -e POSTGRES_PASSWORD=adminsite -e POSTGRES_DB=adminsite   postgres:17-alpine
+ADMINSITE_POSTGRES_URL=postgresql://adminsite:adminsite@localhost:55432/adminsite uv run pytest
 ```
 
 The stylesheet and the vendored JavaScript are built from `frontend/`, and the results are

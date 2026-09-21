@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- The UI is rebuilt on daisyUI, with light and dark themes, a drawer sidebar on phones, and one
+  template per form widget.
+- A foreign key column shows as its relationship in the default list and form.
+- Tested on Postgres with asyncpg and psycopg, and CI runs the suite against Postgres.
+- Keys read from URLs and filters are converted to the column type. Postgres refused to compare an
+  integer key with text, which broke the detail, edit and delete pages there.
+- Deleting a record that others still refer to, or saving a value that must be unique, now shows a
+  message instead of an error page.
+
 ## 0.1.0a1
 
 The first alpha. The shape of the API may still change before 0.1.0.
