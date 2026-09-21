@@ -1,13 +1,17 @@
 from typing import Any
 
+import httpx
 import pytest
 from sqlalchemy import Select, select
+from starlette.applications import Starlette
 
+from adminsite import Admin
+from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.security import Permission
 from adminsite.views import ModelView
-from tests.models import Customer, Order
+from tests.models import Customer, Order, OrderStatus
 
 
 class GermanOrders(ModelView, model=Order):
@@ -187,3 +191,68 @@ class TestFieldPermissions:
 
         assert "email" not in result.values
         assert result.values["name"] == "Lena"
+
+
+class TestButtonsFollowPermissions:
+    async def test_actions_the_user_may_not_run_are_left_out(
+        self, database: Database
+    ) -> None:
+        class GuardedOrders(ModelView, model=Order):
+            name = "guarded"
+
+            @action("Mark as shipped")
+            async def ship(self, selection: Selection) -> str:
+                return "done"
+
+            @action("Discard", permission=Permission.DELETE)
+            async def discard(self, selection: Selection) -> str:
+                return "gone"
+
+            async def allows(
+                self,
+                action: Permission | str,
+                *,
+                request: Any = None,
+                record: Any = None,
+            ) -> bool:
+                return action != Permission.DELETE
+
+        client = client_for(database, GuardedOrders)
+        response = await client.get("/admin/guarded")
+
+        assert "Mark as shipped" in response.text
+        assert "Discard" not in response.text
+
+    async def test_the_delete_button_follows_the_record(
+        self, database: Database
+    ) -> None:
+        class NoDeletingShipped(ModelView, model=Order):
+            name = "careful"
+
+            async def allows(
+                self,
+                action: Permission | str,
+                *,
+                request: Any = None,
+                record: Any = None,
+            ) -> bool:
+                if action == Permission.DELETE and record is not None:
+                    return bool(record.status != OrderStatus.SHIPPED)
+                return True
+
+        client = client_for(database, NoDeletingShipped)
+        shipped = await client.get("/admin/careful/1/edit")
+        pending = await client.get("/admin/careful/3/edit")
+
+        assert 'id="confirm-delete"' not in shipped.text
+        assert 'id="confirm-delete"' in pending.text
+
+
+def client_for(database: Database, view: type[ModelView]) -> httpx.AsyncClient:
+    site = Admin(database, title="Shop")
+    site.add_view(view)
+    app = Starlette()
+    app.mount("/admin", site)
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )

@@ -67,6 +67,13 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 
     context = as_context(view, request, spec, page, panels, read)
     context["can_create"] = await view.allows(Permission.CREATE, request=request)
+    # Offer only the actions this user may run.
+    allowed = [
+        item
+        for item in context["actions"]
+        if await view.allows(item.permission, request=request)
+    ]
+    context["actions"] = allowed
 
     template = "_table.html" if wants_partial(request) else "list.html"
     return await admin.render(template, request, context)
@@ -163,9 +170,11 @@ async def edit_form(admin: "Admin", request: Request) -> Response:
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, record=record, request=request)
 
-    return await admin.render(
-        "form.html", request, form_context(view, rows, request, record)
+    context = form_context(view, rows, request, record)
+    context["can_delete"] = await view.allows(
+        Permission.DELETE, request=request, record=record
     )
+    return await admin.render("form.html", request, context)
 
 
 async def edit_record(admin: "Admin", request: Request) -> Response:
@@ -301,6 +310,10 @@ async def form_again(
     )
     context = form_context(view, rows, request, record)
     context["form_error"] = str(error) if error is not None else ""
+    if record is not None:
+        context["can_delete"] = await view.allows(
+            Permission.DELETE, request=request, record=record
+        )
     return await admin.render("form.html", request, context, status_code=422)
 
 
