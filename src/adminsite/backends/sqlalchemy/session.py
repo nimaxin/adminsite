@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, TypeVar
@@ -22,6 +22,29 @@ SessionSource = (
 
 class SessionAdapter(ABC):
     """One way to talk to the database, whether the session is async or not."""
+
+    def __init__(self) -> None:
+        self._after_commit: list[Callable[[], Awaitable[None]]] = []
+
+    def after_commit(self, work: Callable[[], Awaitable[None]]) -> None:
+        """Run some work once the next commit has succeeded.
+
+        A rollback drops it, so nothing that runs here, such as an audit
+        entry, can describe a change that never happened.
+        """
+        self._after_commit.append(work)
+
+    async def commit(self) -> None:
+        """Commit the open transaction, then run the work waiting on it."""
+        await self._commit()
+        waiting, self._after_commit = self._after_commit, []
+        for work in waiting:
+            await work()
+
+    async def rollback(self) -> None:
+        """Undo everything done since the last commit."""
+        self._after_commit = []
+        await self._rollback()
 
     @abstractmethod
     async def execute(self, statement: Executable) -> Result[Any]:
@@ -52,11 +75,11 @@ class SessionAdapter(ABC):
         """Send pending changes to the database without committing."""
 
     @abstractmethod
-    async def commit(self) -> None:
+    async def _commit(self) -> None:
         """Commit the open transaction."""
 
     @abstractmethod
-    async def rollback(self) -> None:
+    async def _rollback(self) -> None:
         """Undo everything done since the last commit."""
 
     @abstractmethod
@@ -89,6 +112,7 @@ class AsyncSessionAdapter(SessionAdapter):
     """Talks to an `AsyncSession` directly."""
 
     def __init__(self, session: AsyncSession) -> None:
+        super().__init__()
         self.session = session
 
     async def execute(self, statement: Executable) -> Result[Any]:
@@ -119,12 +143,10 @@ class AsyncSessionAdapter(SessionAdapter):
         """Send pending changes to the database without committing."""
         await self.session.flush()
 
-    async def commit(self) -> None:
-        """Commit the open transaction."""
+    async def _commit(self) -> None:
         await self.session.commit()
 
-    async def rollback(self) -> None:
-        """Undo everything done since the last commit."""
+    async def _rollback(self) -> None:
         await self.session.rollback()
 
     async def refresh(
@@ -146,6 +168,7 @@ class SyncSessionAdapter(SessionAdapter):
     """Talks to a plain `Session`, keeping it on one worker thread."""
 
     def __init__(self, session: Session) -> None:
+        super().__init__()
         self.session = session
         self._worker = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="adminsite-db"
@@ -179,12 +202,10 @@ class SyncSessionAdapter(SessionAdapter):
         """Send pending changes to the database without committing."""
         await self.run(lambda session: session.flush())
 
-    async def commit(self) -> None:
-        """Commit the open transaction."""
+    async def _commit(self) -> None:
         await self.run(lambda session: session.commit())
 
-    async def rollback(self) -> None:
-        """Undo everything done since the last commit."""
+    async def _rollback(self) -> None:
         await self.run(lambda session: session.rollback())
 
     async def refresh(

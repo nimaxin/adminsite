@@ -40,6 +40,8 @@ validation come from your models.
   narrows every read, so a row a user may not see cannot be opened by guessing its key.
 - **Hooks that run inside the transaction** and receive the session, so a business rule can read
   other tables and refuse a save.
+- **An audit log** with a History tab on every record and an Activity page, including bulk actions
+  row by row.
 - **Async or sync.** Give it an `AsyncEngine` or a plain `Engine`. Everything above the session
   adapter is written once. Tested on SQLite and on Postgres, with asyncpg and psycopg.
 - **No Node, no CDN.** The CSS and JavaScript are built into the package.
@@ -131,6 +133,32 @@ class OrderView(ModelView, model=Order):
 
 Both run inside the transaction that writes the record. Raising `RefusedError` rolls the save
 back and shows the message on the form. Any other exception is treated as a fault.
+
+## Audit log
+
+```python
+admin = Admin(engine, views=[OrderView], audit=True)
+```
+
+Every create, change and delete is written down with who did it and what each field was before
+and after. A record's page gets a History tab, and the Activity page lists recent changes across
+the admin. A bulk action writes one entry per record it touched, sharing a batch id, so each
+record's history shows it.
+
+Entries are written after the change commits, so a rolled back change never appears.
+
+`audit=True` keeps the log in a SQLite file of its own, `adminsite_audit.db`, which needs no setup.
+That suits a single server. With several workers or containers, keep it in your own database
+instead, so every process writes to the same place:
+
+```python
+from adminsite.audit import AuditLog, audit_metadata
+
+admin = Admin(engine, audit=AuditLog(engine))
+
+# In your Alembic env.py, so the table is created by your migrations:
+target_metadata = [Base.metadata, audit_metadata]
+```
 
 ## Actions
 

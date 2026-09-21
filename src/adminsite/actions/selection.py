@@ -1,10 +1,11 @@
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Select, delete, false, func, select, update
 from sqlalchemy.sql import Executable
 
+from adminsite.audit.entry import Change, diff
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.query import QuerySpec
@@ -28,6 +29,8 @@ class Selection:
     keys: Sequence[str] = ()
     everything: bool = False
     request: Any = None
+    # What update and delete changed, per record key, for the audit log.
+    changes: dict[str, dict[str, Change]] = field(default_factory=dict)
 
     @property
     def repository(self) -> Any:
@@ -46,6 +49,11 @@ class Selection:
         if not self.everything:
             rows = rows.where(self._key_condition())
         return rows
+
+    async def covered_keys(self) -> list[str]:
+        """The keys of the records this covers, written as the URLs write them."""
+        result = await self.session.execute(self.statement())
+        return [",".join(str(value) for value in row) for row in result.all()]
 
     async def count(self) -> int:
         """How many rows this covers."""
@@ -69,6 +77,8 @@ class Selection:
         """
         if not values:
             return 0
+        if self.view.audit is not None:
+            await self._remember(list(values), after=values)
         statement = (
             update(self.view.model)
             .where(
@@ -80,10 +90,50 @@ class Selection:
 
     async def delete(self) -> int:
         """Delete every row this covers, in one statement."""
+        if self.view.audit is not None:
+            paths = [
+                path
+                for path in self.view.get_form_fields(self.request)
+                if path in self.view.schema.fields
+            ]
+            await self._remember(paths, after=None)
         statement = delete(self.view.model).where(
             self._primary_key_column().in_(select(self.statement().subquery().c[0]))
         )
         return await self._run(statement)
+
+    async def _remember(
+        self, paths: Sequence[str], after: Mapping[str, Any] | None
+    ) -> None:
+        """Read what the rows hold now, so the log can show what changed.
+
+        One query covers every row, whatever the size of the selection.
+        """
+        names = [path for path in paths if path in self.view.schema.fields]
+        columns = [getattr(self.view.model, name) for name in names]
+        statement = select(self._primary_key_column(), *columns).where(
+            self._primary_key_column().in_(select(self.statement().subquery().c[0]))
+        )
+        result = await self.session.execute(statement)
+        for row in result.all():
+            key, *current = row
+            before = {
+                name: self.view.field_for(name).display(value)
+                for name, value in zip(names, current, strict=True)
+            }
+            if after is None:
+                changes = {
+                    name: (value, None) for name, value in before.items() if value
+                }
+            else:
+                changes = diff(
+                    before,
+                    {
+                        name: self.view.field_for(name).display(after[name])
+                        for name in names
+                    },
+                )
+            self.changes[str(key)] = changes
 
     async def _run(self, statement: Executable) -> int:
         """Run a write and report how many rows it touched."""

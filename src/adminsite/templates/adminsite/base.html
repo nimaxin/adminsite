@@ -70,7 +70,7 @@
 
       <ul class="menu w-full flex-1 gap-0.5 px-2 py-3">
         <li>
-          <a href="{{ urls.index() }}" class="{% if not view %}bg-base-300 font-medium{% endif %}">Overview</a>
+          <a href="{{ urls.index() }}" class="{% if not view and not on_activity %}bg-base-300 font-medium{% endif %}">Overview</a>
         </li>
         {% for group, views in groups %}
           {% if group %}
@@ -85,6 +85,13 @@
             </li>
           {% endfor %}
         {% endfor %}
+        {% if admin.audit %}
+          <li class="menu-title mt-3">Admin</li>
+          <li>
+            <a href="{{ urls.activity() }}"
+               class="{% if on_activity %}bg-base-300 font-medium{% endif %}">Activity</a>
+          </li>
+        {% endif %}
       </ul>
 
       <div class="flex items-center gap-2 border-t border-base-300 px-3 py-3">

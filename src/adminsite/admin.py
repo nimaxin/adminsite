@@ -11,6 +11,7 @@ from starlette.responses import RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from adminsite.audit import AuditLog
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
@@ -45,6 +46,7 @@ class Admin:
         template_dirs: Sequence[str | Path] = (),
         auth: AuthProvider | None = None,
         secret_key: str = "",
+        audit: AuditLog | bool = False,
         session_cookie: str = "adminsite_session",
     ) -> None:
         if auth is not None and not secret_key:
@@ -58,6 +60,7 @@ class Admin:
         self.views = ViewRegistry()
         self.templates = Templates(template_dirs)
         self.auth = auth
+        self.audit = AuditLog() if audit is True else (audit or None)
         self.secret_key = secret_key
         self.session_cookie = session_cookie
         self._app: Starlette | None = None
@@ -68,6 +71,8 @@ class Admin:
     def add_view(self, view: ModelView | type[ModelView]) -> ModelView:
         """Register a model with the admin."""
         built = view(self.inspector, self.fields) if isinstance(view, type) else view
+        if built.audit is None:
+            built.audit = self.audit
         return self.views.add(built)
 
     @property
@@ -118,6 +123,13 @@ class Admin:
                 self._handler(endpoints.logout, guarded=False),
                 methods=["POST"],
                 name="logout",
+            ),
+            # Pages that are not a model sit under /-/ so no model name can
+            # ever collide with them.
+            Route(
+                "/-/activity",
+                self._handler(endpoints.activity),
+                name="activity",
             ),
             Route("/{view}", self._handler(endpoints.list_records), name="list"),
             Route(

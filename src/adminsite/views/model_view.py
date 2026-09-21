@@ -1,13 +1,17 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
+from uuid import uuid4
 
 from sqlalchemy import Select
+from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
 
 if TYPE_CHECKING:
     from adminsite.actions.selection import Selection
+    from adminsite.audit import AuditLog
 
 from adminsite.actions.action import Action, action_of
+from adminsite.audit.entry import AuditEntry, AuditEvent, diff
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
@@ -65,6 +69,9 @@ class ModelView:
     can_create: bool = True
     can_edit: bool = True
     can_delete: bool = True
+
+    # Set by the admin when auditing is switched on.
+    audit: "AuditLog | None" = None
 
     def __init_subclass__(cls, model: type[Any] | None = None, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -278,9 +285,33 @@ class ModelView:
         The values the action asked for are passed to its method by name.
         """
         await self.ensure(found.permission, request=request)
+        # Read the keys before the action runs: afterwards the rows may no
+        # longer match the filter they were chosen by.
+        keys = await selection.covered_keys() if self.audit is not None else []
+
         handler = getattr(self, found.method)
         message = await handler(selection, **(values or {}))
-        return str(message) if message else f"{found.label} done."
+        text = str(message) if message else f"{found.label} done."
+
+        batch = str(uuid4())
+        user = user_of(request)
+        self._audit(
+            selection.session,
+            [
+                AuditEntry(
+                    view=self.name,
+                    record_key=key,
+                    event=AuditEvent.ACTION,
+                    action=found.label,
+                    batch=batch,
+                    changes=selection.changes.get(key, {}),
+                    user=user,
+                    message=text,
+                )
+                for key in keys
+            ],
+        )
+        return text
 
     def _collect_actions(self) -> dict[str, Action]:
         found: dict[str, Action] = {}
@@ -409,12 +440,21 @@ class ModelView:
                 )
                 await self.before_save(context)
 
+                auditing = self.audit is not None
+                before = (
+                    self.snapshot(target, list(values))
+                    if auditing and not created
+                    else {}
+                )
                 await self.repository.apply_values(session, target, values)
                 if created:
                     await session.add(target)
                 await session.flush()
 
                 await self.after_save(context)
+                self._audit_save(
+                    session, target, before, list(values), request, created=created
+                )
         except IntegrityError as error:
             raise RefusedError(
                 f"This {self.label.lower()} could not be saved, because it "
@@ -432,13 +472,98 @@ class ModelView:
             async with session.transaction():
                 context = DeleteContext(session=session, record=record, request=request)
                 await self.before_delete(context)
+                auditing = self.audit is not None
+                before = (
+                    self.snapshot(record, self.get_form_fields(request, record))
+                    if auditing
+                    else {}
+                )
+                key, title = self.identity_of(record), self.title_of(record)
                 await self.repository.delete(session, record)
                 await self.after_delete(context)
+                if not auditing:
+                    return
+                self._audit(
+                    session,
+                    [
+                        AuditEntry(
+                            view=self.name,
+                            record_key=key,
+                            record_title=title,
+                            event=AuditEvent.DELETED,
+                            changes={
+                                name: (value, None)
+                                for name, value in before.items()
+                                if value not in ("", None)
+                            },
+                            user=user_of(request),
+                        )
+                    ],
+                )
         except IntegrityError as error:
             raise RefusedError(
                 f"This {self.label.lower()} cannot be deleted, because other "
                 "records still refer to it."
             ) from error
+
+    def snapshot(self, record: Any, paths: Sequence[str]) -> dict[str, Any]:
+        """What a record shows for these paths, as the history records it.
+
+        Only what is already loaded is read. Touching anything else would
+        start a lazy load, which an async session cannot do.
+        """
+        state = sqlalchemy_inspect(record, raiseerr=False)
+        unloaded = state.unloaded if state is not None else set()
+        return {
+            path: self.display(record, path)
+            for path in paths
+            if path.split(".", 1)[0] not in unloaded
+        }
+
+    def _audit_save(
+        self,
+        session: SessionAdapter,
+        record: Any,
+        before: Mapping[str, Any],
+        paths: Sequence[str],
+        request: Any,
+        *,
+        created: bool,
+    ) -> None:
+        if self.audit is None:
+            return
+        after = self.snapshot(record, paths)
+        changes = (
+            {name: (None, value) for name, value in after.items() if value}
+            if created
+            else diff(before, after)
+        )
+        if not changes and not created:
+            return
+        self._audit(
+            session,
+            [
+                AuditEntry(
+                    view=self.name,
+                    record_key=self.identity_of(record),
+                    record_title=self.title_of(record),
+                    event=AuditEvent.CREATED if created else AuditEvent.UPDATED,
+                    changes=changes,
+                    user=user_of(request),
+                )
+            ],
+        )
+
+    def _audit(self, session: SessionAdapter, entries: Sequence[AuditEntry]) -> None:
+        """Write entries once the transaction they describe has committed."""
+        log = self.audit
+        if log is None or not entries:
+            return
+
+        async def write() -> None:
+            await log.record(entries)
+
+        session.after_commit(write)
 
     async def before_save(self, context: SaveContext) -> None:
         """Runs before the values are written. Raise to refuse the save."""
@@ -487,3 +612,10 @@ def _as_list(raw: str | Sequence[str] | None) -> list[str]:
     if isinstance(raw, str):
         return [raw]
     return list(raw)
+
+
+def user_of(request: Any) -> str | None:
+    """Who is signed in, as the audit log writes it down."""
+    scope = getattr(request, "scope", None)
+    user = scope.get("user_record") if isinstance(scope, dict) else None
+    return str(user) if user is not None else None

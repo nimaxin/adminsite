@@ -57,6 +57,10 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def activity(self, **params: Any) -> str:
+        """The page listing recent changes across the admin."""
+        return self._with(f"{self.base}/-/activity", params)
+
     def login(self) -> str:
         """The login page."""
         return f"{self.base}/login"

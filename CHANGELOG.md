@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Audit log. `audit=True` records who created, changed or deleted what, with each field's value
+  before and after, in a SQLite file of its own; pass an `AuditLog(engine)` to keep it in your own
+  database. Records get a History tab and the admin gets an Activity page. Bulk actions write one
+  entry per affected record, grouped by a batch id, the way Laravel Nova does. Entries are written
+  only after the change commits.
 - Actions can ask for values in a dialog before they run, checked like form fields and passed to
   the method by name. Confirmations and deleting a record use a dialog instead of the browser's
   confirm box.

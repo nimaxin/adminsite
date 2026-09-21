@@ -1,0 +1,51 @@
+{% if items %}
+  <ul class="timeline timeline-vertical timeline-compact timeline-snap-icon">
+    {% for item in items %}
+      <li>
+        {% if not loop.first %}<hr class="bg-base-300">{% endif %}
+        <div class="timeline-middle">
+          <span class="block size-2.5 rounded-full
+            {% if item.entry.event == 'deleted' %}bg-error
+            {% elif item.entry.event == 'created' %}bg-success
+            {% elif item.entry.event == 'action' %}bg-info
+            {% else %}bg-primary{% endif %}"></span>
+        </div>
+        <div class="timeline-end mb-5 ml-2 w-full">
+          <p>
+            <span class="font-medium">{{ item.who }}</span>
+            {{ item.what }}
+            {% if show_record %}
+              <span class="text-base-content/70">
+                {{ item.view_label|lower }}
+                {% if item.entry.event != 'deleted' and item.entry.view in admin.views %}
+                  <a class="link link-hover" href="{{ urls.detail(admin.views.get(item.entry.view), item.entry.record_key) }}">{{ item.entry.record_title or item.entry.record_key }}</a>
+                {% else %}
+                  {{ item.entry.record_title or item.entry.record_key }}
+                {% endif %}
+              </span>
+            {% endif %}
+          </p>
+          <p class="text-xs text-base-content/50">
+            <time>{{ item.when }} UTC</time>
+            {% if item.entry.batch %} · part of a bulk action{% endif %}
+          </p>
+          {% if item.lines %}
+            <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-box bg-base-200 px-3 py-2 text-[13px]">
+              {% for line in item.lines %}
+                <dt class="text-base-content/60">{{ line.label }}</dt>
+                <dd>
+                  <span class="text-base-content/50 line-through">{{ line.before }}</span>
+                  <span class="px-1 text-base-content/40">&rarr;</span>
+                  <span class="font-medium">{{ line.after }}</span>
+                </dd>
+              {% endfor %}
+            </dl>
+          {% endif %}
+        </div>
+        {% if not loop.last %}<hr class="bg-base-300">{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="py-8 text-center text-base-content/60">Nothing recorded yet.</p>
+{% endif %}

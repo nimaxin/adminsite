@@ -13,6 +13,7 @@ from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
+from adminsite.http.history import describe
 from adminsite.http.listing import (
     as_context,
     build_panels,
@@ -110,6 +111,11 @@ async def detail(admin: "Admin", request: Request) -> Response:
 
     paths = view.get_form_fields(request, record)
     rows = [(path, view.label_for(path), view.display(record, path)) for path in paths]
+    key = view.identity_of(record)
+
+    history = None
+    if admin.audit is not None:
+        history = describe(admin, await admin.audit.history(view.name, key))
 
     return await admin.render(
         "detail.html",
@@ -117,13 +123,34 @@ async def detail(admin: "Admin", request: Request) -> Response:
         {
             "view": view,
             "record": record,
-            "key": view.identity_of(record),
+            "key": key,
             "heading": view.title_of(record),
             "rows": rows,
+            "history": history,
             "can_edit": await view.allows(
                 Permission.EDIT, request=request, record=record
             ),
         },
+    )
+
+
+async def activity(admin: "Admin", request: Request) -> Response:
+    """The latest changes across the admin, newest first."""
+    if admin.audit is None:
+        raise HTTPException(status_code=404, detail="Auditing is not switched on.")
+
+    chosen = request.query_params.get("view") or None
+    entries = await admin.audit.recent(view=chosen, limit=200)
+    visible = []
+    for item in describe(admin, entries):
+        found = admin.views.find(item.entry.view)
+        if found is None or await found.allows(Permission.VIEW, request=request):
+            visible.append(item)
+
+    return await admin.render(
+        "activity.html",
+        request,
+        {"items": visible, "chosen": chosen, "view": None, "on_activity": True},
     )
 
 
@@ -176,7 +203,12 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
     await read_form(request)
 
     async with admin.database.session() as session:
-        record = await view.fetch_record(session, read_key(request), request=request)
+        record = await view.fetch_record(
+            session,
+            read_key(request),
+            paths=view.get_form_fields(request),
+            request=request,
+        )
         if record is None:
             raise HTTPException(status_code=404, detail="No such record.")
         await view.ensure(Permission.DELETE, request=request, record=record)

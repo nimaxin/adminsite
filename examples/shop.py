@@ -147,6 +147,9 @@ admin = Admin(
     # Hash the password where you keep it, not here.
     auth=PasswordAuth({"nima": hash_password("letmein")}),
     secret_key="change-this-before-you-deploy-anything",
+    # Every change goes to adminsite_audit.db, shown on each record's
+    # History tab and on the Activity page.
+    audit=True,
 )
 app.mount("/admin", admin)
 

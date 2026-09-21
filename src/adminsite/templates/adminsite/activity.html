@@ -1,0 +1,22 @@
+{% extends "adminsite/base.html" %}
+
+{% block page_title %}Activity · {{ title }}{% endblock %}
+
+{% block header %}<h1 class="text-base font-semibold">Activity</h1>{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl p-4 lg:p-6">
+  <div class="mb-5 flex flex-wrap gap-2">
+    <a class="btn btn-sm {% if not chosen %}btn-active{% else %}btn-ghost{% endif %}"
+       href="{{ urls.activity() }}">Everything</a>
+    {% for group, views in groups %}
+      {% for item in views %}
+        <a class="btn btn-sm {% if chosen == item.name %}btn-active{% else %}btn-ghost{% endif %}"
+           href="{{ urls.activity(view=item.name) }}">{{ item.label_plural }}</a>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% set show_record = True %}
+  {% include "adminsite/_history.html" %}
+</div>
+{% endblock %}
