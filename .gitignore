@@ -21,3 +21,7 @@ frontend/package-lock.json
 
 # Build output
 dist/
+
+# Example app databases
+shop.db
+adminsite_audit.db
