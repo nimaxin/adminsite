@@ -1,0 +1,79 @@
+site_name: adminsite
+site_description: An admin panel for SQLAlchemy models, mounted into Starlette, FastAPI or Litestar.
+site_url: https://nimaxin.github.io/adminsite/
+repo_url: https://github.com/nimaxin/adminsite
+repo_name: nimaxin/adminsite
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      accent: green
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      accent: green
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guide:
+      - Views: views.md
+      - Fields: fields.md
+      - Filters: filters.md
+      - Actions: actions.md
+      - Permissions: permissions.md
+      - Hooks: hooks.md
+      - Audit log: audit.md
+      - Signing in: auth.md
+      - Databases: databases.md
+      - Customizing the look: customizing.md
+  - Reference: reference.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            members_order: source
+            merge_init_into_class: true
+            filters: ["!^_"]

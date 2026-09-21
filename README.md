@@ -3,7 +3,7 @@
 An admin panel for SQLAlchemy models. Mount it into Starlette, FastAPI or Litestar and your
 team gets pages to search, filter, read and change your data.
 
-Under development. The first release is not on PyPI yet.
+In alpha: `pip install adminsite==0.1.0a2`. Documentation: https://nimaxin.github.io/adminsite/
 
 ```python
 from adminsite import Admin, ModelView

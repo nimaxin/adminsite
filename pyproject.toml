@@ -59,6 +59,11 @@ dev = [
     "ruff>=0.6",
     "uvicorn>=0.30",
 ]
+docs = [
+    "mkdocs<2",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=1.0.6",
+]
 
 [build-system]
 requires = ["hatchling>=1.27"]

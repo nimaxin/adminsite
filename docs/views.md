@@ -1,0 +1,116 @@
+# Views
+
+A `ModelView` says how one model appears in the admin. Class attributes describe the list and the
+form. Methods whose names start with `get_` answer the same questions per request, for when the
+answer depends on who is asking.
+
+```python
+from adminsite import CountMode, ModelView
+
+
+class OrderView(ModelView, model=Order):
+    group = "Sales"
+    display_template = "Order #{id}"
+
+    list_display = ("id", "customer.name", "status", "total", "created_at")
+    search_fields = ("id", "customer.name", "customer.email")
+    list_filter = ("status", "total", "created_at")
+    ordering = ("-created_at",)
+    page_size = 50
+
+    form_fields = ("customer", "status", "note")
+    readonly_fields = ("total",)
+```
+
+## Naming
+
+| Setting | Default | Used for |
+|---|---|---|
+| `name` | the model name, plural and snake case: `orders`, `order_items` | the URL |
+| `label` | `Order`, `Order item` | headings and buttons |
+| `label_plural` | `Orders`, `Order items` | the sidebar and the list heading |
+| `group` | none | the sidebar section the view sits under |
+| `display_template` | `str(record)` | how a record is named elsewhere, for example `"{name} ({email})"` |
+
+`display_template` is also used when another model links to this one, so a customer picker on the
+order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
+
+## The list
+
+| Setting | What it does |
+|---|---|
+| `list_display` | The columns, in order. Dotted paths such as `customer.name` follow links. |
+| `search_fields` | The paths the search box looks in. Text matches anywhere in the value, numbers match exactly. |
+| `list_filter` | Paths, or filters you built yourself. See [Filters](filters.md). |
+| `ordering` | The starting order. `-created_at` means newest first. |
+| `page_size` | Rows per page. 25 unless you say otherwise. |
+| `count_mode` | `CountMode.EXACT` counts every match; `CountMode.NONE` skips the count. |
+
+With no `list_display`, every column is shown, and a foreign key such as `customer_id` appears as
+its relationship, `customer`.
+
+Anything the list shows is loaded with the page. `customer.name` joins the customer into the same
+query; a path through a collection such as `items.quantity` costs one more query for the whole
+page, not one per row.
+
+### Large tables
+
+Counting every match costs a full scan on a big table. Switch it off and a page is a single query:
+
+```python
+class EventView(ModelView, model=Event):
+    count_mode = CountMode.NONE
+```
+
+The pager then shows "Previous" and "Next" without a total, and learns whether there is a next page
+by reading one extra row.
+
+## The form
+
+| Setting | What it does |
+|---|---|
+| `form_fields` | The fields, in order. A relationship name, such as `customer`, gives a picker. |
+| `readonly_fields` | Shown, but never read back from what was submitted. |
+| `exclude` | Left out of both the list and the form. |
+| `fields` | Field objects that replace the ones worked out from the columns. See [Fields](fields.md). |
+| `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
+
+A readonly field is safe against a tampered form: its value is never taken from the request, even
+if someone adds the input back by hand.
+
+## Answering per request
+
+Every `get_` method receives the request, so the answer can depend on the user:
+
+```python
+class OrderView(ModelView, model=Order):
+    list_display = ("id", "customer.name", "status", "total")
+
+    def get_list_display(self, request=None):
+        if request.user.is_support:
+            return ("id", "status")
+        return super().get_list_display(request)
+
+    def get_readonly_fields(self, request=None, record=None):
+        if record is not None and record.status == "shipped":
+            return ("customer", "status", "total")
+        return ()
+```
+
+The methods are `get_list_display`, `get_search_fields`, `get_filters`, `get_ordering`,
+`get_form_fields`, `get_readonly_fields` and `get_actions`.
+
+## Several views of one model
+
+A model can have as many views as you like, as long as each has its own name:
+
+```python
+class ShippedOrders(ModelView, model=Order):
+    name = "shipped_orders"
+    label_plural = "Shipped orders"
+
+    def scope_query(self, statement, *, request=None):
+        return statement.where(Order.status == OrderStatus.SHIPPED)
+```
+
+`scope_query` narrows every read the view makes. It is covered in [Permissions](permissions.md).
