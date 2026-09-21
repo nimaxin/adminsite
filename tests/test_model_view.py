@@ -95,7 +95,7 @@ class TestColumns:
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
         assert orders.label_for("created_at") == "Created at"
-        assert orders.label_for("customer.name") == "Name"
+        assert orders.label_for("customer.name") == "Customer name"
 
     def test_each_column_gets_the_field_that_fits(self, orders: OrderView) -> None:
         assert isinstance(orders.field_for("total"), DecimalField)
@@ -206,6 +206,30 @@ class TestBuildingAQuery:
 class TestForms:
     def test_the_form_skips_the_key(self) -> None:
         assert "id" not in ProductView().get_form_fields()
+
+    def test_a_foreign_key_becomes_its_link_in_the_form(self) -> None:
+        class PlainOrders(ModelView, model=Order):
+            pass
+
+        fields = PlainOrders().get_form_fields()
+
+        assert "customer" in fields
+        assert "customer_id" not in fields
+
+    def test_a_foreign_key_becomes_its_link_in_the_list(self) -> None:
+        class PlainOrders(ModelView, model=Order):
+            pass
+
+        columns = PlainOrders().get_list_display()
+
+        assert columns.index("customer") == 1
+        assert "customer_id" not in columns
+
+    def test_the_link_gets_a_picker(self) -> None:
+        class PlainOrders(ModelView, model=Order):
+            pass
+
+        assert isinstance(PlainOrders().field_for("customer"), RelationField)
 
     def test_excluded_fields_stay_out_of_both(self) -> None:
         view = ProductView()

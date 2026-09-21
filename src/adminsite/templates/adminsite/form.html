@@ -3,38 +3,42 @@
 {% block page_title %}{{ heading }} · {{ title }}{% endblock %}
 
 {% block header %}
-  <div class="min-w-0">
-    <a class="text-[13px] text-muted hover:text-ink" href="{{ urls.list(view) }}">
-      {{ view.label_plural }}
-    </a>
-    <h1 class="truncate text-base font-semibold">{{ heading }}</h1>
+  <div class="breadcrumbs py-0 text-sm">
+    <ul>
+      <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
+      <li class="truncate font-semibold">{{ heading }}</li>
+    </ul>
   </div>
 {% endblock %}
 
 {% block content %}
-<form class="mx-auto grid max-w-2xl gap-5 p-4 md:p-6" method="post" action="{{ action }}">
-  {{ csrf_input | safe if csrf_input }}
-  {% if form_error %}
-    <p class="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">
-      {{ form_error }}
-    </p>
-  {% endif %}
+<div class="mx-auto max-w-2xl p-4 lg:p-6">
+  <form class="card card-border bg-base-100" method="post" action="{{ action }}">
+    {{ csrf_input | safe if csrf_input }}
+    <div class="card-body gap-1">
+      {% if form_error %}
+        <div role="alert" class="alert alert-error alert-soft mb-2">
+          <span>{{ form_error }}</span>
+        </div>
+      {% endif %}
 
-  {% for row in rows %}
-    {% include "adminsite/_field.html" %}
-  {% endfor %}
+      {% for row in rows %}
+        {% include "adminsite/_field.html" %}
+      {% endfor %}
 
-  <div class="flex items-center gap-2 border-t border-line pt-4">
-    <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
-    <a class="btn" href="{{ cancel_url }}">Cancel</a>
-    <span class="flex-1"></span>
-    {% if can_delete and record is not none %}
-      <button class="btn btn-danger" type="submit" formmethod="post"
-              formaction="{{ urls.delete(view, key) }}"
-              onclick="return confirm('Delete this {{ view.label|lower }}? This cannot be undone.')">
-        Delete
-      </button>
-    {% endif %}
-  </div>
-</form>
+      <div class="card-actions mt-4 items-center border-t border-base-300 pt-4">
+        <button class="btn btn-primary btn-sm" type="submit">{{ submit_label }}</button>
+        <a class="btn btn-ghost btn-sm" href="{{ cancel_url }}">Cancel</a>
+        <span class="flex-1"></span>
+        {% if can_delete and record is not none %}
+          <button class="btn btn-error btn-soft btn-sm" type="submit" formmethod="post"
+                  formaction="{{ urls.delete(view, key) }}"
+                  onclick="return confirm('Delete this {{ view.label|lower }}? This cannot be undone.')">
+            Delete
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
 {% endblock %}

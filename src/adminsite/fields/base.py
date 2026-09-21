@@ -5,6 +5,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from adminsite.exceptions import FieldValidationError
 from adminsite.schema import FieldSchema
+from adminsite.text import humanize
 
 
 class Field:
@@ -25,7 +26,7 @@ class Field:
         max_length: int | None = None,
     ) -> None:
         self.name = name
-        self.label = label if label is not None else name
+        self.label = label if label is not None else humanize(name)
         self.required = required
         self.readonly = readonly
         self.help_text = help_text

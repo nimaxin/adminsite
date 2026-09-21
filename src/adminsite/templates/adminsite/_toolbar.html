@@ -1,63 +1,65 @@
-<div class="border-b border-line px-4 py-3 md:px-6" x-data="{ filters: false }">
+<div class="border-b border-base-300 px-3 py-2.5 lg:px-6" x-data="{ filters: false }">
   <form class="flex flex-wrap items-center gap-2" method="get"
         hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
         hx-push-url="true">
     {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
 
     {% if view.get_search_fields(request) %}
-      <label class="relative">
-        <span class="sr-only">Search {{ view.label_plural|lower }}</span>
-        <input class="input h-8 w-56 pl-8" type="search" name="q" value="{{ search }}"
-               placeholder="Search {{ view.label_plural|lower }}"
-               hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
-               hx-trigger="keyup changed delay:300ms, search" hx-include="closest form">
-        <svg class="pointer-events-none absolute left-2.5 top-2 text-faint" width="14"
-             height="14" viewBox="0 0 16 16" aria-hidden="true">
+      <label class="input input-sm w-full sm:w-64">
+        <svg class="opacity-50" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
           <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4"/>
         </svg>
+        <input type="search" name="q" value="{{ search }}" class="grow"
+               placeholder="Search {{ view.label_plural|lower }}"
+               aria-label="Search {{ view.label_plural|lower }}"
+               hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
+               hx-trigger="keyup changed delay:300ms, search" hx-include="closest form">
       </label>
     {% endif %}
 
     {% for panel in chips %}
-      <span class="chip">
+      <span class="badge badge-soft badge-primary gap-1 pr-1">
         {{ panel.chip }}
-        <a class="flex h-5 w-5 items-center justify-center rounded text-faint hover:text-ink"
-           href="{{ urls.here(**{panel.filter.name: None, 'page': None}) }}"
-           aria-label="Remove this filter">&times;</a>
+        <a class="rounded px-1 hover:bg-primary/15"
+           href="{{ urls.here(**{panel.filter.name: None, 'page': None}) }}" aria-label="Remove this filter">&times;</a>
       </span>
     {% endfor %}
 
     {% if panels %}
-      <button class="btn btn-sm btn-quiet" type="button" @click="filters = !filters">
+      <button class="btn btn-ghost btn-sm" type="button" @click="filters = !filters"
+              :class="filters && 'btn-active'">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2 3.5h12M4.5 8h7M7 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
         Filter
       </button>
     {% endif %}
 
     <span class="flex-1"></span>
-    <a class="btn btn-sm" href="{{ urls.export(view, **export_params) }}">Export CSV</a>
+    <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">Export CSV</a>
 
     {% if panels %}
-      <div class="w-full" x-show="filters" x-cloak style="display: none">
-        <div class="mt-3 grid gap-5 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="w-full" x-show="filters" x-cloak>
+        <div class="mt-2 grid gap-5 rounded-box border border-base-300 bg-base-200 p-4 sm:grid-cols-2 lg:grid-cols-4">
           {% for panel in panels %}
-            <fieldset class="grid content-start gap-1.5">
-              <legend class="mb-1 text-[13px] font-medium">{{ panel.filter.label }}</legend>
+            <fieldset class="fieldset content-start">
+              <legend class="fieldset-legend">{{ panel.filter.label }}</legend>
               {% if panel.filter.template == "choice" %}
+                {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
                 {% for option in panel.options %}
-                  <label class="flex items-center gap-2 text-sm text-muted">
-                    <input type="{{ 'checkbox' if panel.filter.multiple else 'radio' }}"
-                           name="{{ panel.filter.name }}" value="{{ option.value }}"
-                           class="accent-brand"
+                  <label class="label cursor-pointer gap-2 text-base-content">
+                    <input type="{{ kind }}" name="{{ panel.filter.name }}" value="{{ option.value }}"
+                           class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
                            {% if option.value in panel.chosen %}checked{% endif %}>
                     <span class="flex-1">{{ option.label }}</span>
                     {% if option.count is not none %}
-                      <span class="font-mono text-xs text-faint">{{ option.count }}</span>
+                      <span class="badge badge-ghost badge-sm font-mono">{{ option.count }}</span>
                     {% endif %}
                   </label>
                 {% endfor %}
               {% elif panel.filter.template == "range" %}
-                <input class="input h-8" type="text" name="{{ panel.filter.name }}"
+                <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
                        value="{{ panel.chosen[0] if panel.chosen else '' }}"
                        placeholder="from,to" list="{{ panel.filter.name }}-choices">
                 {% if panel.options %}
@@ -66,17 +68,18 @@
                       <option value="{{ option.value }}">{{ option.label }}</option>
                     {% endfor %}
                   </datalist>
+                  <p class="label">Pick a period or write two values, such as 10,50.</p>
                 {% endif %}
               {% else %}
-                <input class="input h-8" type="text" name="{{ panel.filter.name }}"
+                <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
                        value="{{ panel.chosen[0] if panel.chosen else '' }}"
                        placeholder="{{ panel.filter.label|lower }}">
               {% endif %}
             </fieldset>
           {% endfor %}
-          <div class="flex items-end gap-2">
+          <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
             <button class="btn btn-primary btn-sm" type="submit">Apply</button>
-            <a class="btn btn-sm" href="{{ urls.list(view) }}">Clear all</a>
+            <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">Clear all</a>
           </div>
         </div>
       </div>

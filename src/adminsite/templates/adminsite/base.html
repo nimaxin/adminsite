@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,71 +22,95 @@
   }
 </script>
 </head>
-<body class="h-full font-sans text-[14px] antialiased">
-<div class="flex h-full">
-  <aside class="hidden w-56 shrink-0 flex-col border-r border-line bg-surface md:flex">
-    <a href="{{ urls.index() }}" class="flex h-14 items-center gap-2.5 border-b border-line px-4">
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M4 3h12v5l-4 3v6H8v-6L4 8z" fill="none" stroke="var(--brand)" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      <span class="font-semibold">{{ title }}</span>
-    </a>
-    <nav class="flex-1 overflow-y-auto p-2">
-      {% for group, views in groups %}
-        <div class="mb-4">
-          {% if group %}
-            <h2 class="mb-1 px-2.5 text-xs text-faint">{{ group }}</h2>
-          {% endif %}
-          {% for item in views %}
-            <a href="{{ urls.list(item) }}"
-               class="nav-item {% if view and view.name == item.name %}nav-item-on{% endif %}">
-              {{ item.label_plural }}
-            </a>
-          {% endfor %}
-        </div>
-      {% endfor %}
-    </nav>
-    <div class="flex items-center gap-2 border-t border-line px-4 py-3 text-sm text-muted">
-      {% if user %}
-        <span class="flex-1 truncate">{{ user }}</span>
-        <form method="post" action="{{ urls.logout() }}">
-          {{ csrf_input | safe if csrf_input }}
-          <button class="btn btn-sm" type="submit">Sign out</button>
-        </form>
-      {% else %}
-        <span class="flex-1"></span>
-      {% endif %}
-      <button class="btn btn-sm" type="button" onclick="switchTheme()" aria-label="Switch theme">
-        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" fill="currentColor"/>
-        </svg>
-      </button>
-    </div>
-  </aside>
+<body class="bg-base-100 font-sans text-sm antialiased">
+<div class="drawer lg:drawer-open">
+  <input id="navigation" type="checkbox" class="drawer-toggle">
 
-  <main class="flex min-w-0 flex-1 flex-col">
-    <header class="flex h-14 items-center gap-3 border-b border-line px-4 md:px-6">
-      <a href="{{ urls.index() }}" class="font-semibold md:hidden">{{ title }}</a>
+  <div class="drawer-content flex h-screen min-w-0 flex-col">
+    <header class="navbar min-h-14 gap-2 border-b border-base-300 px-3 lg:px-6">
+      <label for="navigation" class="btn btn-square btn-ghost btn-sm lg:hidden" aria-label="Open the menu">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </label>
       <div class="min-w-0 flex-1">
         {% block header %}{% endblock %}
       </div>
-      {% block header_actions %}{% endblock %}
+      <div class="flex items-center gap-2">
+        {% block header_actions %}{% endblock %}
+      </div>
     </header>
 
     {% if messages %}
-      <div class="border-b border-line px-4 py-2 md:px-6">
+      <div class="toast toast-end toast-bottom z-50" x-data="{ shown: true }"
+           x-show="shown" x-init="setTimeout(() => shown = false, 5000)">
         {% for message in messages %}
-          <p class="text-sm {% if message.kind == 'error' %}text-danger{% else %}text-muted{% endif %}">
-            {{ message.text }}
-          </p>
+          <div role="status"
+               class="alert {% if message.kind == 'error' %}alert-error{% else %}alert-success{% endif %} alert-soft">
+            <span>{{ message.text }}</span>
+          </div>
         {% endfor %}
       </div>
     {% endif %}
 
-    <div class="min-h-0 flex-1 overflow-auto">
+    <main class="min-h-0 flex-1 overflow-auto">
       {% block content %}{% endblock %}
-    </div>
-  </main>
+    </main>
+  </div>
+
+  <div class="drawer-side z-40">
+    <label for="navigation" class="drawer-overlay" aria-label="Close the menu"></label>
+    <aside class="flex min-h-full w-60 flex-col border-r border-base-300 bg-base-200">
+      <a href="{{ urls.index() }}" class="flex h-14 items-center gap-2.5 border-b border-base-300 px-4">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" class="text-primary">
+          <path d="M4 3h12v5l-4 3v6H8v-6L4 8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg>
+        <span class="truncate font-semibold">{{ title }}</span>
+      </a>
+
+      <ul class="menu w-full flex-1 gap-0.5 px-2 py-3">
+        <li>
+          <a href="{{ urls.index() }}" class="{% if not view %}bg-base-300 font-medium{% endif %}">Overview</a>
+        </li>
+        {% for group, views in groups %}
+          {% if group %}
+            <li class="menu-title mt-3">{{ group }}</li>
+          {% endif %}
+          {% for item in views %}
+            <li>
+              <a href="{{ urls.list(item) }}"
+                 class="{% if view and view.name == item.name %}bg-base-300 font-medium{% endif %}">
+                {{ item.label_plural }}
+              </a>
+            </li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+
+      <div class="flex items-center gap-2 border-t border-base-300 px-3 py-3">
+        {% if user %}
+          <div class="avatar avatar-placeholder">
+            <div class="w-7 rounded-full bg-neutral text-neutral-content">
+              <span class="text-xs">{{ user|string|first|upper }}</span>
+            </div>
+          </div>
+          <span class="min-w-0 flex-1 truncate">{{ user }}</span>
+          <form method="post" action="{{ urls.logout() }}">
+            {{ csrf_input | safe if csrf_input }}
+            <button class="btn btn-ghost btn-xs" type="submit">Sign out</button>
+          </form>
+        {% else %}
+          <span class="flex-1"></span>
+        {% endif %}
+        <button class="btn btn-square btn-ghost btn-xs" type="button"
+                onclick="switchTheme()" aria-label="Switch between light and dark">
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+  </div>
 </div>
 </body>
 </html>

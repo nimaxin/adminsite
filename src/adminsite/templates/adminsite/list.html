@@ -3,12 +3,12 @@
 {% block page_title %}{{ view.label_plural }} · {{ title }}{% endblock %}
 
 {% block header %}
-  <h1 class="text-base font-semibold">{{ view.label_plural }}</h1>
+  <h1 class="truncate text-base font-semibold">{{ view.label_plural }}</h1>
 {% endblock %}
 
 {% block header_actions %}
   {% if can_create %}
-    <a class="btn btn-primary" href="{{ urls.create(view) }}">New {{ view.label|lower }}</a>
+    <a class="btn btn-primary btn-sm" href="{{ urls.create(view) }}">New {{ view.label|lower }}</a>
   {% endif %}
 {% endblock %}
 

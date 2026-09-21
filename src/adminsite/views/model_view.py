@@ -100,7 +100,7 @@ class ModelView:
         """The columns the list shows."""
         if self.list_display:
             return tuple(self.list_display)
-        return tuple(name for name in self.schema.fields if name not in self.exclude)
+        return self._default_paths(skip=set(self.exclude))
 
     def get_search_fields(self, request: Any = None) -> tuple[str, ...]:
         """The paths the search box looks in."""
@@ -120,14 +120,37 @@ class ModelView:
         """The fields the form shows, in order."""
         if self.form_fields:
             return tuple(self.form_fields)
-        skip = set(self.exclude) | set(self.schema.primary_key)
-        return tuple(name for name in self.schema.fields if name not in skip)
+        return self._default_paths(
+            skip=set(self.exclude) | set(self.schema.primary_key)
+        )
 
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
         """The fields shown but not editable."""
         return tuple(self.readonly_fields)
+
+    def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
+        """Every column in order, with a foreign key shown as its link.
+
+        A form offering `customer_id` as a number box is no use to anyone,
+        so the key column is swapped for the relationship it belongs to,
+        which gets a proper picker and shows the customer's name.
+        """
+        links = {
+            column: relation.name
+            for relation in self.schema.relations.values()
+            if not relation.collection
+            for column in relation.local_columns
+        }
+        paths: list[str] = []
+        for name in self.schema.fields:
+            if name in skip:
+                continue
+            path = links.get(name, name)
+            if path not in paths and path not in skip:
+                paths.append(path)
+        return tuple(paths)
 
     # Turning paths into fields and values.
 
@@ -151,8 +174,19 @@ class ModelView:
         return built
 
     def label_for(self, path: str) -> str:
-        """The column heading for a path."""
-        return self.field_for(path).label
+        """The column heading for a path.
+
+        A path through a link names the link as well, so `customer.name`
+        reads Customer name rather than a bare Name.
+        """
+        label = self.field_for(path).label
+        if path in self._overrides or "." not in path:
+            return label
+        resolved = self.inspector.resolve(self.model, path)
+        if resolved.field is None:
+            return label
+        owner = resolved.relations[-1].label
+        return f"{owner} {label[:1].lower()}{label[1:]}"
 
     def value_at(self, record: Any, path: str) -> Any:
         """Read the value a path points at, following links as it goes."""

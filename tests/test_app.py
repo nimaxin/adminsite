@@ -90,7 +90,8 @@ class TestMounting:
         response = await client.get("/admin/static/adminsite.css")
 
         assert response.status_code == 200
-        assert "--color-brand" in response.text or "brand" in response.text
+        assert response.headers["content-type"].startswith("text/css")
+        assert ".btn" in response.text
 
 
 class TestListPage:

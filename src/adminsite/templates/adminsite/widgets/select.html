@@ -1,0 +1,9 @@
+<select class="select w-full {% if row.error %}select-error{% endif %}"
+        id="field-{{ row.path }}" name="{{ row.path }}">
+  {% if not row.required %}<option value="">Not set</option>{% endif %}
+  {% for choice in row.choices %}
+    <option value="{{ choice.value }}" {% if choice.value in row.selected %}selected{% endif %}>
+      {{ choice.label }}
+    </option>
+  {% endfor %}
+</select>
