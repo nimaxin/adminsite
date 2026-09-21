@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a2
+
+The second alpha. If you use Postgres, upgrade: 0.1.0a1 could not open records there.
 
 - Audit log. `audit=True` records who created, changed or deleted what, with each field's value
   before and after, in a SQLite file of its own; pass an `AuditLog(engine)` to keep it in your own
