@@ -134,3 +134,14 @@ def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
     if view is not None and view.display_template:
         return view.title_of(record)
     return item.label_for(record)
+
+
+def rows_for_inputs(fields: Sequence[Field]) -> list[FormRow]:
+    """Build empty form rows for the values an action asks for."""
+    rows = []
+    for item in fields:
+        row = FormRow(path=item.name, field=item)
+        if isinstance(item, ChoiceField):
+            row.choices = [Choice(value, label) for value, label in item.choices]
+        rows.append(row)
+    return rows

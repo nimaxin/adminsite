@@ -1,3 +1,5 @@
+import re
+
 import httpx
 import pytest
 from sqlalchemy import func, select
@@ -6,7 +8,8 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
-from adminsite.exceptions import RefusedError
+from adminsite.exceptions import AdminSiteError, RefusedError
+from adminsite.fields import ChoiceField, StringField
 from adminsite.query import QuerySpec
 from adminsite.security import Permission
 from tests.models import Order, OrderStatus, Product
@@ -36,6 +39,22 @@ class OrderView(ModelView, model=Order):
     async def one_by_one(self, selection: Selection) -> str:
         records = await selection.records()
         return f"{len(records)} orders seen."
+
+    @action(
+        "Add a note",
+        confirm="Add this note to the chosen orders?",
+        inputs=[
+            StringField("text", label="Note", required=True, max_length=200),
+            ChoiceField(
+                "urgency",
+                choices=(("low", "Low"), ("high", "High")),
+                required=True,
+            ),
+        ],
+    )
+    async def add_note(self, selection: Selection, text: str, urgency: str) -> str:
+        changed = await selection.update(note=f"[{urgency}] {text}")
+        return f"Note added to {changed} orders."
 
 
 class ProductView(ModelView, model=Product):
@@ -73,7 +92,17 @@ class TestDeclaringActions:
     def test_actions_are_found_on_the_view(self) -> None:
         names = [item.name for item in OrderView().get_actions()]
 
-        assert set(names) == {"ship", "discard", "never", "one_by_one"}
+        assert set(names) == {"ship", "discard", "never", "one_by_one", "add_note"}
+
+    def test_an_action_with_inputs_opens_a_dialog(self) -> None:
+        found = OrderView().action_named("add_note")
+
+        assert found.needs_dialog is True
+        assert [item.name for item in found.inputs] == ["text", "urgency"]
+
+    def test_an_input_cannot_take_a_name_the_form_uses(self) -> None:
+        with pytest.raises(AdminSiteError, match="cannot be called 'keys'"):
+            action("Broken", inputs=[StringField("keys")])
 
     def test_an_action_carries_its_label_and_confirmation(self) -> None:
         ship = OrderView().action_named("ship")
@@ -150,6 +179,99 @@ class TestRunningActions:
     ) -> None:
         with pytest.raises(Exception, match="no action called"):
             await client.post("/admin/orders/action/fly", data={"keys": "1"})
+
+
+class TestActionInputs:
+    async def test_the_values_reach_the_action(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        response = await client.post(
+            "/admin/orders/action/add_note",
+            data={"keys": ["1", "2"], "text": "Call first", "urgency": "high"},
+        )
+
+        assert response.status_code == 303
+        async with database.session() as session:
+            order = await session.get(Order, 1)
+            assert order is not None
+            assert order.note == "[high] Call first"
+
+    async def test_a_missing_value_stops_the_action(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        response = await client.post(
+            "/admin/orders/action/add_note",
+            data={"keys": ["1"], "text": "", "urgency": "high"},
+        )
+
+        assert response.status_code == 303
+        async with database.session() as session:
+            order = await session.get(Order, 1)
+            assert order is not None
+            assert order.note is None
+
+    async def test_a_value_outside_the_choices_stops_the_action(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        await client.post(
+            "/admin/orders/action/add_note",
+            data={"keys": ["1"], "text": "Hello", "urgency": "extreme"},
+        )
+
+        async with database.session() as session:
+            order = await session.get(Order, 1)
+            assert order is not None
+            assert order.note is None
+
+    async def test_the_reason_is_shown_on_the_list(self, database: Database) -> None:
+        site = Admin(database, title="Shop", secret_key="for-the-messages")
+        site.add_view(OrderView)
+        app = Starlette()
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as session_client:
+            page = await session_client.get("/admin/orders")
+            token = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+            assert token is not None
+
+            response = await session_client.post(
+                "/admin/orders/action/add_note",
+                data={
+                    "keys": ["1"],
+                    "text": "",
+                    "urgency": "high",
+                    "_csrf": token.group(1),
+                },
+                follow_redirects=True,
+            )
+
+            assert "Add a note was not done." in response.text
+            assert "Note: This field is required." in response.text
+
+
+class TestDialogs:
+    async def test_the_list_carries_a_dialog_for_each_action_that_asks(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+
+        assert 'id="action-add_note"' in response.text
+        assert 'id="action-ship"' in response.text
+        assert 'id="action-one_by_one"' not in response.text
+
+    async def test_the_dialog_holds_the_inputs(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders")
+        dialog = response.text.split('id="action-add_note"')[1].split("</dialog>")[0]
+
+        assert 'name="text"' in dialog
+        assert 'name="urgency"' in dialog
+        assert "Add this note to the chosen orders?" in dialog
+
+    async def test_the_browser_confirm_is_gone(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders")
+
+        assert "confirm(" not in response.text
 
 
 class TestSelection:

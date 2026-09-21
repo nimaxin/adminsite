@@ -7,6 +7,7 @@ from starlette.requests import Request
 from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.filters import FilterOption, FilterValue, parse_filters
+from adminsite.http.forms import rows_for_inputs
 from adminsite.query import QuerySpec, Sort
 from adminsite.views import ModelView
 
@@ -145,4 +146,8 @@ def as_context(
         "spec": spec,
         "export_params": export_params(request),
         "actions": view.get_actions(request),
+        "action_rows": {
+            item.name: rows_for_inputs(item.inputs)
+            for item in view.get_actions(request)
+        },
     }

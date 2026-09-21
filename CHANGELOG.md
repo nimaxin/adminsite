@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Actions can ask for values in a dialog before they run, checked like form fields and passed to
+  the method by name. Confirmations and deleting a record use a dialog instead of the browser's
+  confirm box.
 - The UI is rebuilt on daisyUI, with light and dark themes, a drawer sidebar on phones, and one
   template per form widget.
 - A foreign key column shows as its relationship in the default list and form.

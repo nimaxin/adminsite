@@ -372,6 +372,16 @@ async def run_action(admin: "Admin", request: Request) -> Response:
         sort=read.sort,
     )
 
+    inputs = view.parse_action_inputs(found, submitted)
+    if not inputs.ok:
+        problems = "; ".join(
+            f"{item.label}: {inputs.errors[item.name]}"
+            for item in found.inputs
+            if item.name in inputs.errors
+        )
+        add_message(request, f"{found.label} was not done. {problems}", kind="error")
+        return back_to_list(request, view)
+
     async with admin.database.session() as session:
         selection = Selection(
             view=view,
@@ -382,7 +392,9 @@ async def run_action(admin: "Admin", request: Request) -> Response:
             request=request,
         )
         try:
-            message = await view.run_action(found, selection, request=request)
+            message = await view.run_action(
+                found, selection, request=request, values=inputs.values
+            )
             await session.commit()
         except RefusedError as error:
             await session.rollback()

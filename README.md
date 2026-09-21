@@ -142,6 +142,20 @@ class OrderView(ModelView, model=Order):
         return f"{changed} orders marked as shipped."
 ```
 
+An action can ask for values before it runs. They appear in a dialog, are checked like form
+fields, and reach the method by name:
+
+```python
+@action(
+    "Mark as shipped",
+    confirm="Mark the chosen orders as shipped?",
+    inputs=[ChoiceField("carrier", choices=CARRIERS, required=True)],
+)
+async def ship(self, selection: Selection, carrier: str) -> str:
+    changed = await selection.update(status=OrderStatus.SHIPPED, carrier=carrier)
+    return f"{changed} orders sent with {carrier}."
+```
+
 The selection is either the rows that were ticked or every row the current search and filters
 match. `selection.update` and `selection.delete` are single statements and skip the save hooks;
 `selection.records()` loads the records when the hooks matter. Because `selection.delete` never

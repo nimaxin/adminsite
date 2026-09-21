@@ -255,13 +255,31 @@ class ModelView:
                 f"{type(self).__name__} has no action called {name!r}."
             ) from None
 
+    def parse_action_inputs(self, found: Action, data: FormData) -> FormResult:
+        """Read the values an action asked for, checked like form fields."""
+        result = FormResult()
+        for item in found.inputs:
+            try:
+                result.values[item.name] = item.parse(_as_text(data.get(item.name)))
+            except FieldValidationError as error:
+                result.errors[item.name] = error.message
+        return result
+
     async def run_action(
-        self, found: Action, selection: "Selection", *, request: Any = None
+        self,
+        found: Action,
+        selection: "Selection",
+        *,
+        request: Any = None,
+        values: Mapping[str, Any] | None = None,
     ) -> str:
-        """Run an action and return what to tell the user."""
+        """Run an action and return what to tell the user.
+
+        The values the action asked for are passed to its method by name.
+        """
         await self.ensure(found.permission, request=request)
         handler = getattr(self, found.method)
-        message = await handler(selection)
+        message = await handler(selection, **(values or {}))
         return str(message) if message else f"{found.label} done."
 
     def _collect_actions(self) -> dict[str, Action]:

@@ -19,7 +19,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.fields import RelationField
+from adminsite.fields import ChoiceField, RelationField
 
 
 class Base(DeclarativeBase):
@@ -97,10 +97,22 @@ class OrderView(ModelView, model=Order):
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
     )
 
-    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
-    async def ship(self, selection: Selection) -> str:
-        changed = await selection.update(status=OrderStatus.SHIPPED)
-        return f"{changed} orders marked as shipped."
+    @action(
+        "Mark as shipped",
+        confirm="Mark the chosen orders as shipped?",
+        inputs=[
+            ChoiceField(
+                "carrier",
+                choices=(("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL")),
+                required=True,
+            ),
+        ],
+    )
+    async def ship(self, selection: Selection, carrier: str) -> str:
+        changed = await selection.update(
+            status=OrderStatus.SHIPPED, note=f"Sent with {carrier.upper()}"
+        )
+        return f"{changed} orders marked as shipped with {carrier.upper()}."
 
 
 class ProductView(ModelView, model=Product):

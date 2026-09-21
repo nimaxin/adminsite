@@ -21,14 +21,19 @@
         {% endif %}
         <span class="flex-1"></span>
         {% for item in actions %}
-          <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% endif %}"
-                  type="submit"
-                  formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
-                  {% if item.needs_confirming %}
-                    onclick="return confirm({{ item.confirm|tojson }})"
-                  {% endif %}>
-            {{ item.label }}
-          </button>
+          {% if item.needs_dialog %}
+            <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% endif %}"
+                    type="button"
+                    onclick="document.getElementById('action-{{ item.name }}').showModal()">
+              {{ item.label }}
+            </button>
+          {% else %}
+            <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% endif %}"
+                    type="submit"
+                    formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+              {{ item.label }}
+            </button>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}
@@ -110,6 +115,56 @@
       </table>
     </div>
   </form>
+
+  {#- Each dialog is its own form, so a required input in one dialog never
+      stops another action from submitting. On submit it copies the ticked
+      rows across from the table. -#}
+  {% for item in actions if item.needs_dialog %}
+    <dialog id="action-{{ item.name }}" class="modal">
+      <form class="modal-box" method="post"
+            action="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+            @submit="
+              $el.querySelectorAll('input[data-copied]').forEach(node => node.remove());
+              $refs.actions.querySelectorAll('input[name=keys]:checked').forEach(box => {
+                const copy = document.createElement('input');
+                copy.type = 'hidden';
+                copy.name = 'keys';
+                copy.value = box.value;
+                copy.dataset.copied = '';
+                $el.appendChild(copy);
+              });
+            ">
+        {{ csrf_input | safe if csrf_input }}
+        <input type="hidden" name="everything" :value="everything ? '1' : ''">
+        <h3 class="text-lg font-semibold">{{ item.label }}</h3>
+        {% if item.confirm %}
+          <p class="pt-2 text-base-content/80">{{ item.confirm }}</p>
+        {% endif %}
+        <p class="pt-1 text-base-content/60">
+          <span x-show="!everything"><span x-text="picked"></span> selected</span>
+          {% if page.total is not none %}
+            <span x-show="everything">All {{ "{:,}".format(page.total) }} matching rows</span>
+          {% endif %}
+        </p>
+        {% if action_rows[item.name] %}
+          <div class="mt-3">
+            {% for row in action_rows[item.name] %}
+              {% include "adminsite/_field.html" %}
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost btn-sm"
+                  onclick="this.closest('dialog').close()">Cancel</button>
+          <button type="submit"
+                  class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-primary{% endif %}">
+            {{ item.label }}
+          </button>
+        </div>
+      </form>
+      <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
+    </dialog>
+  {% endfor %}
 
   <div class="flex items-center gap-3 border-t border-base-300 px-3 py-2 text-base-content/70 lg:px-6">
     <span class="tabular-nums">

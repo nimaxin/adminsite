@@ -251,6 +251,15 @@ class TestDeleting:
 
         assert response.status_code == 404
 
+    async def test_the_edit_page_asks_in_a_dialog_before_deleting(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/products/1/edit")
+
+        assert 'id="confirm-delete"' in response.text
+        assert 'action="/admin/products/1/delete"' in response.text
+        assert "confirm(" not in response.text
+
     async def test_deleting_something_gone_is_not_found(
         self, client: httpx.AsyncClient
     ) -> None:
