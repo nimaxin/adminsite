@@ -137,7 +137,7 @@ class TestShowingAPage:
 
         assert "Reports" in page.text
         assert re.search(
-            r'href="/admin/-/sales_report"\s+class="bg-base-300', page.text
+            r'href="/admin/-/sales_report"\s+aria-current="page"', page.text
         )
 
     async def test_a_page_can_answer_by_itself(self, client: httpx.AsyncClient) -> None:

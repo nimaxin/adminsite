@@ -1,1 +1,1 @@
-<input class="input w-full" id="field-{{ row.path }}" value="{{ row.display }}" disabled>
+<input class="input w-full" id="field-{{ row.path }}" value="{{ row.display }}" disabled {{ field_attrs|default('') }}>

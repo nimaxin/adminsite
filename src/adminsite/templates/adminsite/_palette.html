@@ -1,5 +1,5 @@
 {% for section in sections %}
-  <p class="px-3 pb-1 pt-3 text-xs font-medium text-base-content/50" id="palette-section-{{ loop.index }}">
+  <p class="px-3 pb-1 pt-3 text-xs font-medium text-base-content/60" id="palette-section-{{ loop.index }}">
     {{ section.title }}
   </p>
   <ul role="group" aria-labelledby="palette-section-{{ loop.index }}">
@@ -8,7 +8,7 @@
         <a class="palette-item flex items-center gap-3 rounded-field px-3 py-2 hover:bg-base-200"
            href="{{ item.url }}">
           <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-          {% if item.hint %}<span class="text-xs text-base-content/50">{{ item.hint }}</span>{% endif %}
+          {% if item.hint %}<span class="text-xs text-base-content/60">{{ item.hint }}</span>{% endif %}
         </a>
       </li>
     {% endfor %}

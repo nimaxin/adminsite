@@ -12,6 +12,10 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Accessibility: a skip link, named landmarks and `aria-current` in the sidebar; captioned tables
+  with `aria-sort`; row checkboxes named after their record; inputs named by their label and tied
+  to their error or help; problems that stay until closed; the new count announced after the
+  list updates; stronger contrast for dimmed text. A test checks every control has a name.
 - Translations: `language="fa"` puts the whole admin in Persian with a mirrored right to left
   layout, and `languages=[...]` adds a menu, picking the browser's language on the first visit.
   Your own `translations` override or add to the shipped catalogs, and `adminsite.i18n.gettext`

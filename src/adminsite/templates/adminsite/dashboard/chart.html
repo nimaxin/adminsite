@@ -2,7 +2,7 @@
   <div class="card-body gap-3 p-4">
     <div class="flex items-baseline justify-between gap-2">
       <h2 class="text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
-      {% if data.points %}<span class="text-xs text-base-content/50">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
+      {% if data.points %}<span class="text-xs text-base-content/60">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
     </div>
     {% if data.points %}
       <svg class="h-36 w-full text-primary" viewBox="0 0 {{ data.width }} 100"
@@ -24,7 +24,7 @@
           {% endfor %}
         {% endif %}
       </svg>
-      <div class="flex justify-between text-xs text-base-content/50" aria-hidden="true">
+      <div class="flex justify-between text-xs text-base-content/60" aria-hidden="true">
         {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
       </div>
       {#- The same numbers for screen readers, which cannot read the drawing. -#}

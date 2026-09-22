@@ -33,9 +33,11 @@
                   {% if row.readonly %}
                     <span class="text-base-content/70">{{ row.display or "—" }}</span>
                   {% else %}
+                    {% set note_id = table.name ~ "-" ~ index ~ "-" ~ row.path|replace(".", "-") ~ "-note" %}
+                    {% set field_attrs %}aria-label="{{ row.label }}"{% if row.error %} aria-invalid="true" aria-describedby="{{ note_id }}"{% endif %}{% endset %}
                     {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
                   {% endif %}
-                  {% if row.error %}<p class="pt-1 text-xs text-error">{{ row.error }}</p>{% endif %}
+                  {% if row.error %}<p class="pt-1 text-xs text-error" id="{{ note_id }}">{{ row.error }}</p>{% endif %}
                 </td>
               {% endfor %}
               {% if table.inline.can_delete %}
@@ -65,6 +67,7 @@
             {% if row.readonly %}
               <span class="text-base-content/70">—</span>
             {% else %}
+              {% set field_attrs %}aria-label="{{ row.label }}"{% endset %}
               {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
             {% endif %}
           </td>

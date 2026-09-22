@@ -46,6 +46,7 @@
 
     <div class="min-h-0 flex-1 overflow-auto">
       <table class="table table-sm table-pin-rows">
+        <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
           <tr class="bg-base-100">
             {% if actions %}
@@ -61,14 +62,15 @@
             {% endif %}
             {% for path in columns %}
               {% set state = sort_state(request, path) %}
-              <th class="{% if view.field_for(path).widget == 'number' %}text-end{% endif %}">
+              <th class="{% if view.field_for(path).widget == 'number' %}text-end{% endif %}"
+                  {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 <a class="inline-flex items-center gap-1 font-medium hover:text-base-content"
                    href="{{ urls.sorted_by(path) }}"
                    hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
                    hx-swap="outerHTML" hx-push-url="true">
                   {{ view.label_for(path) }}
-                  {% if state == "asc" %}<span class="text-primary">&uarr;</span>{% endif %}
-                  {% if state == "desc" %}<span class="text-primary">&darr;</span>{% endif %}
+                  {% if state == "asc" %}<span class="text-primary" aria-hidden="true">&uarr;</span>{% endif %}
+                  {% if state == "desc" %}<span class="text-primary" aria-hidden="true">&darr;</span>{% endif %}
                 </a>
               </th>
             {% endfor %}
@@ -82,7 +84,7 @@
               {% if actions %}
                 <td>
                   <input type="checkbox" class="checkbox checkbox-sm" name="keys" value="{{ key }}"
-                         aria-label="{{ _('Select this row') }}"
+                         aria-label="{{ _('Select {name}', name=view.title_of(row)) }}"
                          @change="
                            picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
                            everything = false;
@@ -179,7 +181,7 @@
   {% endfor %}
 
   <div class="flex items-center gap-3 border-t border-base-300 px-3 py-2 text-base-content/70 lg:px-6">
-    <span class="tabular-nums">
+    <span class="tabular-nums" data-count>
       {% if page.keyset %}
         {% if page.total is not none %}{{ total_text }} {{ view.label_plural|lower }}{% endif %}
       {% elif page.total is not none %}
@@ -196,16 +198,18 @@
       {% set previous = urls.here(page=page_number - 1 if page_number > 2 else None) %}
       {% set next = urls.here(page=page_number + 1) %}
     {% endif %}
-    <div class="join">
+    <nav class="join" aria-label="{{ _('Pages') }}">
       <a class="join-item btn btn-sm {% if not page.has_previous %}btn-disabled{% endif %}"
+         {% if not page.has_previous %}aria-disabled="true" tabindex="-1"{% endif %}
          href="{{ previous }}" hx-get="{{ previous }}" hx-target="#records"
          hx-swap="outerHTML" hx-push-url="true">{{ _('Previous') }}</a>
       {% if not page.keyset %}
-        <span class="join-item btn btn-sm pointer-events-none">{{ _("Page {number}", number=page_number) }}</span>
+        <span class="join-item btn btn-sm pointer-events-none" aria-current="page">{{ _("Page {number}", number=page_number) }}</span>
       {% endif %}
       <a class="join-item btn btn-sm {% if not page.has_next %}btn-disabled{% endif %}"
+         {% if not page.has_next %}aria-disabled="true" tabindex="-1"{% endif %}
          href="{{ next }}" hx-get="{{ next }}" hx-target="#records"
          hx-swap="outerHTML" hx-push-url="true">{{ _('Next') }}</a>
-    </div>
+    </nav>
   </div>
 </div>

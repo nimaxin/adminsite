@@ -3,7 +3,7 @@
     form attribute, since forms cannot sit inside each other. -#}
 {% if column_choices|length > 1 %}
   <div class="dropdown dropdown-end">
-    <div tabindex="0" role="button" class="btn btn-ghost btn-sm">{{ _('Columns') }}</div>
+    <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-ghost btn-sm">{{ _('Columns') }}</div>
     <div tabindex="0" class="dropdown-content z-30 mt-1 w-60 rounded-box border border-base-300 bg-base-100 p-3 shadow">
       {% for path in column_choices %}
         <label class="label flex w-full cursor-pointer gap-2 py-1 text-base-content">
@@ -25,7 +25,7 @@
 
 {% if saving_views %}
   <div class="dropdown dropdown-end">
-    <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+    <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-ghost btn-sm">
       {{ active_view.name if active_view else _("Saved views") }}
     </div>
     <div tabindex="0" class="dropdown-content z-30 mt-1 w-64 rounded-box border border-base-300 bg-base-100 p-2 shadow">

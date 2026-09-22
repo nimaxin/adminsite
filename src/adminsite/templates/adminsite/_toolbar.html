@@ -31,7 +31,8 @@
 
     {% if panels %}
       <button class="btn btn-ghost btn-sm" type="button" @click="filters = !filters"
-              :class="filters && 'btn-active'">
+              :class="filters && 'btn-active'" :aria-expanded="filters.toString()"
+              aria-controls="filter-panel">
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M2 3.5h12M4.5 8h7M7 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
@@ -47,7 +48,7 @@
     <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">{{ _('Export CSV') }}</a>
 
     {% if panels %}
-      <div class="w-full" x-show="filters" x-cloak>
+      <div class="w-full" id="filter-panel" x-show="filters" x-cloak>
         <div class="mt-2 grid gap-5 rounded-box border border-base-300 bg-base-200 p-4 sm:grid-cols-2 lg:grid-cols-4">
           {% for panel in panels %}
             <fieldset class="fieldset content-start">
@@ -68,6 +69,7 @@
               {% elif panel.filter.template == "range" %}
                 <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
                        value="{{ panel.chosen[0] if panel.chosen else '' }}"
+                       aria-label="{{ panel.filter.label }}"
                        placeholder="{{ _('from,to') }}" list="{{ panel.filter.name }}-choices">
                 {% if panel.options %}
                   <datalist id="{{ panel.filter.name }}-choices">
@@ -80,6 +82,7 @@
               {% else %}
                 <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
                        value="{{ panel.chosen[0] if panel.chosen else '' }}"
+                       aria-label="{{ panel.filter.label }}"
                        placeholder="{{ panel.filter.label|lower }}">
               {% endif %}
             </fieldset>
