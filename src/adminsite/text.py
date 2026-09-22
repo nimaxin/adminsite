@@ -35,8 +35,9 @@ def pluralize(word: str) -> str:
 
 
 def snake_case(name: str) -> str:
-    """Turn a class name into snake case, so `OrderItem` becomes order_item."""
-    return _CAMEL_BOUNDARY.sub("_", name).lower()
+    """Turn a name into snake case, so `OrderItem` becomes order_item."""
+    spaced = _CAMEL_BOUNDARY.sub("_", name.strip())
+    return re.sub(r"[^0-9a-zA-Z]+", "_", spaced).strip("_").lower()
 
 
 class RecordValues(Mapping[str, Any]):

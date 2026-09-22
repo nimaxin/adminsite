@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Several admins in one app keep separate sessions by default: the session cookie is named after
+  the admin's title unless you set `session_cookie`.
+- Action and delete buttons are hidden from users that `allows()` refuses.
+
 ## 0.1.0a2
 
 The second alpha. If you use Postgres, upgrade: 0.1.0a1 could not open records there.

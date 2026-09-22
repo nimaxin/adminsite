@@ -112,6 +112,25 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do.
 Links inside the admin follow the path it is mounted on, so `/admin`, `/backoffice` or
 `/tools/admin` all work without configuration.
 
+## Several admins in one app
+
+Mount as many as you like, each with its own views, users and settings:
+
+```python
+staff = Admin(engine, title="Staff", views=[OrderView, CustomerView, ProductView], auth=staff_auth,
+              secret_key=settings.staff_secret)
+support = Admin(engine, title="Support", views=[OrderView, CustomerView], auth=support_auth,
+                secret_key=settings.support_secret)
+
+app.mount("/staff", staff)
+app.mount("/support", support)
+```
+
+Each admin keeps its own session, in a cookie named after its title (`adminsite_staff`,
+`adminsite_support`), so signing in to one never signs you in to the other. Give two admins with the
+same title different names with `session_cookie=`. The same view class can be used in both; each
+admin gets its own instance.
+
 ## Signing in
 
 An admin reachable from the internet needs a login. The quickest one:

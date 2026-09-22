@@ -20,6 +20,7 @@ from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import endpoints
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
+from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -47,7 +48,7 @@ class Admin:
         auth: AuthProvider | None = None,
         secret_key: str = "",
         audit: AuditLog | bool = False,
-        session_cookie: str = "adminsite_session",
+        session_cookie: str | None = None,
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
@@ -62,7 +63,9 @@ class Admin:
         self.auth = auth
         self.audit = AuditLog() if audit is True else (audit or None)
         self.secret_key = secret_key
-        self.session_cookie = session_cookie
+        # Named after the title, so two admins in one app keep separate
+        # sessions without anyone having to think about it.
+        self.session_cookie = session_cookie or f"adminsite_{snake_case(title)}"
         self._app: Starlette | None = None
 
         for view in views:
