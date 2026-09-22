@@ -62,6 +62,8 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         filters=read.values,
         sort=read.sort,
         page=read.page,
+        after=read.after,
+        before=read.before,
     )
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
@@ -508,7 +510,7 @@ async def export_records(admin: "Admin", request: Request) -> Response:
         search=read.search,
         filters=read.values,
         sort=read.sort,
-    ).replace(limit=None, offset=0, count=CountMode.NONE)
+    ).replace(limit=None, offset=0, count=CountMode.NONE, keyset=False)
 
     filename = f"{view.name}.csv"
     return StreamingResponse(

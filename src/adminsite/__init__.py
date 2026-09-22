@@ -11,7 +11,7 @@ from adminsite.exceptions import (
     UnknownFieldError,
 )
 from adminsite.protocols import ModelInspector
-from adminsite.query import CountMode, Page, QuerySpec, Sort
+from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.schema import (
     FieldPath,
     FieldSchema,
@@ -37,6 +37,7 @@ __all__ = [
     "ModelView",
     "NotAModelError",
     "Page",
+    "Pagination",
     "Permission",
     "PermissionDeniedError",
     "QuerySpec",

@@ -117,10 +117,20 @@ Links inside the admin follow the path it is mounted on, so `/admin`, `/backoffi
 Mount as many as you like, each with its own views, users and settings:
 
 ```python
-staff = Admin(engine, title="Staff", views=[OrderView, CustomerView, ProductView], auth=staff_auth,
-              secret_key=settings.staff_secret)
-support = Admin(engine, title="Support", views=[OrderView, CustomerView], auth=support_auth,
-                secret_key=settings.support_secret)
+staff = Admin(
+    engine,
+    title="Staff",
+    views=[OrderView, CustomerView, ProductView],
+    auth=staff_auth,
+    secret_key=settings.staff_secret,
+)
+support = Admin(
+    engine,
+    title="Support",
+    views=[OrderView, CustomerView],
+    auth=support_auth,
+    secret_key=settings.support_secret,
+)
 
 app.mount("/staff", staff)
 app.mount("/support", support)

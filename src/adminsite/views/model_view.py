@@ -25,7 +25,7 @@ from adminsite.exceptions import (
 )
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.filters import Filter, FilterValue
-from adminsite.query import CountMode, Page, QuerySpec, Sort
+from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, pluralize, snake_case
 from adminsite.views.inline import Inline, InlineRow
@@ -59,6 +59,7 @@ class ModelView:
     ordering: Sequence[str] = ()
     page_size: int = 25
     count_mode: CountMode = CountMode.EXACT
+    pagination: Pagination = Pagination.OFFSET
 
     form_fields: Sequence[str] = ()
     readonly_fields: Sequence[str] = ()
@@ -296,6 +297,8 @@ class ModelView:
         sort: Sequence[Sort] = (),
         page: int = 1,
         paths: Sequence[str] = (),
+        after: str = "",
+        before: str = "",
     ) -> QuerySpec:
         """Describe the read this view wants, page by page."""
         wanted = tuple(paths) or self.get_list_display(request)
@@ -307,6 +310,9 @@ class ModelView:
             sort=tuple(sort) or self.get_ordering(request),
             limit=self.page_size,
             count=self.count_mode,
+            keyset=self.pagination is Pagination.KEYSET,
+            after=after,
+            before=before,
         )
         return spec.page(page)
 

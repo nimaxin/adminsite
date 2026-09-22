@@ -12,7 +12,21 @@ class CountMode(StrEnum):
     """How hard to work to report how many records match."""
 
     EXACT = "exact"
+    # The database's own row estimate when nothing narrows the list, and a
+    # count that stops at a cap when something does.
+    ESTIMATED = "estimated"
     NONE = "none"
+
+
+class Pagination(StrEnum):
+    """How the list moves from one page to the next."""
+
+    # Page numbers. Simple, but the database still walks every row before
+    # the page, so deep pages on a big table get slow.
+    OFFSET = "offset"
+    # Continue after the last row seen. Every page costs the same, but there
+    # is no jumping to page 40, only previous and next.
+    KEYSET = "keyset"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +59,9 @@ class QuerySpec:
     offset: int = 0
     limit: int | None = DEFAULT_PAGE_SIZE
     count: CountMode = CountMode.EXACT
+    keyset: bool = False
+    after: str = ""
+    before: str = ""
 
     def page(self, number: int) -> "QuerySpec":
         """Return the same query moved to a one based page number."""
@@ -62,6 +79,9 @@ class QuerySpec:
             "offset": self.offset,
             "limit": self.limit,
             "count": self.count,
+            "keyset": self.keyset,
+            "after": self.after,
+            "before": self.before,
         }
         current.update(changes)
         return QuerySpec(**current)  # type: ignore[arg-type]
@@ -76,11 +96,19 @@ class Page:
     limit: int | None = None
     total: int | None = None
     has_next: bool = False
+    # The total is the database's estimate, or a count that stopped early.
+    estimated: bool = False
+    at_least: bool = False
+    # Set when the page was read by keyset: where the next and previous
+    # pages start.
+    keyset: bool = False
+    next_cursor: str = ""
+    previous_cursor: str = ""
 
     @property
     def has_previous(self) -> bool:
         """Whether there is a page before this one."""
-        return self.offset > 0
+        return self.offset > 0 or bool(self.previous_cursor)
 
     @property
     def first_position(self) -> int:

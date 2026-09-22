@@ -8,6 +8,7 @@ from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.filters import FilterOption, FilterValue, parse_filters
 from adminsite.http.forms import rows_for_inputs
+from adminsite.http.urls import PAGING_KEYS
 from adminsite.query import QuerySpec, Sort
 from adminsite.views import ModelView
 
@@ -46,6 +47,8 @@ class ListRequest:
     sort: tuple[Sort, ...] = ()
     page: int = 1
     values: tuple[FilterValue, ...] = field(default_factory=tuple)
+    after: str = ""
+    before: str = ""
 
 
 def read_list_request(request: Request, view: ModelView) -> ListRequest:
@@ -61,6 +64,8 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
         sort=(Sort.parse(raw_sort),) if raw_sort else (),
         page=read_page(params.get("page", "1")),
         values=parse_filters(view.get_filters(request), grouped),
+        after=params.get("after", ""),
+        before=params.get("before", ""),
     )
 
 
@@ -113,7 +118,7 @@ def export_params(request: Request) -> dict[str, Any]:
     """The current search and filters, for a link that keeps them."""
     params: dict[str, Any] = {}
     for key, value in request.query_params.multi_items():
-        if key == "page":
+        if key in PAGING_KEYS:
             continue
         current = params.get(key)
         if current is None:

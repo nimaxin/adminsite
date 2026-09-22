@@ -1,16 +1,29 @@
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ColumnElement, Select, and_, false, func, or_, select
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    Table,
+    and_,
+    false,
+    func,
+    or_,
+    select,
+    text,
+)
+from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import aliased
 
+from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
-from adminsite.query import CountMode, Page, QuerySpec
+from adminsite.query import DEFAULT_PAGE_SIZE, CountMode, Page, QuerySpec
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationSchema
 
 if TYPE_CHECKING:
@@ -24,6 +37,29 @@ ConditionBuilder = Callable[
 
 # Narrows every read to the rows the current user may see.
 Scope = Callable[[Select[Any]], Select[Any]]
+
+# Up to this many rows an exact count is cheap, so an estimated count only
+# guesses above it, and a narrowed count stops just past it.
+EXACT_COUNT_LIMIT = 10_000
+
+
+@dataclass(frozen=True, slots=True)
+class KeysetKey:
+    """One column a keyset page is ordered by."""
+
+    name: str
+    column: Any
+    descending: bool
+    python_type: type[Any]
+
+
+@dataclass(frozen=True, slots=True)
+class Total:
+    """How many records match, and how sure that number is."""
+
+    value: int | None = None
+    estimated: bool = False
+    at_least: bool = False
 
 
 class SQLAlchemyRepository:
@@ -48,8 +84,12 @@ class SQLAlchemyRepository:
         scope: Scope | None = None,
     ) -> Page:
         """Read one page of records, loading what the page will show."""
+        keys = self.keyset_keys(spec) if spec.keyset else None
+        if keys is not None:
+            return await self._list_by_keyset(session, spec, scope, keys)
+
         statement = self.statement(spec, scope)
-        wants_probe = spec.limit is not None and spec.count is CountMode.NONE
+        wants_probe = spec.limit is not None and spec.count is not CountMode.EXACT
         fetch = spec.limit + 1 if wants_probe and spec.limit else spec.limit
 
         if fetch is not None:
@@ -59,21 +99,22 @@ class SQLAlchemyRepository:
 
         rows = list((await session.scalars(statement)).unique().all())
 
-        total: int | None = None
         has_next = False
         if wants_probe and spec.limit is not None:
             has_next = len(rows) > spec.limit
             rows = rows[: spec.limit]
-        if spec.count is CountMode.EXACT:
-            total = await self.count(session, spec, scope)
-            has_next = spec.offset + len(rows) < total
+        total = await self.total(session, spec, scope)
+        if spec.count is CountMode.EXACT and total.value is not None:
+            has_next = spec.offset + len(rows) < total.value
 
         return Page(
             rows=rows,
             offset=spec.offset,
             limit=spec.limit,
-            total=total,
+            total=total.value,
             has_next=has_next,
+            estimated=total.estimated,
+            at_least=total.at_least,
         )
 
     async def count(
@@ -81,14 +122,195 @@ class SQLAlchemyRepository:
         session: SessionAdapter,
         spec: QuerySpec,
         scope: Scope | None = None,
+        *,
+        limit: int | None = None,
     ) -> int:
-        """Count the records the query matches, ignoring the page."""
+        """Count the records the query matches, ignoring the page.
+
+        With a limit the count stops there, so it never costs more than
+        reading that many keys.
+        """
         rows = self.base_statement(scope).with_only_columns(
             *self._primary_key_columns()
         )
         rows = self.narrow(rows, spec)
+        if limit is not None:
+            rows = rows.limit(limit)
         counted = select(func.count()).select_from(rows.subquery())
         return int(await session.scalar(counted) or 0)
+
+    async def total(
+        self,
+        session: SessionAdapter,
+        spec: QuerySpec,
+        scope: Scope | None = None,
+    ) -> Total:
+        """Count the matches as hard as the count mode asks."""
+        if spec.count is CountMode.NONE:
+            return Total()
+        if spec.count is CountMode.ESTIMATED:
+            if self._narrows(spec, scope):
+                counted = await self.count(
+                    session, spec, scope, limit=EXACT_COUNT_LIMIT + 1
+                )
+                if counted > EXACT_COUNT_LIMIT:
+                    return Total(EXACT_COUNT_LIMIT, at_least=True)
+                return Total(counted)
+            guess = await self.estimate(session)
+            if guess is not None and guess > EXACT_COUNT_LIMIT:
+                return Total(guess, estimated=True)
+        return Total(await self.count(session, spec, scope))
+
+    async def estimate(self, session: SessionAdapter) -> int | None:
+        """The database's own guess at how many rows the table holds.
+
+        Postgres and MySQL keep one in their statistics, which costs nothing
+        to read. Other databases give None.
+        """
+        table = sqlalchemy_inspect(self.model).local_table
+        if not isinstance(table, Table):
+            return None
+        dialect = await session.run(lambda plain: plain.get_bind().dialect)
+        if dialect.name == "postgresql":
+            statement = text(
+                "SELECT CAST(reltuples AS BIGINT) FROM pg_class"
+                " WHERE oid = to_regclass(:name)"
+            ).bindparams(name=dialect.identifier_preparer.format_table(table))
+        elif dialect.name in ("mysql", "mariadb"):
+            statement = text(
+                "SELECT table_rows FROM information_schema.tables"
+                " WHERE table_schema = COALESCE(:schema, DATABASE())"
+                " AND table_name = :name"
+            ).bindparams(schema=table.schema, name=table.name)
+        else:
+            return None
+        found = await session.scalar(statement)
+        # Postgres says -1 for a table it has never analyzed.
+        if found is None or found < 0:
+            return None
+        return int(found)
+
+    def _narrows(self, spec: QuerySpec, scope: Scope | None) -> bool:
+        """Whether a search, a filter or the scope leaves rows out."""
+        if spec.filters or (spec.search.strip() and spec.search_paths):
+            return True
+        if scope is None:
+            return False
+        plain = select(self.model)
+        return scope(plain) is not plain
+
+    def keyset_keys(self, spec: QuerySpec) -> tuple[KeysetKey, ...] | None:
+        """The columns a keyset page orders by, or None if the sort rules it out.
+
+        Every sort column has to be on this model and never empty, since a
+        missing value cannot be compared. The primary key goes last, so no
+        two rows tie.
+        """
+        keys: list[KeysetKey] = []
+        for sort in spec.sort:
+            resolved, field = self._resolve_field(sort.path, "sorting")
+            if resolved.relations or field.nullable:
+                return None
+            keys.append(
+                KeysetKey(
+                    field.name,
+                    getattr(self.model, field.name),
+                    sort.descending,
+                    field.python_type,
+                )
+            )
+        named = {key.name for key in keys}
+        for name in self.schema.primary_key:
+            if name not in named:
+                keys.append(
+                    KeysetKey(
+                        name,
+                        getattr(self.model, name),
+                        False,
+                        self.schema.field_named(name).python_type,
+                    )
+                )
+        return tuple(keys)
+
+    async def _list_by_keyset(
+        self,
+        session: SessionAdapter,
+        spec: QuerySpec,
+        scope: Scope | None,
+        keys: Sequence[KeysetKey],
+    ) -> Page:
+        token = spec.before or spec.after
+        cursor = (
+            decode_cursor(token, [key.python_type for key in keys]) if token else None
+        )
+        backwards = cursor is not None and bool(spec.before)
+
+        statement = self.narrow(self.base_statement(scope), spec)
+        if cursor is not None:
+            statement = statement.where(self._beyond(keys, cursor, backwards))
+        for key in keys:
+            descending = key.descending != backwards
+            statement = statement.order_by(
+                key.column.desc() if descending else key.column.asc()
+            )
+        if spec.paths:
+            statement = statement.options(
+                *build_load_options(self.inspector, self.model, spec.paths)
+            )
+
+        limit = spec.limit or DEFAULT_PAGE_SIZE
+        rows = list((await session.scalars(statement.limit(limit + 1))).unique().all())
+        more = len(rows) > limit
+        rows = rows[:limit]
+
+        if backwards and not more:
+            # Back at the start: show a full first page rather than the few
+            # rows that happened to sit before the cursor.
+            return await self._list_by_keyset(
+                session, spec.replace(after="", before=""), scope, keys
+            )
+        if backwards:
+            rows.reverse()
+
+        has_next = True if backwards else more
+        has_previous = more if backwards else cursor is not None
+        next_cursor = self._cursor(keys, rows[-1]) if has_next and rows else ""
+        previous_cursor = ""
+        if has_previous:
+            # A page emptied by deletes still offers a way back.
+            previous_cursor = self._cursor(keys, rows[0]) if rows else token
+
+        total = await self.total(session, spec, scope)
+        return Page(
+            rows=rows,
+            limit=limit,
+            total=total.value,
+            has_next=bool(next_cursor),
+            estimated=total.estimated,
+            at_least=total.at_least,
+            keyset=True,
+            next_cursor=next_cursor,
+            previous_cursor=previous_cursor,
+        )
+
+    def _beyond(
+        self, keys: Sequence[KeysetKey], cursor: Sequence[Any], backwards: bool
+    ) -> ColumnElement[bool]:
+        """Rows past the cursor in reading order, or before it going back."""
+        clauses = []
+        for index, key in enumerate(keys):
+            value = cursor[index]
+            upward = key.descending == backwards
+            step = key.column > value if upward else key.column < value
+            ties = [
+                earlier.column == cursor[position]
+                for position, earlier in enumerate(keys[:index])
+            ]
+            clauses.append(and_(*ties, step))
+        return or_(*clauses)
+
+    def _cursor(self, keys: Sequence[KeysetKey], record: Any) -> str:
+        return encode_cursor([getattr(record, key.name) for key in keys])
 
     async def get(
         self,
@@ -207,6 +429,13 @@ class SQLAlchemyRepository:
             statement = statement.order_by(
                 column.desc() if sort.descending else column.asc()
             )
+        if spec.sort:
+            # Rows with equal values have no order of their own, and the
+            # database may return them differently on each page.
+            sorted_by = {sort.path for sort in spec.sort}
+            for name in self.schema.primary_key:
+                if name not in sorted_by:
+                    statement = statement.order_by(getattr(self.model, name).asc())
         return statement
 
     def key_clause(self, key: Any) -> ColumnElement[bool]:

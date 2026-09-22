@@ -8,6 +8,9 @@ from adminsite.views import ModelView
 
 QueryParams = Mapping[str, Any]
 
+# The query values that say where in the list the page is.
+PAGING_KEYS = frozenset({"page", "after", "before"})
+
 
 class Urls:
     """Builds links inside the admin, wherever the admin is mounted."""
@@ -73,12 +76,14 @@ class Urls:
         """This page again, with some query values changed or removed.
 
         A value of None drops the parameter, which is what a filter chip's
-        remove button needs.
+        remove button needs. Any change that is not about paging starts
+        again from the first page.
         """
+        paging = any(key in PAGING_KEYS for key in changes)
         params: list[tuple[str, str]] = [
             (key, value)
             for key, value in self.request.query_params.multi_items()
-            if key not in changes
+            if key not in changes and (paging or key not in PAGING_KEYS)
         ]
         for key, value in changes.items():
             if value is None:
@@ -94,7 +99,7 @@ class Urls:
         """This page again, sorted by a column, turning it around if set."""
         current = self.request.query_params.get("sort", "")
         wanted = f"-{path}" if current == path else path
-        return self.here(sort=wanted, page=None)
+        return self.here(sort=wanted)
 
     def _with(self, path: str, params: QueryParams) -> str:
         pairs: list[tuple[str, str]] = []

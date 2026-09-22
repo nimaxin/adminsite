@@ -44,7 +44,8 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `list_filter` | Paths, or filters you built yourself. See [Filters](filters.md). |
 | `ordering` | The starting order. `-created_at` means newest first. |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
-| `count_mode` | `CountMode.EXACT` counts every match; `CountMode.NONE` skips the count. |
+| `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
+| `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
 
 With no `list_display`, every column is shown, and a foreign key such as `customer_id` appears as
 its relationship, `customer`.
@@ -55,15 +56,36 @@ page, not one per row.
 
 ### Large tables
 
-Counting every match costs a full scan on a big table. Switch it off and a page is a single query:
+Two things get slow once a table holds millions of rows: counting every match, and reaching deep
+pages, since the database walks every row before the page it returns. Both have a setting.
 
 ```python
+from adminsite import CountMode, ModelView, Pagination
+
+
 class EventView(ModelView, model=Event):
-    count_mode = CountMode.NONE
+    ordering = ("-created_at",)
+    count_mode = CountMode.ESTIMATED
+    pagination = Pagination.KEYSET
 ```
 
-The pager then shows "Previous" and "Next" without a total, and learns whether there is a next page
-by reading one extra row.
+**Counting.** `CountMode.ESTIMATED` reads the row count Postgres and MySQL already keep in their
+statistics, which costs nothing, and shows "about 2,500,000". It does so only when nothing narrows
+the list and the table holds more than 10,000 rows; below that an exact count is cheap. Once a
+search, a filter or `scope_query` narrows the list, the count stops at 10,001 rows and shows "more
+than 10,000". On SQLite, which keeps no estimate, it counts exactly.
+
+`CountMode.NONE` skips the count altogether. The pager then shows no total and learns whether there
+is a next page by reading one extra row, so a page is a single query.
+
+**Paging.** `Pagination.KEYSET` continues from the last row seen instead of skipping rows, so page
+400 costs the same as page 1. The pager shows Previous and Next, without page numbers, and the URL
+carries a short cursor such as `?after=WyIyMDI2...`. The primary key is added to the order, so rows
+with the same value never repeat or go missing between pages.
+
+A keyset needs columns it can compare. When the list is sorted by a column that can be empty, or by
+a path through a relationship such as `customer.name`, that page falls back to page numbers. Put an
+index on the columns you sort by, primary key last, such as `(created_at, id)`.
 
 ## The form
 
@@ -85,6 +107,7 @@ An order and its lines belong together, so edit them on one page. Name the relat
 
 ```python
 from adminsite import Inline
+
 
 class OrderView(ModelView, model=Order):
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)

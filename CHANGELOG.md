@@ -5,6 +5,13 @@
 - Inlines: edit a record's children in its own form, such as an order's lines, with
   `inlines = (Inline("items"),)`. Rows can be added, changed and removed, all saved in one
   transaction with the parent, and the detail page lists them.
+- Keyset pagination for big tables: `pagination = Pagination.KEYSET` moves by cursor, so deep
+  pages cost the same as the first. Sorts it cannot use fall back to page numbers.
+- `CountMode.ESTIMATED` shows the table estimate Postgres and MySQL keep, and stops a narrowed
+  count at 10,000.
+- The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
+  column has equal values.
+- Changing the search, a filter or the sort goes back to the first page.
 - Several admins in one app keep separate sessions by default: the session cookie is named after
   the admin's title unless you set `session_cookie`.
 - Action and delete buttons are hidden from users that `allows()` refuses.
