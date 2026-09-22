@@ -12,6 +12,10 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Pages of your own: subclass `AdminPage` with a template and a context, and it gets the admin's
+  layout, a place in the sidebar and the palette, its own permission check and form handling.
+- Plugins: a `Plugin` adds views, pages, routes under `/-/`, template folders, static files,
+  stylesheets and scripts. The same `add_*` methods work on the admin directly.
 - Command palette: Ctrl+K or Cmd+K jumps to any page, or to a record found by each view's own
   search, within the user's permissions and scope. `global_search = False` leaves a view out.
 - `Permission.HISTORY` controls the History tab and a view's entries on the Activity page. The

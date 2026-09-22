@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -22,6 +22,8 @@ from adminsite.http import endpoints
 from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
+from adminsite.pages import AdminPage
+from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
 from adminsite.security import Permission
 from adminsite.text import snake_case
@@ -30,6 +32,11 @@ from adminsite.views import ModelView, ViewRegistry
 STATIC_DIR = Path(__file__).parent / "static"
 
 HEADINGS = {403: "Not allowed", 404: "Not found"}
+
+# Paths under /-/ that the admin keeps for itself.
+RESERVED_PAGES = frozenset({"activity", "search", "static"})
+
+Endpoint = Callable[["Admin", Request], Awaitable[Response]]
 
 
 class Admin:
@@ -56,6 +63,8 @@ class Admin:
         audit: AuditLog | bool = False,
         saved_views: SavedViews | bool = False,
         session_cookie: str | None = None,
+        pages: Sequence[AdminPage | type[AdminPage]] = (),
+        plugins: Sequence[Plugin] = (),
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
@@ -77,9 +86,18 @@ class Admin:
         # sessions without anyone having to think about it.
         self.session_cookie = session_cookie or f"adminsite_{snake_case(title)}"
         self._app: Starlette | None = None
+        self.pages: dict[str, AdminPage] = {}
+        self.plugins: list[Plugin] = []
+        self.stylesheets: list[str] = []
+        self.scripts: list[str] = []
+        self._extra_routes: list[Route | Mount] = []
 
         for view in views:
             self.add_view(view)
+        for page in pages:
+            self.add_page(page)
+        for plugin in plugins:
+            self.use(plugin)
 
     def add_view(self, view: ModelView | type[ModelView]) -> ModelView:
         """Register a model with the admin."""
@@ -87,6 +105,72 @@ class Admin:
         if built.audit is None:
             built.audit = self.audit
         return self.views.add(built)
+
+    def add_page(self, page: AdminPage | type[AdminPage]) -> AdminPage:
+        """Add a page of your own, served at /-/ and its name."""
+        built = page() if isinstance(page, type) else page
+        if built.name in RESERVED_PAGES or built.name in self.pages:
+            raise AdminSiteError(f"A page is already called {built.name!r}.")
+        built.admin = self
+        self.pages[built.name] = built
+        return built
+
+    def use(self, plugin: Plugin) -> Plugin:
+        """Let a plugin add what it brings."""
+        plugin.setup(self)
+        self.plugins.append(plugin)
+        return plugin
+
+    def add_route(
+        self,
+        path: str,
+        endpoint: Endpoint,
+        *,
+        methods: Sequence[str] = ("GET",),
+        name: str | None = None,
+        guarded: bool = True,
+    ) -> None:
+        """Answer one more path, called as `endpoint(admin, request)`.
+
+        The path has to start with /-/, which no model name can take, and
+        the route sits behind the admin's sign in unless `guarded` is off.
+        """
+        if not path.startswith("/-/"):
+            raise AdminSiteError(f"Extra routes live under /-/, not at {path!r}.")
+        self._before_start("routes")
+        handler = self._handler(endpoint, guarded)
+        self._extra_routes.append(
+            Route(path, handler, methods=list(methods), name=name)
+        )
+
+    def add_static(self, name: str, directory: str | Path) -> None:
+        """Serve a folder of files at /-/static/ and the name."""
+        self._before_start("static files")
+        self._extra_routes.append(
+            Mount(f"/-/static/{name}", app=StaticFiles(directory=directory))
+        )
+
+    def add_template_dir(self, directory: str | Path) -> None:
+        """Look for templates in one more folder, before the built in ones."""
+        self.templates.add_directory(directory)
+
+    def add_stylesheet(self, href: str) -> None:
+        """Load a stylesheet on every page. A relative path starts at the admin."""
+        self.stylesheets.append(href)
+
+    def add_script(self, src: str) -> None:
+        """Load a script on every page. A relative path starts at the admin."""
+        self.scripts.append(src)
+
+    async def pages_allowing(self, request: Request) -> list[AdminPage]:
+        """The pages of your own this user may open."""
+        return [page for page in self.pages.values() if await page.allows(request)]
+
+    def _before_start(self, what: str) -> None:
+        if self._app is not None:
+            raise AdminSiteError(
+                f"Add {what} before the admin answers its first request."
+            )
 
     async def views_allowing(
         self, request: Request, *permissions: Permission | str
@@ -199,6 +283,13 @@ class Admin:
                 self._handler(endpoints.activity),
                 name="activity",
             ),
+            *self._extra_routes,
+            Route(
+                "/-/{page}",
+                self._handler(endpoints.custom_page),
+                methods=["GET", "POST"],
+                name="page",
+            ),
             Route("/{view}", self._handler(endpoints.list_records), name="list"),
             Route(
                 "/{view}/new",
@@ -274,6 +365,18 @@ class Admin:
     ) -> Response:
         """Render one of the admin templates."""
         return await self.templates.render(name, request, self, context, status_code)
+
+    async def render_template(
+        self,
+        name: str,
+        request: Request,
+        context: dict[str, Any] | None = None,
+        status_code: int = 200,
+    ) -> Response:
+        """Render a template of your own, found in the admin's template dirs."""
+        return await self.templates.render(
+            name, request, self, context, status_code, own=False
+        )
 
     def _handler(self, endpoint: Any, guarded: bool = True) -> Any:
         if not guarded or self.auth is None:

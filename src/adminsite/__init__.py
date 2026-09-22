@@ -10,6 +10,8 @@ from adminsite.exceptions import (
     RefusedError,
     UnknownFieldError,
 )
+from adminsite.pages import AdminPage
+from adminsite.plugins import Plugin
 from adminsite.protocols import ModelInspector
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.saved_views import SavedView, SavedViews
@@ -27,6 +29,7 @@ __version__ = version("adminsite")
 
 __all__ = [
     "Admin",
+    "AdminPage",
     "AdminSiteError",
     "CountMode",
     "FieldPath",
@@ -41,6 +44,7 @@ __all__ = [
     "Pagination",
     "Permission",
     "PermissionDeniedError",
+    "Plugin",
     "QuerySpec",
     "RecordNotFoundError",
     "RefusedError",

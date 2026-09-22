@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block page_title %}{{ title }}{% endblock %}</title>
 <link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
+{% for href in admin.stylesheets %}<link rel="stylesheet" href="{{ urls.asset(href) }}">
+{% endfor %}
 <script src="{{ urls.static('htmx.min.js') }}" defer></script>
 <script src="{{ urls.static('alpine.min.js') }}" defer></script>
+{% for src in admin.scripts %}<script src="{{ urls.asset(src) }}" defer></script>
+{% endfor %}
 <script>
   try {
     const saved = localStorage.getItem("adminsite-theme");
@@ -122,7 +126,7 @@
 
       <ul class="menu w-full flex-1 gap-0.5 px-2 py-3">
         <li>
-          <a href="{{ urls.index() }}" class="{% if not view and not on_activity %}bg-base-300 font-medium{% endif %}">Overview</a>
+          <a href="{{ urls.index() }}" class="{% if not current and not on_activity and not status %}bg-base-300 font-medium{% endif %}">Overview</a>
         </li>
         {% for group, views in groups %}
           {% if group %}
@@ -130,9 +134,9 @@
           {% endif %}
           {% for item in views %}
             <li>
-              <a href="{{ urls.list(item) }}"
-                 class="{% if view and view.name == item.name %}bg-base-300 font-medium{% endif %}">
-                {{ item.label_plural }}
+              <a href="{{ item.url }}"
+                 class="{% if current == item.key %}bg-base-300 font-medium{% endif %}">
+                {{ item.label }}
               </a>
             </li>
           {% endfor %}

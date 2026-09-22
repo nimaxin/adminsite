@@ -68,6 +68,16 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def page(self, name: str) -> str:
+        """A page of the project's own."""
+        return f"{self.base}/-/{name}"
+
+    def asset(self, path: str) -> str:
+        """A stylesheet or script: relative paths start at the admin."""
+        if path.startswith(("http://", "https://", "/")):
+            return path
+        return f"{self.base}/{path}"
+
     def palette(self) -> str:
         """Where the command palette looks things up."""
         return f"{self.base}/-/search"

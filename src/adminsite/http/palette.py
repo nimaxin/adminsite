@@ -51,6 +51,8 @@ async def pages_matching(admin: "Admin", request: Request, term: str) -> Palette
         found.append(PaletteItem(view.label_plural, urls.list(view), view.group))
         if await view.allows(Permission.CREATE, request=request):
             found.append(PaletteItem(f"New {view.label.lower()}", urls.create(view)))
+    for page in await admin.pages_allowing(request):
+        found.append(PaletteItem(page.label, urls.page(page.name), page.group))
     if await admin.history_views(request):
         found.append(PaletteItem("Activity", urls.activity()))
 

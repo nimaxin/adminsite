@@ -90,6 +90,19 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     return await admin.render(template, request, context)
 
 
+async def custom_page(admin: "Admin", request: Request) -> Response:
+    """A page of the project's own, shown or sent a form."""
+    name = request.path_params["page"]
+    page = admin.pages.get(name)
+    if page is None:
+        raise HTTPException(status_code=404, detail=f"No page at {name!r}.")
+    if not await page.allows(request):
+        raise PermissionDeniedError("open", page.label)
+    if request.method == "POST":
+        return await page.post(request, await read_form(request))
+    return await page.get(request)
+
+
 async def save_list_view(admin: "Admin", request: Request) -> Response:
     """Keep the current search, filters, sort and columns under a name."""
     view = find_view(admin, request)
