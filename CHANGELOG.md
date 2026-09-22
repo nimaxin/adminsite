@@ -12,6 +12,12 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Importing from CSV or Excel with a preview: switch it on with `can_import = True`. Rows with a
+  known key change that record, rows without one add a record, and every row is checked by the
+  form's fields before anything is written. The good rows are saved through the view, so hooks,
+  permissions and the audit log apply. Excel needs `adminsite[excel]`.
+- Two messages in a row are both shown. The second used to be lost, since the session was only
+  saved when a key was set, not when its list grew.
 - File and picture fields: `FileField` and `ImageField` store uploads through a `FileStorage`,
   `LocalStorage` built in. Files are served behind the sign in, with anything but pictures and
   PDFs sent as a download; pictures are checked by their bytes. Replaced files are deleted after

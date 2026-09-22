@@ -12,6 +12,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
 from adminsite.fields import FileField, RelationField
+from adminsite.http import importing
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.history import describe
@@ -63,6 +64,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 
     context = as_context(view, request, spec, page, panels, read)
     context["can_create"] = await view.allows(Permission.CREATE, request=request)
+    context["can_import"] = await view.allows(Permission.IMPORT, request=request)
     # Offer only the actions this user may run.
     allowed = [
         item
@@ -101,6 +103,32 @@ async def custom_page(admin: "Admin", request: Request) -> Response:
     if request.method == "POST":
         return await page.post(request, await read_form(request))
     return await page.get(request)
+
+
+async def import_form(admin: "Admin", request: Request) -> Response:
+    """The page for choosing a file to import."""
+    return await importing.show_form(admin, request, find_view(admin, request))
+
+
+async def import_template(admin: "Admin", request: Request) -> Response:
+    """An empty CSV with the columns an import takes."""
+    view = find_view(admin, request)
+    await view.ensure(Permission.IMPORT, request=request)
+    return importing.template_response(view, request)
+
+
+async def import_preview(admin: "Admin", request: Request) -> Response:
+    """Check an uploaded file and show what importing it would do."""
+    view = find_view(admin, request)
+    form = await read_form(request)
+    return await importing.preview(admin, request, view, form)
+
+
+async def import_records(admin: "Admin", request: Request) -> Response:
+    """Import a file that was previewed."""
+    view = find_view(admin, request)
+    await read_form(request)
+    return await importing.run(admin, request, view)
 
 
 async def save_list_view(admin: "Admin", request: Request) -> Response:

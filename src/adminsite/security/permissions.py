@@ -9,6 +9,7 @@ class Permission(StrEnum):
     EDIT = "edit"
     DELETE = "delete"
     EXPORT = "export"
+    IMPORT = "import"
     # Reading the audit log: a record's History tab, and the view's entries
     # on the Activity page.
     HISTORY = "history"

@@ -41,6 +41,7 @@ validation come from your models.
 - **Hooks that run inside the transaction** and receive the session, so a business rule can read
   other tables and refuse a save.
 - **Inlines.** Edit an order's lines in the order's own form, saved in one transaction with it.
+- **Import from CSV or Excel** with a preview of every row before anything is written.
 - **A dashboard** of stats, charts and recent records, drawn on the server with no chart
   library.
 - **Pages and plugins.** Reports and settings pages in the same layout, and plugins that

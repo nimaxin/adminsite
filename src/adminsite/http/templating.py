@@ -136,4 +136,7 @@ def add_message(request: Request, text: str, kind: str = "info") -> None:
     session = request.scope.get("session")
     if session is None:
         return
-    session.setdefault("adminsite_messages", []).append({"text": text, "kind": kind})
+    # Assigned, not appended in place: the session is only saved when one of
+    # its keys is set, so a change inside the list would be lost.
+    waiting = list(session.get("adminsite_messages", []))
+    session["adminsite_messages"] = [*waiting, {"text": text, "kind": kind}]

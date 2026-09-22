@@ -37,6 +37,7 @@ nav:
       - Fields: fields.md
       - Filters: filters.md
       - Actions: actions.md
+      - Importing: import.md
       - Permissions: permissions.md
       - Hooks: hooks.md
       - Audit log: audit.md

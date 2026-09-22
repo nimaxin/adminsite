@@ -80,6 +80,9 @@ class ModelView:
     can_create: bool = True
     can_edit: bool = True
     can_delete: bool = True
+    # Importing is off until you switch it on: it writes many records at once.
+    can_import: bool = False
+    import_limit: int = 10_000
 
     # Set by the admin when auditing is switched on.
     audit: "AuditLog | None" = None
@@ -427,6 +430,8 @@ class ModelView:
             return self.can_edit
         if name == Permission.DELETE:
             return self.can_delete
+        if name == Permission.IMPORT:
+            return self.can_import
         return True
 
     async def ensure(

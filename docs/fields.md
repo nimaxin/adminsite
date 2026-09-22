@@ -84,7 +84,9 @@ uploads = LocalStorage("uploads")
 class ProductView(ModelView, model=Product):
     fields = (
         ImageField("photo", storage=uploads),
-        FileField("datasheet", storage=uploads, accept=".pdf", max_size=20 * 1024 * 1024),
+        FileField(
+            "datasheet", storage=uploads, accept=".pdf", max_size=20 * 1024 * 1024
+        ),
     )
 ```
 

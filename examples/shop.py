@@ -101,6 +101,7 @@ class CustomerView(ModelView, model=Customer):
     search_fields = ("name", "email")
     list_filter = ("region", "is_active")
     ordering = ("name",)
+    can_import = True
 
 
 class OrderView(ModelView, model=Order):

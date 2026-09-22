@@ -319,6 +319,30 @@ class Admin:
                 name="export",
             ),
             Route(
+                "/{view}/import",
+                self._handler(endpoints.import_form),
+                methods=["GET"],
+                name="import_form",
+            ),
+            Route(
+                "/{view}/import",
+                self._handler(endpoints.import_preview),
+                methods=["POST"],
+                name="import_preview",
+            ),
+            Route(
+                "/{view}/import/template",
+                self._handler(endpoints.import_template),
+                methods=["GET"],
+                name="import_template",
+            ),
+            Route(
+                "/{view}/import/{token}",
+                self._handler(endpoints.import_records),
+                methods=["POST"],
+                name="import",
+            ),
+            Route(
                 "/{view}/saved-views",
                 self._handler(endpoints.save_list_view),
                 methods=["POST"],
