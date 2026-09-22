@@ -12,6 +12,11 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- `Permission.HISTORY` controls the History tab and a view's entries on the Activity page. The
+  Activity page shows only views this admin registers and the user may read, filtered in the
+  query so the latest readable entries always show.
+- A refused page is a 403 "Not allowed" page inside the admin instead of a server error, and
+  missing pages get the same layout. The sidebar leaves out views the user may not open.
 - Column picker: people hide and show columns from a Columns menu, offered from `list_display`
   and `list_columns`. The choice is kept in the URL and the session, and the export follows it.
 - Saved views: `saved_views=True` lets people keep a search, filters, sort and columns under a

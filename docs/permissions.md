@@ -29,10 +29,31 @@ class OrderView(ModelView, model=Order):
         return await super().allows(action, request=request, record=record)
 ```
 
-`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE` and `EXPORT`, or the permission an
-[action](actions.md) asks for. The check runs before a page is shown and again before anything is
+`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `EXPORT` and `HISTORY`, or the
+permission an [action](actions.md) asks for. The check runs before a page is shown and again before anything is
 written, so a refused user gets an error even if they post the form by hand. Buttons for things the
 user may not do are left out.
+
+A refused page shows "Not allowed" inside the admin with a 403, and views a user may not open are
+left out of the sidebar.
+
+## History
+
+`Permission.HISTORY` decides who reads the [audit log](audit.md) of a view: the History tab on its
+records, and its entries on the Activity page. The log keeps every field's old and new value, so
+refuse it where the values are sensitive:
+
+```python
+class PayrollView(ModelView, model=Salary):
+    async def allows(self, action, *, request=None, record=None):
+        if action == Permission.HISTORY:
+            return request.state.user.is_hr
+        return await super().allows(action, request=request, record=record)
+```
+
+The Activity page shows only entries from views where the user has both `VIEW` and `HISTORY`, and
+only from views registered on this admin, so two admins sharing one log never show each other's
+entries. A user with no such view does not see the Activity page at all.
 
 ## Rows
 

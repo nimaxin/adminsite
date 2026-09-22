@@ -42,10 +42,12 @@ class ViewRegistry:
                 return view
         return None
 
-    def grouped(self) -> list[tuple[str, list[ModelView]]]:
+    def grouped(
+        self, only: Sequence[ModelView] | None = None
+    ) -> list[tuple[str, list[ModelView]]]:
         """The views by sidebar group, keeping the order they were added."""
         groups: dict[str, list[ModelView]] = {}
-        for view in self._views:
+        for view in self._views if only is None else only:
             groups.setdefault(view.group, []).append(view)
         return list(groups.items())
 

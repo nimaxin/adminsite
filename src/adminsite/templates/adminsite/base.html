@@ -85,7 +85,7 @@
             </li>
           {% endfor %}
         {% endfor %}
-        {% if admin.audit %}
+        {% if show_activity %}
           <li class="menu-title mt-3">Admin</li>
           <li>
             <a href="{{ urls.activity() }}"

@@ -4,10 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from starlette.responses import RedirectResponse, Response
+from starlette.responses import PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -15,16 +16,19 @@ from adminsite.audit import AuditLog
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import endpoints
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
 from adminsite.saved_views import SavedViews
+from adminsite.security import Permission
 from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+HEADINGS = {403: "Not allowed", 404: "Not found"}
 
 
 class Admin:
@@ -83,12 +87,62 @@ class Admin:
             built.audit = self.audit
         return self.views.add(built)
 
+    async def views_allowing(
+        self, request: Request, *permissions: Permission | str
+    ) -> list[ModelView]:
+        """The views where this user has every one of these permissions."""
+        wanted = permissions or (Permission.VIEW,)
+        found = []
+        for view in self.views:
+            for permission in wanted:
+                if not await view.allows(permission, request=request):
+                    break
+            else:
+                found.append(view)
+        return found
+
+    async def history_views(self, request: Request) -> list[ModelView]:
+        """The views whose history this user may read, if auditing is on."""
+        if self.audit is None:
+            return []
+        return await self.views_allowing(request, Permission.VIEW, Permission.HISTORY)
+
     @property
     def app(self) -> Starlette:
         """The Starlette app behind the admin, built once."""
         if self._app is None:
-            self._app = Starlette(routes=self.routes(), middleware=self.middleware())
+            self._app = Starlette(
+                routes=self.routes(),
+                middleware=self.middleware(),
+                exception_handlers={
+                    HTTPException: self._error_page,
+                    PermissionDeniedError: self._error_page,
+                },
+            )
         return self._app
+
+    async def _error_page(self, request: Request, error: Exception) -> Response:
+        """Show a refusal or a missing page inside the admin, not as bare text."""
+        if isinstance(error, HTTPException):
+            status, message = error.status_code, str(error.detail)
+            headers = error.headers
+        else:
+            status, message, headers = 403, str(error), None
+        if request.headers.get("hx-request") == "true" or status < 400:
+            return PlainTextResponse(message, status_code=status, headers=headers)
+        response = await self.render(
+            "error.html",
+            request,
+            {
+                "status": status,
+                "heading": HEADINGS.get(status, "Something went wrong"),
+                "message": message,
+            },
+            status_code=status,
+        )
+        if headers:
+            response.headers.update(headers)
+        return response
 
     def middleware(self) -> list[Middleware]:
         """The middleware the admin runs behind, if it needs any."""

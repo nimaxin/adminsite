@@ -10,7 +10,7 @@ from starlette.responses import RedirectResponse, Response, StreamingResponse
 from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.exceptions import AdminSiteError, RefusedError
+from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
@@ -159,7 +159,9 @@ async def detail(admin: "Admin", request: Request) -> Response:
     key = view.identity_of(record)
 
     history = None
-    if admin.audit is not None:
+    if admin.audit is not None and await view.allows(
+        Permission.HISTORY, request=request, record=record
+    ):
         history = describe(admin, await admin.audit.history(view.name, key))
 
     return await admin.render(
@@ -185,18 +187,28 @@ async def activity(admin: "Admin", request: Request) -> Response:
     if admin.audit is None:
         raise HTTPException(status_code=404, detail="Auditing is not switched on.")
 
+    # Filtering in the query, not afterwards, so the page still shows the
+    # latest entries this user may read rather than a few of the latest 200.
+    readable = await admin.history_views(request)
+    allowed = [view.name for view in readable]
+    if not allowed:
+        raise PermissionDeniedError(Permission.HISTORY.value, "the activity")
+
     chosen = request.query_params.get("view") or None
-    entries = await admin.audit.recent(view=chosen, limit=200)
-    visible = []
-    for item in describe(admin, entries):
-        found = admin.views.find(item.entry.view)
-        if found is None or await found.allows(Permission.VIEW, request=request):
-            visible.append(item)
+    if chosen is not None and chosen not in allowed:
+        chosen = None
+    entries = await admin.audit.recent(view=chosen, views=allowed, limit=200)
 
     return await admin.render(
         "activity.html",
         request,
-        {"items": visible, "chosen": chosen, "view": None, "on_activity": True},
+        {
+            "items": describe(admin, entries),
+            "history_views": readable,
+            "chosen": chosen,
+            "view": None,
+            "on_activity": True,
+        },
     )
 
 

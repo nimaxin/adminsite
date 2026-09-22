@@ -62,12 +62,18 @@ class AuditLog(Store):
         return await self._read(statement)
 
     async def recent(
-        self, *, view: str | None = None, limit: int = 100
+        self,
+        *,
+        view: str | None = None,
+        views: Sequence[str] | None = None,
+        limit: int = 100,
     ) -> list[AuditEntry]:
-        """The latest entries, across the admin or for one view."""
+        """The latest entries, across the admin, for some views or for one."""
         statement = select(audit_table)
         if view is not None:
             statement = statement.where(audit_table.c.view == view)
+        if views is not None:
+            statement = statement.where(audit_table.c.view.in_(views))
         statement = statement.order_by(
             audit_table.c.occurred_at.desc(), audit_table.c.id.desc()
         ).limit(limit)

@@ -9,11 +9,9 @@
   <div class="mb-5 flex flex-wrap gap-2">
     <a class="btn btn-sm {% if not chosen %}btn-active{% else %}btn-ghost{% endif %}"
        href="{{ urls.activity() }}">Everything</a>
-    {% for group, views in groups %}
-      {% for item in views %}
-        <a class="btn btn-sm {% if chosen == item.name %}btn-active{% else %}btn-ghost{% endif %}"
-           href="{{ urls.activity(view=item.name) }}">{{ item.label_plural }}</a>
-      {% endfor %}
+    {% for item in history_views %}
+      <a class="btn btn-sm {% if chosen == item.name %}btn-active{% else %}btn-ghost{% endif %}"
+         href="{{ urls.activity(view=item.name) }}">{{ item.label_plural }}</a>
     {% endfor %}
   </div>
   {% set show_record = True %}

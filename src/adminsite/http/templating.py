@@ -52,7 +52,9 @@ class Templates:
             "admin": admin,
             "title": admin.title,
             "urls": Urls(request),
-            "groups": admin.views.grouped(),
+            # The sidebar leaves out what this user may not open.
+            "groups": admin.views.grouped(await admin.views_allowing(request)),
+            "show_activity": bool(await admin.history_views(request)),
             "user": request.scope.get("user_record"),
             "csrf_input": hidden_input(request),
             "messages": read_messages(request),

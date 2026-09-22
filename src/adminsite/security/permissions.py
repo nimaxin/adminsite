@@ -9,6 +9,9 @@ class Permission(StrEnum):
     EDIT = "edit"
     DELETE = "delete"
     EXPORT = "export"
+    # Reading the audit log: a record's History tab, and the view's entries
+    # on the Activity page.
+    HISTORY = "history"
 
 
 def permission_name(permission: "Permission | str") -> str:

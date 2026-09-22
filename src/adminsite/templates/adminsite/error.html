@@ -1,0 +1,12 @@
+{% extends "adminsite/base.html" %}
+
+{% block header %}<h1 class="text-base font-semibold">{{ heading }}</h1>{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-lg p-4 pt-16 text-center lg:p-6 lg:pt-24">
+  <p class="font-mono text-sm text-base-content/50">{{ status }}</p>
+  <h2 class="mt-2 text-lg font-semibold">{{ heading }}</h2>
+  <p class="mt-2 text-base-content/70">{{ message }}</p>
+  <a class="btn btn-sm mt-6" href="{{ urls.index() }}">Back to the overview</a>
+</div>
+{% endblock %}
