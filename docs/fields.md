@@ -69,6 +69,52 @@ A relationship that holds many records, such as a customer's orders, shows the l
 names in the list and a multiple select in the form. On a table with more than 100 records the
 picker becomes a search box, served by a lookup that searches the other model's text columns.
 
+## A value the view works out
+
+Not every column on a page is a column. `Computed` shows something the view works out from the
+record, in the list, on the record page and in the export:
+
+```python
+from adminsite import Computed
+
+
+class ProductView(ModelView, model=Product):
+    list_display = ("name", "price", "capacity")
+    fields = (
+        Computed(
+            "capacity",
+            lambda product: f"{len(product.slots)}/{product.limit}",
+            label="Capacity",
+            needs=("slots",),
+        ),
+    )
+```
+
+`needs` names the paths the function reads, so they are loaded with the page. Without it a list of
+25 records would ask the database 25 times.
+
+A computed value is never written, sorted or filtered: its column has no sort link, the form
+leaves it out, and so do imports and the API's writes. The API still reads it.
+
+## When a field needs the whole record
+
+`display(value)` sees only the value, which is not always enough: an amount reads differently per
+currency, and a status reads differently when a second column says the check was switched off.
+Override `text_for` instead, which gets the record:
+
+```python
+class Money(Field):
+    widget = "number"
+
+    def text_for(self, record, value):
+        if value is None:
+            return ""
+        return f"{value:,.2f} {record.currency}"
+```
+
+Everything that shows a value goes through `text_for`: the list, the record page and the export.
+It falls back to `display`, so fields that do not need the record carry on as they are.
+
 ## Files and pictures
 
 A file field keeps the upload in a storage and its key in a string column. Declare it among the

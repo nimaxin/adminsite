@@ -15,6 +15,9 @@ class Field:
     widget = "text"
     python_type: type[Any] = str
     error_message = "Enter a valid value."
+    # Whether the value is stored on the record. A computed field is not,
+    # so it is never loaded, written, sorted or filtered.
+    stored = True
 
     def __init__(
         self,
@@ -51,6 +54,16 @@ class Field:
         if value is None:
             return ""
         return str(value)
+
+    def text_for(self, record: Any, value: Any) -> str:
+        """The text shown for this value, given the record it belongs to.
+
+        Everything that shows a value goes through here: the list, the
+        record page and the export. Override it where the text depends on
+        another column, such as an amount that reads differently per
+        currency; override `display` where the value alone is enough.
+        """
+        return self.display(value)
 
     def serialize(self, value: Any) -> str:
         """Format the value for a form input."""

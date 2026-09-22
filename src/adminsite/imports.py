@@ -133,6 +133,7 @@ def import_columns(view: ModelView, request: Any = None) -> tuple[str, ...]:
         path
         for path in view.get_form_fields(request)
         if path not in readonly
+        and view.field_for(path).stored
         and not isinstance(view.field_for(path), FileField)
         and not _is_collection(view, path)
     )

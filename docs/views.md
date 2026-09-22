@@ -166,7 +166,14 @@ nobody should post back, and how a form keeps fields the page has no reason to r
 ```python
 class UserView(ModelView, model=User):
     form_fields = ("name", "email", "is_active")
-    detail_fields = ("name", "email", "is_active", "signed_up_at", "invoices", "raw_payload")
+    detail_fields = (
+        "name",
+        "email",
+        "is_active",
+        "signed_up_at",
+        "invoices",
+        "raw_payload",
+    )
 ```
 
 Anything the page names is loaded with the record, so a linked record costs no extra query. Use

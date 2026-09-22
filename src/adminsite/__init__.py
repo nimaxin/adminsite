@@ -11,6 +11,7 @@ from adminsite.exceptions import (
     RefusedError,
     UnknownFieldError,
 )
+from adminsite.fields import Computed
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
 from adminsite.protocols import ModelInspector
@@ -33,6 +34,7 @@ __all__ = [
     "AdminPage",
     "AdminSiteError",
     "Chart",
+    "Computed",
     "CountMode",
     "FieldPath",
     "FieldSchema",

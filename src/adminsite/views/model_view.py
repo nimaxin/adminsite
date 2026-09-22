@@ -23,7 +23,12 @@ from adminsite.exceptions import (
     RecordNotFoundError,
     RefusedError,
 )
-from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
+from adminsite.fields import (
+    Field,
+    FieldRegistry,
+    RelationField,
+    default_registry,
+)
 from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
@@ -211,6 +216,7 @@ class ModelView:
         for path in self.get_detail_fields(request, record):
             if path not in paths:
                 paths.append(path)
+        paths = self.loadable(paths)
         for inline in self.get_inlines(request, record):
             paths.append(inline.name)
             child = self.inline_view(inline.name)
@@ -218,6 +224,27 @@ class ModelView:
                 if path in child.schema.relations:
                     paths.append(f"{inline.name}.{path}")
         return tuple(paths)
+
+    def loadable(self, paths: Sequence[str]) -> list[str]:
+        """The paths a query can load, with what computed fields read added.
+
+        A computed field is worked out in Python, so it is not loaded, but
+        whatever it reads is, or a list of 25 would cost 25 queries.
+        """
+        wanted: list[str] = []
+        for path in paths:
+            item = self.field_for(path)
+            if item.stored:
+                wanted.append(path)
+                continue
+            for needed in getattr(item, "needs", ()):
+                if needed not in wanted:
+                    wanted.append(needed)
+        return wanted
+
+    def sortable(self, path: str) -> bool:
+        """Whether a list can be sorted by this column."""
+        return self.field_for(path).stored
 
     def _build_inline_view(self, inline: Inline) -> "ModelView":
         relation = self.schema.relation_named(inline.name)
@@ -317,7 +344,8 @@ class ModelView:
 
     def display(self, record: Any, path: str) -> str:
         """The text shown in a cell."""
-        return self.field_for(path).display(self.value_at(record, path))
+        item = self.field_for(path)
+        return item.text_for(record, self.value_at(record, path))
 
     def title_of(self, record: Any) -> str:
         """Name a record, for a heading or a link to it."""
@@ -344,7 +372,7 @@ class ModelView:
         before: str = "",
     ) -> QuerySpec:
         """Describe the read this view wants, page by page."""
-        wanted = tuple(paths) or self.get_list_display(request)
+        wanted = tuple(self.loadable(tuple(paths) or self.get_list_display(request)))
         spec = QuerySpec(
             paths=wanted,
             search=search,
@@ -513,7 +541,7 @@ class ModelView:
         readonly = set(self.get_readonly_fields(request, record))
 
         for path in self.get_form_fields(request, record):
-            if path in readonly:
+            if path in readonly or not self.field_for(path).stored:
                 continue
             item = self.field_for(path)
             raw = data.get(path)

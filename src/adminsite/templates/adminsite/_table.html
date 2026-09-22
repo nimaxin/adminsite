@@ -64,14 +64,18 @@
               {% set state = sort_state(request, path) %}
               <th class="{% if view.field_for(path).widget == 'number' %}text-end{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
-                <a class="inline-flex items-center gap-1 font-medium hover:text-base-content"
-                   href="{{ urls.sorted_by(path) }}"
-                   hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
-                   hx-swap="outerHTML" hx-push-url="true">
-                  {{ view.label_for(path) }}
-                  {% if state == "asc" %}<span class="text-primary" aria-hidden="true">&uarr;</span>{% endif %}
-                  {% if state == "desc" %}<span class="text-primary" aria-hidden="true">&darr;</span>{% endif %}
-                </a>
+                {% if view.sortable(path) %}
+                  <a class="inline-flex items-center gap-1 font-medium hover:text-base-content"
+                     href="{{ urls.sorted_by(path) }}"
+                     hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
+                     hx-swap="outerHTML" hx-push-url="true">
+                    {{ view.label_for(path) }}
+                    {% if state == "asc" %}<span class="text-primary" aria-hidden="true">&uarr;</span>{% endif %}
+                    {% if state == "desc" %}<span class="text-primary" aria-hidden="true">&darr;</span>{% endif %}
+                  </a>
+                {% else %}
+                  <span class="font-medium">{{ view.label_for(path) }}</span>
+                {% endif %}
               </th>
             {% endfor %}
             <th class="w-12"></th>

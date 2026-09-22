@@ -91,7 +91,11 @@ async def build_rows(
             path=path,
             field=item,
             value=item.serialize(current),
-            display=item.display(current),
+            display=(
+                item.text_for(record, current)
+                if record is not None
+                else item.display(current)
+            ),
             error=errors.get(path, ""),
             readonly=path in readonly,
         )

@@ -5,6 +5,12 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- `Computed` shows a value the view works out from a record, in the list, on the record page and
+  in the export. `needs` names what the function reads so it is loaded with the page, and the
+  value is never written, sorted or filtered.
+- `Field.text_for(record, value)` gives a field the record its value belongs to, so an amount can
+  read with its currency or a status with the column beside it. Everything that shows a value goes
+  through it, and it falls back to `display`.
 - `detail_fields`, and `get_detail_fields(request, record)`, say what the record page shows when
   that differs from the form. The page follows the form unless you name them.
 - A view's `icon` is drawn in the sidebar. It takes inline SVG markup or the address of a picture.

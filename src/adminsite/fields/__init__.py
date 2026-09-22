@@ -1,5 +1,6 @@
 from adminsite.fields.base import Field
 from adminsite.fields.choice import ChoiceField
+from adminsite.fields.computed import Computed
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.registry import (
     FieldRegistry,
@@ -22,6 +23,7 @@ from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 __all__ = [
     "BooleanField",
     "ChoiceField",
+    "Computed",
     "DateField",
     "DateTimeField",
     "DecimalField",

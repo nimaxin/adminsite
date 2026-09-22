@@ -67,6 +67,9 @@ The classes you use most, with their signatures and docstrings.
 
 ## Fields
 
+::: adminsite.Computed
+
+
 ::: adminsite.fields.FileField
 
 ::: adminsite.fields.ImageField

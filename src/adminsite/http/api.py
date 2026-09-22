@@ -72,13 +72,17 @@ def to_json(
     """One record as plain JSON values, keyed by path."""
     body: dict[str, Any] = {"key": view.identity_of(record)}
     for path in paths:
-        body[path] = json_value(view, path, view.value_at(record, path), urls)
+        body[path] = json_value(view, path, record, urls)
     return body
 
 
-def json_value(view: ModelView, path: str, value: Any, urls: Urls) -> Any:
+def json_value(view: ModelView, path: str, record: Any, urls: Urls) -> Any:
     """A value as JSON: links as keys, files as a name and an address."""
     item = view.field_for(path)
+    if not item.stored:
+        # Worked out from the record, so there is no stored value to send.
+        return item.text_for(record, None)
+    value = view.value_at(record, path)
     if isinstance(item, RelationField):
         target = SQLAlchemyRepository(item.target, view.inspector)
         if value is None:
@@ -131,6 +135,9 @@ def read_values(
             errors[path] = _("This field cannot be written.")
             continue
         item = view.field_for(path)
+        if not item.stored:
+            errors[path] = _("This field cannot be written.")
+            continue
         if isinstance(item, FileField):
             errors[path] = _("Files are uploaded through the form, not the API.")
             continue
@@ -240,7 +247,7 @@ async def item(admin: "Admin", request: Request) -> Response:
     """Read, change or delete one record."""
     view = find(admin, request)
     paths = api_paths(view, request)
-    load = tuple(dict.fromkeys((*view.get_load_paths(request), *paths)))
+    load = tuple(dict.fromkeys((*view.get_load_paths(request), *view.loadable(paths))))
     urls = Urls(request)
     async with admin.database.session() as session:
         record = await view.fetch_record(
