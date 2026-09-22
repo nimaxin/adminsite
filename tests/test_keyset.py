@@ -70,7 +70,7 @@ class TestKeysetPages:
         self, database: Database, orders: SQLAlchemyRepository
     ) -> None:
         seen: list[int] = []
-        spec = keyset(sort=(Sort("status"),), limit=2)
+        spec = keyset(sort=(Sort("customer_id"),), limit=2)
         async with database.session() as session:
             page = await orders.list(session, spec)
             seen += ids(page)
@@ -148,7 +148,7 @@ class TestKeysetPages:
 
         assert queries.count == 1
 
-    @pytest.mark.parametrize("path", ["note", "customer.name"])
+    @pytest.mark.parametrize("path", ["note", "customer.name", "status"])
     async def test_a_sort_it_cannot_use_falls_back_to_page_numbers(
         self, database: Database, orders: SQLAlchemyRepository, path: str
     ) -> None:

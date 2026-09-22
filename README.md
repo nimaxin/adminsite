@@ -51,7 +51,7 @@ validation come from your models.
 - **An audit log** with a History tab on every record and an Activity page, including bulk actions
   row by row.
 - **Async or sync.** Give it an `AsyncEngine` or a plain `Engine`. Everything above the session
-  adapter is written once. Tested on SQLite and on Postgres, with asyncpg and psycopg.
+  adapter is written once. Tested on SQLite, Postgres and MySQL, with async and sync drivers.
 - **No Node, no CDN.** The CSS and JavaScript are built into the package.
 
 ## Installing
@@ -237,11 +237,12 @@ uv run mypy src tests
 ```
 
 The tests run on SQLite by default, async and sync. To run every database test against Postgres
-as well, start one and point the tests at it:
+and MySQL as well, start them and point the tests at them:
 
 ```
-docker run -d --name adminsite-postgres -p 55432:5432   -e POSTGRES_USER=adminsite -e POSTGRES_PASSWORD=adminsite -e POSTGRES_DB=adminsite   postgres:17-alpine
-ADMINSITE_POSTGRES_URL=postgresql://adminsite:adminsite@localhost:55432/adminsite uv run pytest
+docker run -d --name adminsite-postgres -p 55432:5432 -e POSTGRES_USER=adminsite -e POSTGRES_PASSWORD=adminsite -e POSTGRES_DB=adminsite postgres:17-alpine
+docker run -d --name adminsite-mysql -p 53306:3306 -e MYSQL_ROOT_PASSWORD=adminsite -e MYSQL_DATABASE=adminsite -e MYSQL_USER=adminsite -e MYSQL_PASSWORD=adminsite mysql:8.4
+ADMINSITE_POSTGRES_URL=postgresql://adminsite:adminsite@localhost:55432/adminsite ADMINSITE_MYSQL_URL=mysql://adminsite:adminsite@127.0.0.1:53306/adminsite uv run pytest
 ```
 
 The stylesheet and the vendored JavaScript are built from `frontend/`, and the results are

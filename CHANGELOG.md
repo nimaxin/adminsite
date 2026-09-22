@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Tested on MySQL 8 with aiomysql and pymysql, and CI runs the suite against MySQL. Keyset
+  pagination falls back to page numbers when a list is sorted by an enum column, since MySQL sorts
+  and compares native ENUMs differently and the next page would skip rows.
 - Inlines: edit a record's children in its own form, such as an order's lines, with
   `inlines = (Inline("items"),)`. Rows can be added, changed and removed, all saved in one
   transaction with the parent, and the detail page lists them.

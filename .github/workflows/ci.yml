@@ -65,3 +65,31 @@ jobs:
           enable-cache: true
       - run: uv sync --all-groups
       - run: uv run pytest -q
+
+  mysql:
+    name: Tests on MySQL
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: adminsite
+          MYSQL_DATABASE: adminsite
+          MYSQL_USER: adminsite
+          MYSQL_PASSWORD: adminsite
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -uadminsite -padminsite"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      ADMINSITE_MYSQL_URL: mysql://adminsite:adminsite@127.0.0.1:3306/adminsite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups
+      - run: uv run pytest -q -k mysql

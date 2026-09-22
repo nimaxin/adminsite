@@ -19,8 +19,23 @@ at once.
 
 - SQLite, with `aiosqlite` and with the standard library driver
 - Postgres, with `asyncpg` and with `psycopg`
+- MySQL 8, with `aiomysql` and with `pymysql`
 
 The whole test suite runs against each of these in CI.
+
+## MySQL
+
+Two things behave differently on MySQL, and adminsite accounts for both:
+
+- A native `ENUM` column sorts in the order its values were declared but compares as text. Keyset
+  pagination would skip rows on such a column, so a list sorted by an enum uses page numbers
+  instead.
+- `CountMode.ESTIMATED` reads `information_schema.tables`, whose row count for InnoDB is itself an
+  estimate and can be off by a lot on a table that changes often. Below 10,000 rows the count is
+  exact anyway.
+
+If you write a [filter](filters.md) of your own, note that MySQL refuses a `LIMIT` straight inside
+`IN (...)`; wrap the limited select in a subquery first.
 
 ## SQLite with a sync engine
 

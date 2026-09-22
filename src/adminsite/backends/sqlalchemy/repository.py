@@ -203,13 +203,15 @@ class SQLAlchemyRepository:
         """The columns a keyset page orders by, or None if the sort rules it out.
 
         Every sort column has to be on this model and never empty, since a
-        missing value cannot be compared. The primary key goes last, so no
-        two rows tie.
+        missing value cannot be compared. Enum columns are left out too:
+        MySQL sorts a native ENUM by the order it was declared in but
+        compares it as text, so the page after a cursor would skip rows.
+        The primary key goes last, so no two rows tie.
         """
         keys: list[KeysetKey] = []
         for sort in spec.sort:
             resolved, field = self._resolve_field(sort.path, "sorting")
-            if resolved.relations or field.nullable:
+            if resolved.relations or field.nullable or field.enum_values is not None:
                 return None
             keys.append(
                 KeysetKey(

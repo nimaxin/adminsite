@@ -299,9 +299,10 @@ class TestCustomFilters:
                 value: FilterValue,
                 repository: SQLAlchemyRepository,
             ) -> Select[Any]:
-                return statement.where(
-                    Order.id.in_(select(Order.id).order_by(Order.id).limit(2))
-                )
+                # MySQL refuses a LIMIT straight inside IN (...), but takes
+                # one inside a derived table.
+                oldest = select(Order.id).order_by(Order.id).limit(2).subquery()
+                return statement.where(Order.id.in_(select(oldest.c.id)))
 
         orders = orders_with(OnlyTheFirstTwo("oldest"))
         async with database.session() as session:
