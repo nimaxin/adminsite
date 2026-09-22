@@ -79,6 +79,8 @@ class ModelView:
     inlines: Sequence[Inline] = ()
 
     can_create: bool = True
+    can_detail: bool = True
+    can_export: bool = True
     can_edit: bool = True
     can_delete: bool = True
     # Importing is off until you switch it on: it writes many records at once.
@@ -433,6 +435,10 @@ class ModelView:
             return self.can_delete
         if name == Permission.IMPORT:
             return self.can_import
+        if name == Permission.DETAIL:
+            return self.can_detail
+        if name == Permission.EXPORT:
+            return self.can_export
         return True
 
     async def ensure(

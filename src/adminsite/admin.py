@@ -77,6 +77,8 @@ class Admin:
         plugins: Sequence[Plugin] = (),
         dashboard: Sequence[Widget] | None = None,
         api: bool = False,
+        session_https_only: bool = False,
+        session_max_age: int | None = 14 * 24 * 3600,
         language: str = "en",
         languages: Sequence[str] = (),
         translations: Mapping[str, Mapping[str, str]] | None = None,
@@ -100,6 +102,10 @@ class Admin:
         # Named after the title, so two admins in one app keep separate
         # sessions without anyone having to think about it.
         self.session_cookie = session_cookie or f"adminsite_{snake_case(title)}"
+        # Off by default so the admin works over plain HTTP while you build
+        # it. Switch it on wherever the admin is served over HTTPS.
+        self.session_https_only = session_https_only
+        self.session_max_age = session_max_age
         self._app: Starlette | None = None
         self.pages: dict[str, AdminPage] = {}
         # The cards on the overview; the record counts unless you choose.
@@ -284,7 +290,8 @@ class Admin:
                 secret_key=self.secret_key,
                 session_cookie=self.session_cookie,
                 same_site="lax",
-                https_only=False,
+                https_only=self.session_https_only,
+                max_age=self.session_max_age,
             )
         ]
 

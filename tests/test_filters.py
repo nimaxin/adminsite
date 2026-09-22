@@ -2,7 +2,6 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-import pytest
 from sqlalchemy import ColumnElement, Select, select
 
 from adminsite.backends.sqlalchemy import (
@@ -18,7 +17,6 @@ from adminsite.backends.sqlalchemy import (
     TextFilter,
     filter_for,
 )
-from adminsite.exceptions import InvalidPathError
 from adminsite.filters import FilterOption, FilterValue, parse_filters
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus
@@ -255,14 +253,23 @@ class TestChoosingAFilterForAColumn:
 
             assert len(page) == 2
 
-    async def test_counting_options_needs_the_model_s_own_column(
+    async def test_a_path_it_cannot_count_gives_no_counts(
         self, database: Database
     ) -> None:
         async with database.session() as session:
             context = SQLFilterContext(session, orders_with(), QuerySpec())
 
-            with pytest.raises(InvalidPathError, match="own columns"):
-                await context.count_by("customer.region")
+            assert await context.count_by("customer.region") == {}
+
+    async def test_a_filter_through_a_relationship_still_offers_its_options(
+        self, database: Database
+    ) -> None:
+        region = filter_for(orders_with(), "customer.region")
+        async with database.session() as session:
+            context = SQLFilterContext(session, orders_with(), QuerySpec())
+            options = await region.options(context)
+
+        assert [option.count for option in options] == [None] * len(options)
 
 
 class TestCustomFilters:

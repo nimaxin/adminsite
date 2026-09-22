@@ -47,6 +47,7 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
 | `global_search` | Whether the command palette searches this view. On by default. |
 | `list_columns` | More columns people can add from the Columns menu. |
+| `icon` | The sidebar icon: inline SVG markup, or the address of a picture. |
 | `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
 
 With no `list_display`, every column is shown, and a foreign key such as `customer_id` appears as
@@ -151,6 +152,7 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | `exclude` | Left out of both the list and the form. |
 | `fields` | Field objects that replace the ones worked out from the columns. See [Fields](fields.md). |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
+| `can_detail`, `can_export` | Switch off the record page and the CSV export. |
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
 if someone adds the input back by hand.
@@ -189,6 +191,33 @@ Removing a row deletes that child record. A key sent for a row that belongs to a
 refused.
 
 Pick a different set per request with `get_inlines(request, record)`.
+
+### Pages a view does not need
+
+Some views are complete on the list, and some hold data nobody should carry out of the admin:
+
+```python
+class SessionView(ModelView, model=Session):
+    can_detail = False
+    can_export = False
+```
+
+Without a detail page, rows open the form instead, or read as plain text where there is no form
+either, and saving lands back on the list. Without export, the CSV button is gone and the route
+refuses. Both go through `allows`, so `Permission.DETAIL` and `Permission.EXPORT` can be decided
+per user like any other permission.
+
+### An icon in the sidebar
+
+`icon` takes inline SVG markup, or the address of a picture:
+
+```python
+class OrderView(ModelView, model=Order):
+    icon = '<svg viewBox="0 0 16 16"><path d="M2 4h12v9H2z" fill="currentColor"/></svg>'
+```
+
+Markup is written into the page as it is, so keep it to icons you control. A relative address is
+served from the admin, so a plugin's `add_static` folder works.
 
 ## Answering per request
 

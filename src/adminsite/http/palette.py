@@ -77,6 +77,12 @@ async def records_matching(
         for view in await admin.views_allowing(request):
             if not view.global_search or not view.get_search_fields(request):
                 continue
+            # A view with no record page opens the form instead.
+            opens_detail = await view.allows(Permission.DETAIL, request=request)
+            if not opens_detail and not await view.allows(
+                Permission.EDIT, request=request
+            ):
+                continue
             spec = view.build_spec(request=request, search=term).replace(
                 limit=PER_VIEW, offset=0, count=CountMode.NONE, keyset=False
             )
@@ -87,7 +93,9 @@ async def records_matching(
                     [
                         PaletteItem(
                             view.title_of(record),
-                            urls.detail(view, view.identity_of(record)),
+                            urls.detail(view, view.identity_of(record))
+                            if opens_detail
+                            else urls.edit(view, view.identity_of(record)),
                         )
                         for record in page
                     ],

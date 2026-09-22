@@ -14,7 +14,7 @@
           <span class="font-medium">{{ item.who }}</span>
           {{ item.what }}
           {% if show_record %}
-            {% if event != 'deleted' and item.entry.view in admin.views %}
+            {% if event != 'deleted' and item.entry.view in (detail_views or []) %}
               <a class="link link-hover font-medium"
                  href="{{ urls.detail(admin.views.get(item.entry.view), item.entry.record_key) }}">{{ name }}</a>
             {% else %}

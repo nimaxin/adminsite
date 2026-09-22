@@ -73,3 +73,16 @@ that post to the admin can send the token in an `X-CSRF-Token` header instead of
 
 The [JSON API](api.md) also takes a bearer token, once your provider's `authenticate_token`
 says who it belongs to.
+
+## The session cookie
+
+The cookie is signed with `secret_key` and lasts two weeks. Serve the admin over HTTPS and say so,
+and the cookie is never sent over plain HTTP:
+
+```python
+admin = Admin(
+    engine, auth=auth, secret_key=..., session_https_only=True, session_max_age=8 * 3600
+)
+```
+
+`session_max_age=None` keeps the cookie for the browser session only.

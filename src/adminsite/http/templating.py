@@ -98,6 +98,7 @@ class NavItem:
     key: str
     label: str
     url: str
+    icon: str = ""
 
 
 async def navigation(
@@ -108,11 +109,11 @@ async def navigation(
     groups: dict[str, list[NavItem]] = {}
     for view in await admin.views_allowing(request):
         groups.setdefault(view.group, []).append(
-            NavItem(f"view:{view.name}", view.label_plural, urls.list(view))
+            NavItem(f"view:{view.name}", view.label_plural, urls.list(view), view.icon)
         )
     for page in await admin.pages_allowing(request):
         groups.setdefault(page.group, []).append(
-            NavItem(f"page:{page.name}", page.label, urls.page(page.name))
+            NavItem(f"page:{page.name}", page.label, urls.page(page.name), page.icon)
         )
     return list(groups.items())
 

@@ -29,8 +29,8 @@ class OrderView(ModelView, model=Order):
         return await super().allows(action, request=request, record=record)
 ```
 
-`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `EXPORT` and `HISTORY`, or the
-permission an [action](actions.md) asks for. The check runs before a page is shown and again before anything is
+`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `DETAIL`, `EXPORT`, `IMPORT`
+and `HISTORY`, or the permission an [action](actions.md) asks for. The check runs before a page is shown and again before anything is
 written, so a refused user gets an error even if they post the form by hand. Buttons for things the
 user may not do are left out.
 

@@ -9,6 +9,9 @@ class Permission(StrEnum):
     EDIT = "edit"
     DELETE = "delete"
     EXPORT = "export"
+    # Opening one record's page. A view whose list says everything can
+    # switch it off.
+    DETAIL = "detail"
     IMPORT = "import"
     # Reading the audit log: a record's History tab, and the view's entries
     # on the Activity page.

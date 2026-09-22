@@ -36,6 +36,7 @@ class AdminPage:
     name: str = ""
     label: str = ""
     group: str = ""
+    icon: str = ""
     template: str = ""
 
     # Set when the page is added to an admin.

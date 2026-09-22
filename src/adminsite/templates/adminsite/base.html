@@ -162,6 +162,14 @@
             <li>
               <a href="{{ item.url }}" {% if current == item.key %}aria-current="page"{% endif %}
                  class="{% if current == item.key %}bg-base-300 font-medium{% endif %}">
+                {% if item.icon %}
+                  {#- The icon is yours: inline SVG, or the address of a picture. -#}
+                  {% if item.icon.lstrip().startswith("<") %}
+                    <span class="inline-flex size-4 items-center justify-center" aria-hidden="true">{{ item.icon|safe }}</span>
+                  {% else %}
+                    <img src="{{ urls.asset(item.icon) }}" alt="" class="size-4" aria-hidden="true">
+                  {% endif %}
+                {% endif %}
                 {{ item.label }}
               </a>
             </li>

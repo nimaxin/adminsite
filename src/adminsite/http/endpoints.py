@@ -65,6 +65,9 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 
     context = as_context(view, request, spec, page, panels, read)
     context["can_create"] = await view.allows(Permission.CREATE, request=request)
+    context["can_export"] = await view.allows(Permission.EXPORT, request=request)
+    context["can_detail"] = await view.allows(Permission.DETAIL, request=request)
+    context["can_edit"] = await view.allows(Permission.EDIT, request=request)
     context["can_import"] = await view.allows(Permission.IMPORT, request=request)
     # Offer only the actions this user may run.
     allowed = [
@@ -210,12 +213,13 @@ async def create_record(admin: "Admin", request: Request) -> Response:
         key = view.identity_of(record)
 
     add_message(request, _("{thing} created.", thing=view.label))
-    return RedirectResponse(Urls(request).detail(view, key), status_code=303)
+    return RedirectResponse(await after_save(admin, view, request, key), 303)
 
 
 async def detail(admin: "Admin", request: Request) -> Response:
     """One record, read only."""
     view = find_view(admin, request)
+    await view.ensure(Permission.DETAIL, request=request)
     record = await load_or_404(admin, view, request)
 
     paths = view.get_form_fields(request, record)
@@ -269,6 +273,12 @@ async def activity(admin: "Admin", request: Request) -> Response:
         {
             "items": describe(admin, entries),
             "history_views": readable,
+            "detail_views": {
+                view.name
+                for view in await admin.views_allowing(
+                    request, Permission.VIEW, Permission.DETAIL
+                )
+            },
             "chosen": chosen,
             "view": None,
             "on_activity": True,
@@ -330,7 +340,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             )
 
     add_message(request, _("{thing} saved.", thing=view.label))
-    return RedirectResponse(Urls(request).detail(view, key_text(key)), status_code=303)
+    return RedirectResponse(await after_save(admin, view, request, key_text(key)), 303)
 
 
 async def delete_record(admin: "Admin", request: Request) -> Response:
@@ -458,6 +468,16 @@ async def form_again(
             Permission.DELETE, request=request, record=record
         )
     return await admin.render("form.html", request, context, status_code=422)
+
+
+async def after_save(
+    admin: "Admin", view: ModelView, request: Request, key: str
+) -> str:
+    """Where a save lands: the record's page, or the list without one."""
+    urls = Urls(request)
+    if await view.allows(Permission.DETAIL, request=request):
+        return urls.detail(view, key)
+    return urls.list(view)
 
 
 async def load_or_404(admin: "Admin", view: ModelView, request: Request) -> Any:

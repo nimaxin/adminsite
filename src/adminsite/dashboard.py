@@ -273,12 +273,15 @@ class RecentRecords(Widget):
             limit=self.limit, offset=0, count=CountMode.NONE, keyset=False
         )
         urls = Urls(request)
+        opens_detail = await view.allows(Permission.DETAIL, request=request)
         async with admin.database.session() as session:
             page = await view.fetch_page(session, spec, request=request)
             return [
                 RecentItem(
                     view.title_of(record),
-                    urls.detail(view, view.identity_of(record)),
+                    urls.detail(view, view.identity_of(record))
+                    if opens_detail
+                    else urls.edit(view, view.identity_of(record)),
                     view.display(record, self.detail) if self.detail else "",
                 )
                 for record in page

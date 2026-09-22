@@ -305,9 +305,14 @@ class SQLFilterContext:
         """Count matching records grouped by the value at this path.
 
         Counts reflect the search, not the other filters, so the numbers
-        stay steady while the user changes their mind.
+        stay steady while the user changes their mind. A path this cannot
+        count, such as one through a relationship, gives no counts rather
+        than an error: the filter still works, it just shows no numbers.
         """
-        column = self._own_column(path)
+        try:
+            column = self._own_column(path)
+        except InvalidPathError:
+            return {}
         statement = select(column, func.count()).group_by(column)
         condition = self.repository.search_clause(self.spec)
         if condition is not None:

@@ -96,9 +96,16 @@
                 {% set text = view.display(row, path) %}
                 <td class="whitespace-nowrap {% if widget == 'number' %}text-end tabular-nums{% endif %}">
                   {% if loop.first %}
-                    <a class="link link-hover link-primary font-medium" href="{{ urls.detail(view, key) }}">
-                      {{ text or view.title_of(row) }}
-                    </a>
+                    {#- The first cell opens the record, or the form where a view
+                        has no record page, or is plain text where it has neither. -#}
+                    {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
+                    {% if opens %}
+                      <a class="link link-hover link-primary font-medium" href="{{ opens }}">
+                        {{ text or view.title_of(row) }}
+                      </a>
+                    {% else %}
+                      <span class="font-medium">{{ text or view.title_of(row) }}</span>
+                    {% endif %}
                   {% elif widget == "image" and text %}
                     {% set stored = view.value_at(row, path) %}
                     <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
