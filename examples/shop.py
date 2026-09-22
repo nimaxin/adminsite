@@ -12,11 +12,11 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import FastAPI
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, select
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from adminsite import Admin, Inline, ModelView
+from adminsite import Admin, Chart, Inline, ModelView, RecentRecords, Stat
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.fields import ChoiceField, RelationField
@@ -143,6 +143,28 @@ class ProductView(ModelView, model=Product):
 engine = create_async_engine("sqlite+aiosqlite:///shop.db")
 
 
+order_day = func.date(Order.created_at)
+
+dashboard = [
+    Stat("Revenue", select(func.sum(Order.total)), format="€{:,.2f}"),
+    Stat("Orders", select(func.count(Order.id)), link="orders"),
+    Stat(
+        "Waiting to ship",
+        select(func.count()).where(Order.status == OrderStatus.PAID),
+        link="orders?status=PAID",
+    ),
+    Stat("Customers", select(func.count(Customer.id)), link="customers"),
+    Chart(
+        "Revenue per day",
+        select(order_day, func.sum(Order.total))
+        .group_by(order_day)
+        .order_by(order_day),
+        format="€{:,.2f}",
+    ),
+    RecentRecords("Latest orders", "orders", sort="-created_at", detail="total"),
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Create the tables and put some records in, the first time."""
@@ -162,6 +184,7 @@ admin = Admin(
     engine,
     title="Acme shop",
     views=[OrderView, CustomerView, ProductView],
+    dashboard=dashboard,
     # Hash the password where you keep it, not here.
     auth=PasswordAuth({"nima": hash_password("letmein")}),
     secret_key="change-this-before-you-deploy-anything",

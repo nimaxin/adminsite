@@ -40,6 +40,7 @@ nav:
       - Permissions: permissions.md
       - Hooks: hooks.md
       - Audit log: audit.md
+      - Dashboard: dashboard.md
       - Pages and plugins: pages.md
       - Signing in: auth.md
       - Databases: databases.md

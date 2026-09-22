@@ -1,7 +1,6 @@
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -10,6 +9,7 @@ from starlette.responses import RedirectResponse, Response, StreamingResponse
 from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.http.export import stream_csv
@@ -37,20 +37,9 @@ if TYPE_CHECKING:
 
 
 async def index(admin: "Admin", request: Request) -> Response:
-    """The front page, showing each model and how many records it has."""
-    counts = []
-    async with admin.database.session() as session:
-        for view in admin.views:
-            if not await view.allows(Permission.VIEW, request=request):
-                continue
-            total = await session.scalar(
-                select(func.count()).select_from(
-                    view.repository.base_statement(view.scope_for(request)).subquery()
-                )
-            )
-            counts.append((view, int(total or 0)))
-
-    return await admin.render("index.html", request, {"counts": counts, "view": None})
+    """The overview: the dashboard cards this user may see."""
+    cards = await load_dashboard(admin, request, admin.dashboard)
+    return await admin.render("index.html", request, {"cards": cards, "view": None})
 
 
 async def list_records(admin: "Admin", request: Request) -> Response:

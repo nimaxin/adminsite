@@ -12,6 +12,10 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Dashboard: the overview takes cards with `dashboard=[...]`: `Stat` with an optional change on
+  the period before, `Chart` drawn as SVG on the server, `RecentRecords` through a view's
+  permissions, `ModelCounts`, or a `Widget` of your own. A failing card is shown as failed and
+  logged instead of breaking the page.
 - Pages of your own: subclass `AdminPage` with a template and a context, and it gets the admin's
   layout, a place in the sidebar and the palette, its own permission check and form handling.
 - Plugins: a `Plugin` adds views, pages, routes under `/-/`, template folders, static files,

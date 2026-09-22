@@ -1,0 +1,19 @@
+{% set body %}
+  <div class="stat">
+    <div class="stat-title">{{ widget.title }}</div>
+    <div class="stat-value font-mono text-2xl">{{ data.value }}</div>
+    {% if data.change is not none %}
+      <div class="stat-desc {% if data.change >= 0 %}text-success{% else %}text-error{% endif %}">
+        {{ "+" if data.change >= 0 else "−" }}{{ "{:.0f}".format(data.change|abs) }}% on the period before
+      </div>
+    {% elif widget.hint %}
+      <div class="stat-desc">{{ widget.hint }}</div>
+    {% endif %}
+  </div>
+{% endset %}
+{% if widget.link %}
+  <a href="{{ urls.asset(widget.link) }}"
+     class="stats h-full w-full border border-base-300 transition-colors hover:border-primary">{{ body }}</a>
+{% else %}
+  <div class="stats h-full w-full border border-base-300">{{ body }}</div>
+{% endif %}

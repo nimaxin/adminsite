@@ -1,0 +1,13 @@
+<div class="card h-full border border-base-300">
+  <div class="card-body gap-1 p-4">
+    <h2 class="mb-1 text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
+    {% for item in data %}
+      <a href="{{ item.url }}" class="flex items-center gap-3 rounded-field px-2 py-1.5 hover:bg-base-200">
+        <span class="min-w-0 flex-1 truncate">{{ item.title }}</span>
+        {% if item.detail %}<span class="font-mono text-xs text-base-content/60">{{ item.detail }}</span>{% endif %}
+      </a>
+    {% else %}
+      <p class="py-6 text-center text-base-content/60">Nothing yet.</p>
+    {% endfor %}
+  </div>
+</div>

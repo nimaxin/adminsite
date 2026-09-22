@@ -1,0 +1,16 @@
+{% if data %}
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    {% for item in data %}
+      <a href="{{ item.url }}"
+         class="stats border border-base-300 transition-colors hover:border-primary">
+        <div class="stat">
+          <div class="stat-title">{{ item.label }}</div>
+          <div class="stat-value font-mono text-2xl">{{ "{:,}".format(item.count) }}</div>
+          {% if item.group %}<div class="stat-desc">{{ item.group }}</div>{% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert">No models are registered yet.</div>
+{% endif %}

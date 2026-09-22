@@ -16,6 +16,7 @@ from adminsite.audit import AuditLog
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
+from adminsite.dashboard import ModelCounts, Widget
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import endpoints
@@ -65,6 +66,7 @@ class Admin:
         session_cookie: str | None = None,
         pages: Sequence[AdminPage | type[AdminPage]] = (),
         plugins: Sequence[Plugin] = (),
+        dashboard: Sequence[Widget] | None = None,
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
@@ -87,6 +89,10 @@ class Admin:
         self.session_cookie = session_cookie or f"adminsite_{snake_case(title)}"
         self._app: Starlette | None = None
         self.pages: dict[str, AdminPage] = {}
+        # The cards on the overview; the record counts unless you choose.
+        self.dashboard: list[Widget] = (
+            list(dashboard) if dashboard is not None else [ModelCounts()]
+        )
         self.plugins: list[Plugin] = []
         self.stylesheets: list[str] = []
         self.scripts: list[str] = []

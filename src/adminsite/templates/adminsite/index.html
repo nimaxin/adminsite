@@ -3,22 +3,31 @@
 {% block header %}<h1 class="text-base font-semibold">Overview</h1>{% endblock %}
 
 {% block content %}
+{#- Written out whole, so the stylesheet build sees every class. -#}
+{% set spans = {1: "", 2: "sm:col-span-2", 3: "sm:col-span-2 xl:col-span-3", 4: "sm:col-span-2 xl:col-span-4"} %}
 <div class="p-4 lg:p-6">
-  {% if counts %}
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {% for item, count in counts %}
-        <a href="{{ urls.list(item) }}"
-           class="stats border border-base-300 transition-colors hover:border-primary">
-          <div class="stat">
-            <div class="stat-title">{{ item.label_plural }}</div>
-            <div class="stat-value font-mono text-2xl">{{ "{:,}".format(count) }}</div>
-            {% if item.group %}<div class="stat-desc">{{ item.group }}</div>{% endif %}
-          </div>
-        </a>
+  {% if cards %}
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {% for card in cards %}
+        <section class="{{ spans.get(card.widget.width, '') }} min-w-0"
+                 {% if card.widget.title %}aria-label="{{ card.widget.title }}"{% endif %}>
+          {% if card.failed %}
+            <div class="card h-full border border-base-300">
+              <div class="card-body p-4">
+                <h2 class="text-sm font-medium text-base-content/70">{{ card.widget.title }}</h2>
+                <p class="text-base-content/60">This card could not be loaded.</p>
+              </div>
+            </div>
+          {% else %}
+            {% with widget = card.widget, data = card.data %}
+              {% include card.widget.template %}
+            {% endwith %}
+          {% endif %}
+        </section>
       {% endfor %}
     </div>
   {% else %}
-    <div class="alert">No models are registered yet.</div>
+    <div class="alert">Nothing to show yet.</div>
   {% endif %}
 </div>
 {% endblock %}

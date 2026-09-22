@@ -1,6 +1,7 @@
 from importlib.metadata import version
 
 from adminsite.admin import Admin
+from adminsite.dashboard import Chart, ModelCounts, RecentRecords, Stat, Widget
 from adminsite.exceptions import (
     AdminSiteError,
     InvalidPathError,
@@ -31,11 +32,13 @@ __all__ = [
     "Admin",
     "AdminPage",
     "AdminSiteError",
+    "Chart",
     "CountMode",
     "FieldPath",
     "FieldSchema",
     "Inline",
     "InvalidPathError",
+    "ModelCounts",
     "ModelInspector",
     "ModelSchema",
     "ModelView",
@@ -46,6 +49,7 @@ __all__ = [
     "PermissionDeniedError",
     "Plugin",
     "QuerySpec",
+    "RecentRecords",
     "RecordNotFoundError",
     "RefusedError",
     "RelationDirection",
@@ -53,7 +57,9 @@ __all__ = [
     "SavedView",
     "SavedViews",
     "Sort",
+    "Stat",
     "UnknownFieldError",
     "ViewRegistry",
+    "Widget",
     "__version__",
 ]

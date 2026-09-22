@@ -1,0 +1,43 @@
+<div class="card h-full border border-base-300">
+  <div class="card-body gap-3 p-4">
+    <div class="flex items-baseline justify-between gap-2">
+      <h2 class="text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
+      {% if data.points %}<span class="text-xs text-base-content/50">Highest {{ data.highest }}</span>{% endif %}
+    </div>
+    {% if data.points %}
+      <svg class="h-36 w-full text-primary" viewBox="0 0 {{ data.width }} 100"
+           preserveAspectRatio="none" aria-hidden="true">
+        {% if data.kind == "line" %}
+          <polyline points="{{ data.line }}" fill="none" stroke="currentColor"
+                    stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+          {% for point in data.points %}
+            <rect x="{{ point.x }}" y="0" width="10" height="100" fill="transparent">
+              <title>{{ point.label }}: {{ point.value }}</title>
+            </rect>
+          {% endfor %}
+        {% else %}
+          {% for point in data.points %}
+            <rect x="{{ point.x + 1 }}" y="{{ point.y }}" width="8" height="{{ point.height }}"
+                  rx="0.8" fill="currentColor" opacity="0.85">
+              <title>{{ point.label }}: {{ point.value }}</title>
+            </rect>
+          {% endfor %}
+        {% endif %}
+      </svg>
+      <div class="flex justify-between text-xs text-base-content/50" aria-hidden="true">
+        {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
+      </div>
+      {#- The same numbers for screen readers, which cannot read the drawing. -#}
+      <table class="sr-only">
+        <caption>{{ widget.title }}</caption>
+        <tbody>
+          {% for point in data.points %}
+            <tr><th scope="row">{{ point.label }}</th><td>{{ point.value }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="py-10 text-center text-base-content/60">No data yet.</p>
+    {% endif %}
+  </div>
+</div>
