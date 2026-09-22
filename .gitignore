@@ -25,6 +25,7 @@ dist/
 # Example app databases
 shop.db
 adminsite_audit.db
+adminsite_views.db
 
 # Built docs
 site/

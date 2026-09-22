@@ -17,11 +17,13 @@ from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.history import describe
 from adminsite.http.inlines import build_inline_tables, child_tables
 from adminsite.http.listing import (
+    active_view,
     as_context,
     build_panels,
     read_list_request,
     wants_partial,
 )
+from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.query import CountMode, QuerySpec
@@ -64,6 +66,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         page=read.page,
         after=read.after,
         before=read.before,
+        paths=read.columns,
     )
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
@@ -78,9 +81,27 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         if await view.allows(item.permission, request=request)
     ]
     context["actions"] = allowed
+    context["saving_views"] = admin.saved_views is not None
+    context["saved_views"] = await saved_for(admin, view, request)
+    context["view_owner"] = owner_of(admin, request)
+    context["active_view"] = active_view(context["saved_views"], request.url.query)
 
     template = "_table.html" if wants_partial(request) else "list.html"
     return await admin.render(template, request, context)
+
+
+async def save_list_view(admin: "Admin", request: Request) -> Response:
+    """Keep the current search, filters, sort and columns under a name."""
+    view = find_view(admin, request)
+    form = await read_form(request)
+    return await save_view(admin, request, view, form)
+
+
+async def delete_list_view(admin: "Admin", request: Request) -> Response:
+    """Remove a saved view."""
+    view = find_view(admin, request)
+    await read_form(request)
+    return await delete_view(admin, request, view)
 
 
 async def create_form(admin: "Admin", request: Request) -> Response:
@@ -510,6 +531,7 @@ async def export_records(admin: "Admin", request: Request) -> Response:
         search=read.search,
         filters=read.values,
         sort=read.sort,
+        paths=read.columns,
     ).replace(limit=None, offset=0, count=CountMode.NONE, keyset=False)
 
     filename = f"{view.name}.csv"

@@ -41,7 +41,7 @@ async def stream_csv(
     request: Request,
 ) -> AsyncIterator[str]:
     """Send the whole result a batch at a time."""
-    paths = view.get_list_display(request)
+    paths = spec.paths or view.get_list_display(request)
     yield csv_header(view, paths)
 
     offset = 0

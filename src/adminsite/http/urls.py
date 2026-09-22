@@ -56,6 +56,14 @@ class Urls:
         """Where the current list is exported."""
         return self._with(f"{self.base}/{view.name}/export", params)
 
+    def save_view(self, view: ModelView) -> str:
+        """Where the current list is saved under a name."""
+        return f"{self.base}/{view.name}/saved-views"
+
+    def delete_view(self, view: ModelView, key: int | None) -> str:
+        """Where a saved view is removed."""
+        return f"{self.base}/{view.name}/saved-views/{key}/delete"
+
     def lookup(self, view: ModelView, path: str) -> str:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"

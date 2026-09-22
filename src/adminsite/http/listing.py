@@ -10,7 +10,11 @@ from adminsite.filters import FilterOption, FilterValue, parse_filters
 from adminsite.http.forms import rows_for_inputs
 from adminsite.http.urls import PAGING_KEYS
 from adminsite.query import QuerySpec, Sort
+from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
+
+COLUMNS_PARAM = "cols"
+COLUMNS_KEY = "adminsite_columns"
 
 
 @dataclass
@@ -49,6 +53,7 @@ class ListRequest:
     values: tuple[FilterValue, ...] = field(default_factory=tuple)
     after: str = ""
     before: str = ""
+    columns: tuple[str, ...] = ()
 
 
 def read_list_request(request: Request, view: ModelView) -> ListRequest:
@@ -66,7 +71,41 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
         values=parse_filters(view.get_filters(request), grouped),
         after=params.get("after", ""),
         before=params.get("before", ""),
+        columns=read_columns(request, view),
     )
+
+
+def read_columns(request: Request, view: ModelView) -> tuple[str, ...]:
+    """The columns picked for this list, from the URL or from last time.
+
+    A pick made in the URL is remembered in the session, when there is one,
+    so the list keeps those columns on the next visit. An empty pick goes
+    back to the default.
+    """
+    session = request.scope.get("session")
+    remembered: dict[str, list[str]] = (
+        session.get(COLUMNS_KEY, {}) if session is not None else {}
+    )
+    if COLUMNS_PARAM in request.query_params:
+        picked = [
+            path
+            for value in request.query_params.getlist(COLUMNS_PARAM)
+            for path in value.split(",")
+            if path
+        ]
+        if session is not None:
+            if picked:
+                remembered = {**remembered, view.name: picked}
+            else:
+                remembered = {
+                    name: paths
+                    for name, paths in remembered.items()
+                    if name != view.name
+                }
+            session[COLUMNS_KEY] = remembered
+    else:
+        picked = remembered.get(view.name, [])
+    return view.pick_columns(picked, request)
 
 
 def read_page(raw: str) -> int:
@@ -114,6 +153,12 @@ def active_chips(panels: Sequence[FilterPanel]) -> list[FilterPanel]:
     return [panel for panel in panels if panel.active]
 
 
+def active_view(saved: Sequence[SavedView], query: str) -> SavedView | None:
+    """The saved view the list is showing right now, if any."""
+    current = clean_query(query)
+    return next((item for item in saved if item.query == current), None)
+
+
 def export_params(request: Request) -> dict[str, Any]:
     """The current search and filters, for a link that keeps them."""
     params: dict[str, Any] = {}
@@ -143,7 +188,10 @@ def as_context(
         "view": view,
         "page": page,
         "page_number": read.page,
-        "columns": view.get_list_display(request),
+        "columns": read.columns,
+        "column_choices": view.get_column_choices(request),
+        "columns_changed": read.columns != view.get_list_display(request),
+        "current_query": clean_query(request.url.query),
         "panels": panels,
         "chips": active_chips(panels),
         "search": read.search,

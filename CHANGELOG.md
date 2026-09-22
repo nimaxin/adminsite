@@ -12,6 +12,11 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Column picker: people hide and show columns from a Columns menu, offered from `list_display`
+  and `list_columns`. The choice is kept in the URL and the session, and the export follows it.
+- Saved views: `saved_views=True` lets people keep a search, filters, sort and columns under a
+  name, for themselves or shared with everyone. Stored in `adminsite_views.db` by default, or in
+  your database with `SavedViews(engine)`.
 - Several admins in one app keep separate sessions by default: the session cookie is named after
   the admin's title unless you set `session_cookie`.
 - Action and delete buttons are hidden from users that `allows()` refuses.

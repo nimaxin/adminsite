@@ -1,0 +1,43 @@
+{#- The forms the toolbar menus submit. -#}
+{% if column_choices|length > 1 %}
+  <form id="columns-{{ view.name }}" method="get" action="{{ urls.list(view) }}" hidden>
+    {#- An empty value, so unticking every box still says "columns were picked". -#}
+    <input type="hidden" name="cols" value="">
+    {% for key, value in request.query_params.multi_items() if key not in ("cols", "page", "after", "before") %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+  </form>
+{% endif %}
+
+{% if saving_views %}
+  {% for item in saved_views if item.owner == view_owner %}
+    <form id="delete-view-{{ item.id }}" method="post" action="{{ urls.delete_view(view, item.id) }}" hidden>
+      {{ csrf_input | safe if csrf_input }}
+    </form>
+  {% endfor %}
+
+  <dialog id="save-view-{{ view.name }}" class="modal">
+    <form class="modal-box max-w-md" method="post" action="{{ urls.save_view(view) }}">
+      {{ csrf_input | safe if csrf_input }}
+      <input type="hidden" name="query" value="{{ current_query }}">
+      <h3 class="text-base font-semibold">Save this view</h3>
+      <p class="pt-1 text-base-content/60">Keeps the search, the filters, the sort and the columns.</p>
+      <fieldset class="fieldset mt-3">
+        <label class="fieldset-legend" for="save-view-{{ view.name }}-name">Name</label>
+        <input class="input w-full" id="save-view-{{ view.name }}-name" name="name"
+               required maxlength="100" placeholder="Unpaid this month">
+      </fieldset>
+      {% if view_owner %}
+        <label class="label mt-2 cursor-pointer gap-2 text-base-content">
+          <input type="checkbox" class="checkbox checkbox-sm" name="shared">
+          Everyone can use it
+        </label>
+      {% endif %}
+      <div class="modal-action">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('dialog').close()">Cancel</button>
+        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+      </div>
+    </form>
+    <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
+  </dialog>
+{% endif %}

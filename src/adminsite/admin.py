@@ -20,6 +20,7 @@ from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import endpoints
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
+from adminsite.saved_views import SavedViews
 from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 
@@ -48,6 +49,7 @@ class Admin:
         auth: AuthProvider | None = None,
         secret_key: str = "",
         audit: AuditLog | bool = False,
+        saved_views: SavedViews | bool = False,
         session_cookie: str | None = None,
     ) -> None:
         if auth is not None and not secret_key:
@@ -62,6 +64,9 @@ class Admin:
         self.templates = Templates(template_dirs)
         self.auth = auth
         self.audit = AuditLog() if audit is True else (audit or None)
+        self.saved_views = (
+            SavedViews() if saved_views is True else (saved_views or None)
+        )
         self.secret_key = secret_key
         # Named after the title, so two admins in one app keep separate
         # sessions without anyone having to think about it.
@@ -151,6 +156,18 @@ class Admin:
                 "/{view}/export",
                 self._handler(endpoints.export_records),
                 name="export",
+            ),
+            Route(
+                "/{view}/saved-views",
+                self._handler(endpoints.save_list_view),
+                methods=["POST"],
+                name="save_view",
+            ),
+            Route(
+                "/{view}/saved-views/{saved}/delete",
+                self._handler(endpoints.delete_list_view),
+                methods=["POST"],
+                name="delete_view",
             ),
             Route(
                 "/{view}/action/{name}",

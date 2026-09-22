@@ -1,11 +1,11 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, insert, select
-from sqlalchemy.orm import Session
+from sqlalchemy import insert, select
 
 from adminsite.audit.entry import AuditEntry, audit_metadata, audit_table
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
+from adminsite.storage import Store
 
 DEFAULT_URL = "sqlite:///adminsite_audit.db"
 
@@ -13,7 +13,7 @@ DEFAULT_URL = "sqlite:///adminsite_audit.db"
 BATCH_SIZE = 500
 
 
-class AuditLog:
+class AuditLog(Store):
     """Where the admin writes down who changed what.
 
     By default the entries go to a SQLite file of their own, which needs no
@@ -25,43 +25,15 @@ class AuditLog:
     change that was rolled back never shows up in the history.
     """
 
+    metadata = audit_metadata
+
     def __init__(
         self,
         source: Database | SessionSource | str = DEFAULT_URL,
         *,
         create_table: bool | None = None,
     ) -> None:
-        own_file = isinstance(source, str) and source.startswith("sqlite")
-        self._owned_engine: Engine | None = None
-        if isinstance(source, str):
-            options: dict[str, Any] = (
-                {"connect_args": {"check_same_thread": False}} if own_file else {}
-            )
-            self._owned_engine = create_engine(source, **options)
-            self.database = Database(self._owned_engine)
-        elif isinstance(source, Database):
-            self.database = source
-        else:
-            self.database = Database(source)
-
-        # Creating a table in someone's own database uninvited is rude, so
-        # that only happens by default for the file adminsite owns.
-        self.create_table = own_file if create_table is None else create_table
-        self._ready = False
-
-    def close(self) -> None:
-        """Release the connections, if this log opened its own database."""
-        if self._owned_engine is not None:
-            self._owned_engine.dispose()
-
-    async def prepare(self) -> None:
-        """Create the audit table if this log is allowed to."""
-        if self._ready or not self.create_table:
-            return
-        async with self.database.session() as session:
-            await session.run(_create_table)
-            await session.commit()
-        self._ready = True
+        super().__init__(source, create_table=create_table)
 
     async def record(self, entries: Sequence[AuditEntry]) -> None:
         """Write entries down, a batch at a time."""
@@ -106,7 +78,3 @@ class AuditLog:
         async with self.database.session() as session:
             result = await session.execute(statement)
             return [AuditEntry.from_row(row._mapping) for row in result.all()]
-
-
-def _create_table(session: Session) -> None:
-    audit_metadata.create_all(session.connection())

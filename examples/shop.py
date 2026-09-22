@@ -105,6 +105,7 @@ class OrderView(ModelView, model=Order):
     group = "Sales"
     display_template = "Order #{id}"
     list_display = ("id", "customer.name", "status", "total", "created_at")
+    list_columns = ("customer.email", "note")
     search_fields = ("id", "customer.name", "customer.email")
     list_filter = ("status", "total", "created_at")
     ordering = ("-created_at",)
@@ -167,6 +168,8 @@ admin = Admin(
     # Every change goes to adminsite_audit.db, shown on each record's
     # History tab and on the Activity page.
     audit=True,
+    # Saved views go to adminsite_views.db.
+    saved_views=True,
 )
 app.mount("/admin", admin)
 

@@ -45,6 +45,7 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `ordering` | The starting order. `-created_at` means newest first. |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
+| `list_columns` | More columns people can add from the Columns menu. |
 | `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
 
 With no `list_display`, every column is shown, and a foreign key such as `customer_id` appears as
@@ -53,6 +54,49 @@ its relationship, `customer`.
 Anything the list shows is loaded with the page. `customer.name` joins the customer into the same
 query; a path through a collection such as `items.quantity` costs one more query for the whole
 page, not one per row.
+
+### Choosing columns
+
+The **Columns** menu above the list hides and shows columns. It offers the columns of
+`list_display`, plus any in `list_columns`:
+
+```python
+class OrderView(ModelView, model=Order):
+    list_display = ("id", "customer.name", "status", "total")
+    list_columns = ("customer.email", "note", "created_at")
+```
+
+The choice goes in the URL as `?cols=id&cols=total`, so it can be bookmarked and shared, and it is
+remembered in the session, so the list keeps those columns next time. The CSV export follows it
+too. Only columns on offer can be picked: a column you hide from some users in
+`get_list_display` stays hidden, whatever the URL says. Override `get_column_choices(request)` to
+offer different extras per user.
+
+### Saved views
+
+A saved view keeps a search, filters, a sort and columns under a name, such as "Unpaid this month",
+so nobody has to click them together again. Switch them on for the admin:
+
+```python
+admin = Admin(engine, views=[OrderView], saved_views=True)
+```
+
+The list gets a **Saved views** menu with the views and a **Save this view** button. A view belongs
+to the person who saved it. Ticking **Everyone can use it** shares it with the rest of the team;
+only its owner can remove it. Without sign in, every view is everyone's.
+
+Like the [audit log](audit.md), the views go to a SQLite file of their own, `adminsite_views.db`.
+To keep them in your database instead:
+
+```python
+from adminsite import SavedViews
+from adminsite.saved_views import saved_view_metadata
+
+admin = Admin(engine, saved_views=SavedViews(engine))
+
+# In your Alembic env.py, so the table is part of your migrations:
+target_metadata = [Base.metadata, saved_view_metadata]
+```
 
 ### Large tables
 

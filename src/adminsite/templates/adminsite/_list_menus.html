@@ -1,0 +1,56 @@
+{#- The column picker and the saved views, shown at the right of the toolbar.
+    Their inputs belong to forms outside the toolbar's own form, through the
+    form attribute, since forms cannot sit inside each other. -#}
+{% if column_choices|length > 1 %}
+  <div class="dropdown dropdown-end">
+    <div tabindex="0" role="button" class="btn btn-ghost btn-sm">Columns</div>
+    <div tabindex="0" class="dropdown-content z-30 mt-1 w-60 rounded-box border border-base-300 bg-base-100 p-3 shadow">
+      {% for path in column_choices %}
+        <label class="label flex w-full cursor-pointer gap-2 py-1 text-base-content">
+          <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                 form="columns-{{ view.name }}" name="cols" value="{{ path }}"
+                 {% if path in columns %}checked{% endif %}>
+          {{ view.label_for(path) }}
+        </label>
+      {% endfor %}
+      <div class="mt-2 flex gap-2">
+        <button class="btn btn-primary btn-xs" type="submit" form="columns-{{ view.name }}">Show</button>
+        {% if columns_changed %}
+          <a class="btn btn-ghost btn-xs" href="{{ urls.here(cols='') }}">Back to default</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% if saving_views %}
+  <div class="dropdown dropdown-end">
+    <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+      {{ active_view.name if active_view else "Saved views" }}
+    </div>
+    <div tabindex="0" class="dropdown-content z-30 mt-1 w-64 rounded-box border border-base-300 bg-base-100 p-2 shadow">
+      {% for item in saved_views %}
+        <div class="flex items-center gap-1">
+          <a class="flex flex-1 items-center gap-2 rounded px-2 py-1.5 hover:bg-base-200
+                    {% if active_view and active_view.id == item.id %}font-semibold{% endif %}"
+             href="{{ urls.list(view) }}{{ '?' ~ item.query if item.query }}">
+            <span class="flex-1 truncate">{{ item.name }}</span>
+            {% if item.shared %}<span class="badge badge-ghost badge-xs">shared</span>{% endif %}
+          </a>
+          {% if item.owner == view_owner %}
+            <button class="btn btn-ghost btn-xs" type="submit" form="delete-view-{{ item.id }}"
+                    aria-label="Remove {{ item.name }}">&times;</button>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="px-2 py-1.5 text-base-content/60">Nothing saved yet.</p>
+      {% endfor %}
+      <div class="mt-1 border-t border-base-300 pt-1">
+        <button class="btn btn-ghost btn-sm w-full justify-start" type="button"
+                onclick="document.getElementById('save-view-{{ view.name }}').showModal()">
+          Save this view
+        </button>
+      </div>
+    </div>
+  </div>
+{% endif %}

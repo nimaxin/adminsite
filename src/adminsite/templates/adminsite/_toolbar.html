@@ -3,6 +3,9 @@
         hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
         hx-push-url="true">
     {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if columns_changed %}
+      {% for path in columns %}<input type="hidden" name="cols" value="{{ path }}">{% endfor %}
+    {% endif %}
 
     {% if view.get_search_fields(request) %}
       <label class="input input-sm w-full sm:w-64">
@@ -37,6 +40,7 @@
     {% endif %}
 
     <span class="flex-1"></span>
+    {% include "adminsite/_list_menus.html" %}
     <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">Export CSV</a>
 
     {% if panels %}
@@ -85,4 +89,5 @@
       </div>
     {% endif %}
   </form>
+  {% include "adminsite/_list_forms.html" %}
 </div>

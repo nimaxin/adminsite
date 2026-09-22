@@ -12,6 +12,7 @@ from adminsite.exceptions import (
 )
 from adminsite.protocols import ModelInspector
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
+from adminsite.saved_views import SavedView, SavedViews
 from adminsite.schema import (
     FieldPath,
     FieldSchema,
@@ -45,6 +46,8 @@ __all__ = [
     "RefusedError",
     "RelationDirection",
     "RelationSchema",
+    "SavedView",
+    "SavedViews",
     "Sort",
     "UnknownFieldError",
     "ViewRegistry",

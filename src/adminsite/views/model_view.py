@@ -54,6 +54,8 @@ class ModelView:
     display_template: str = ""
 
     list_display: Sequence[str] = ()
+    # More columns people may add to the list from the column picker.
+    list_columns: Sequence[str] = ()
     search_fields: Sequence[str] = ()
     list_filter: Sequence[str | Filter] = ()
     ordering: Sequence[str] = ()
@@ -119,6 +121,25 @@ class ModelView:
         if self.list_display:
             return tuple(self.list_display)
         return self._default_paths(skip=set(self.exclude))
+
+    def get_column_choices(self, request: Any = None) -> tuple[str, ...]:
+        """The columns the picker offers: the list's own, then the extras."""
+        shown = self.get_list_display(request)
+        return shown + tuple(path for path in self.list_columns if path not in shown)
+
+    def pick_columns(
+        self, picked: Sequence[str], request: Any = None
+    ) -> tuple[str, ...]:
+        """The columns to show for what someone picked.
+
+        Only columns on offer count, so a column hidden from this user cannot
+        be brought back by editing the URL. Picking none gives the default.
+        """
+        wanted = set(picked)
+        chosen = tuple(
+            path for path in self.get_column_choices(request) if path in wanted
+        )
+        return chosen or self.get_list_display(request)
 
     def get_search_fields(self, request: Any = None) -> tuple[str, ...]:
         """The paths the search box looks in."""
