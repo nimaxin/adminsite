@@ -1,13 +1,13 @@
 {% extends "adminsite/base.html" %}
 
-{% block page_title %}Import {{ view.label_plural|lower }} · {{ title }}{% endblock %}
+{% block page_title %}{{ _('Import {things}', things=view.label_plural|lower) }} · {{ title }}{% endblock %}
 
 {% block header %}
   <div class="breadcrumbs py-0 text-sm">
     <ul>
       <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li><a href="{{ urls.list(view) }}/import">Import</a></li>
-      <li class="font-semibold">Preview</li>
+      <li><a href="{{ urls.list(view) }}/import">{{ _('Import') }}</a></li>
+      <li class="font-semibold">{{ _('Preview') }}</li>
     </ul>
   </div>
 {% endblock %}
@@ -19,18 +19,18 @@
 <div class="flex h-full flex-col">
   <div class="flex flex-wrap items-center gap-3 border-b border-base-300 px-3 py-3 lg:px-6">
     <span class="font-medium">{{ filename }}</span>
-    <span class="badge badge-soft badge-success">{{ creating }} new</span>
-    <span class="badge badge-soft badge-info">{{ updating }} changed</span>
-    {% if problems %}<span class="badge badge-soft badge-error">{{ problems }} with problems</span>{% endif %}
+    <span class="badge badge-soft badge-success">{{ _('{count} new', count=creating) }}</span>
+    <span class="badge badge-soft badge-info">{{ _('{count} changed', count=updating) }}</span>
+    {% if problems %}<span class="badge badge-soft badge-error">{{ _('{count} with problems', count=problems) }}</span>{% endif %}
     {% if plan.ignored %}
-      <span class="text-base-content/60">Not used: {{ plan.ignored|join(", ") }}</span>
+      <span class="text-base-content/60">{{ _('Not used: {names}', names=plan.ignored|join(', ')) }}</span>
     {% endif %}
     <span class="flex-1"></span>
     <form method="post" action="{{ urls.list(view) }}/import/{{ token }}" class="flex items-center gap-2">
       {{ csrf_input | safe if csrf_input }}
-      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">Choose another file</a>
+      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">{{ _('Choose another file') }}</a>
       <button class="btn btn-primary btn-sm" type="submit" {% if not plan.ready %}disabled{% endif %}>
-        Import {{ plan.ready|length }} rows{% if problems %}, skip {{ problems }}{% endif %}
+        {% if problems %}{{ _('Import {count} rows, skip {skipped}', count=plan.ready|length, skipped=problems) }}{% else %}{{ _('Import {count} rows', count=plan.ready|length) }}{% endif %}
       </button>
     </form>
   </div>
@@ -39,8 +39,8 @@
     <table class="table table-sm table-pin-rows">
       <thead>
         <tr>
-          <th class="w-16">Row</th>
-          <th class="w-24">Does</th>
+          <th class="w-16">{{ _('Row') }}</th>
+          <th class="w-24">{{ _('Does') }}</th>
           {% for path in plan.columns %}<th>{{ view.label_for(path) }}</th>{% endfor %}
         </tr>
       </thead>
@@ -49,9 +49,9 @@
           <tr class="{% if row.errors %}bg-error/5{% endif %}">
             <td class="tabular-nums text-base-content/60">{{ row.number }}</td>
             <td>
-              {% if row.action == "create" %}<span class="badge badge-soft badge-success badge-sm">new</span>
-              {% elif row.action == "update" %}<span class="badge badge-soft badge-info badge-sm">change</span>
-              {% else %}<span class="badge badge-soft badge-error badge-sm">problem</span>{% endif %}
+              {% if row.action == "create" %}<span class="badge badge-soft badge-success badge-sm">{{ _('new') }}</span>
+              {% elif row.action == "update" %}<span class="badge badge-soft badge-info badge-sm">{{ _('change') }}</span>
+              {% else %}<span class="badge badge-soft badge-error badge-sm">{{ _('problem') }}</span>{% endif %}
             </td>
             {% for path in plan.columns %}
               <td class="align-top">
@@ -76,7 +76,7 @@
     </table>
     {% if shown|length < plan.rows|length %}
       <p class="px-3 py-3 text-base-content/60 lg:px-6">
-        Showing {{ shown|length }} of {{ plan.rows|length }} rows: the first {{ 50 }} and the ones with problems.
+        {{ _('Showing {shown} of {total} rows: the first 50 and the ones with problems.', shown=shown|length, total=plan.rows|length) }}
       </p>
     {% endif %}
   </div>

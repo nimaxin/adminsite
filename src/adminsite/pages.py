@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite.exceptions import AdminSiteError
+from adminsite.i18n import gettext as _
 from adminsite.text import snake_case
 
 if TYPE_CHECKING:
@@ -63,4 +64,4 @@ class AdminPage:
 
     async def post(self, request: Request, form: dict[str, Any]) -> Response:
         """Handle a form posted to the page, already checked for its token."""
-        raise HTTPException(status_code=405, detail="This page takes no forms.")
+        raise HTTPException(status_code=405, detail=_("This page takes no forms."))

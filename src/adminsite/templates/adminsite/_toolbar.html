@@ -14,18 +14,18 @@
           <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4"/>
         </svg>
         <input type="search" name="q" value="{{ search }}" class="grow"
-               placeholder="Search {{ view.label_plural|lower }}"
-               aria-label="Search {{ view.label_plural|lower }}"
+               placeholder="{{ _('Search {things}', things=view.label_plural|lower) }}"
+               aria-label="{{ _('Search {things}', things=view.label_plural|lower) }}"
                hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
                hx-trigger="keyup changed delay:300ms, search" hx-include="closest form">
       </label>
     {% endif %}
 
     {% for panel in chips %}
-      <span class="badge badge-soft badge-primary gap-1 pr-1">
+      <span class="badge badge-soft badge-primary gap-1 pe-1">
         {{ panel.chip }}
         <a class="rounded px-1 hover:bg-primary/15"
-           href="{{ urls.here(**{panel.filter.name: None, 'page': None}) }}" aria-label="Remove this filter">&times;</a>
+           href="{{ urls.here(**{panel.filter.name: None, 'page': None}) }}" aria-label="{{ _('Remove this filter') }}">&times;</a>
       </span>
     {% endfor %}
 
@@ -35,16 +35,16 @@
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M2 3.5h12M4.5 8h7M7 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
-        Filter
+        {{ _('Filter') }}
       </button>
     {% endif %}
 
     <span class="flex-1"></span>
     {% include "adminsite/_list_menus.html" %}
     {% if can_import %}
-      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">Import</a>
+      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">{{ _('Import') }}</a>
     {% endif %}
-    <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">Export CSV</a>
+    <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">{{ _('Export CSV') }}</a>
 
     {% if panels %}
       <div class="w-full" x-show="filters" x-cloak>
@@ -68,14 +68,14 @@
               {% elif panel.filter.template == "range" %}
                 <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
                        value="{{ panel.chosen[0] if panel.chosen else '' }}"
-                       placeholder="from,to" list="{{ panel.filter.name }}-choices">
+                       placeholder="{{ _('from,to') }}" list="{{ panel.filter.name }}-choices">
                 {% if panel.options %}
                   <datalist id="{{ panel.filter.name }}-choices">
                     {% for option in panel.options %}
                       <option value="{{ option.value }}">{{ option.label }}</option>
                     {% endfor %}
                   </datalist>
-                  <p class="label">Pick a period or write two values, such as 10,50.</p>
+                  <p class="label">{{ _('Pick a period or write two values, such as 10,50.') }}</p>
                 {% endif %}
               {% else %}
                 <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
@@ -85,8 +85,8 @@
             </fieldset>
           {% endfor %}
           <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
-            <button class="btn btn-primary btn-sm" type="submit">Apply</button>
-            <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">Clear all</a>
+            <button class="btn btn-primary btn-sm" type="submit">{{ _('Apply') }}</button>
+            <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">{{ _('Clear all') }}</a>
           </div>
         </div>
       </div>

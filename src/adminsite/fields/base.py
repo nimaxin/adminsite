@@ -4,6 +4,7 @@ from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 
 from adminsite.exceptions import FieldValidationError
+from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import humanize
 
@@ -62,7 +63,7 @@ class Field:
         text = raw.strip() if isinstance(raw, str) else raw
         if not text:
             if self.required:
-                raise FieldValidationError(self.name, "This field is required.")
+                raise FieldValidationError(self.name, _("This field is required."))
             return None
         return self.to_python(text)
 
@@ -71,12 +72,15 @@ class Field:
         if self.max_length is not None and len(text) > self.max_length:
             raise FieldValidationError(
                 self.name,
-                f"Keep this to {self.max_length} characters or fewer.",
+                _(
+                    "Keep this to {count} characters or fewer.",
+                    count=self.max_length,
+                ),
             )
         try:
             return self._adapter.validate_python(text)
         except PydanticValidationError:
-            raise FieldValidationError(self.name, self.error_message) from None
+            raise FieldValidationError(self.name, _(self.error_message)) from None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.name!r})"

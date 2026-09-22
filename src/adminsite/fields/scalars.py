@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from adminsite.fields.base import Field
+from adminsite.i18n import gettext as _
 
 TRUE_VALUES = frozenset({"1", "true", "on", "yes"})
 
@@ -74,7 +75,7 @@ class BooleanField(Field):
         """Show Yes or No rather than True or False."""
         if value is None:
             return ""
-        return "Yes" if value else "No"
+        return _("Yes") if value else _("No")
 
     def parse(self, raw: str | None) -> bool:
         """Read a checkbox, where nothing submitted means no."""

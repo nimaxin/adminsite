@@ -20,22 +20,22 @@
     <form class="modal-box max-w-md" method="post" action="{{ urls.save_view(view) }}">
       {{ csrf_input | safe if csrf_input }}
       <input type="hidden" name="query" value="{{ current_query }}">
-      <h3 class="text-base font-semibold">Save this view</h3>
-      <p class="pt-1 text-base-content/60">Keeps the search, the filters, the sort and the columns.</p>
+      <h3 class="text-base font-semibold">{{ _('Save this view') }}</h3>
+      <p class="pt-1 text-base-content/60">{{ _('Keeps the search, the filters, the sort and the columns.') }}</p>
       <fieldset class="fieldset mt-3">
-        <label class="fieldset-legend" for="save-view-{{ view.name }}-name">Name</label>
+        <label class="fieldset-legend" for="save-view-{{ view.name }}-name">{{ _('Name') }}</label>
         <input class="input w-full" id="save-view-{{ view.name }}-name" name="name"
-               required maxlength="100" placeholder="Unpaid this month">
+               required maxlength="100" placeholder="{{ _('Unpaid this month') }}">
       </fieldset>
       {% if view_owner %}
         <label class="label mt-2 cursor-pointer gap-2 text-base-content">
           <input type="checkbox" class="checkbox checkbox-sm" name="shared">
-          Everyone can use it
+          {{ _('Everyone can use it') }}
         </label>
       {% endif %}
       <div class="modal-action">
-        <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('dialog').close()">Cancel</button>
-        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
+        <button class="btn btn-primary btn-sm" type="submit">{{ _('Save') }}</button>
       </div>
     </form>
     <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>

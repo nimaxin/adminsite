@@ -46,6 +46,7 @@ nav:
       - JSON API: api.md
       - Signing in: auth.md
       - Databases: databases.md
+      - Translations: translations.md
       - Customizing the look: customizing.md
   - Reference: reference.md
   - Changelog: changelog.md

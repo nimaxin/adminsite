@@ -17,6 +17,7 @@ from adminsite.filters.base import (
     FilterOption,
     FilterValue,
 )
+from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec
 from adminsite.schema import FieldSchema
 from adminsite.text import humanize
@@ -110,8 +111,8 @@ class BooleanFilter(SQLFilter):
         """Offer yes and no, with how many records each one matches."""
         counts = await context.count_by(self.path)
         return (
-            FilterOption("true", self.yes_label, counts.get("true")),
-            FilterOption("false", self.no_label, counts.get("false")),
+            FilterOption("true", _(self.yes_label), counts.get("true")),
+            FilterOption("false", _(self.no_label), counts.get("false")),
         )
 
     def condition(
@@ -198,7 +199,9 @@ class DateRangeFilter(SQLFilter):
 
     async def options(self, context: FilterContext) -> Sequence[FilterOption]:
         """List the periods this filter offers."""
-        return tuple(FilterOption(value, label) for value, label, _ in self.PRESETS)
+        return tuple(
+            FilterOption(value, _(label)) for value, label, _days in self.PRESETS
+        )
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository
@@ -225,7 +228,7 @@ class DateRangeFilter(SQLFilter):
         return repository.condition_at(self.path, build)
 
     def _period(self, raw: str) -> tuple[datetime | None, datetime | None]:
-        for name, _, days in self.PRESETS:
+        for name, _label, days in self.PRESETS:
             if raw == name:
                 return self._now_value() - timedelta(days=days), None
         start, _, end = raw.partition(RANGE_SEPARATOR)

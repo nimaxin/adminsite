@@ -8,6 +8,7 @@ from adminsite.exceptions import AdminSiteError
 from adminsite.http.saved import owner_of
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
 from adminsite.imports import (
     ImportPlan,
     ImportProblem,
@@ -60,14 +61,19 @@ async def preview(
     await view.ensure(Permission.IMPORT, request=request)
     upload = form.get("file")
     if not isinstance(upload, UploadFile) or not upload.filename:
-        return await show_form(admin, request, view, "Choose a file to import.")
+        return await show_form(admin, request, view, _("Choose a file to import."))
     if upload.size is not None and upload.size > MAX_BYTES:
-        return await show_form(admin, request, view, "Keep the file under 20 MB.")
+        return await show_form(admin, request, view, _("Keep the file under 20 MB."))
 
     try:
         table = read_table(upload.filename, await upload.read())
         if len(table) - 1 > view.import_limit:
-            raise ImportProblem(f"Import at most {view.import_limit:,} rows at a time.")
+            raise ImportProblem(
+                _(
+                    "Import at most {count} rows at a time.",
+                    count=f"{view.import_limit:,}",
+                )
+            )
         async with admin.database.session() as session:
             plan = await build_plan(view, session, table, request=request)
     except ImportProblem as problem:
@@ -100,7 +106,9 @@ async def run(admin: "Admin", request: Request, view: ModelView) -> Response:
     urls = Urls(request)
     table = load_plan(request.path_params["token"], view, owner_of(admin, request))
     if table is None:
-        add_message(request, "This import has expired. Choose the file again.", "error")
+        add_message(
+            request, _("This import has expired. Choose the file again."), "error"
+        )
         return RedirectResponse(f"{urls.list(view)}/import", status_code=303)
 
     created = changed = 0
@@ -119,7 +127,9 @@ async def run(admin: "Admin", request: Request, view: ModelView) -> Response:
             try:
                 await view.save(session, row.values, record=record, request=request)
             except AdminSiteError as error:
-                failed.append(f"row {row.number}: {error}")
+                failed.append(
+                    _("row {number}: {reason}", number=row.number, reason=error)
+                )
                 continue
             if record is None:
                 created += 1
@@ -136,11 +146,25 @@ def summary(
 ) -> str:
     """One line saying what the import did."""
     things = view.label_plural.lower()
-    parts = [f"Imported {created} new and changed {changed} {things}."]
+    parts = [
+        _(
+            "Imported {created} new and changed {changed} {things}.",
+            created=created,
+            changed=changed,
+            things=things,
+        )
+    ]
     if skipped:
-        parts.append(f"Skipped {skipped} rows with problems.")
+        parts.append(_("Skipped {count} rows with problems.", count=skipped))
     if failed:
         shown = "; ".join(failed[:3])
-        more = f" and {len(failed) - 3} more" if len(failed) > 3 else ""
-        parts.append(f"Refused {len(failed)}: {shown}{more}.")
+        more = _(" and {count} more", count=len(failed) - 3) if len(failed) > 3 else ""
+        parts.append(
+            _(
+                "Refused {count}: {rows}{more}.",
+                count=len(failed),
+                rows=shown,
+                more=more,
+            )
+        )
     return " ".join(parts)

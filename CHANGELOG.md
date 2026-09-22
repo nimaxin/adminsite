@@ -12,6 +12,10 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Translations: `language="fa"` puts the whole admin in Persian with a mirrored right to left
+  layout, and `languages=[...]` adds a menu, picking the browser's language on the first visit.
+  Your own `translations` override or add to the shipped catalogs, and `adminsite.i18n.gettext`
+  translates your own messages.
 - JSON API: `api=True` serves every view at `/-/api` for listing, reading, adding, changing,
   deleting and running actions, through the same permissions, scopes, hooks and audit log as the
   pages. Scripts sign in with a bearer token checked by `AuthProvider.authenticate_token`; a

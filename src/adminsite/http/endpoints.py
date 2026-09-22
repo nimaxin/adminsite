@@ -27,6 +27,7 @@ from adminsite.http.listing import (
 from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
 from adminsite.query import CountMode, QuerySpec
 from adminsite.security import Permission
 from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
@@ -87,9 +88,29 @@ async def stored_file(admin: "Admin", request: Request) -> Response:
     await view.ensure(Permission.VIEW, request=request)
     item = view.field_for(request.path_params["path"])
     if not isinstance(item, FileField):
-        raise HTTPException(status_code=404, detail="No such file.")
+        raise HTTPException(status_code=404, detail=_("No such file."))
     key = request.path_params["key"]
     return await item.storage.response(key, item.content_type(key))
+
+
+async def choose_language(admin: "Admin", request: Request) -> Response:
+    """Switch the admin to another language, and go back where we were."""
+    form = await read_form(request)
+    wanted = str(form.get("language", ""))
+    back = str(form.get("next", "")) or Urls(request).index()
+    # Only a path inside this site, so the form cannot send anyone elsewhere.
+    if not back.startswith("/") or back.startswith("//"):
+        back = Urls(request).index()
+    response = RedirectResponse(back, status_code=303)
+    if wanted in admin.languages:
+        response.set_cookie(
+            "adminsite_language",
+            wanted,
+            max_age=365 * 24 * 3600,
+            path=Urls(request).index(),
+            samesite="lax",
+        )
+    return response
 
 
 async def custom_page(admin: "Admin", request: Request) -> Response:
@@ -97,7 +118,9 @@ async def custom_page(admin: "Admin", request: Request) -> Response:
     name = request.path_params["page"]
     page = admin.pages.get(name)
     if page is None:
-        raise HTTPException(status_code=404, detail=f"No page at {name!r}.")
+        raise HTTPException(
+            status_code=404, detail=_("No page at {name}.", name=repr(name))
+        )
     if not await page.allows(request):
         raise PermissionDeniedError("open", page.label)
     if request.method == "POST":
@@ -186,7 +209,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
 
         key = view.identity_of(record)
 
-    add_message(request, f"{view.label} created.")
+    add_message(request, _("{thing} created.", thing=view.label))
     return RedirectResponse(Urls(request).detail(view, key), status_code=303)
 
 
@@ -226,14 +249,14 @@ async def detail(admin: "Admin", request: Request) -> Response:
 async def activity(admin: "Admin", request: Request) -> Response:
     """The latest changes across the admin, newest first."""
     if admin.audit is None:
-        raise HTTPException(status_code=404, detail="Auditing is not switched on.")
+        raise HTTPException(status_code=404, detail=_("Auditing is not switched on."))
 
     # Filtering in the query, not afterwards, so the page still shows the
     # latest entries this user may read rather than a few of the latest 200.
     readable = await admin.history_views(request)
     allowed = [view.name for view in readable]
     if not allowed:
-        raise PermissionDeniedError(Permission.HISTORY.value, "the activity")
+        raise PermissionDeniedError(Permission.HISTORY.value, _("the activity"))
 
     chosen = request.query_params.get("view") or None
     if chosen is not None and chosen not in allowed:
@@ -284,7 +307,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             session, key, paths=view.get_load_paths(request), request=request
         )
         if record is None:
-            raise HTTPException(status_code=404, detail="No such record.")
+            raise HTTPException(status_code=404, detail=_("No such record."))
         await view.ensure(Permission.EDIT, request=request, record=record)
 
         result = view.parse_form(submitted, record=record, request=request)
@@ -306,7 +329,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, error, record, submitted
             )
 
-    add_message(request, f"{view.label} saved.")
+    add_message(request, _("{thing} saved.", thing=view.label))
     return RedirectResponse(Urls(request).detail(view, key_text(key)), status_code=303)
 
 
@@ -323,7 +346,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
             request=request,
         )
         if record is None:
-            raise HTTPException(status_code=404, detail="No such record.")
+            raise HTTPException(status_code=404, detail=_("No such record."))
         await view.ensure(Permission.DELETE, request=request, record=record)
         try:
             await view.delete(session, record, request=request)
@@ -332,7 +355,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
             add_message(request, str(error), kind="error")
             return RedirectResponse(Urls(request).list(view), status_code=303)
 
-    add_message(request, f"{view.label} deleted.")
+    add_message(request, _("{thing} deleted.", thing=view.label))
     return RedirectResponse(Urls(request).list(view), status_code=303)
 
 
@@ -342,7 +365,9 @@ async def lookup(admin: "Admin", request: Request) -> Response:
     path = request.path_params["path"]
     item = view.field_for(path)
     if not isinstance(item, RelationField):
-        raise HTTPException(status_code=404, detail=f"{path!r} is not a link.")
+        raise HTTPException(
+            status_code=404, detail=_("{path} is not a link.", path=repr(path))
+        )
 
     target = SQLAlchemyRepository(item.target, admin.inspector)
     schema = admin.inspector.inspect(item.target)
@@ -384,8 +409,12 @@ def form_context(
         "rows": rows,
         "record": record,
         "key": key,
-        "heading": view.title_of(record) if editing else f"New {view.label.lower()}",
-        "submit_label": "Save changes" if editing else f"Create {view.label.lower()}",
+        "heading": view.title_of(record)
+        if editing
+        else _("New {thing}", thing=view.label.lower()),
+        "submit_label": _("Save changes")
+        if editing
+        else _("Create {thing}", thing=view.label.lower()),
         "action": urls.edit(view, key) if editing else urls.create(view),
         "cancel_url": urls.detail(view, key) if editing else urls.list(view),
         "can_delete": view.can_delete,
@@ -441,7 +470,7 @@ async def load_or_404(admin: "Admin", view: ModelView, request: Request) -> Any:
             request=request,
         )
     if record is None:
-        raise HTTPException(status_code=404, detail="No such record.")
+        raise HTTPException(status_code=404, detail=_("No such record."))
     return record
 
 
@@ -450,7 +479,9 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
     name = request.path_params.get("view", "")
     view = admin.views.find(name)
     if view is None:
-        raise HTTPException(status_code=404, detail=f"No page at {name!r}.")
+        raise HTTPException(
+            status_code=404, detail=_("No page at {name}.", name=repr(name))
+        )
     return view
 
 
@@ -477,7 +508,7 @@ async def read_form(request: Request) -> dict[str, Any]:
     submitted = data.pop(FIELD_NAME, None) or request.headers.get(TOKEN_HEADER)
     token = submitted if isinstance(submitted, str) else None
     if not is_valid(request, token):
-        raise HTTPException(status_code=403, detail="This form has expired.")
+        raise HTTPException(status_code=403, detail=_("This form has expired."))
     return data
 
 
@@ -489,7 +520,7 @@ async def login_form(admin: "Admin", request: Request) -> Response:
 async def login(admin: "Admin", request: Request) -> Response:
     """Check the details and let the user in."""
     if admin.auth is None:
-        raise HTTPException(status_code=404, detail="Signing in is not set up.")
+        raise HTTPException(status_code=404, detail=_("Signing in is not set up."))
 
     submitted = await read_form(request)
     user = await admin.auth.sign_in(
@@ -501,7 +532,7 @@ async def login(admin: "Admin", request: Request) -> Response:
         return await admin.render(
             "login.html",
             request,
-            {"error": "That username and password do not match."},
+            {"error": _("That username and password do not match.")},
             status_code=401,
         )
     return RedirectResponse(Urls(request).index(), status_code=303)
@@ -538,7 +569,15 @@ async def run_action(admin: "Admin", request: Request) -> Response:
             for item in found.inputs
             if item.name in inputs.errors
         )
-        add_message(request, f"{found.label} was not done. {problems}", kind="error")
+        add_message(
+            request,
+            _(
+                "{action} was not done. {problems}",
+                action=found.label,
+                problems=problems,
+            ),
+            kind="error",
+        )
         return back_to_list(request, view)
 
     async with admin.database.session() as session:
@@ -563,8 +602,11 @@ async def run_action(admin: "Admin", request: Request) -> Response:
             await session.rollback()
             add_message(
                 request,
-                f"{found.label} was not done, because other records still "
-                "refer to some of these.",
+                _(
+                    "{action} was not done, because other records still refer to "
+                    "some of these.",
+                    action=found.label,
+                ),
                 kind="error",
             )
             return back_to_list(request, view)

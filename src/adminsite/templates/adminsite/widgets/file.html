@@ -8,7 +8,7 @@
     {% if not row.required %}
       <label class="label cursor-pointer gap-2">
         <input type="checkbox" class="checkbox checkbox-xs" name="{{ row.path }}-remove">
-        Remove
+        {{ _('Remove') }}
       </label>
     {% endif %}
   </div>
@@ -17,4 +17,4 @@
        id="field-{{ row.path }}" name="{{ row.path }}"
        {% if row.field.accept %}accept="{{ row.field.accept }}"{% endif %}
        {% if row.required and not row.value and row.browser_required %}required{% endif %}>
-{% if row.value %}<p class="label">Choose a file to replace this one.</p>{% endif %}
+{% if row.value %}<p class="label">{{ _('Choose a file to replace this one.') }}</p>{% endif %}

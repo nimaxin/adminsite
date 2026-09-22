@@ -15,6 +15,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from adminsite.http.urls import Urls, sort_state
+from adminsite.i18n import direction, gettext, native_name
 from adminsite.security.csrf import hidden_input
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class Templates:
             enable_async=True,
         )
         self.environment.globals["sort_state"] = sort_state
+        self.environment.globals["_"] = gettext
 
     def add_directory(self, directory: str | Path) -> None:
         """Look for templates in one more folder, after the ones given first."""
@@ -65,6 +67,7 @@ class Templates:
         project's are named as they sit in its template dirs.
         """
         path = f"{TEMPLATE_ROOT}/{name}" if own else name
+        language = request.scope.get("adminsite_language", admin.language)
         template = self.environment.get_template(path)
         values: dict[str, Any] = {
             "request": request,
@@ -78,6 +81,9 @@ class Templates:
             "csrf_input": hidden_input(request),
             "messages": read_messages(request),
             "view": None,
+            "language": language,
+            "direction": direction(language),
+            "languages": [(code, native_name(code)) for code in admin.languages],
         }
         values.update(context or {})
         values["current"] = current_key(values)

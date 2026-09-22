@@ -4,9 +4,9 @@
   <legend class="fieldset-legend">
     {{ row.label }}
     {% if row.readonly %}
-      <span class="badge badge-ghost badge-xs font-normal">read only</span>
+      <span class="badge badge-ghost badge-xs font-normal">{{ _('read only') }}</span>
     {% elif row.required %}
-      <span class="font-normal text-base-content/50">required</span>
+      <span class="font-normal text-base-content/50">{{ _('required') }}</span>
     {% endif %}
   </legend>
 

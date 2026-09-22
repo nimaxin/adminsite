@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
 from adminsite.query import CountMode
 from adminsite.security import Permission
 
@@ -46,19 +47,23 @@ async def palette(admin: "Admin", request: Request) -> Response:
 async def pages_matching(admin: "Admin", request: Request, term: str) -> PaletteSection:
     """The pages of the admin whose name contains the term."""
     urls = Urls(request)
-    found = [PaletteItem("Overview", urls.index())]
+    found = [PaletteItem(_("Overview"), urls.index())]
     for view in await admin.views_allowing(request):
         found.append(PaletteItem(view.label_plural, urls.list(view), view.group))
         if await view.allows(Permission.CREATE, request=request):
-            found.append(PaletteItem(f"New {view.label.lower()}", urls.create(view)))
+            found.append(
+                PaletteItem(
+                    _("New {thing}", thing=view.label.lower()), urls.create(view)
+                )
+            )
     for page in await admin.pages_allowing(request):
         found.append(PaletteItem(page.label, urls.page(page.name), page.group))
     if await admin.history_views(request):
-        found.append(PaletteItem("Activity", urls.activity()))
+        found.append(PaletteItem(_("Activity"), urls.activity()))
 
     wanted = term.lower()
     return PaletteSection(
-        "Pages", [item for item in found if wanted in item.label.lower()]
+        _("Pages"), [item for item in found if wanted in item.label.lower()]
     )
 
 

@@ -1,4 +1,4 @@
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +27,8 @@ from adminsite.http import api, endpoints
 from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
+from adminsite.i18n import activate, negotiate
+from adminsite.i18n import gettext as _
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
@@ -40,7 +42,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 HEADINGS = {403: "Not allowed", 404: "Not found"}
 
 # Paths under /-/ that the admin keeps for itself.
-RESERVED_PAGES = frozenset({"activity", "api", "files", "search", "static"})
+RESERVED_PAGES = frozenset({"activity", "api", "files", "language", "search", "static"})
+LANGUAGE_COOKIE = "adminsite_language"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 Endpoint = Callable[["Admin", Request], Awaitable[Response]]
@@ -74,6 +77,9 @@ class Admin:
         plugins: Sequence[Plugin] = (),
         dashboard: Sequence[Widget] | None = None,
         api: bool = False,
+        language: str = "en",
+        languages: Sequence[str] = (),
+        translations: Mapping[str, Mapping[str, str]] | None = None,
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
@@ -106,6 +112,10 @@ class Admin:
         self._extra_routes: list[Route | Mount] = []
         # The JSON API at /-/api, off unless asked for.
         self.api = api
+        # The language the admin speaks, and the ones people may switch to.
+        self.language = language
+        self.languages = list(dict.fromkeys([language, *languages]))
+        self.translations = dict(translations or {})
 
         for view in views:
             self.add_view(view)
@@ -221,8 +231,28 @@ class Admin:
             )
         return self._app
 
+    def language_for(self, request: Request) -> str:
+        """The language to answer in: the one chosen, else the browser's."""
+        chosen = request.cookies.get(LANGUAGE_COOKIE, "")
+        if chosen in self.languages:
+            return chosen
+        if len(self.languages) > 1:
+            header = request.headers.get("accept-language", "")
+            found = negotiate(header, self.languages)
+            if found is not None:
+                return found
+        return self.language
+
+    def speak(self, request: Request) -> str:
+        """Answer this request in its language."""
+        language = self.language_for(request)
+        activate(language, self.translations)
+        request.scope["adminsite_language"] = language
+        return language
+
     async def _error_page(self, request: Request, error: Exception) -> Response:
         """Show a refusal or a missing page inside the admin, not as bare text."""
+        self.speak(request)
         if isinstance(error, HTTPException):
             status, message = error.status_code, str(error.detail)
             headers = error.headers
@@ -235,7 +265,7 @@ class Admin:
             request,
             {
                 "status": status,
-                "heading": HEADINGS.get(status, "Something went wrong"),
+                "heading": _(HEADINGS.get(status, "Something went wrong")),
                 "message": message,
             },
             status_code=status,
@@ -288,6 +318,12 @@ class Admin:
             ),
             # Pages that are not a model sit under /-/ so no model name can
             # ever collide with them.
+            Route(
+                "/-/language",
+                self._handler(endpoints.choose_language, guarded=False),
+                methods=["POST"],
+                name="language",
+            ),
             Route(
                 "/-/search",
                 self._handler(palette),
@@ -431,13 +467,14 @@ class Admin:
         """Guard an API endpoint: JSON answers, and tokens as well as sessions."""
 
         async def handle(request: Request) -> Response:
+            self.speak(request)
             try:
                 by_token = False
                 if self.auth is not None:
                     user, by_token = await self._api_user(request)
                     if user is None:
                         return JSONResponse(
-                            {"error": "Sign in first."},
+                            {"error": _("Sign in first.")},
                             status_code=401,
                             headers={"WWW-Authenticate": "Bearer"},
                         )
@@ -448,7 +485,11 @@ class Admin:
                     sent = request.headers.get(TOKEN_HEADER)
                     if not is_valid(request, sent):
                         return JSONResponse(
-                            {"error": f"Send the {TOKEN_HEADER} header."},
+                            {
+                                "error": _(
+                                    "Send the {header} header.", header=TOKEN_HEADER
+                                )
+                            },
                             status_code=403,
                         )
                 answer: Response = await endpoint(self, request)
@@ -495,6 +536,7 @@ class Admin:
         checks_user = guarded and self.auth is not None
 
         async def handle(request: Request) -> Response:
+            self.speak(request)
             try:
                 if checks_user and self.auth is not None:
                     user = await self.auth.current_user(request)

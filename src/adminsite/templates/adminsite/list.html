@@ -8,7 +8,7 @@
 
 {% block header_actions %}
   {% if can_create %}
-    <a class="btn btn-primary btn-sm" href="{{ urls.create(view) }}">New {{ view.label|lower }}</a>
+    <a class="btn btn-primary btn-sm" href="{{ urls.create(view) }}">{{ _('New {thing}', thing=view.label|lower) }}</a>
   {% endif %}
 {% endblock %}
 

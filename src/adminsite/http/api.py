@@ -16,6 +16,7 @@ from adminsite.exceptions import FieldValidationError, RefusedError
 from adminsite.fields import FileField, RelationField
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
 from adminsite.security import Permission
 from adminsite.views import ModelView
 
@@ -48,7 +49,7 @@ def find(admin: "Admin", request: Request) -> ModelView:
     """The view the URL names, or a 404."""
     view = admin.views.find(request.path_params.get("view", ""))
     if view is None:
-        raise ApiError(404, "No such view.")
+        raise ApiError(404, _("No such view."))
     return view
 
 
@@ -93,9 +94,9 @@ async def read_body(request: Request) -> dict[str, Any]:
     try:
         body = json.loads(await request.body() or b"{}")
     except ValueError:
-        raise ApiError(400, "Send a JSON object.") from None
+        raise ApiError(400, _("Send a JSON object.")) from None
     if not isinstance(body, dict):
-        raise ApiError(400, "Send a JSON object.")
+        raise ApiError(400, _("Send a JSON object."))
     return body
 
 
@@ -123,16 +124,16 @@ def read_values(
     errors: dict[str, str] = {}
     for path, raw in body.items():
         if path not in writable:
-            errors[path] = "This field cannot be written."
+            errors[path] = _("This field cannot be written.")
             continue
         item = view.field_for(path)
         if isinstance(item, FileField):
-            errors[path] = "Files are uploaded through the form, not the API."
+            errors[path] = _("Files are uploaded through the form, not the API.")
             continue
         try:
             if isinstance(item, RelationField) and item.collection:
                 if not isinstance(raw, list):
-                    raise FieldValidationError(path, "Send a list of keys.")
+                    raise FieldValidationError(path, _("Send a list of keys."))
                 values[path] = item.parse_many([str(key) for key in raw])
             else:
                 values[path] = item.parse(as_text(raw))
@@ -141,9 +142,9 @@ def read_values(
     if record is None:
         for path in writable - set(body):
             if view.field_for(path).required:
-                errors[path] = "This field is required."
+                errors[path] = _("This field is required.")
     if errors:
-        raise ApiError(422, "Some fields need another look.", errors)
+        raise ApiError(422, _("Some fields need another look."), errors)
     return values
 
 
@@ -195,7 +196,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
     try:
         limit = int(request.query_params.get("limit", spec.limit or 25))
     except ValueError:
-        raise ApiError(400, "limit is a number.") from None
+        raise ApiError(400, _("limit is a number.")) from None
     spec = spec.replace(limit=max(1, min(limit, MAX_LIMIT))).page(read.page)
 
     urls = Urls(request)
@@ -242,7 +243,7 @@ async def item(admin: "Admin", request: Request) -> Response:
             session, read_key(request), paths=load, request=request
         )
         if record is None:
-            raise ApiError(404, "No such record.")
+            raise ApiError(404, _("No such record."))
 
         if request.method == "DELETE":
             try:
@@ -250,7 +251,9 @@ async def item(admin: "Admin", request: Request) -> Response:
             except RefusedError as error:
                 raise ApiError(409, str(error)) from None
             except IntegrityError:
-                raise ApiError(409, "Other records still refer to this one.") from None
+                raise ApiError(
+                    409, _("Other records still refer to this one.")
+                ) from None
             return Response(status_code=204)
 
         if request.method == "PATCH":
@@ -282,18 +285,18 @@ async def action(admin: "Admin", request: Request) -> Response:
     try:
         found = view.action_named(request.path_params["name"])
     except Exception:
-        raise ApiError(404, "No such action.") from None
+        raise ApiError(404, _("No such action.")) from None
     body = await read_body(request)
     keys = body.get("keys", [])
     if not isinstance(keys, list):
-        raise ApiError(422, "keys is a list.")
+        raise ApiError(422, _("keys is a list."))
 
     raw_inputs = body.get("inputs", {})
     inputs = view.parse_action_inputs(
         found, {name: as_text(value) or "" for name, value in raw_inputs.items()}
     )
     if not inputs.ok:
-        raise ApiError(422, "Some values need another look.", inputs.errors)
+        raise ApiError(422, _("Some values need another look."), inputs.errors)
 
     read = read_list_request(request, view)
     spec = view.build_spec(
@@ -318,7 +321,9 @@ async def action(admin: "Admin", request: Request) -> Response:
             raise ApiError(409, str(error)) from None
         except IntegrityError:
             await session.rollback()
-            raise ApiError(409, "Other records still refer to some of these.") from None
+            raise ApiError(
+                409, _("Other records still refer to some of these.")
+            ) from None
     return JSONResponse({"message": message})
 
 

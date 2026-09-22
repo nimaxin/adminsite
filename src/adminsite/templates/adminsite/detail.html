@@ -13,7 +13,7 @@
 
 {% block header_actions %}
   {% if can_edit %}
-    <a class="btn btn-primary btn-sm" href="{{ urls.edit(view, key) }}">Edit</a>
+    <a class="btn btn-primary btn-sm" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
   {% endif %}
 {% endblock %}
 
@@ -56,7 +56,7 @@
               {% else %}
                 <tr>
                   <td colspan="{{ table.headers|length }}" class="text-base-content/60">
-                    None yet.
+                    {{ _('None yet.') }}
                   </td>
                 </tr>
               {% endfor %}
@@ -69,10 +69,10 @@
 
   {% if history is not none %}
     <div class="tabs tabs-border">
-      <input type="radio" name="record-tabs" class="tab" aria-label="Details" checked>
+      <input type="radio" name="record-tabs" class="tab" aria-label="{{ _('Details') }}" checked>
       <div class="tab-content pt-4">{{ details() }}</div>
 
-      <input type="radio" name="record-tabs" class="tab" aria-label="History ({{ history|length }})">
+      <input type="radio" name="record-tabs" class="tab" aria-label="{{ _('History ({count})', count=history|length) }}">
       <div class="tab-content pt-5">
         {% set items = history %}
         {% set show_record = False %}

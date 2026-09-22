@@ -13,6 +13,7 @@ from typing import Any
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import ChoiceField, FileField, RelationField
+from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
 
 # Files waiting between the preview and the import are kept this long.
@@ -33,10 +34,10 @@ def read_table(filename: str, data: bytes) -> list[list[str]]:
     elif suffix in (".csv", ".txt", ""):
         rows = _read_csv(data)
     else:
-        raise ImportProblem("Choose a CSV file or an Excel file (.xlsx).")
+        raise ImportProblem(_("Choose a CSV file or an Excel file (.xlsx)."))
     rows = [row for row in rows if any(cell.strip() for cell in row)]
     if not rows:
-        raise ImportProblem("The file is empty.")
+        raise ImportProblem(_("The file is empty."))
     return rows
 
 
@@ -58,12 +59,14 @@ def _read_excel(data: bytes) -> list[list[str]]:
         from openpyxl import load_workbook
     except ImportError:
         raise ImportProblem(
-            "Reading Excel files needs openpyxl: pip install 'adminsite[excel]'."
+            _("Reading Excel files needs openpyxl: pip install 'adminsite[excel]'.")
         ) from None
     try:
         book = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     except Exception:
-        raise ImportProblem("This file could not be read as an Excel file.") from None
+        raise ImportProblem(
+            _("This file could not be read as an Excel file.")
+        ) from None
     try:
         sheet = book.worksheets[0]
         return [
@@ -176,7 +179,7 @@ async def build_plan(
     columns = [path for path in matched if path is not None]
     if not columns:
         raise ImportProblem(
-            "None of the columns match. Use the field names from the template."
+            _("None of the columns match. Use the field names from the template.")
         )
 
     rows = []
@@ -237,7 +240,9 @@ def check_row(
     if key:
         record = existing.get(key)
         if record is None:
-            row.errors[key_name] = f"No {view.label.lower()} has the key {key}."
+            row.errors[key_name] = _(
+                "No {thing} has the key {key}.", thing=view.label.lower(), key=key
+            )
             return
         row.key = key
 
@@ -255,7 +260,7 @@ def check_row(
             if path == key_name or path in row.raw:
                 continue
             if view.field_for(path).required:
-                row.errors[path] = "Missing, and a new record needs it."
+                row.errors[path] = _("Missing, and a new record needs it.")
 
 
 def normalize(item: Any, text: str) -> str:
@@ -265,7 +270,7 @@ def normalize(item: Any, text: str) -> str:
     "maybe" is a mistake worth pointing out.
     """
     if item.widget == "checkbox" and text.lower() not in YES_OR_NO:
-        raise FieldValidationError(item.name, "Write yes or no.")
+        raise FieldValidationError(item.name, _("Write yes or no."))
     if isinstance(item, ChoiceField):
         for value, label in item.choices:
             if text.lower() == label.lower():

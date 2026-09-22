@@ -36,8 +36,15 @@ class PermissionDeniedError(AdminSiteError):
     """Raised when the current user may not do this."""
 
     def __init__(self, action: str, subject: str = "") -> None:
-        where = f" {subject}" if subject else ""
-        super().__init__(f"You cannot {action}{where}.")
+        from adminsite.i18n import gettext as _
+
+        # The action is one of the permission names, such as "edit".
+        doing = _(action)
+        super().__init__(
+            _("You cannot {action} {subject}.", action=doing, subject=subject)
+            if subject
+            else _("You cannot {action}.", action=doing)
+        )
         self.action = action
         self.subject = subject
 

@@ -8,7 +8,7 @@
                 $refs.body.insertAdjacentHTML('beforeend', blank);
                 count++;
               ">
-        + Add another
+        + {{ _('Add another') }}
       </button>
     </div>
     <input type="hidden" name="{{ table.name }}-count" :value="count" value="{{ table.rows|length }}">
@@ -18,7 +18,7 @@
         <thead>
           <tr>
             {% for header in table.headers %}<th>{{ header }}</th>{% endfor %}
-            {% if table.inline.can_delete %}<th class="w-16 text-center">Remove</th>{% endif %}
+            {% if table.inline.can_delete %}<th class="w-16 text-center">{{ _('Remove') }}</th>{% endif %}
           </tr>
         </thead>
         <tbody x-ref="body">
@@ -42,7 +42,7 @@
                 <td class="text-center align-top">
                   {% if item.key %}
                     <input type="checkbox" class="checkbox checkbox-sm checkbox-error mt-2"
-                           name="{{ table.name }}-{{ index }}-delete" aria-label="Remove this row"
+                           name="{{ table.name }}-{{ index }}-delete" aria-label="{{ _('Remove this row') }}"
                            {% if item.delete %}checked{% endif %}>
                   {% endif %}
                 </td>

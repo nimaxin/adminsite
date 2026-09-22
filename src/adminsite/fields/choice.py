@@ -4,6 +4,7 @@ from typing import Any
 
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields.base import Field
+from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import humanize
 
@@ -70,7 +71,7 @@ class ChoiceField(Field):
         if allowed and text not in allowed:
             match = self._match_ignoring_case(text, allowed)
             if match is None:
-                raise FieldValidationError(self.name, self.error_message)
+                raise FieldValidationError(self.name, _(self.error_message))
             text = match
         if self.enum_class is None:
             return text

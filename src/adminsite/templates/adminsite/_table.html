@@ -1,6 +1,8 @@
 {%- set total_text -%}
-  {%- if page.at_least %}more than {% elif page.estimated %}about {% endif -%}
-  {{ "{:,}".format(page.total) if page.total is not none else "" }}
+  {%- set number = "{:,}".format(page.total) if page.total is not none else "" -%}
+  {%- if page.at_least %}{{ _("more than {count}", count=number) }}
+  {%- elif page.estimated %}{{ _("about {count}", count=number) }}
+  {%- else %}{{ number }}{% endif -%}
 {%- endset -%}
 <div id="records" class="flex min-h-0 flex-1 flex-col"
      x-data="{ picked: 0, everything: false }">
@@ -12,15 +14,15 @@
     {% if actions %}
       <div class="flex flex-wrap items-center gap-2 border-b border-base-300 bg-base-200 px-3 py-2 lg:px-6"
            x-show="picked > 0" x-cloak>
-        <span class="font-medium"><span x-text="picked"></span> selected</span>
+        <span class="font-medium"><span x-text="picked"></span> {{ _('selected') }}</span>
         {% if page.total is not none %}
           <button class="btn btn-link btn-xs px-1" type="button"
                   x-show="!everything && picked >= {{ page|length }}"
                   @click="everything = true">
-            Select all {{ total_text }} matching
+            {{ _("Select all {count} matching", count=total_text) }}
           </button>
           <span class="text-base-content/70" x-show="everything">
-            All {{ total_text }} matching rows are selected.
+            {{ _("All {count} matching rows are selected.", count=total_text) }}
           </span>
         {% endif %}
         <span class="flex-1"></span>
@@ -48,7 +50,7 @@
           <tr class="bg-base-100">
             {% if actions %}
               <th class="w-10">
-                <input type="checkbox" class="checkbox checkbox-sm" aria-label="Select this page"
+                <input type="checkbox" class="checkbox checkbox-sm" aria-label="{{ _('Select this page') }}"
                        @change="
                          $refs.actions.querySelectorAll('input[name=keys]')
                            .forEach(box => box.checked = $event.target.checked);
@@ -59,7 +61,7 @@
             {% endif %}
             {% for path in columns %}
               {% set state = sort_state(request, path) %}
-              <th class="{% if view.field_for(path).widget == 'number' %}text-right{% endif %}">
+              <th class="{% if view.field_for(path).widget == 'number' %}text-end{% endif %}">
                 <a class="inline-flex items-center gap-1 font-medium hover:text-base-content"
                    href="{{ urls.sorted_by(path) }}"
                    hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
@@ -80,7 +82,7 @@
               {% if actions %}
                 <td>
                   <input type="checkbox" class="checkbox checkbox-sm" name="keys" value="{{ key }}"
-                         aria-label="Select this row"
+                         aria-label="{{ _('Select this row') }}"
                          @change="
                            picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
                            everything = false;
@@ -90,7 +92,7 @@
               {% for path in columns %}
                 {% set widget = view.field_for(path).widget %}
                 {% set text = view.display(row, path) %}
-                <td class="whitespace-nowrap {% if widget == 'number' %}text-right tabular-nums{% endif %}">
+                <td class="whitespace-nowrap {% if widget == 'number' %}text-end tabular-nums{% endif %}">
                   {% if loop.first %}
                     <a class="link link-hover link-primary font-medium" href="{{ urls.detail(view, key) }}">
                       {{ text or view.title_of(row) }}
@@ -104,20 +106,20 @@
                   {% elif widget == "select" and text %}
                     <span class="badge badge-soft badge-sm">{{ text }}</span>
                   {% elif widget == "checkbox" and text %}
-                    <span class="badge badge-sm {% if text == 'Yes' %}badge-success badge-soft{% else %}badge-ghost{% endif %}">{{ text }}</span>
+                    <span class="badge badge-sm {% if view.value_at(row, path) %}badge-success badge-soft{% else %}badge-ghost{% endif %}">{{ text }}</span>
                   {% else %}
                     {{ text }}
                   {% endif %}
                 </td>
               {% endfor %}
-              <td class="text-right">
-                <a class="btn btn-ghost btn-xs" href="{{ urls.edit(view, key) }}">Edit</a>
+              <td class="text-end">
+                <a class="btn btn-ghost btn-xs" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
               </td>
             </tr>
           {% else %}
             <tr>
               <td class="py-16 text-center text-base-content/60" colspan="{{ columns|length + 2 }}">
-                No {{ view.label_plural|lower }} to show.
+                {{ _("No {things} to show.", things=view.label_plural|lower) }}
               </td>
             </tr>
           {% endfor %}
@@ -151,9 +153,9 @@
           <p class="pt-2 text-base-content/80">{{ item.confirm }}</p>
         {% endif %}
         <p class="pt-1 text-base-content/60">
-          <span x-show="!everything"><span x-text="picked"></span> selected</span>
+          <span x-show="!everything"><span x-text="picked"></span> {{ _('selected') }}</span>
           {% if page.total is not none %}
-            <span x-show="everything">All {{ total_text }} matching rows</span>
+            <span x-show="everything">{{ _("All {count} matching rows", count=total_text) }}</span>
           {% endif %}
         </p>
         {% if action_rows[item.name] %}
@@ -165,7 +167,7 @@
         {% endif %}
         <div class="modal-action">
           <button type="button" class="btn btn-ghost btn-sm"
-                  onclick="this.closest('dialog').close()">Cancel</button>
+                  onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
           <button type="submit"
                   class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-primary{% endif %}">
             {{ item.label }}
@@ -181,9 +183,9 @@
       {% if page.keyset %}
         {% if page.total is not none %}{{ total_text }} {{ view.label_plural|lower }}{% endif %}
       {% elif page.total is not none %}
-        {{ page.first_position }} to {{ page.last_position }} of {{ total_text }}
+        {{ _("{first} to {last} of {total}", first=page.first_position, last=page.last_position, total=total_text) }}
       {% else %}
-        {{ page.first_position }} to {{ page.last_position }}
+        {{ _("{first} to {last}", first=page.first_position, last=page.last_position) }}
       {% endif %}
     </span>
     <span class="flex-1"></span>
@@ -197,13 +199,13 @@
     <div class="join">
       <a class="join-item btn btn-sm {% if not page.has_previous %}btn-disabled{% endif %}"
          href="{{ previous }}" hx-get="{{ previous }}" hx-target="#records"
-         hx-swap="outerHTML" hx-push-url="true">Previous</a>
+         hx-swap="outerHTML" hx-push-url="true">{{ _('Previous') }}</a>
       {% if not page.keyset %}
-        <span class="join-item btn btn-sm pointer-events-none">Page {{ page_number }}</span>
+        <span class="join-item btn btn-sm pointer-events-none">{{ _("Page {number}", number=page_number) }}</span>
       {% endif %}
       <a class="join-item btn btn-sm {% if not page.has_next %}btn-disabled{% endif %}"
          href="{{ next }}" hx-get="{{ next }}" hx-target="#records"
-         hx-swap="outerHTML" hx-push-url="true">Next</a>
+         hx-swap="outerHTML" hx-push-url="true">{{ _('Next') }}</a>
     </div>
   </div>
 </div>

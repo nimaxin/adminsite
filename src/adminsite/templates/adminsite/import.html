@@ -1,12 +1,12 @@
 {% extends "adminsite/base.html" %}
 
-{% block page_title %}Import {{ view.label_plural|lower }} · {{ title }}{% endblock %}
+{% block page_title %}{{ _('Import {things}', things=view.label_plural|lower) }} · {{ title }}{% endblock %}
 
 {% block header %}
   <div class="breadcrumbs py-0 text-sm">
     <ul>
       <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li class="font-semibold">Import</li>
+      <li class="font-semibold">{{ _('Import') }}</li>
     </ul>
   </div>
 {% endblock %}
@@ -22,30 +22,29 @@
       {% endif %}
 
       <fieldset class="fieldset">
-        <label class="fieldset-legend" for="import-file">A CSV or Excel file</label>
+        <label class="fieldset-legend" for="import-file">{{ _('A CSV or Excel file') }}</label>
         <input id="import-file" type="file" name="file" required
                accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                class="file-input file-input-sm w-full">
-        <p class="label">The first row names the columns. Nothing is saved until you have seen the preview.</p>
+        <p class="label">{{ _('The first row names the columns. Nothing is saved until you have seen the preview.') }}</p>
       </fieldset>
 
       <div>
-        <h2 class="mb-2 font-medium">Columns</h2>
+        <h2 class="mb-2 font-medium">{{ _('Columns') }}</h2>
         <div class="flex flex-wrap gap-1.5">
           {% for path, label in columns %}
             <span class="badge badge-ghost font-mono" title="{{ label }}">{{ path }}</span>
           {% endfor %}
         </div>
         <p class="mt-2 text-base-content/70">
-          A header may be the name or the label, in any case. A row with a {{ columns[0][0] }} that
-          exists changes that {{ view.label|lower }}; a row without one adds a new one.
-          <a class="link" href="{{ urls.list(view) }}/import/template">Download an empty file</a>.
+          {{ _('A header may be the name or the label, in any case. A row with a {key} that exists changes that {thing}; a row without one adds a new one.', key=columns[0][0], thing=view.label|lower) }}
+          <a class="link" href="{{ urls.list(view) }}/import/template">{{ _('Download an empty file') }}</a>.
         </p>
       </div>
 
       <div class="card-actions border-t border-base-300 pt-4">
-        <button class="btn btn-primary btn-sm" type="submit">Preview</button>
-        <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">Cancel</a>
+        <button class="btn btn-primary btn-sm" type="submit">{{ _('Preview') }}</button>
+        <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">{{ _('Cancel') }}</a>
       </div>
     </div>
   </form>

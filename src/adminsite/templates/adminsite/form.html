@@ -31,12 +31,12 @@
 
       <div class="card-actions mt-4 items-center border-t border-base-300 pt-4">
         <button class="btn btn-primary btn-sm" type="submit">{{ submit_label }}</button>
-        <a class="btn btn-ghost btn-sm" href="{{ cancel_url }}">Cancel</a>
+        <a class="btn btn-ghost btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
         <span class="flex-1"></span>
         {% if can_delete and record is not none %}
           <button class="btn btn-error btn-soft btn-sm" type="button"
                   onclick="document.getElementById('confirm-delete').showModal()">
-            Delete
+            {{ _('Delete') }}
           </button>
         {% endif %}
       </div>
@@ -47,12 +47,12 @@
     <dialog id="confirm-delete" class="modal">
       <form class="modal-box" method="post" action="{{ urls.delete(view, key) }}">
         {{ csrf_input | safe if csrf_input }}
-        <h3 class="text-lg font-semibold">Delete {{ heading }}?</h3>
-        <p class="pt-2 text-base-content/80">This cannot be undone.</p>
+        <h3 class="text-lg font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
+        <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
         <div class="modal-action">
           <button type="button" class="btn btn-ghost btn-sm"
-                  onclick="this.closest('dialog').close()">Cancel</button>
-          <button type="submit" class="btn btn-error btn-sm">Delete</button>
+                  onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
+          <button type="submit" class="btn btn-error btn-sm">{{ _('Delete') }}</button>
         </div>
       </form>
       <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>

@@ -23,8 +23,8 @@
           {% endif %}
         </p>
         <p class="text-xs text-base-content/50">
-          <time>{{ item.when }} UTC</time>
-          {% if item.entry.batch %} · part of a bulk action{% endif %}
+          <time>{{ _('{when} UTC', when=item.when) }}</time>
+          {% if item.entry.batch %} · {{ _('part of a bulk action') }}{% endif %}
         </p>
         {% if item.lines %}
           <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-box bg-base-200 px-3 py-2 text-[13px]">
@@ -42,5 +42,5 @@
     {% endfor %}
   </ol>
 {% else %}
-  <p class="py-8 text-center text-base-content/60">Nothing recorded yet.</p>
+  <p class="py-8 text-center text-base-content/60">{{ _('Nothing recorded yet.') }}</p>
 {% endif %}

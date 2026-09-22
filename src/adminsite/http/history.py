@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from adminsite.audit import AuditEntry, AuditEvent
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import DateTimeField
+from adminsite.i18n import gettext as _
 from adminsite.text import humanize
 
 if TYPE_CHECKING:
@@ -43,7 +44,7 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
             HistoryItem(
                 entry=entry,
                 when=_WHEN.display(entry.occurred_at),
-                who=entry.user or "Someone",
+                who=entry.user or _("Someone"),
                 what=_verb(entry),
                 lines=[
                     ChangeLine(
@@ -61,12 +62,14 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
 
 def _verb(entry: AuditEntry) -> str:
     if entry.event is AuditEvent.CREATED:
-        return "created"
+        return _("created")
     if entry.event is AuditEvent.DELETED:
-        return "deleted"
+        return _("deleted")
     if entry.event is AuditEvent.ACTION:
-        return f"ran {entry.action}" if entry.action else "ran an action"
-    return "changed"
+        if entry.action:
+            return _("ran {action}", action=entry.action)
+        return _("ran an action")
+    return _("changed")
 
 
 def _label(view: object, name: str) -> str:
@@ -82,5 +85,5 @@ def _label(view: object, name: str) -> str:
 
 def _text(value: object) -> str:
     if value is None or value == "":
-        return "empty"
+        return _("empty")
     return str(value)

@@ -26,6 +26,7 @@ from adminsite.exceptions import (
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
 from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
+from adminsite.i18n import gettext as _
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, pluralize, snake_case
@@ -610,9 +611,12 @@ class ModelView:
         except IntegrityError as error:
             await self._discard_files(stored)
             raise RefusedError(
-                f"This {self.label.lower()} could not be saved, because it "
-                "clashes with another record. A value that must be unique "
-                "may already be taken."
+                _(
+                    "This {thing} could not be saved, because it clashes with "
+                    "another record. A value that must be unique may already "
+                    "be taken.",
+                    thing=self.label.lower(),
+                )
             ) from error
         except BaseException:
             await self._discard_files(stored)
@@ -690,8 +694,11 @@ class ModelView:
                 )
         except IntegrityError as error:
             raise RefusedError(
-                f"This {self.label.lower()} cannot be deleted, because other "
-                "records still refer to it."
+                _(
+                    "This {thing} cannot be deleted, because other records "
+                    "still refer to it.",
+                    thing=self.label.lower(),
+                )
             ) from error
 
     async def _apply_inlines(

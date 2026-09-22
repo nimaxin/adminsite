@@ -85,6 +85,10 @@ class Urls:
         address = public(key) if public is not None else ""
         return address or f"{self.base}/-/files/{view.name}/{path}/{key}"
 
+    def language(self) -> str:
+        """Where the language menu is posted."""
+        return f"{self.base}/-/language"
+
     def palette(self) -> str:
         """Where the command palette looks things up."""
         return f"{self.base}/-/search"

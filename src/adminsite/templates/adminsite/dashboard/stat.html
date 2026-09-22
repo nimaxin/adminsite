@@ -4,7 +4,7 @@
     <div class="stat-value font-mono text-2xl">{{ data.value }}</div>
     {% if data.change is not none %}
       <div class="stat-desc {% if data.change >= 0 %}text-success{% else %}text-error{% endif %}">
-        {{ "+" if data.change >= 0 else "−" }}{{ "{:.0f}".format(data.change|abs) }}% on the period before
+        {{ _('{change} on the period before', change=("+" if data.change >= 0 else "−") ~ "{:.0f}".format(data.change|abs) ~ "%") }}
       </div>
     {% elif widget.hint %}
       <div class="stat-desc">{{ widget.hint }}</div>

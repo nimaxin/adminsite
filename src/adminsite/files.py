@@ -8,6 +8,8 @@ from starlette.datastructures import UploadFile
 from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse, Response
 
+from adminsite.i18n import gettext as _
+
 CHUNK_SIZE = 1024 * 1024
 
 # Types a browser shows inline. Anything else is sent as a download, so an
@@ -56,7 +58,7 @@ class FileStorage:
 
     async def response(self, key: str, content_type: str = "") -> Response:
         """Answer a request for the file, made through the admin."""
-        raise HTTPException(status_code=404, detail="This file is not served here.")
+        raise HTTPException(status_code=404, detail=_("This file is not served here."))
 
 
 class LocalStorage(FileStorage):
@@ -103,7 +105,7 @@ class LocalStorage(FileStorage):
         """Send the file, as a download unless it is safe to show."""
         target = self.path_for(key)
         if not target.is_file():
-            raise HTTPException(status_code=404, detail="No such file.")
+            raise HTTPException(status_code=404, detail=_("No such file."))
         inline = content_type in SHOWN_INLINE
         return FileResponse(
             target,
@@ -117,5 +119,5 @@ class LocalStorage(FileStorage):
         """Where a key lives on disk, refusing any key that leaves the folder."""
         target = (self.directory / key).resolve()
         if not target.is_relative_to(self.directory) or target == self.directory:
-            raise HTTPException(status_code=404, detail="No such file.")
+            raise HTTPException(status_code=404, detail=_("No such file."))
         return target

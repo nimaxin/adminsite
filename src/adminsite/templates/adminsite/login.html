@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ language }}" dir="{{ direction }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in · {{ title }}</title>
+<title>{{ _('Sign in') }} · {{ title }}</title>
 <link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
 <script>
   try {
@@ -17,7 +17,7 @@
     {{ csrf_input | safe if csrf_input }}
     <div class="card-body">
       <h1 class="card-title">{{ title }}</h1>
-      <p class="text-base-content/60">Sign in to continue.</p>
+      <p class="text-base-content/60">{{ _('Sign in to continue.') }}</p>
 
       {% if error %}
         <div role="alert" class="alert alert-error alert-soft">
@@ -26,15 +26,15 @@
       {% endif %}
 
       <fieldset class="fieldset">
-        <legend class="fieldset-legend">Username</legend>
+        <legend class="fieldset-legend">{{ _('Username') }}</legend>
         <input class="input w-full" id="username" name="username" autocomplete="username" autofocus>
       </fieldset>
       <fieldset class="fieldset">
-        <legend class="fieldset-legend">Password</legend>
+        <legend class="fieldset-legend">{{ _('Password') }}</legend>
         <input class="input w-full" id="password" name="password" type="password"
                autocomplete="current-password">
       </fieldset>
-      <button class="btn btn-primary mt-2" type="submit">Sign in</button>
+      <button class="btn btn-primary mt-2" type="submit">{{ _('Sign in') }}</button>
     </div>
   </form>
 </body>

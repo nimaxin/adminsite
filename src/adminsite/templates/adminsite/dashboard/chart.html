@@ -2,7 +2,7 @@
   <div class="card-body gap-3 p-4">
     <div class="flex items-baseline justify-between gap-2">
       <h2 class="text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
-      {% if data.points %}<span class="text-xs text-base-content/50">Highest {{ data.highest }}</span>{% endif %}
+      {% if data.points %}<span class="text-xs text-base-content/50">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
     </div>
     {% if data.points %}
       <svg class="h-36 w-full text-primary" viewBox="0 0 {{ data.width }} 100"
@@ -37,7 +37,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="py-10 text-center text-base-content/60">No data yet.</p>
+      <p class="py-10 text-center text-base-content/60">{{ _('No data yet.') }}</p>
     {% endif %}
   </div>
 </div>

@@ -7,6 +7,7 @@ from starlette.datastructures import UploadFile
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields.base import Field
 from adminsite.files import FileStorage, name_of
+from adminsite.i18n import gettext as _
 
 MEGABYTE = 1024 * 1024
 
@@ -85,7 +86,7 @@ class FileField(Field):
             return NewFile(upload)
         if remove or not has_file:
             if self.required:
-                raise FieldValidationError(self.name, "Choose a file.")
+                raise FieldValidationError(self.name, _("Choose a file."))
             return None if remove else UNCHANGED
         return UNCHANGED
 
@@ -93,10 +94,12 @@ class FileField(Field):
         """Refuse a file that is too big or not of an accepted type."""
         if upload.size is not None and upload.size > self.max_size:
             limit = self.max_size / MEGABYTE
-            raise FieldValidationError(self.name, f"Keep the file under {limit:g} MB.")
+            raise FieldValidationError(
+                self.name, _("Keep the file under {size} MB.", size=f"{limit:g}")
+            )
         if self.accept and not self.accepts(upload):
             raise FieldValidationError(
-                self.name, f"Choose a file of this type: {self.accept}."
+                self.name, _("Choose a file of this type: {types}.", types=self.accept)
             )
 
     def accepts(self, upload: UploadFile) -> bool:
@@ -143,4 +146,4 @@ class ImageField(FileField):
         head = upload.file.read(12)
         upload.file.seek(0)
         if not looks_like_image(head):
-            raise FieldValidationError(self.name, "This file is not a picture.")
+            raise FieldValidationError(self.name, _("This file is not a picture."))

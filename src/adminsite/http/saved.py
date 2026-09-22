@@ -6,6 +6,7 @@ from starlette.responses import RedirectResponse, Response
 
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
 from adminsite.saved_views import SavedView, SavedViews, clean_query
 from adminsite.security import Permission
 from adminsite.views import ModelView
@@ -35,7 +36,7 @@ async def saved_for(
 
 def _store_of(admin: "Admin") -> SavedViews:
     if admin.saved_views is None:
-        raise HTTPException(status_code=404, detail="Saved views are switched off.")
+        raise HTTPException(status_code=404, detail=_("Saved views are switched off."))
     return admin.saved_views
 
 
@@ -50,7 +51,7 @@ async def save_view(
     query = clean_query(str(form.get("query", "")))
     back = Urls(request).list(view)
     if not name:
-        add_message(request, "Give the view a name.", kind="error")
+        add_message(request, _("Give the view a name."), kind="error")
         return RedirectResponse(f"{back}?{query}" if query else back, 303)
 
     await store.save(
@@ -62,7 +63,7 @@ async def save_view(
             shared=form.get("shared") in ("on", "1", "true"),
         )
     )
-    add_message(request, f"Saved as {name}.")
+    add_message(request, _("Saved as {name}.", name=name))
     return RedirectResponse(f"{back}?{query}" if query else back, 303)
 
 
@@ -72,10 +73,12 @@ async def delete_view(admin: "Admin", request: Request, view: ModelView) -> Resp
     try:
         key = int(request.path_params["saved"])
     except ValueError:
-        raise HTTPException(status_code=404, detail="No such view.") from None
+        raise HTTPException(status_code=404, detail=_("No such view.")) from None
 
     if await store.delete(key, owner_of(admin, request)):
-        add_message(request, "View removed.")
+        add_message(request, _("View removed."))
     else:
-        add_message(request, "Only the person who saved a view can remove it.", "error")
+        add_message(
+            request, _("Only the person who saved a view can remove it."), "error"
+        )
     return RedirectResponse(Urls(request).list(view), 303)
