@@ -11,7 +11,7 @@ from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
-from adminsite.fields import RelationField
+from adminsite.fields import FileField, RelationField
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.history import describe
@@ -77,6 +77,17 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 
     template = "_table.html" if wants_partial(request) else "list.html"
     return await admin.render(template, request, context)
+
+
+async def stored_file(admin: "Admin", request: Request) -> Response:
+    """A file kept by one of a view's file fields, for whoever may open the view."""
+    view = find_view(admin, request)
+    await view.ensure(Permission.VIEW, request=request)
+    item = view.field_for(request.path_params["path"])
+    if not isinstance(item, FileField):
+        raise HTTPException(status_code=404, detail="No such file.")
+    key = request.path_params["key"]
+    return await item.storage.response(key, item.content_type(key))
 
 
 async def custom_page(admin: "Admin", request: Request) -> Response:

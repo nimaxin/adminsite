@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.fields import ChoiceField, Field, RelationField
+from adminsite.fields import ChoiceField, Field, FileField, RelationField
 from adminsite.query import CountMode, QuerySpec
 from adminsite.views import ModelView
 
@@ -79,10 +79,13 @@ async def build_rows(
     rows = []
     for path in view.get_form_fields(request, record):
         item = view.field_for(path)
+        stored = view.value_at(record, path) if record is not None else None
+        # A file cannot be put back into a file input, so after a failed
+        # submit the field shows what is stored, not what was sent.
         current = (
             submitted[path]
-            if path in submitted
-            else (view.value_at(record, path) if record is not None else None)
+            if path in submitted and not isinstance(item, FileField)
+            else stored
         )
         row = FormRow(
             path=path,

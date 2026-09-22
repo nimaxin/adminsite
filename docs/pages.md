@@ -22,7 +22,9 @@ class SalesReport(AdminPage):
         return {"total": total}
 
 
-admin = Admin(engine, views=[OrderView], pages=[SalesReport], template_dirs=["templates"])
+admin = Admin(
+    engine, views=[OrderView], pages=[SalesReport], template_dirs=["templates"]
+)
 ```
 
 The page is served at `/admin/-/sales_report`, named after the class, and shows up in the sidebar

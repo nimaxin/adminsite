@@ -69,6 +69,60 @@ A relationship that holds many records, such as a customer's orders, shows the l
 names in the list and a multiple select in the form. On a table with more than 100 records the
 picker becomes a search box, served by a lookup that searches the other model's text columns.
 
+## Files and pictures
+
+A file field keeps the upload in a storage and its key in a string column. Declare it among the
+view's `fields`:
+
+```python
+from adminsite.fields import FileField, ImageField
+from adminsite.files import LocalStorage
+
+uploads = LocalStorage("uploads")
+
+
+class ProductView(ModelView, model=Product):
+    fields = (
+        ImageField("photo", storage=uploads),
+        FileField("datasheet", storage=uploads, accept=".pdf", max_size=20 * 1024 * 1024),
+    )
+```
+
+The form gets a file input with the current file, a thumbnail for pictures and a box to remove
+it. The list shows a thumbnail or a link, and the detail page a larger picture.
+
+| Option | What it does |
+|---|---|
+| `storage` | Where the files go. |
+| `accept` | The types taken, as in a browser's `accept`: extensions such as `.pdf`, types such as `application/pdf`, or `image/*`. Checked on the server too. |
+| `max_size` | The largest file in bytes. 10 MB for files and 5 MB for pictures unless you say. |
+
+`ImageField` takes PNG, JPEG, GIF and WebP, and checks the file's first bytes, so a script renamed
+to `.png` is refused. SVG is left out because it can carry script.
+
+**Keys.** A file is stored under a key such as `2026/09/k3j9x2-datasheet.pdf`: the month, a random
+part so names never clash, and the original name, cleaned of anything that could climb out of the
+folder. Make the column long enough for it, `String(255)` is plenty.
+
+**Serving.** By default files are served through the admin at `/admin/-/files/...`, behind the sign
+in, to whoever may open the view. Pictures and PDFs open in the browser; anything else is sent as a
+download, so an uploaded HTML file can never run in the admin. If your application already serves
+the folder, say where, and links point there instead:
+
+```python
+uploads = LocalStorage("uploads", url_prefix="https://cdn.example.com/uploads")
+```
+
+**Replacing and removing.** A new upload replaces the old file, which is deleted once the save has
+committed; a save that fails leaves the old file and throws the new one away. Deleting a record
+keeps its files, so nothing is lost by accident.
+
+**Other storages.** Subclass `FileStorage` to keep files elsewhere, such as S3. `save` stores an
+upload and returns its key, `delete` removes one, and `url` or `response` say how it is fetched,
+for example with a redirect to a signed URL.
+
+File fields are not available inside [inlines](views.md#related-records-in-the-same-form) yet.
+
 ## Your own field type
 
 Subclass `Field` and say how to show and read the value:

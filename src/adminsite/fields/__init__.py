@@ -1,5 +1,6 @@
 from adminsite.fields.base import Field
 from adminsite.fields.choice import ChoiceField
+from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.registry import (
     FieldRegistry,
     build_default_registry,
@@ -27,7 +28,9 @@ __all__ = [
     "EmailField",
     "Field",
     "FieldRegistry",
+    "FileField",
     "FloatField",
+    "ImageField",
     "IntegerField",
     "RelationField",
     "StringField",

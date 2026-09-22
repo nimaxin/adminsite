@@ -95,6 +95,12 @@
                     <a class="link link-hover link-primary font-medium" href="{{ urls.detail(view, key) }}">
                       {{ text or view.title_of(row) }}
                     </a>
+                  {% elif widget == "image" and text %}
+                    {% set stored = view.value_at(row, path) %}
+                    <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
+                         class="h-8 w-8 rounded object-cover" loading="lazy">
+                  {% elif widget == "file" and text %}
+                    <a class="link link-hover" href="{{ urls.file(view, path, view.value_at(row, path)) }}">{{ text }}</a>
                   {% elif widget == "select" and text %}
                     <span class="badge badge-soft badge-sm">{{ text }}</span>
                   {% elif widget == "checkbox" and text %}

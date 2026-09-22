@@ -25,7 +25,19 @@
         {% for path, label, value in rows %}
           <div class="grid gap-1 px-5 py-3 sm:grid-cols-3 sm:gap-4">
             <dt class="text-base-content/60">{{ label }}</dt>
-            <dd class="sm:col-span-2">{{ value if value else "—" }}</dd>
+            {% set widget = view.field_for(path).widget %}
+            <dd class="sm:col-span-2">
+              {% if widget in ("file", "image") and value %}
+                {% set address = urls.file(view, path, view.value_at(record, path)) %}
+                {% if widget == "image" %}
+                  <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-48 rounded-box"></a>
+                {% else %}
+                  <a class="link" href="{{ address }}">{{ value }}</a>
+                {% endif %}
+              {% else %}
+                {{ value if value else "—" }}
+              {% endif %}
+            </dd>
           </div>
         {% endfor %}
       </dl>

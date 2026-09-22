@@ -15,11 +15,18 @@ admin = Admin(
     views=[OrderView, CustomerView],
     dashboard=[
         Stat("Revenue", select(func.sum(Order.total)), format="€{:,.2f}"),
-        Stat("Waiting to ship", select(func.count()).where(Order.status == "paid"),
-             link="orders?status=PAID"),
-        Chart("Revenue per day",
-              select(order_day, func.sum(Order.total)).group_by(order_day).order_by(order_day),
-              format="€{:,.2f}"),
+        Stat(
+            "Waiting to ship",
+            select(func.count()).where(Order.status == "paid"),
+            link="orders?status=PAID",
+        ),
+        Chart(
+            "Revenue per day",
+            select(order_day, func.sum(Order.total))
+            .group_by(order_day)
+            .order_by(order_day),
+            format="€{:,.2f}",
+        ),
         RecentRecords("Latest orders", "orders", sort="-created_at", detail="total"),
     ],
 )

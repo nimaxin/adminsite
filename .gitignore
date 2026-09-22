@@ -26,6 +26,7 @@ dist/
 shop.db
 adminsite_audit.db
 adminsite_views.db
+shop_uploads/
 
 # Built docs
 site/

@@ -13,7 +13,8 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl p-4 lg:p-6">
-  <form class="card card-border bg-base-100" method="post" action="{{ action }}">
+  <form class="card card-border bg-base-100" method="post" action="{{ action }}"
+        {% if rows|selectattr("widget", "in", ["file", "image"])|list %}enctype="multipart/form-data"{% endif %}>
     {{ csrf_input | safe if csrf_input }}
     <div class="card-body gap-1">
       {% if form_error %}

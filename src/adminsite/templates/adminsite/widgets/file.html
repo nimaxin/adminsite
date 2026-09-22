@@ -1,0 +1,20 @@
+{% if row.value %}
+  {% set address = urls.file(view, row.path, row.value) %}
+  <div class="mb-2 flex items-center gap-3">
+    {% if row.widget == "image" %}
+      <a href="{{ address }}"><img src="{{ address }}" alt="{{ row.display }}" class="h-16 w-16 rounded-box object-cover"></a>
+    {% endif %}
+    <a class="link link-hover min-w-0 flex-1 truncate" href="{{ address }}">{{ row.display }}</a>
+    {% if not row.required %}
+      <label class="label cursor-pointer gap-2">
+        <input type="checkbox" class="checkbox checkbox-xs" name="{{ row.path }}-remove">
+        Remove
+      </label>
+    {% endif %}
+  </div>
+{% endif %}
+<input type="file" class="file-input file-input-sm w-full {% if row.error %}file-input-error{% endif %}"
+       id="field-{{ row.path }}" name="{{ row.path }}"
+       {% if row.field.accept %}accept="{{ row.field.accept }}"{% endif %}
+       {% if row.required and not row.value and row.browser_required %}required{% endif %}>
+{% if row.value %}<p class="label">Choose a file to replace this one.</p>{% endif %}

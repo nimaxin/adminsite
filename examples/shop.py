@@ -19,7 +19,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from adminsite import Admin, Chart, Inline, ModelView, RecentRecords, Stat
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.fields import ChoiceField, RelationField
+from adminsite.fields import ChoiceField, ImageField, RelationField
+from adminsite.files import LocalStorage
 
 
 class Base(DeclarativeBase):
@@ -55,6 +56,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(120))
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     description: Mapped[str | None] = mapped_column(String(500), default=None)
+    photo: Mapped[str | None] = mapped_column(String(255), default=None)
 
     def __str__(self) -> str:
         return self.name
@@ -135,7 +137,8 @@ class OrderView(ModelView, model=Order):
 
 class ProductView(ModelView, model=Product):
     group = "Catalogue"
-    list_display = ("name", "price", "description")
+    list_display = ("name", "photo", "price", "description")
+    fields = (ImageField("photo", storage=LocalStorage("shop_uploads")),)
     search_fields = ("name", "description")
     list_filter = ("price",)
 

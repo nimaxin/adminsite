@@ -78,6 +78,13 @@ class Urls:
             return path
         return f"{self.base}/{path}"
 
+    def file(self, view: ModelView, path: str, key: str) -> str:
+        """Where a stored file is fetched: its storage's address, or the admin."""
+        item = view.field_for(path)
+        public = getattr(getattr(item, "storage", None), "url", None)
+        address = public(key) if public is not None else ""
+        return address or f"{self.base}/-/files/{view.name}/{path}/{key}"
+
     def palette(self) -> str:
         """Where the command palette looks things up."""
         return f"{self.base}/-/search"

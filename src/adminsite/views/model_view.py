@@ -24,6 +24,7 @@ from adminsite.exceptions import (
     RefusedError,
 )
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
+from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
@@ -492,7 +493,17 @@ class ModelView:
             item = self.field_for(path)
             raw = data.get(path)
             try:
-                if isinstance(item, RelationField) and item.collection:
+                if isinstance(item, FileField):
+                    choice = item.parse_upload(
+                        raw,
+                        remove=data.get(f"{path}-remove") is not None,
+                        has_file=bool(
+                            record is not None and self.value_at(record, path)
+                        ),
+                    )
+                    if choice is not UNCHANGED:
+                        result.values[path] = choice
+                elif isinstance(item, RelationField) and item.collection:
                     result.values[path] = item.parse_many(_as_list(raw))
                 else:
                     result.values[path] = item.parse(_as_text(raw))
@@ -561,6 +572,7 @@ class ModelView:
             request=request,
             record=record,
         )
+        values, stored = await self._store_files(session, values, record)
         try:
             async with session.transaction():
                 target = record if record is not None else self.repository.model()
@@ -591,12 +603,48 @@ class ModelView:
                     session, target, before, list(values), request, created=created
                 )
         except IntegrityError as error:
+            await self._discard_files(stored)
             raise RefusedError(
                 f"This {self.label.lower()} could not be saved, because it "
                 "clashes with another record. A value that must be unique "
                 "may already be taken."
             ) from error
+        except BaseException:
+            await self._discard_files(stored)
+            raise
         return target
+
+    async def _store_files(
+        self, session: SessionAdapter, values: Mapping[str, Any], record: Any
+    ) -> tuple[dict[str, Any], list[tuple[FileField, str]]]:
+        """Store new uploads and swap them for their keys.
+
+        The files a save replaces or removes are deleted once it commits,
+        so a save that fails never loses the file that was there.
+        """
+        ready = dict(values)
+        stored: list[tuple[FileField, str]] = []
+        try:
+            for path, value in values.items():
+                item = self.field_for(path)
+                if not isinstance(item, FileField):
+                    continue
+                if isinstance(value, NewFile):
+                    key = await item.storage.save(value.upload)
+                    stored.append((item, key))
+                    ready[path] = key
+                old = self.value_at(record, path) if record is not None else None
+                if old and old != ready[path]:
+                    session.after_commit(_deleting(item, old))
+        except BaseException:
+            await self._discard_files(stored)
+            raise
+        return ready, stored
+
+    async def _discard_files(self, stored: Sequence[tuple[FileField, str]]) -> None:
+        """Remove files stored for a save that did not go through."""
+        for item, key in stored:
+            await item.storage.delete(key)
 
     async def delete(
         self, session: SessionAdapter, record: Any, *, request: Any = None
@@ -780,6 +828,15 @@ def _as_list(raw: str | Sequence[str] | None) -> list[str]:
     if isinstance(raw, str):
         return [raw]
     return list(raw)
+
+
+def _deleting(item: FileField, key: str) -> Any:
+    """Work that deletes one stored file, for after the commit."""
+
+    async def work() -> None:
+        await item.storage.delete(key)
+
+    return work
 
 
 def user_of(request: Any) -> str | None:

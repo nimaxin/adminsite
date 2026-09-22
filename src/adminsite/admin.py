@@ -1,5 +1,4 @@
 from collections.abc import Awaitable, Callable, Sequence
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -289,6 +288,11 @@ class Admin:
                 self._handler(endpoints.activity),
                 name="activity",
             ),
+            Route(
+                "/-/files/{view}/{path}/{key:path}",
+                self._handler(endpoints.stored_file),
+                name="file",
+            ),
             *self._extra_routes,
             Route(
                 "/-/{page}",
@@ -385,18 +389,23 @@ class Admin:
         )
 
     def _handler(self, endpoint: Any, guarded: bool = True) -> Any:
-        if not guarded or self.auth is None:
-            return partial(endpoint, self)
+        checks_user = guarded and self.auth is not None
 
-        async def guard(request: Request) -> Response:
-            user = await self.auth.current_user(request) if self.auth else None
-            if user is None:
-                return RedirectResponse(Urls(request).login(), status_code=303)
-            request.scope["user_record"] = user
-            answer: Response = await endpoint(self, request)
-            return answer
+        async def handle(request: Request) -> Response:
+            try:
+                if checks_user and self.auth is not None:
+                    user = await self.auth.current_user(request)
+                    if user is None:
+                        return RedirectResponse(Urls(request).login(), status_code=303)
+                    request.scope["user_record"] = user
+                answer: Response = await endpoint(self, request)
+                return answer
+            finally:
+                # Uploaded files wait in temporary files until the form is
+                # closed, which Starlette leaves to the endpoint.
+                await request.close()
 
-        return guard
+        return handle
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         """Let the admin be mounted like any other ASGI app."""

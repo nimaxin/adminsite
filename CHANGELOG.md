@@ -12,6 +12,12 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- File and picture fields: `FileField` and `ImageField` store uploads through a `FileStorage`,
+  `LocalStorage` built in. Files are served behind the sign in, with anything but pictures and
+  PDFs sent as a download; pictures are checked by their bytes. Replaced files are deleted after
+  the commit, and a failed save throws its new file away.
+- Every endpoint closes the request's form when it is done, so uploads never leave temporary
+  files open.
 - Dashboard: the overview takes cards with `dashboard=[...]`: `Stat` with an optional change on
   the period before, `Chart` drawn as SVG on the server, `RecentRecords` through a view's
   permissions, `ModelCounts`, or a `Widget` of your own. A failing card is shown as failed and
