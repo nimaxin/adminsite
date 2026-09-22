@@ -7,7 +7,12 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, RedirectResponse, Response
+from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -18,7 +23,7 @@ from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.dashboard import ModelCounts, Widget
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
-from adminsite.http import endpoints
+from adminsite.http import api, endpoints
 from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
@@ -26,6 +31,7 @@ from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
 from adminsite.security import Permission
+from adminsite.security.csrf import TOKEN_HEADER, is_valid
 from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 
@@ -34,7 +40,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 HEADINGS = {403: "Not allowed", 404: "Not found"}
 
 # Paths under /-/ that the admin keeps for itself.
-RESERVED_PAGES = frozenset({"activity", "search", "static"})
+RESERVED_PAGES = frozenset({"activity", "api", "files", "search", "static"})
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 Endpoint = Callable[["Admin", Request], Awaitable[Response]]
 
@@ -66,6 +73,7 @@ class Admin:
         pages: Sequence[AdminPage | type[AdminPage]] = (),
         plugins: Sequence[Plugin] = (),
         dashboard: Sequence[Widget] | None = None,
+        api: bool = False,
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
@@ -96,6 +104,8 @@ class Admin:
         self.stylesheets: list[str] = []
         self.scripts: list[str] = []
         self._extra_routes: list[Route | Mount] = []
+        # The JSON API at /-/api, off unless asked for.
+        self.api = api
 
         for view in views:
             self.add_view(view)
@@ -293,6 +303,7 @@ class Admin:
                 self._handler(endpoints.stored_file),
                 name="file",
             ),
+            *self._api_routes(),
             *self._extra_routes,
             Route(
                 "/-/{page}",
@@ -389,6 +400,74 @@ class Admin:
                 name="delete",
             ),
         ]
+
+    def _api_routes(self) -> list[Route]:
+        if not self.api:
+            return []
+        handler = self._api_handler
+        return [
+            Route("/-/api", handler(api.index), name="api"),
+            Route(
+                "/-/api/{view}",
+                handler(api.collection),
+                methods=["GET", "POST"],
+                name="api_collection",
+            ),
+            Route(
+                "/-/api/{view}/actions/{name}",
+                handler(api.action),
+                methods=["POST"],
+                name="api_action",
+            ),
+            Route(
+                "/-/api/{view}/{key}",
+                handler(api.item),
+                methods=["GET", "PATCH", "DELETE"],
+                name="api_item",
+            ),
+        ]
+
+    def _api_handler(self, endpoint: Any) -> Any:
+        """Guard an API endpoint: JSON answers, and tokens as well as sessions."""
+
+        async def handle(request: Request) -> Response:
+            try:
+                by_token = False
+                if self.auth is not None:
+                    user, by_token = await self._api_user(request)
+                    if user is None:
+                        return JSONResponse(
+                            {"error": "Sign in first."},
+                            status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"},
+                        )
+                    request.scope["user_record"] = user
+                # A browser sends the session cookie by itself, so a change
+                # made with it has to carry the form token as a header.
+                if request.method not in SAFE_METHODS and not by_token:
+                    sent = request.headers.get(TOKEN_HEADER)
+                    if not is_valid(request, sent):
+                        return JSONResponse(
+                            {"error": f"Send the {TOKEN_HEADER} header."},
+                            status_code=403,
+                        )
+                answer: Response = await endpoint(self, request)
+                return answer
+            except (api.ApiError, HTTPException, PermissionDeniedError) as error:
+                return api.error_response(error)
+            finally:
+                await request.close()
+
+        return handle
+
+    async def _api_user(self, request: Request) -> tuple[Any, bool]:
+        """Who is calling: a bearer token first, then the session."""
+        assert self.auth is not None
+        header = request.headers.get("authorization", "")
+        scheme, _, token = header.partition(" ")
+        if scheme.lower() == "bearer" and token.strip():
+            return await self.auth.authenticate_token(token.strip()), True
+        return await self.auth.current_user(request), False
 
     async def render(
         self,

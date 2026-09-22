@@ -70,3 +70,6 @@ and its `str()` is what the sidebar and the [audit log](audit.md) show.
 Every form the admin draws carries a token tied to the session, and every post is checked against
 it, including deletes and actions. A post without the right token is refused with a 403. Scripts
 that post to the admin can send the token in an `X-CSRF-Token` header instead of a form field.
+
+The [JSON API](api.md) also takes a bearer token, once your provider's `authenticate_token`
+says who it belongs to.

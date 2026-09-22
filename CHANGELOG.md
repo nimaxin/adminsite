@@ -12,6 +12,10 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- JSON API: `api=True` serves every view at `/-/api` for listing, reading, adding, changing,
+  deleting and running actions, through the same permissions, scopes, hooks and audit log as the
+  pages. Scripts sign in with a bearer token checked by `AuthProvider.authenticate_token`; a
+  browser session has to send the form token in `X-CSRF-Token` to change anything.
 - Importing from CSV or Excel with a preview: switch it on with `can_import = True`. Rows with a
   known key change that record, rows without one add a record, and every row is checked by the
   form's fields before anything is written. The good rows are saved through the view, so hooks,

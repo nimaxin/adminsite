@@ -43,6 +43,7 @@ nav:
       - Audit log: audit.md
       - Dashboard: dashboard.md
       - Pages and plugins: pages.md
+      - JSON API: api.md
       - Signing in: auth.md
       - Databases: databases.md
       - Customizing the look: customizing.md

@@ -25,6 +25,15 @@ class AuthProvider:
         """Turn the key kept in the session back into a user."""
         return key
 
+    async def authenticate_token(self, token: str) -> Any | None:
+        """Return the user an API token belongs to, or nothing.
+
+        The JSON API calls this for `Authorization: Bearer <token>`. Nobody
+        gets in this way until you write it, for example by looking the
+        token up in a table of API keys.
+        """
+        return None
+
     def identity(self, user: Any) -> str:
         """The key to keep in the session for this user."""
         return str(user)
