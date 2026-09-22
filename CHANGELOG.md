@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Inlines: edit a record's children in its own form, such as an order's lines, with
+  `inlines = (Inline("items"),)`. Rows can be added, changed and removed, all saved in one
+  transaction with the parent, and the detail page lists them.
 - Several admins in one app keep separate sessions by default: the session cookie is named after
   the admin's title unless you set `session_cookie`.
 - Action and delete buttons are hidden from users that `allows()` refuses.

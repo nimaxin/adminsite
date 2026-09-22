@@ -38,6 +38,12 @@ class FormRow:
     selected: Sequence[str] = dataclasses.field(default_factory=tuple)
     searchable: bool = False
     picked_label: str = ""
+    # The path the lookup searches by, when it differs from the input name,
+    # as it does for a link inside an inline row.
+    lookup_path: str = ""
+    # False where an empty value is allowed in the browser even for a
+    # required field, as in a blank inline row that may be left unused.
+    browser_required: bool = True
 
     @property
     def widget(self) -> str:
@@ -107,7 +113,10 @@ async def _fill_relation(
     total = await repository.count(session, QuerySpec(count=CountMode.EXACT))
 
     row.selected = tuple(_keys_of(repository, current))
-    row.picked_label = item.display(current)
+    shown = current
+    if row.selected and not isinstance(current, repository.model | list | tuple | set):
+        shown = await repository.get(session, row.selected[0])
+    row.picked_label = item.display(shown)
     row.searchable = total > PICKER_LIMIT
     row.value = row.selected[0] if row.selected else ""
 
@@ -122,10 +131,17 @@ async def _fill_relation(
 
 
 def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
-    if current is None:
+    if current is None or current == "":
         return []
-    records = current if isinstance(current, list | tuple | set) else [current]
-    return [repository.identity_of(record) for record in records]
+    items = current if isinstance(current, list | tuple | set) else [current]
+    # After a failed submit the values are the keys that were picked, not
+    # records, so they are already what the picker needs.
+    return [
+        repository.identity_of(item)
+        if isinstance(item, repository.model)
+        else str(item)
+        for item in items
+    ]
 
 
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:

@@ -1,0 +1,76 @@
+{% for table in inlines %}
+  <section class="mt-6" x-data="{ count: {{ table.rows|length }} }">
+    <div class="mb-2 flex items-center justify-between">
+      <h2 class="font-semibold">{{ table.label }}</h2>
+      <button type="button" class="btn btn-ghost btn-xs"
+              @click="
+                const blank = $refs.blank.innerHTML.replaceAll('{{ table.name }}-__index__-', '{{ table.name }}-' + count + '-');
+                $refs.body.insertAdjacentHTML('beforeend', blank);
+                count++;
+              ">
+        + Add another
+      </button>
+    </div>
+    <input type="hidden" name="{{ table.name }}-count" :value="count" value="{{ table.rows|length }}">
+
+    <div class="overflow-x-auto rounded-box border border-base-300">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            {% for header in table.headers %}<th>{{ header }}</th>{% endfor %}
+            {% if table.inline.can_delete %}<th class="w-16 text-center">Remove</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody x-ref="body">
+          {% for item in table.rows %}
+            {% set index = loop.index0 %}
+            <tr>
+              {% for row in item.cells %}
+                <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} align-top">
+                  {% if loop.first %}
+                    <input type="hidden" name="{{ table.name }}-{{ index }}-key" value="{{ item.key }}">
+                  {% endif %}
+                  {% if row.readonly %}
+                    <span class="text-base-content/70">{{ row.display or "—" }}</span>
+                  {% else %}
+                    {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
+                  {% endif %}
+                  {% if row.error %}<p class="pt-1 text-xs text-error">{{ row.error }}</p>{% endif %}
+                </td>
+              {% endfor %}
+              {% if table.inline.can_delete %}
+                <td class="text-center align-top">
+                  {% if item.key %}
+                    <input type="checkbox" class="checkbox checkbox-sm checkbox-error mt-2"
+                           name="{{ table.name }}-{{ index }}-delete" aria-label="Remove this row"
+                           {% if item.delete %}checked{% endif %}>
+                  {% endif %}
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {#- The row "add another" copies. It sits in a template, so its inputs
+        are never submitted until they are copied into the table. -#}
+    <template x-ref="blank">
+      <tr>
+        {% for row in table.blank.cells %}
+          <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} align-top">
+            {% if loop.first %}
+              <input type="hidden" name="{{ table.name }}-__index__-key" value="">
+            {% endif %}
+            {% if row.readonly %}
+              <span class="text-base-content/70">—</span>
+            {% else %}
+              {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
+            {% endif %}
+          </td>
+        {% endfor %}
+        {% if table.inline.can_delete %}<td></td>{% endif %}
+      </tr>
+    </template>
+  </section>
+{% endfor %}

@@ -16,7 +16,7 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, String, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, Inline, ModelView
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.fields import ChoiceField, RelationField
@@ -71,9 +71,25 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
     customer: Mapped[Customer] = relationship(back_populates="orders")
+    items: Mapped[list["OrderItem"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan"
+    )
 
     def __str__(self) -> str:
         return f"Order #{self.id}"
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    quantity: Mapped[int] = mapped_column(default=1)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    order: Mapped[Order] = relationship(back_populates="items")
+    product: Mapped[Product] = relationship()
 
 
 class CustomerView(ModelView, model=Customer):
@@ -93,6 +109,7 @@ class OrderView(ModelView, model=Order):
     list_filter = ("status", "total", "created_at")
     ordering = ("-created_at",)
     readonly_fields = ("total",)
+    inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
     fields = (
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
     )
@@ -176,6 +193,14 @@ def build_sample_shop() -> list[Base]:
             status=statuses[index % len(statuses)],
             total=Decimal(20 + index * 7),
             created_at=now - timedelta(days=index),
+            items=[
+                OrderItem(
+                    product=products[(index + line) % len(products)],
+                    quantity=1 + (index + line) % 3,
+                    unit_price=products[(index + line) % len(products)].price,
+                )
+                for line in range(1 + index % 3)
+            ],
         )
         for index in range(24)
     ]

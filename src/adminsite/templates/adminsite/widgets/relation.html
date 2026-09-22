@@ -11,11 +11,11 @@
          x-show="open" x-cloak>
       <label class="input input-sm mb-1 w-full">
         <input type="search" name="q" class="grow" placeholder="Search"
-               hx-get="{{ urls.lookup(view, row.path) }}"
-               hx-target="#options-{{ row.path }}"
+               hx-get="{{ urls.lookup(view, row.lookup_path or row.path) }}"
+               hx-target="#options-{{ row.path|replace('.', '-') }}"
                hx-trigger="keyup changed delay:250ms, focus">
       </label>
-      <div id="options-{{ row.path }}" class="max-h-60 overflow-auto"></div>
+      <div id="options-{{ row.path|replace('.', '-') }}" class="max-h-60 overflow-auto"></div>
     </div>
   </div>
 {% else %}

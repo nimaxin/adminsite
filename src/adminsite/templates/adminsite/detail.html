@@ -30,6 +30,29 @@
         {% endfor %}
       </dl>
     </div>
+    {% for table in children %}
+      <section class="mt-6">
+        <h2 class="mb-2 font-semibold">{{ table.label }}</h2>
+        <div class="overflow-x-auto rounded-box border border-base-300">
+          <table class="table table-sm">
+            <thead>
+              <tr>{% for header in table.headers %}<th>{{ header }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+              {% for cells in table.rows %}
+                <tr>{% for text in cells %}<td>{{ text or "—" }}</td>{% endfor %}</tr>
+              {% else %}
+                <tr>
+                  <td colspan="{{ table.headers|length }}" class="text-base-content/60">
+                    None yet.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endfor %}
   {% endmacro %}
 
   {% if history is not none %}

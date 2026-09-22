@@ -96,6 +96,25 @@ class SessionAdapter(ABC):
     async def close(self) -> None:
         """Release the session and its connection."""
 
+    @abstractmethod
+    def _plain(self) -> Session:
+        """The plain SQLAlchemy session underneath."""
+
+    @asynccontextmanager
+    async def no_autoflush(self) -> AsyncIterator["SessionAdapter"]:
+        """Hold back automatic flushes while a record is still being filled in.
+
+        Loading a linked record normally flushes the session first, which
+        would try to write a new record before all its values are set.
+        """
+        plain = self._plain()
+        before = plain.autoflush
+        plain.autoflush = False
+        try:
+            yield self
+        finally:
+            plain.autoflush = before
+
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator["SessionAdapter"]:
         """Commit when the block ends, or roll back if it raises."""
@@ -163,6 +182,9 @@ class AsyncSessionAdapter(SessionAdapter):
         """Release the session and its connection."""
         await self.session.close()
 
+    def _plain(self) -> Session:
+        return self.session.sync_session
+
 
 class SyncSessionAdapter(SessionAdapter):
     """Talks to a plain `Session`, keeping it on one worker thread."""
@@ -225,6 +247,9 @@ class SyncSessionAdapter(SessionAdapter):
             await self.run(lambda session: session.close())
         finally:
             self._worker.shutdown(wait=False)
+
+    def _plain(self) -> Session:
+        return self.session
 
 
 class Database:

@@ -78,6 +78,40 @@ by reading one extra row.
 A readonly field is safe against a tampered form: its value is never taken from the request, even
 if someone adds the input back by hand.
 
+### Related records in the same form
+
+An order and its lines belong together, so edit them on one page. Name the relationship in
+`inlines`:
+
+```python
+from adminsite import Inline
+
+class OrderView(ModelView, model=Order):
+    inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
+```
+
+The lines show as a table under the order's fields, with a blank row to fill in, an
+**Add another** button and a box to remove each line. Everything is saved in one transaction with
+the order, so a line that fails to validate keeps the order unsaved too, and the page comes back
+with what was typed and the error next to the cell.
+
+| Option | What it does |
+|---|---|
+| `fields` | The child's columns, in order. Defaults to every field except the link back to the parent. |
+| `readonly_fields` | Shown, not editable. |
+| `label` | The heading above the table. Defaults to the relationship's name. |
+| `extra` | How many blank rows to show. Defaults to 1. |
+| `can_delete` | Whether rows can be removed. |
+| `display_template` | How a child is named, as on a view. |
+
+The relationship has to hold a list. Blank rows that stay empty are ignored, and a required field
+only counts once something else in the row is filled in. The detail page lists the children too.
+
+Removing a row deletes that child record. A key sent for a row that belongs to another parent is
+refused.
+
+Pick a different set per request with `get_inlines(request, record)`.
+
 ## Answering per request
 
 Every `get_` method receives the request, so the answer can depend on the user:

@@ -26,6 +26,8 @@
         {% include "adminsite/_field.html" %}
       {% endfor %}
 
+      {% include "adminsite/_inlines.html" %}
+
       <div class="card-actions mt-4 items-center border-t border-base-300 pt-4">
         <button class="btn btn-primary btn-sm" type="submit">{{ submit_label }}</button>
         <a class="btn btn-ghost btn-sm" href="{{ cancel_url }}">Cancel</a>

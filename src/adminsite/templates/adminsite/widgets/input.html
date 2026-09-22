@@ -4,4 +4,4 @@
        type="{{ types.get(row.widget, 'text') }}"
        {% if row.widget == "number" %}inputmode="decimal"{% endif %}
        {% if row.field.max_length %}maxlength="{{ row.field.max_length }}"{% endif %}
-       {% if row.required %}required{% endif %}>
+       {% if row.required and row.browser_required %}required{% endif %}>

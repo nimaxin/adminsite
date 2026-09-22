@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
@@ -14,6 +15,7 @@ from adminsite.fields import RelationField
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import Choice, FormRow, build_rows, title_for
 from adminsite.http.history import describe
+from adminsite.http.inlines import build_inline_tables, child_tables
 from adminsite.http.listing import (
     as_context,
     build_panels,
@@ -86,8 +88,11 @@ async def create_form(admin: "Admin", request: Request) -> Response:
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, request=request)
+        inlines = await build_inline_tables(admin, view, session, request=request)
 
-    return await admin.render("form.html", request, form_context(view, rows, request))
+    context = form_context(view, rows, request)
+    context["inlines"] = inlines
+    return await admin.render("form.html", request, context)
 
 
 async def create_record(admin: "Admin", request: Request) -> Response:
@@ -95,15 +100,25 @@ async def create_record(admin: "Admin", request: Request) -> Response:
     view = find_view(admin, request)
     await view.ensure(Permission.CREATE, request=request)
 
-    result = view.parse_form(await read_form(request), request=request)
+    submitted = await read_form(request)
+    result = view.parse_form(submitted, request=request)
     async with admin.database.session() as session:
         if not result.ok:
-            return await form_again(admin, view, session, request, result)
+            return await form_again(
+                admin, view, session, request, result, submitted=submitted
+            )
         try:
-            record = await view.save(session, result.values, request=request)
+            record = await view.save(
+                session,
+                result.values,
+                request=request,
+                inline_rows=result.inline_rows,
+            )
             await session.commit()
         except AdminSiteError as error:
-            return await form_again(admin, view, session, request, result, error)
+            return await form_again(
+                admin, view, session, request, result, error, submitted=submitted
+            )
 
         key = view.identity_of(record)
 
@@ -133,6 +148,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": key,
             "heading": view.title_of(record),
             "rows": rows,
+            "children": child_tables(view, record, request),
             "history": history,
             "can_edit": await view.allows(
                 Permission.EDIT, request=request, record=record
@@ -169,8 +185,12 @@ async def edit_form(admin: "Admin", request: Request) -> Response:
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, record=record, request=request)
+        inlines = await build_inline_tables(
+            admin, view, session, record=record, request=request
+        )
 
     context = form_context(view, rows, request, record)
+    context["inlines"] = inlines
     context["can_delete"] = await view.allows(
         Permission.DELETE, request=request, record=record
     )
@@ -185,7 +205,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
 
     async with admin.database.session() as session:
         record = await view.fetch_record(
-            session, key, paths=view.get_form_fields(request), request=request
+            session, key, paths=view.get_load_paths(request), request=request
         )
         if record is None:
             raise HTTPException(status_code=404, detail="No such record.")
@@ -193,13 +213,21 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
 
         result = view.parse_form(submitted, record=record, request=request)
         if not result.ok:
-            return await form_again(admin, view, session, request, result, None, record)
+            return await form_again(
+                admin, view, session, request, result, None, record, submitted
+            )
         try:
-            await view.save(session, result.values, record=record, request=request)
+            await view.save(
+                session,
+                result.values,
+                record=record,
+                request=request,
+                inline_rows=result.inline_rows,
+            )
             await session.commit()
         except AdminSiteError as error:
             return await form_again(
-                admin, view, session, request, result, error, record
+                admin, view, session, request, result, error, record, submitted
             )
 
     add_message(request, f"{view.label} saved.")
@@ -215,7 +243,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
         record = await view.fetch_record(
             session,
             read_key(request),
-            paths=view.get_form_fields(request),
+            paths=view.get_load_paths(request),
             request=request,
         )
         if record is None:
@@ -297,6 +325,7 @@ async def form_again(
     result: FormResult,
     error: Exception | None = None,
     record: Any = None,
+    submitted: Mapping[str, Any] | None = None,
 ) -> Response:
     """Show the form again, keeping what was typed and saying what failed."""
     rows = await build_rows(
@@ -309,6 +338,15 @@ async def form_again(
         request=request,
     )
     context = form_context(view, rows, request, record)
+    context["inlines"] = await build_inline_tables(
+        admin,
+        view,
+        session,
+        record=record,
+        submitted=submitted or {},
+        errors=result.errors,
+        request=request,
+    )
     context["form_error"] = str(error) if error is not None else ""
     if record is not None:
         context["can_delete"] = await view.allows(
@@ -323,7 +361,7 @@ async def load_or_404(admin: "Admin", view: ModelView, request: Request) -> Any:
         record = await view.fetch_record(
             session,
             read_key(request),
-            paths=view.get_form_fields(request),
+            paths=view.get_load_paths(request),
             request=request,
         )
     if record is None:

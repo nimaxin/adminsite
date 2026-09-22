@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.views.inline import InlineRow
 
 FormData = Mapping[str, str | Sequence[str]]
 
@@ -13,6 +14,8 @@ class FormResult:
 
     values: dict[str, Any] = field(default_factory=dict)
     errors: dict[str, str] = field(default_factory=dict)
+    # Child rows for each inline, keyed by the inline's name.
+    inline_rows: dict[str, list[InlineRow]] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:

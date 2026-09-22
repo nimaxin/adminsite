@@ -40,6 +40,7 @@ validation come from your models.
   narrows every read, so a row a user may not see cannot be opened by guessing its key.
 - **Hooks that run inside the transaction** and receive the session, so a business rule can read
   other tables and refuse a save.
+- **Inlines.** Edit an order's lines in the order's own form, saved in one transaction with it.
 - **An audit log** with a History tab on every record and an Activity page, including bulk actions
   row by row.
 - **Async or sync.** Give it an `AsyncEngine` or a plain `Engine`. Everything above the session

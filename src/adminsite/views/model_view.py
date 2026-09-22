@@ -20,6 +20,7 @@ from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
     PermissionDeniedError,
+    RecordNotFoundError,
     RefusedError,
 )
 from adminsite.fields import Field, FieldRegistry, RelationField, default_registry
@@ -27,6 +28,7 @@ from adminsite.filters import Filter, FilterValue
 from adminsite.query import CountMode, Page, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, pluralize, snake_case
+from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.writing import (
     DeleteContext,
     FormData,
@@ -66,6 +68,9 @@ class ModelView:
     # is matched to a path by its name.
     fields: Sequence[Field] = ()
 
+    # Child records edited inside this model's form.
+    inlines: Sequence[Inline] = ()
+
     can_create: bool = True
     can_edit: bool = True
     can_delete: bool = True
@@ -98,6 +103,9 @@ class ModelView:
 
         self._overrides = {field.name: field for field in self.fields}
         self._actions = self._collect_actions()
+        self._inline_views = {
+            inline.name: self._build_inline_view(inline) for inline in self.inlines
+        }
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, Field] = {}
@@ -138,6 +146,61 @@ class ModelView:
     ) -> tuple[str, ...]:
         """The fields shown but not editable."""
         return tuple(self.readonly_fields)
+
+    def get_inlines(
+        self, request: Any = None, record: Any = None
+    ) -> tuple[Inline, ...]:
+        """The child records edited inside the form."""
+        return tuple(self.inlines)
+
+    def inline_view(self, name: str) -> "ModelView":
+        """The view that reads and writes one inline's children."""
+        try:
+            return self._inline_views[name]
+        except KeyError:
+            raise AdminSiteError(
+                f"{type(self).__name__} has no inline called {name!r}."
+            ) from None
+
+    def get_load_paths(
+        self, request: Any = None, record: Any = None
+    ) -> tuple[str, ...]:
+        """Everything a record page shows, so it can be loaded in one go."""
+        paths = list(self.get_form_fields(request, record))
+        for inline in self.get_inlines(request, record):
+            paths.append(inline.name)
+            child = self.inline_view(inline.name)
+            for path in child.get_form_fields(request):
+                if path in child.schema.relations:
+                    paths.append(f"{inline.name}.{path}")
+        return tuple(paths)
+
+    def _build_inline_view(self, inline: Inline) -> "ModelView":
+        relation = self.schema.relation_named(inline.name)
+        if not relation.collection:
+            raise AdminSiteError(
+                f"{type(self).__name__}.inlines names {inline.name!r}, which "
+                "holds one record. An inline needs a relationship holding many."
+            )
+        # The link back to the parent is set by the relationship itself, so
+        # it never appears as an input in the child rows.
+        target = self.inspector.inspect(relation.target)
+        back_links = tuple(
+            name
+            for name, found in target.relations.items()
+            if found.target is self.model and not found.collection
+        )
+        namespace: dict[str, Any] = {
+            "model": relation.target,
+            "name": f"{self.name}__{inline.name}",
+            "form_fields": tuple(inline.fields),
+            "readonly_fields": tuple(inline.readonly_fields),
+            "exclude": back_links,
+            "display_template": inline.display_template,
+        }
+        view_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
+        built: ModelView = view_class(self.inspector, self.registry)
+        return built
 
     def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
         """Every column in order, with a foreign key shown as its link.
@@ -407,7 +470,47 @@ class ModelView:
             except FieldValidationError as error:
                 result.errors[path] = error.message
 
+        for inline in self.get_inlines(request, record):
+            result.inline_rows[inline.name] = self._parse_inline(
+                inline, data, result.errors, request
+            )
         return result
+
+    def _parse_inline(
+        self,
+        inline: Inline,
+        data: FormData,
+        errors: dict[str, str],
+        request: Any,
+    ) -> list[InlineRow]:
+        child = self.inline_view(inline.name)
+        readonly = set(child.get_readonly_fields(request))
+        paths = [
+            path for path in child.get_form_fields(request) if path not in readonly
+        ]
+        try:
+            count = int(_as_text(data.get(f"{inline.name}-count")) or 0)
+        except ValueError:
+            count = 0
+
+        rows: list[InlineRow] = []
+        for index in range(count):
+            key = (_as_text(data.get(inline.input_name(index, "key"))) or "").strip()
+            delete = data.get(inline.input_name(index, "delete")) is not None
+            raw = {path: data.get(inline.input_name(index, path)) for path in paths}
+            if not key and not any(_as_text(value) for value in raw.values()):
+                # An empty row left over from "add another".
+                continue
+            row = InlineRow(key=key, delete=delete)
+            if not delete:
+                for path in paths:
+                    item = child.field_for(path)
+                    try:
+                        row.values[path] = item.parse(_as_text(raw[path]))
+                    except FieldValidationError as error:
+                        errors[inline.input_name(index, path)] = error.message
+            rows.append(row)
+        return rows
 
     async def save(
         self,
@@ -416,6 +519,7 @@ class ModelView:
         *,
         record: Any = None,
         request: Any = None,
+        inline_rows: Mapping[str, Sequence[InlineRow]] | None = None,
     ) -> Any:
         """Create or change a record, running the hooks in one transaction.
 
@@ -446,7 +550,9 @@ class ModelView:
                     if auditing and not created
                     else {}
                 )
-                await self.repository.apply_values(session, target, values)
+                async with session.no_autoflush():
+                    await self.repository.apply_values(session, target, values)
+                    await self._apply_inlines(session, target, inline_rows or {})
                 if created:
                     await session.add(target)
                 await session.flush()
@@ -505,6 +611,39 @@ class ModelView:
                 f"This {self.label.lower()} cannot be deleted, because other "
                 "records still refer to it."
             ) from error
+
+    async def _apply_inlines(
+        self,
+        session: SessionAdapter,
+        parent: Any,
+        inline_rows: Mapping[str, Sequence[InlineRow]],
+    ) -> None:
+        """Add, change and remove child records as the form asked."""
+        for inline in self.inlines:
+            rows = inline_rows.get(inline.name)
+            if not rows:
+                continue
+            child_view = self.inline_view(inline.name)
+            children = getattr(parent, inline.name)
+            by_key = {child_view.identity_of(child): child for child in children}
+            for row in rows:
+                if row.is_new:
+                    if not row.delete:
+                        child = child_view.model()
+                        await child_view.repository.apply_values(
+                            session, child, row.values
+                        )
+                        children.append(child)
+                    continue
+                existing = by_key.get(row.key)
+                if existing is None:
+                    raise RecordNotFoundError(child_view.model, row.key)
+                if row.delete:
+                    if inline.can_delete:
+                        children.remove(existing)
+                        await session.delete(existing)
+                    continue
+                await child_view.repository.apply_values(session, existing, row.values)
 
     def snapshot(self, record: Any, paths: Sequence[str]) -> dict[str, Any]:
         """What a record shows for these paths, as the history records it.
