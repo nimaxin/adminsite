@@ -70,11 +70,17 @@ async def build_rows(
     submitted: Mapping[str, Any] | None = None,
     errors: Mapping[str, str] | None = None,
     request: Any = None,
+    typed: Mapping[str, Any] | None = None,
 ) -> list[FormRow]:
-    """Build the form, filled from the record or from what was submitted."""
+    """Build the form, filled from the record or from what was submitted.
+
+    `submitted` holds the values that were read; `typed` holds the text they
+    were read from, which is what a field that failed shows again.
+    """
     readonly = set(view.get_readonly_fields(request, record))
     errors = errors or {}
     submitted = submitted or {}
+    typed = typed or {}
 
     rows = []
     for path in view.get_form_fields(request, record):
@@ -90,7 +96,7 @@ async def build_rows(
         row = FormRow(
             path=path,
             field=item,
-            value=item.serialize(current),
+            value=written_again(item, path, current, errors, typed),
             display=(
                 item.text_for(record, current)
                 if record is not None
@@ -106,6 +112,24 @@ async def build_rows(
             await _fill_relation(admin, session, row, item, current)
         rows.append(row)
     return rows
+
+
+def written_again(
+    item: Field,
+    path: str,
+    current: Any,
+    errors: Mapping[str, str],
+    typed: Mapping[str, Any],
+) -> str:
+    """What an input shows: the value, or the text that could not be read.
+
+    A value that failed to parse has no parsed form to show, so the words
+    the person wrote go back into the input rather than being thrown away.
+    """
+    raw = typed.get(path)
+    if path in errors and isinstance(raw, str):
+        return raw
+    return item.serialize(current)
 
 
 async def _fill_relation(

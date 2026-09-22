@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -83,3 +83,17 @@ class OrderItem(Base):
 
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product] = relationship()
+
+
+class Setting(Base):
+    """A row with JSON in it, for the fields that read and write documents."""
+
+    __tablename__ = "settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    notes: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+
+    def __str__(self) -> str:
+        return self.name

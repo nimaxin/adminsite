@@ -1,7 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
 
-from tests.models import Base, Customer, Order, OrderItem, OrderStatus, Product
+from tests.models import (
+    Base,
+    Customer,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Product,
+    Setting,
+)
 
 CUSTOMERS = [
     ("Lena Fischer", "lena@fischer.de", "DE"),
@@ -59,4 +67,13 @@ def build_sample_data() -> list[Base]:
             )
         )
 
-    return [*customers, *products, *orders]
+    settings = [
+        Setting(
+            name="delivery",
+            options={"carriers": ["dhl", "ups"], "free_over": 50},
+            notes=None,
+        ),
+        Setting(name="shop", options={"currency": "EUR"}, notes={"by": "nima"}),
+    ]
+
+    return [*customers, *products, *orders, *settings]

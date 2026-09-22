@@ -1,0 +1,3 @@
+<textarea class="textarea h-40 w-full font-mono text-xs {% if row.error %}textarea-error{% endif %}"
+          id="field-{{ row.path }}" name="{{ row.path }}" spellcheck="false"
+          {% if row.required and row.browser_required %}required{% endif %} {{ field_attrs|default('') }}>{{ row.value }}</textarea>

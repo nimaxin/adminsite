@@ -487,6 +487,7 @@ async def form_again(
         session,
         record=record,
         submitted=result.values,
+        typed=submitted,
         errors=result.errors,
         request=request,
     )

@@ -69,6 +69,16 @@ A relationship that holds many records, such as a customer's orders, shows the l
 names in the list and a multiple select in the form. On a table with more than 100 records the
 picker becomes a search box, served by a lookup that searches the other model's text columns.
 
+## JSON columns
+
+A `JSON` or `JSONB` column gets a `JSONField` by itself. The list shows the document on one line,
+cut short where it is long, and the form edits it in a box, laid out over several lines. A document
+that does not parse comes back as an error on that field, with the text exactly as it was written,
+so nothing is lost and nothing malformed is stored.
+
+The [JSON API](api.md) reads and writes these columns as JSON, so `{"options": {"free_over": 10}}`
+is stored as an object, not as a string.
+
 ## A value the view works out
 
 Not every column on a page is a column. `Computed` shows something the view works out from the

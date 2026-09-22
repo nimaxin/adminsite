@@ -5,6 +5,10 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- JSON columns get a `JSONField`: readable on one line in the list, laid out in a box on the form,
+  and a malformed document comes back as an error on the field instead of being stored as text.
+- A value that fails to parse comes back into its input as it was written. Before, the field fell
+  back to the stored value and quietly threw away what the person had typed.
 - Actions can run on one record, `on="record"`, appearing on its row and on its page with the
   record's own permission deciding, or on the whole view, `on="view"`, with nothing ticked. Both
   keep the dialog, inputs, confirmation, messages and audit that selection actions have.

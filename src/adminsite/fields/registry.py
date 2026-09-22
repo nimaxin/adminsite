@@ -6,6 +6,7 @@ from uuid import UUID
 
 from adminsite.fields.base import Field
 from adminsite.fields.choice import ChoiceField
+from adminsite.fields.json_field import JSONField
 from adminsite.fields.scalars import (
     BooleanField,
     DecimalField,
@@ -67,6 +68,8 @@ class FieldRegistry:
 def build_default_registry() -> FieldRegistry:
     """Build a registry holding the field types adminsite ships with."""
     registry = FieldRegistry()
+    registry.register(dict, JSONField)
+    registry.register(list, JSONField)
     registry.register(bool, BooleanField)
     registry.register(int, IntegerField)
     registry.register(float, FloatField)

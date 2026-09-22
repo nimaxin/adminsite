@@ -124,6 +124,9 @@ class TestCreating:
         assert response.status_code == 422
         assert "Enter an amount" in response.text
         assert 'value="Hat"' in response.text
+        # The value that failed comes back as it was written, not as the
+        # empty field it could not be read into.
+        assert 'value="free"' in response.text
 
     async def test_nothing_is_saved_when_the_form_is_wrong(
         self, client: httpx.AsyncClient, database: Database

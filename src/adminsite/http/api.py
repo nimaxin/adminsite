@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse, Response
 from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.exceptions import FieldValidationError, RefusedError
-from adminsite.fields import FileField, RelationField
+from adminsite.fields import FileField, JSONField, RelationField
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
@@ -142,7 +142,10 @@ def read_values(
             errors[path] = _("Files are uploaded through the form, not the API.")
             continue
         try:
-            if isinstance(item, RelationField) and item.collection:
+            if isinstance(item, JSONField) and not isinstance(raw, str):
+                # Sent as JSON already, so it needs no reading from text.
+                values[path] = raw
+            elif isinstance(item, RelationField) and item.collection:
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of keys."))
                 values[path] = item.parse_many([str(key) for key in raw])
