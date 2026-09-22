@@ -1,0 +1,18 @@
+{% for section in sections %}
+  <p class="px-3 pb-1 pt-3 text-xs font-medium text-base-content/50" id="palette-section-{{ loop.index }}">
+    {{ section.title }}
+  </p>
+  <ul role="group" aria-labelledby="palette-section-{{ loop.index }}">
+    {% for item in section.items %}
+      <li role="option" aria-selected="false">
+        <a class="palette-item flex items-center gap-3 rounded-field px-3 py-2 hover:bg-base-200"
+           href="{{ item.url }}">
+          <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+          {% if item.hint %}<span class="text-xs text-base-content/50">{{ item.hint }}</span>{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="px-3 py-8 text-center text-base-content/60">Nothing matches.</p>
+{% endfor %}

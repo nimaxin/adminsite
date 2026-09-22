@@ -19,6 +19,7 @@ from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import endpoints
+from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
 from adminsite.http.urls import Urls
 from adminsite.saved_views import SavedViews
@@ -188,6 +189,11 @@ class Admin:
             ),
             # Pages that are not a model sit under /-/ so no model name can
             # ever collide with them.
+            Route(
+                "/-/search",
+                self._handler(palette),
+                name="palette",
+            ),
             Route(
                 "/-/activity",
                 self._handler(endpoints.activity),

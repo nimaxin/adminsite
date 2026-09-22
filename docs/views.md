@@ -45,6 +45,7 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `ordering` | The starting order. `-created_at` means newest first. |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
+| `global_search` | Whether the command palette searches this view. On by default. |
 | `list_columns` | More columns people can add from the Columns menu. |
 | `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
 
@@ -97,6 +98,16 @@ admin = Admin(engine, saved_views=SavedViews(engine))
 # In your Alembic env.py, so the table is part of your migrations:
 target_metadata = [Base.metadata, saved_view_metadata]
 ```
+
+### The command palette
+
+Press <kbd>Ctrl</kbd>+<kbd>K</kbd>, or <kbd>Cmd</kbd>+<kbd>K</kbd> on a Mac, anywhere in the admin to jump to a page or a record.
+With nothing typed it lists the pages. From two letters on it also runs each view's own search
+and shows the first five matches per view, named by `display_template`. Arrow keys move, Enter
+opens.
+
+It searches only views the user may open, through `scope_query`, and only views with
+`search_fields`. Leave a view out, for example a very large table, with `global_search = False`.
 
 ### Large tables
 

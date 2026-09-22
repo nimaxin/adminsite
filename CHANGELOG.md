@@ -12,6 +12,8 @@
 - The primary key breaks ties in every sort, so rows no longer repeat across pages when a sorted
   column has equal values.
 - Changing the search, a filter or the sort goes back to the first page.
+- Command palette: Ctrl+K or Cmd+K jumps to any page, or to a record found by each view's own
+  search, within the user's permissions and scope. `global_search = False` leaves a view out.
 - `Permission.HISTORY` controls the History tab and a view's entries on the Activity page. The
   Activity page shows only views this admin registers and the user may read, filtered in the
   query so the latest readable entries always show.

@@ -61,6 +61,8 @@ class ModelView:
     ordering: Sequence[str] = ()
     page_size: int = 25
     count_mode: CountMode = CountMode.EXACT
+    # Whether the command palette looks through this view's records.
+    global_search: bool = True
     pagination: Pagination = Pagination.OFFSET
 
     form_fields: Sequence[str] = ()

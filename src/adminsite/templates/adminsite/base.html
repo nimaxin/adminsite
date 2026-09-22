@@ -20,6 +20,49 @@
     root.dataset.theme = dark ? "light" : "dark";
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
+
+  // The command palette: Ctrl+K or Cmd+K opens it, arrows move, Enter goes.
+  function openPalette() {
+    const dialog = document.getElementById("palette");
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    const input = dialog.querySelector("input");
+    input.select();
+    document.body.dispatchEvent(new Event("palette-open"));
+  }
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      openPalette();
+    }
+  });
+  function movePalette(event) {
+    const items = [...event.currentTarget.querySelectorAll(".palette-item")];
+    if (!items.length) return;
+    let index = items.findIndex((item) => item.dataset.active === "true");
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      index = (index + step + items.length) % items.length;
+      markPalette(items, index);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      (items[index] || items[0]).click();
+    }
+  }
+  function markPalette(items, index) {
+    items.forEach((item, position) => {
+      const active = position === index;
+      item.dataset.active = active ? "true" : "false";
+      item.classList.toggle("bg-base-200", active);
+      item.parentElement.setAttribute("aria-selected", active ? "true" : "false");
+      if (active) item.scrollIntoView({ block: "nearest" });
+    });
+  }
+  document.addEventListener("htmx:afterSwap", (event) => {
+    if (event.target.id !== "palette-results") return;
+    markPalette([...event.target.querySelectorAll(".palette-item")], 0);
+  });
 </script>
 </head>
 <body class="bg-base-100 font-sans text-sm antialiased">
@@ -37,6 +80,15 @@
         {% block header %}{% endblock %}
       </div>
       <div class="flex items-center gap-2">
+        <button class="btn btn-ghost btn-sm gap-2 text-base-content/70" type="button"
+                onclick="openPalette()" aria-label="Search, or press Control K">
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4"/>
+          </svg>
+          <span class="hidden sm:inline">Search</span>
+          <kbd class="kbd kbd-xs hidden sm:inline-flex">Ctrl K</kbd>
+        </button>
         {% block header_actions %}{% endblock %}
       </div>
     </header>
@@ -119,5 +171,24 @@
     </aside>
   </div>
 </div>
+<dialog id="palette" class="modal modal-top" onkeydown="movePalette(event)">
+  <div class="modal-box mx-auto mt-16 max-w-xl p-0">
+    <label class="input input-ghost w-full rounded-b-none border-0 border-b border-base-300 focus-within:outline-none">
+      <svg class="opacity-50" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <input type="search" name="q" class="grow" autocomplete="off"
+             placeholder="Go to a page or find a record"
+             role="combobox" aria-expanded="true" aria-controls="palette-results"
+             aria-label="Go to a page or find a record"
+             hx-get="{{ urls.palette() }}" hx-target="#palette-results"
+             hx-trigger="input changed delay:200ms, palette-open from:body">
+      <kbd class="kbd kbd-sm">Esc</kbd>
+    </label>
+    <div id="palette-results" role="listbox" class="max-h-96 overflow-auto p-2"></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>
+</dialog>
 </body>
 </html>

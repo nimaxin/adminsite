@@ -68,6 +68,10 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def palette(self) -> str:
+        """Where the command palette looks things up."""
+        return f"{self.base}/-/search"
+
     def activity(self, **params: Any) -> str:
         """The page listing recent changes across the admin."""
         return self._with(f"{self.base}/-/activity", params)
