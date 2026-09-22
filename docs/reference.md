@@ -6,7 +6,16 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.Admin
     options:
-      members: [add_view, routes, middleware]
+      members:
+        - add_view
+        - add_page
+        - use
+        - add_route
+        - add_static
+        - add_template_dir
+        - add_stylesheet
+        - add_script
+        - render_template
 
 ## Views
 
@@ -20,6 +29,8 @@ The classes you use most, with their signatures and docstrings.
         - get_form_fields
         - get_readonly_fields
         - get_actions
+        - get_inlines
+        - get_column_choices
         - allows
         - scope_query
         - before_save
@@ -27,6 +38,12 @@ The classes you use most, with their signatures and docstrings.
         - before_delete
         - after_delete
         - title_of
+
+::: adminsite.Inline
+
+::: adminsite.CountMode
+
+::: adminsite.Pagination
 
 ::: adminsite.views.writing.SaveContext
 
@@ -47,6 +64,44 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.filters.FilterOption
 
 ::: adminsite.filters.FilterValue
+
+## Fields
+
+::: adminsite.fields.FileField
+
+::: adminsite.fields.ImageField
+
+::: adminsite.files.FileStorage
+
+::: adminsite.files.LocalStorage
+    options:
+      members: [url, path_for]
+
+## Pages, plugins and the dashboard
+
+::: adminsite.AdminPage
+
+::: adminsite.Plugin
+
+::: adminsite.Widget
+
+::: adminsite.Stat
+
+::: adminsite.Chart
+
+::: adminsite.RecentRecords
+
+::: adminsite.ModelCounts
+
+## Saved views
+
+::: adminsite.SavedViews
+    options:
+      members: [visible_to, save, delete]
+
+## Translations
+
+::: adminsite.i18n.gettext
 
 ## Signing in
 

@@ -70,6 +70,65 @@ markdown_extensions:
 
 plugins:
   - search
+  # llms.txt and llms-full.txt, for AI agents helping people use adminsite.
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: |
+        adminsite is an admin panel for SQLAlchemy 2.0 models. It is an ASGI app you mount into
+        Starlette, FastAPI or Litestar with `app.mount("/admin", admin)`. It works with an async
+        or a sync engine. Install with `pip install adminsite` (add `adminsite[excel]` for Excel
+        import) plus the database driver.
+
+        The core pieces:
+
+        - `Admin(engine, title=..., views=[...])` is the app. Options switch features on:
+          `auth=` with `secret_key=` for signing in, `audit=True`, `saved_views=True`, `api=True`,
+          `dashboard=[...]`, `pages=[...]`, `plugins=[...]`, `language="fa"`, `languages=[...]`.
+        - `class OrderView(ModelView, model=Order)` describes one model: `list_display`,
+          `search_fields`, `list_filter`, `ordering`, `form_fields`, `readonly_fields`,
+          `fields` (field objects that replace the defaults), `inlines`, `count_mode`,
+          `pagination`, `can_create`/`can_edit`/`can_delete`/`can_import`.
+        - Anything that depends on the user is a method taking the request: `get_list_display`,
+          `get_form_fields`, `scope_query` (row level), and `async def allows(action, *, request,
+          record)` with `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `EXPORT`, `IMPORT`,
+          `HISTORY`.
+        - Business rules go in `before_save`, `after_save`, `before_delete`, `after_delete`
+          hooks. They run inside the transaction; raise `RefusedError("...")` to refuse.
+        - Bulk actions are methods decorated with `@action("Label")` that take a `Selection`.
+
+        Things agents often get wrong:
+
+        - Paths are dotted strings such as `"customer.name"`, not SQLAlchemy columns.
+        - `ModelView` is configured with class attributes and methods, never by passing options to
+          its constructor. `views=[...]` takes the class; the admin builds it.
+        - Signing in needs `secret_key`. `PasswordAuth` takes password hashes made with
+          `adminsite.auth.hash_password`, never plain passwords.
+        - Hooks and `allows` are async; `get_*` methods and `scope_query` are not.
+        - Extra routes added by plugins must start with `/-/`.
+      sections:
+        Start here:
+          - index.md: What adminsite is and what it does
+          - getting-started.md: Install, mount, sign in, and a first view
+        Guide:
+          - views.md: Every ModelView setting, per request answers, inlines, big tables, saved views, the command palette
+          - fields.md: Field types, replacing a field, files and pictures, writing a field
+          - filters.md: Built in filters and writing your own
+          - actions.md: Bulk actions, confirmations and inputs
+          - import.md: Importing CSV and Excel files with a preview
+          - permissions.md: View, action, field and row permissions
+          - hooks.md: Hooks that run inside the save or delete transaction
+          - audit.md: The audit log, history and activity
+          - dashboard.md: Stat, chart and recent records cards, and cards of your own
+          - pages.md: Pages of your own and the plugin API
+          - api.md: The JSON API and token sign in
+          - auth.md: Signing in and auth providers
+          - databases.md: Async and sync engines, SQLite, Postgres and MySQL
+          - translations.md: Languages, Persian, right to left layouts
+          - accessibility.md: What the pages do for accessibility
+          - customizing.md: Templates, widgets and the look
+        Reference:
+          - reference.md: The public API
+          - changelog.md: What changed in each release
   - mkdocstrings:
       handlers:
         python:

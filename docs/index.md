@@ -39,7 +39,7 @@ from your models.
 - **Permissions at four levels**: the view, the action, the field and the row.
 - **Hooks inside the transaction** that can read other tables and refuse a save.
 - **An audit log** with a history on every record.
-- **Async or sync.** An `AsyncEngine` or a plain `Engine` both work. Tested on SQLite and Postgres.
+- **Async or sync.** An `AsyncEngine` or a plain `Engine` both work. Tested on SQLite, Postgres and MySQL.
 - **No Node and no CDN.** The CSS and JavaScript ship inside the package.
 
 ## Where to go next
@@ -47,3 +47,10 @@ from your models.
 - [Getting started](getting-started.md) sets up a working admin in a few minutes.
 - [Views](views.md) covers everything a `ModelView` can say about a model.
 - [Permissions](permissions.md) is worth reading before you put the admin in front of anyone.
+
+## For AI assistants
+
+If an AI assistant helps you build with adminsite, point it at
+[llms.txt](https://nimaxin.github.io/adminsite/llms.txt), a short guide with links to every page,
+or [llms-full.txt](https://nimaxin.github.io/adminsite/llms-full.txt), the whole documentation in
+one file. Both are rebuilt with the docs, so they always match the current release.
