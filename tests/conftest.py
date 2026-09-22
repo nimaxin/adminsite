@@ -25,9 +25,15 @@ ASYNC_URL = "sqlite+aiosqlite://"
 # postgresql://adminsite:adminsite@localhost:55432/adminsite
 POSTGRES_URL = os.environ.get("ADMINSITE_POSTGRES_URL", "")
 
+# And this for MySQL, for example
+# mysql://adminsite:adminsite@localhost:53306/adminsite
+MYSQL_URL = os.environ.get("ADMINSITE_MYSQL_URL", "")
+
 BACKENDS = ["async", "sync"]
 if POSTGRES_URL:
     BACKENDS += ["postgres-async", "postgres-sync"]
+if MYSQL_URL:
+    BACKENDS += ["mysql-async", "mysql-sync"]
 
 
 def enforce_foreign_keys(engine: Engine) -> None:
@@ -47,6 +53,11 @@ def enforce_foreign_keys(engine: Engine) -> None:
 def postgres_url(driver: str) -> str:
     """The Postgres address with the driver SQLAlchemy should use."""
     return POSTGRES_URL.replace("postgresql://", f"postgresql+{driver}://", 1)
+
+
+def mysql_url(driver: str) -> str:
+    """The MySQL address with the driver SQLAlchemy should use."""
+    return MYSQL_URL.replace("mysql://", f"mysql+{driver}://", 1)
 
 
 @pytest.fixture
@@ -131,6 +142,31 @@ async def postgres_async_engine() -> AsyncIterator[AsyncEngine]:
     await engine.dispose()
 
 
+@pytest.fixture
+def mysql_sync_engine() -> Iterator[Engine]:
+    engine = create_engine(mysql_url("pymysql"))
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add_all(build_sample_data())
+        session.commit()
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture
+async def mysql_async_engine() -> AsyncIterator[AsyncEngine]:
+    engine = create_async_engine(mysql_url("aiomysql"))
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
+    async with AsyncSession(engine) as session:
+        session.add_all(build_sample_data())
+        await session.commit()
+    yield engine
+    await engine.dispose()
+
+
 @pytest.fixture(params=BACKENDS)
 def backend(request: pytest.FixtureRequest) -> Backend:
     """The same data behind every engine under test, async and sync."""
@@ -143,6 +179,12 @@ def backend(request: pytest.FixtureRequest) -> Backend:
     if request.param == "postgres-sync":
         plain: Engine = request.getfixturevalue("postgres_sync_engine")
         return Backend(Database(plain), plain, is_async=False)
+    if request.param == "mysql-async":
+        mysql: AsyncEngine = request.getfixturevalue("mysql_async_engine")
+        return Backend(Database(mysql), mysql.sync_engine, is_async=True)
+    if request.param == "mysql-sync":
+        mysql_plain: Engine = request.getfixturevalue("mysql_sync_engine")
+        return Backend(Database(mysql_plain), mysql_plain, is_async=False)
     sync: Engine = request.getfixturevalue("sync_engine")
     return Backend(Database(sync), sync, is_async=False)
 
