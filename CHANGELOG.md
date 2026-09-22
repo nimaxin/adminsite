@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a3
+
+The third alpha. It adds everything the first projects
+asked for: inlines, big-table paging, saved views, a command palette, pages and plugins, a
+dashboard, file fields, CSV and Excel import, a JSON API, Persian and right to left layouts, and an
+accessibility pass. Tested on SQLite, Postgres and MySQL.
 
 - Tested on MySQL 8 with aiomysql and pymysql, and CI runs the suite against MySQL. Keyset
   pagination falls back to page numbers when a list is sorted by an enum column, since MySQL sorts
