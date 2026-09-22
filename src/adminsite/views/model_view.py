@@ -5,6 +5,7 @@ from uuid import uuid4
 from sqlalchemy import Select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
+from starlette.responses import Response
 
 if TYPE_CHECKING:
     from adminsite.actions.selection import Selection
@@ -390,8 +391,12 @@ class ModelView:
     # Actions.
 
     def get_actions(self, request: Any = None) -> tuple[Action, ...]:
-        """The bulk actions this view offers, in the order they appear."""
+        """The actions this view offers, in the order they appear."""
         return tuple(self._actions.values())
+
+    def actions_on(self, target: str, request: Any = None) -> tuple[Action, ...]:
+        """The actions of one kind: over a selection, a record or the view."""
+        return tuple(item for item in self.get_actions(request) if item.on == target)
 
     def action_named(self, name: str) -> Action:
         """Find an action by name, or say it is not there."""
@@ -412,6 +417,57 @@ class ModelView:
                 result.errors[item.name] = error.message
         return result
 
+    async def run_record_action(
+        self,
+        found: Action,
+        record: Any,
+        session: SessionAdapter,
+        *,
+        request: Any = None,
+        values: Mapping[str, Any] | None = None,
+    ) -> Any:
+        """Run an action on one record, and say what to tell the user."""
+        await self.ensure(found.permission, request=request, record=record)
+        key, title = self.identity_of(record), self.title_of(record)
+
+        handler = getattr(self, found.method)
+        answer = await handler(record, session, **(values or {}))
+        if isinstance(answer, Response):
+            return answer
+        text = str(answer) if answer else _("{action} done.", action=found.label)
+
+        self._audit(
+            session,
+            [
+                AuditEntry(
+                    view=self.name,
+                    record_key=key,
+                    record_title=title,
+                    event=AuditEvent.ACTION,
+                    action=found.label,
+                    user=user_of(request),
+                    message=text,
+                )
+            ],
+        )
+        return text
+
+    async def run_view_action(
+        self,
+        found: Action,
+        session: SessionAdapter,
+        *,
+        request: Any = None,
+        values: Mapping[str, Any] | None = None,
+    ) -> Any:
+        """Run an action that acts on the view, not on any record."""
+        await self.ensure(found.permission, request=request)
+        handler = getattr(self, found.method)
+        answer = await handler(session, **(values or {}))
+        if isinstance(answer, Response):
+            return answer
+        return str(answer) if answer else _("{action} done.", action=found.label)
+
     async def run_action(
         self,
         found: Action,
@@ -419,8 +475,8 @@ class ModelView:
         *,
         request: Any = None,
         values: Mapping[str, Any] | None = None,
-    ) -> str:
-        """Run an action and return what to tell the user.
+    ) -> Any:
+        """Run an action over a selection, and say what to tell the user.
 
         The values the action asked for are passed to its method by name.
         """
@@ -431,7 +487,9 @@ class ModelView:
 
         handler = getattr(self, found.method)
         message = await handler(selection, **(values or {}))
-        text = str(message) if message else f"{found.label} done."
+        if isinstance(message, Response):
+            return message
+        text = str(message) if message else _("{action} done.", action=found.label)
 
         batch = str(uuid4())
         user = user_of(request)

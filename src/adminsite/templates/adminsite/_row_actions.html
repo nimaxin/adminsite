@@ -1,0 +1,27 @@
+{#- The actions that run on one record, drawn beside its row or on its page.
+    Each posts the one form its action owns, after setting which record it
+    is for, so a list of 25 rows carries 1 form per action, not 25. -#}
+{% if allowed %}
+  {% if allowed|length == 1 %}
+    {% set item = allowed[0] %}
+    <button class="btn btn-ghost btn-xs {% if item.dangerous %}text-error{% endif %}"
+            type="button" onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+      {{ item.label }}
+    </button>
+  {% else %}
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-ghost btn-xs"
+           aria-label="{{ _('Actions for {name}', name=title) }}">&ctdot;</div>
+      <ul tabindex="0" class="dropdown-content menu menu-sm z-30 w-52 rounded-box border border-base-300 bg-base-100 p-1 shadow">
+        {% for item in allowed %}
+          <li>
+            <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
+                    onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+              {{ item.label }}
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% endif %}

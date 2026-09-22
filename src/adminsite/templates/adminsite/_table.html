@@ -126,7 +126,16 @@
                 </td>
               {% endfor %}
               <td class="text-end">
-                <a class="btn btn-ghost btn-xs" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
+                <div class="flex items-center justify-end gap-1">
+                  {% if row_actions and row_actions.get(key) %}
+                    {% with allowed = row_actions[key], title = view.title_of(row) %}
+                      {% include "adminsite/_row_actions.html" %}
+                    {% endwith %}
+                  {% endif %}
+                  {% if can_edit %}
+                    <a class="btn btn-ghost btn-xs" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
+                  {% endif %}
+                </div>
               </td>
             </tr>
           {% else %}
@@ -190,6 +199,8 @@
       <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
     </dialog>
   {% endfor %}
+
+  {% include "adminsite/_action_forms.html" %}
 
   <div class="flex items-center gap-3 border-t border-base-300 px-3 py-2 text-base-content/70 lg:px-6">
     <span class="tabular-nums" data-count>

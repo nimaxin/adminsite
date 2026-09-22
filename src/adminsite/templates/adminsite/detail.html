@@ -12,6 +12,12 @@
 {% endblock %}
 
 {% block header_actions %}
+  {% for item in record_actions %}
+    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-ghost{% endif %}"
+            type="button" onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+      {{ item.label }}
+    </button>
+  {% endfor %}
   {% if can_edit %}
     <a class="btn btn-primary btn-sm" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
   {% endif %}
@@ -19,6 +25,7 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl p-4 lg:p-6">
+  {% include "adminsite/_action_forms.html" %}
   {% macro details() %}
     <div class="card card-border bg-base-100">
       <dl class="divide-y divide-base-300">

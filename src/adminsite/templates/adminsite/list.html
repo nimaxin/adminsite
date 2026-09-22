@@ -7,6 +7,12 @@
 {% endblock %}
 
 {% block header_actions %}
+  {% for item in view_actions %}
+    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-ghost{% endif %}"
+            type="button" onclick="runRecordAction('{{ item.name }}', '')">
+      {{ item.label }}
+    </button>
+  {% endfor %}
   {% if can_create %}
     <a class="btn btn-primary btn-sm" href="{{ urls.create(view) }}">{{ _('New {thing}', thing=view.label|lower) }}</a>
   {% endif %}

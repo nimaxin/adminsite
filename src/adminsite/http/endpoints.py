@@ -14,7 +14,13 @@ from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedE
 from adminsite.fields import FileField, RelationField
 from adminsite.http import importing
 from adminsite.http.export import stream_csv
-from adminsite.http.forms import Choice, FormRow, build_rows, title_for
+from adminsite.http.forms import (
+    Choice,
+    FormRow,
+    build_rows,
+    rows_for_inputs,
+    title_for,
+)
 from adminsite.http.history import describe
 from adminsite.http.inlines import build_inline_tables, child_tables
 from adminsite.http.listing import (
@@ -76,6 +82,27 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         if await view.allows(item.permission, request=request)
     ]
     context["actions"] = allowed
+    context["view_actions"] = [
+        item
+        for item in context["view_actions"]
+        if await view.allows(item.permission, request=request)
+    ]
+    record_actions = [
+        item
+        for item in context["record_actions"]
+        if await view.allows(item.permission, request=request)
+    ]
+    context["record_actions"] = record_actions
+    # A record action can be refused for one record and allowed for the next.
+    context["row_actions"] = {
+        view.identity_of(record): [
+            item
+            for item in record_actions
+            if await view.allows(item.permission, request=request, record=record)
+        ]
+        for record in page
+    }
+    context["single_actions"] = [*record_actions, *context["view_actions"]]
     context["saving_views"] = admin.saved_views is not None
     context["saved_views"] = await saved_for(admin, view, request)
     context["view_owner"] = owner_of(admin, request)
@@ -226,6 +253,12 @@ async def detail(admin: "Admin", request: Request) -> Response:
     rows = [(path, view.label_for(path), view.display(record, path)) for path in paths]
     key = view.identity_of(record)
 
+    allowed_actions = [
+        item
+        for item in view.actions_on("record", request)
+        if await view.allows(item.permission, request=request, record=record)
+    ]
+
     history = None
     if admin.audit is not None and await view.allows(
         Permission.HISTORY, request=request, record=record
@@ -243,6 +276,11 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "rows": rows,
             "children": child_tables(view, record, request),
             "history": history,
+            "record_actions": allowed_actions,
+            "single_actions": allowed_actions,
+            "action_rows": {
+                item.name: rows_for_inputs(item.inputs) for item in allowed_actions
+            },
             "can_edit": await view.allows(
                 Permission.EDIT, request=request, record=record
             ),
@@ -507,7 +545,11 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
 
 def read_key(request: Request) -> Any:
     """The primary key out of the URL, as one value or a tuple."""
-    raw = request.path_params["key"]
+    return key_of(request.path_params["key"])
+
+
+def key_of(raw: str) -> Any:
+    """A key written as text, as one value or a tuple for a composite key."""
     parts = raw.split(",")
     return tuple(parts) if len(parts) > 1 else raw
 
@@ -567,21 +609,11 @@ async def logout(admin: "Admin", request: Request) -> Response:
 
 
 async def run_action(admin: "Admin", request: Request) -> Response:
-    """Run a bulk action over the chosen rows, or over every match."""
+    """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
     found = view.action_named(request.path_params["name"])
 
     submitted = await read_form(request)
-    keys = submitted.get("keys", [])
-    chosen = keys if isinstance(keys, list) else [keys]
-    read = read_list_request(request, view)
-    spec = view.build_spec(
-        request=request,
-        search=read.search,
-        filters=read.values,
-        sort=read.sort,
-    )
-
     inputs = view.parse_action_inputs(found, submitted)
     if not inputs.ok:
         problems = "; ".join(
@@ -598,26 +630,18 @@ async def run_action(admin: "Admin", request: Request) -> Response:
             ),
             kind="error",
         )
-        return back_to_list(request, view)
+        return back_from_action(admin, request, view, found, submitted)
 
     async with admin.database.session() as session:
-        selection = Selection(
-            view=view,
-            session=session,
-            spec=spec,
-            keys=tuple(chosen),
-            everything=submitted.get("everything") == "1",
-            request=request,
-        )
         try:
-            message = await view.run_action(
-                found, selection, request=request, values=inputs.values
+            answer = await perform(
+                admin, request, view, found, session, submitted, inputs.values
             )
             await session.commit()
         except RefusedError as error:
             await session.rollback()
             add_message(request, str(error), kind="error")
-            return back_to_list(request, view)
+            return back_from_action(admin, request, view, found, submitted)
         except IntegrityError:
             await session.rollback()
             add_message(
@@ -629,9 +653,75 @@ async def run_action(admin: "Admin", request: Request) -> Response:
                 ),
                 kind="error",
             )
-            return back_to_list(request, view)
+            return back_from_action(admin, request, view, found, submitted)
+        # An action that answers with a file or JSON sends it as it is.
+        if isinstance(answer, Response):
+            return answer
 
-    add_message(request, message)
+    add_message(request, str(answer))
+    return back_from_action(admin, request, view, found, submitted)
+
+
+async def perform(
+    admin: "Admin",
+    request: Request,
+    view: ModelView,
+    found: Any,
+    session: SessionAdapter,
+    submitted: Mapping[str, Any],
+    values: Mapping[str, Any],
+) -> Any:
+    """Run one action, whatever it acts on."""
+    if found.on_view:
+        return await view.run_view_action(
+            found, session, request=request, values=values
+        )
+
+    keys = submitted.get("keys", [])
+    chosen = [str(key) for key in (keys if isinstance(keys, list) else [keys])]
+
+    if found.on_record:
+        record = None
+        if chosen:
+            record = await view.fetch_record(
+                session,
+                key_of(chosen[0]),
+                paths=view.get_load_paths(request),
+                request=request,
+            )
+        if record is None:
+            raise HTTPException(status_code=404, detail=_("No such record."))
+        return await view.run_record_action(
+            found, record, session, request=request, values=values
+        )
+
+    read = read_list_request(request, view)
+    spec = view.build_spec(
+        request=request, search=read.search, filters=read.values, sort=read.sort
+    )
+    selection = Selection(
+        view=view,
+        session=session,
+        spec=spec,
+        keys=tuple(chosen),
+        everything=submitted.get("everything") == "1",
+        request=request,
+    )
+    return await view.run_action(found, selection, request=request, values=values)
+
+
+def back_from_action(
+    admin: "Admin",
+    request: Request,
+    view: ModelView,
+    found: Any,
+    submitted: Mapping[str, Any],
+) -> RedirectResponse:
+    """Where an action lands: the record it ran on, or the list it came from."""
+    keys = submitted.get("keys", [])
+    chosen = keys if isinstance(keys, list) else [keys]
+    if found.on_record and chosen and view.can_detail:
+        return RedirectResponse(Urls(request).detail(view, str(chosen[0])), 303)
     return back_to_list(request, view)
 
 

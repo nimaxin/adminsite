@@ -15,10 +15,20 @@ from fastapi import FastAPI
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from starlette.responses import Response
 
-from adminsite import Admin, Chart, Inline, ModelView, RecentRecords, Stat
+from adminsite import (
+    Admin,
+    Chart,
+    Inline,
+    ModelView,
+    Permission,
+    RecentRecords,
+    Stat,
+)
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
+from adminsite.backends.sqlalchemy import SessionAdapter
 from adminsite.fields import ChoiceField, ImageField, RelationField
 from adminsite.files import LocalStorage
 
@@ -117,6 +127,33 @@ class OrderView(ModelView, model=Order):
     fields = (
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
     )
+
+    @action("Mark as paid", on="record")
+    async def mark_paid(self, record: Order, session: SessionAdapter) -> str:
+        record.status = OrderStatus.PAID
+        return f"Order #{record.id} marked as paid."
+
+    @action("Download as CSV", on="record", permission=Permission.EXPORT)
+    async def download(self, record: Order, session: SessionAdapter) -> Response:
+        lines = "\n".join(
+            f"{item.product.name},{item.quantity},{item.unit_price}"
+            for item in record.items
+        )
+        return Response(
+            f"product,quantity,price\n{lines}\n",
+            media_type="text/csv",
+            headers={
+                "content-disposition": f'attachment; filename="order-{record.id}.csv"'
+            },
+        )
+
+    @action("Today's takings", on="view", permission=Permission.VIEW)
+    async def takings(self, session: SessionAdapter) -> str:
+        today = datetime.now(UTC).replace(tzinfo=None).date()
+        total = await session.scalar(
+            select(func.sum(Order.total)).where(func.date(Order.created_at) == today)
+        )
+        return f"Today's orders come to €{total or 0}."
 
     @action(
         "Mark as shipped",

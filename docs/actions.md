@@ -102,3 +102,63 @@ point at, is rolled back and reported the same way.
 Every list has an "Export CSV" button. It exports every row the search and filters match, not just
 the page, using the values the list shows, and streams them in batches, so a large export never has
 to fit in memory.
+
+## What an action acts on
+
+`on` says what an action is about, and what its method is given:
+
+| `on` | Where it appears | The method gets |
+|---|---|---|
+| `"selection"`, the default | above the list, once rows are ticked | a `Selection` |
+| `"record"` | on each row, and on the record's page | `(record, session)` |
+| `"view"` | above the list, with nothing ticked | `(session)` |
+
+### On one record
+
+```python
+class InvoiceView(ModelView, model=Invoice):
+    @action("Confirm", on="record", confirm="Confirm this invoice?")
+    async def confirm(self, record: Invoice, session: SessionAdapter) -> str:
+        record.status = "confirmed"
+        return f"Invoice {record.number} confirmed."
+```
+
+The button sits on the row and on the record's page, and the record's own permission decides
+whether it is offered: `allows(action, record=record)` refusing a paid invoice hides Confirm for
+that row and refuses the request if someone posts it anyway. A view with several record actions
+collects them into a menu on the row. Afterwards the person lands back on the record.
+
+Everything a selection action has is here too: a confirmation, inputs asked in a dialog, a
+`dangerous` style, and an entry in the record's [history](audit.md).
+
+### On the whole view
+
+Some work is about the table, not about any row: fetching from another system, importing from an
+API, sending a summary. Those need nothing ticked:
+
+```python
+class OrderView(ModelView, model=Order):
+    @action("Sync from the provider", on="view", permission=Permission.VIEW)
+    async def sync(self, session: SessionAdapter) -> str:
+        return f"{await fetch_new_orders(session)} orders fetched."
+```
+
+## Answering with a file
+
+An action can return a response instead of a message, which is how a download works:
+
+```python
+@action("Download as CSV", on="record", permission=Permission.EXPORT)
+async def download(self, record: Order, session: SessionAdapter) -> Response:
+    return Response(
+        render_csv(record),
+        media_type="text/csv",
+        headers={
+            "content-disposition": f'attachment; filename="order-{record.id}.csv"'
+        },
+    )
+```
+
+Anything Starlette can answer with works: a file, JSON, or a redirect to somewhere the result
+waits. The transaction is committed first, so the answer describes work that really happened.
+

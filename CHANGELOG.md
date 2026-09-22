@@ -5,6 +5,10 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- Actions can run on one record, `on="record"`, appearing on its row and on its page with the
+  record's own permission deciding, or on the whole view, `on="view"`, with nothing ticked. Both
+  keep the dialog, inputs, confirmation, messages and audit that selection actions have.
+- An action can return a response instead of a message, so it can hand back a file or JSON.
 - `Computed` shows a value the view works out from a record, in the list, on the record page and
   in the export. `needs` names what the function reads so it is loaded with the page, and the
   value is never written, sorted or filtered.

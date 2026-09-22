@@ -198,7 +198,9 @@ def as_context(
         "sort": sort_value(spec),
         "spec": spec,
         "export_params": export_params(request),
-        "actions": view.get_actions(request),
+        "actions": view.actions_on("selection", request),
+        "record_actions": view.actions_on("record", request),
+        "view_actions": view.actions_on("view", request),
         "action_rows": {
             item.name: rows_for_inputs(item.inputs)
             for item in view.get_actions(request)

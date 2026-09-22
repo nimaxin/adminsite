@@ -11,6 +11,12 @@ if TYPE_CHECKING:
 
 MARKER = "__adminsite_action__"
 
+# What an action acts on.
+ON_SELECTION = "selection"
+ON_RECORD = "record"
+ON_VIEW = "view"
+TARGETS = frozenset({ON_SELECTION, ON_RECORD, ON_VIEW})
+
 # Names the action form already uses for itself.
 RESERVED_INPUTS = frozenset({"keys", "everything", "_csrf"})
 
@@ -19,7 +25,7 @@ Handler = TypeVar("Handler", bound=Callable[..., Awaitable[Any]])
 
 @dataclass(frozen=True, slots=True)
 class Action:
-    """A button that runs over the rows the user picked."""
+    """A button that runs over records, over one record, or over the view."""
 
     name: str
     label: str
@@ -28,11 +34,27 @@ class Action:
     permission: str = Permission.EDIT
     dangerous: bool = False
     inputs: tuple["Field", ...] = ()
+    on: str = ON_SELECTION
 
     @property
     def needs_confirming(self) -> bool:
         """Whether the user is asked before it runs."""
         return bool(self.confirm)
+
+    @property
+    def on_selection(self) -> bool:
+        """Whether it runs over the rows the user ticked."""
+        return self.on == ON_SELECTION
+
+    @property
+    def on_record(self) -> bool:
+        """Whether it runs on one record, from its row or its page."""
+        return self.on == ON_RECORD
+
+    @property
+    def on_view(self) -> bool:
+        """Whether it runs on the view, with nothing ticked."""
+        return self.on == ON_VIEW
 
     @property
     def needs_dialog(self) -> bool:
@@ -48,8 +70,9 @@ def action(
     permission: str = Permission.EDIT,
     dangerous: bool = False,
     inputs: Sequence["Field"] = (),
+    on: str = ON_SELECTION,
 ) -> Callable[[Handler], Handler]:
-    """Mark a method as a bulk action.
+    """Mark a method as an action.
 
     ```python
     @action(
@@ -64,7 +87,23 @@ def action(
 
     Each input is asked for in a dialog before the action runs, checked
     like a form field, and passed to the method by name.
+
+    `on` says what it acts on, and what the method is given:
+
+    - `"selection"`, the default: the rows the user ticked, as a
+      `Selection`.
+    - `"record"`: one record, from its row in the list or from its page,
+      as `(record, session)`.
+    - `"view"`: nothing in particular, as `(session)`. For work about the
+      whole table, such as fetching from another system.
+
+    A method returns the message to show, or a response to send instead,
+    such as a file to download.
     """
+    if on not in TARGETS:
+        raise AdminSiteError(
+            f"An action runs on 'selection', 'record' or 'view', not {on!r}."
+        )
     for item in inputs:
         if item.name in RESERVED_INPUTS:
             raise AdminSiteError(
@@ -85,6 +124,7 @@ def action(
                 permission=permission,
                 dangerous=dangerous,
                 inputs=tuple(inputs),
+                on=on,
             ),
         )
         return handler
