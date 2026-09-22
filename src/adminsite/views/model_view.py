@@ -68,6 +68,8 @@ class ModelView:
     pagination: Pagination = Pagination.OFFSET
 
     form_fields: Sequence[str] = ()
+    # What the record page shows, when that differs from the form.
+    detail_fields: Sequence[str] = ()
     readonly_fields: Sequence[str] = ()
     exclude: Sequence[str] = ()
 
@@ -172,6 +174,14 @@ class ModelView:
             skip=set(self.exclude) | set(self.schema.primary_key)
         )
 
+    def get_detail_fields(
+        self, request: Any = None, record: Any = None
+    ) -> tuple[str, ...]:
+        """What the record page shows. The form's fields unless you say."""
+        if self.detail_fields:
+            return tuple(self.detail_fields)
+        return self.get_form_fields(request, record)
+
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
@@ -198,6 +208,9 @@ class ModelView:
     ) -> tuple[str, ...]:
         """Everything a record page shows, so it can be loaded in one go."""
         paths = list(self.get_form_fields(request, record))
+        for path in self.get_detail_fields(request, record):
+            if path not in paths:
+                paths.append(path)
         for inline in self.get_inlines(request, record):
             paths.append(inline.name)
             child = self.inline_view(inline.name)

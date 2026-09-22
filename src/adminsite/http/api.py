@@ -54,9 +54,13 @@ def find(admin: "Admin", request: Request) -> ModelView:
 
 
 def api_paths(view: ModelView, request: Any = None) -> tuple[str, ...]:
-    """The fields a record carries in the API: the list's, then the form's."""
+    """The fields a record carries: the list's, the record page's, the form's."""
     paths: list[str] = []
-    for path in (*view.get_list_display(request), *view.get_form_fields(request)):
+    for path in (
+        *view.get_list_display(request),
+        *view.get_detail_fields(request),
+        *view.get_form_fields(request),
+    ):
         if path not in paths:
             paths.append(path)
     return tuple(paths)

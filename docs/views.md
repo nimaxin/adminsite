@@ -152,10 +152,26 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | `exclude` | Left out of both the list and the form. |
 | `fields` | Field objects that replace the ones worked out from the columns. See [Fields](fields.md). |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
+| `detail_fields` | What the record page shows, when that differs from the form. |
 | `can_detail`, `can_export` | Switch off the record page and the CSV export. |
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
 if someone adds the input back by hand.
+
+### The record page
+
+The record page shows the form's fields unless you name its own. That is how a page shows things
+nobody should post back, and how a form keeps fields the page has no reason to repeat:
+
+```python
+class UserView(ModelView, model=User):
+    form_fields = ("name", "email", "is_active")
+    detail_fields = ("name", "email", "is_active", "signed_up_at", "invoices", "raw_payload")
+```
+
+Anything the page names is loaded with the record, so a linked record costs no extra query. Use
+`get_detail_fields(request, record)` to answer per user, and remember that a field only on the
+page is never read back from a form, so it needs no `readonly_fields` entry.
 
 ### Related records in the same form
 

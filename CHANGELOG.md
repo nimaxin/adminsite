@@ -5,6 +5,8 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- `detail_fields`, and `get_detail_fields(request, record)`, say what the record page shows when
+  that differs from the form. The page follows the form unless you name them.
 - A view's `icon` is drawn in the sidebar. It takes inline SVG markup or the address of a picture.
 - A filter on a path through a relationship shows its options without counts instead of raising.
 - `session_https_only` and `session_max_age` on `Admin` for the session cookie.

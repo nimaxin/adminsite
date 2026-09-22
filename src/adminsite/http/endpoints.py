@@ -222,7 +222,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
     await view.ensure(Permission.DETAIL, request=request)
     record = await load_or_404(admin, view, request)
 
-    paths = view.get_form_fields(request, record)
+    paths = view.get_detail_fields(request, record)
     rows = [(path, view.label_for(path), view.display(record, path)) for path in paths]
     key = view.identity_of(record)
 
