@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Action inputs can start with a value, `default=True`, hold several options,
+  `ChoiceField(multiple=True)`, and be worked out per request, since the run now goes through
+  `get_actions` too. `default` works on any field, so a form for a new record starts from it.
 - `deferred_fields` leaves heavy columns out of the list query, so a table carrying a large
   JSON payload no longer loads it on every row. The record page, the form and the API load
   them as usual, and a column the list shows is never left out.

@@ -28,6 +28,7 @@ class Field:
         readonly: bool = False,
         help_text: str = "",
         max_length: int | None = None,
+        default: Any = None,
     ) -> None:
         self.name = name
         self.label = label if label is not None else humanize(name)
@@ -35,6 +36,9 @@ class Field:
         self.readonly = readonly
         self.help_text = help_text
         self.max_length = max_length
+        # What a new record's input starts with, and what an action's
+        # dialog opens with. A stored value always wins over it.
+        self.default = default
         self._adapter: TypeAdapter[Any] = TypeAdapter(self.python_type)
 
     @classmethod

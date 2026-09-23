@@ -68,13 +68,64 @@ class OrderView(ModelView, model=Order):
 A missing or invalid value stops the action and tells the user which field and why. The names
 `keys`, `everything` and `_csrf` are taken by the action form itself and cannot be used.
 
+### Where the dialog starts
+
+`default` says what an input holds when the dialog opens, so switches that are usually on open on
+and nobody has to set them every time. `multiple=True` on a `ChoiceField` lets one input hold
+several options, and the method receives a list:
+
+```python
+class OrderView(ModelView, model=Order):
+    @action(
+        "Download",
+        inputs=[
+            ChoiceField("kinds", choices=KINDS, multiple=True, default=("paper",)),
+            BooleanField("with_totals", label="With totals", default=True),
+        ],
+    )
+    async def download(
+        self, selection: Selection, kinds: list[str], with_totals: bool
+    ) -> Response: ...
+```
+
+`default` works on any field, and a form for a new record starts from it too. A stored value
+always wins over it, so it never overwrites anything.
+
+### Choices worked out per request
+
+The inputs are read when the page is drawn, so `get_actions` can hand back an action carrying
+whatever this user may pick:
+
+```python
+import dataclasses
+
+
+class OrderView(ModelView, model=Order):
+    @action("Move", inputs=[ChoiceField("warehouse", choices=())])
+    async def move(self, selection: Selection, warehouse: str) -> str: ...
+
+    def get_actions(self, request=None):
+        choices = warehouses_for(request.user)
+        return tuple(
+            dataclasses.replace(
+                item, inputs=(ChoiceField("warehouse", choices=choices),)
+            )
+            if item.name == "move"
+            else item
+            for item in super().get_actions(request)
+        )
+```
+
+The run goes through `get_actions` as well, so a value that was never on offer is refused rather
+than accepted because the class said so.
+
 ## Options
 
 | Option | What it does |
 |---|---|
 | `label` | The button text. Defaults to the method name, `mark_paid` reading "Mark paid". |
 | `confirm` | A question asked in a dialog before it runs. |
-| `inputs` | Fields to ask for. See above. |
+| `inputs` | Fields to ask for, each with an optional `default`. See above. |
 | `dangerous` | Draws the button in red. |
 | `permission` | What the user needs to run it. `Permission.EDIT` unless you say otherwise. |
 | `name` | The name in the URL, if the method name will not do. |

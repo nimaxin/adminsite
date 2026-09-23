@@ -61,7 +61,8 @@ class OrderView(ModelView, model=Order):
     )
 ```
 
-Every field takes `label`, `required`, `readonly`, `help_text` and `max_length`.
+Every field takes `label`, `required`, `readonly`, `help_text`, `max_length` and `default`.
+`default` is what a new record's form starts with, and what an action's dialog opens with.
 
 ## Changing one thing about a field
 

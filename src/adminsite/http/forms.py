@@ -101,6 +101,9 @@ async def build_rows(
             if path in submitted and not isinstance(item, FileField)
             else stored
         )
+        if current is None and record is None and path not in submitted:
+            # A new record starts from whatever the field says it starts from.
+            current = item.default
         row = FormRow(
             path=path,
             field=item,
@@ -115,7 +118,7 @@ async def build_rows(
         )
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
-            row.selected = (row.value,) if row.value else ()
+            row.selected = item.values_of(current)
         elif isinstance(item, RelationField):
             await _fill_relation(admin, session, row, item, current)
         rows.append(row)
@@ -218,11 +221,16 @@ def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
 
 
 def rows_for_inputs(fields: Sequence[Field]) -> list[FormRow]:
-    """Build empty form rows for the values an action asks for."""
+    """Build the form rows for the values an action asks for.
+
+    Each starts at the field's default, so a dialog of five switches that
+    are usually on opens with them on.
+    """
     rows = []
     for item in fields:
-        row = FormRow(path=item.name, field=item)
+        row = FormRow(path=item.name, field=item, value=item.serialize(item.default))
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
+            row.selected = item.values_of(item.default)
         rows.append(row)
     return rows

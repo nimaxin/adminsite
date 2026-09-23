@@ -303,7 +303,7 @@ async def action(admin: "Admin", request: Request) -> Response:
     """Run a bulk action over some keys, or over everything that matches."""
     view = find(admin, request)
     try:
-        found = view.action_named(request.path_params["name"])
+        found = view.action_named(request.path_params["name"], request)
     except Exception:
         raise ApiError(404, _("No such action.")) from None
     body = await read_body(request)

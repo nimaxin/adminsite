@@ -624,7 +624,7 @@ async def logout(admin: "Admin", request: Request) -> Response:
 async def run_action(admin: "Admin", request: Request) -> Response:
     """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
-    found = view.action_named(request.path_params["name"])
+    found = view.action_named(request.path_params["name"], request)
 
     submitted = await read_form(request)
     inputs = view.parse_action_inputs(found, submitted)

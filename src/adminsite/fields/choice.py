@@ -10,7 +10,11 @@ from adminsite.text import humanize
 
 
 class ChoiceField(Field):
-    """A value picked from a fixed set, such as a status."""
+    """A value picked from a fixed set, such as a status.
+
+    With `multiple=True` the select holds several options at once, which
+    suits a JSON column and an action that asks for a few categories.
+    """
 
     widget = "select"
     python_type = str
@@ -22,10 +26,12 @@ class ChoiceField(Field):
         *,
         choices: Sequence[tuple[str, str]] = (),
         enum_class: type[Enum] | None = None,
+        multiple: bool = False,
         **options: Any,
     ) -> None:
         super().__init__(name, **options)
         self.enum_class = enum_class
+        self.multiple = multiple
         self.choices = tuple(choices) or self._choices_from_enum(enum_class)
 
     @classmethod
@@ -50,9 +56,11 @@ class ChoiceField(Field):
         return cls(schema.name, **options)
 
     def display(self, value: Any) -> str:
-        """Show the label of the chosen option."""
+        """Show the label of the chosen option, or of each of them."""
         if value is None:
             return ""
+        if isinstance(value, list | tuple | set):
+            return ", ".join(self.display(one) for one in value)
         stored = self._stored_value(value)
         for option, label in self.choices:
             if option == stored:
@@ -63,7 +71,25 @@ class ChoiceField(Field):
         """Show the stored value, which is what the select submits."""
         if value is None:
             return ""
+        if isinstance(value, list | tuple | set):
+            return ", ".join(self._stored_value(one) for one in value)
         return self._stored_value(value)
+
+    def parse_many(self, raw: Sequence[str] | None) -> list[Any]:
+        """Read every option chosen in a select that holds several."""
+        if not raw:
+            if self.required:
+                raise FieldValidationError(self.name, _("This field is required."))
+            return []
+        return [self.to_python(text.strip()) for text in raw if text.strip()]
+
+    def values_of(self, value: Any) -> tuple[str, ...]:
+        """The options chosen, as the select writes them."""
+        if value is None or value == "":
+            return ()
+        if isinstance(value, list | tuple | set):
+            return tuple(self._stored_value(one) for one in value)
+        return (self._stored_value(value),)
 
     def to_python(self, text: str) -> Any:
         """Accept a listed option and return it as the model stores it."""

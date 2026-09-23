@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from string import Formatter
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 from uuid import uuid4
 
 from sqlalchemy import Select
@@ -26,6 +26,7 @@ from adminsite.exceptions import (
     RefusedError,
 )
 from adminsite.fields import (
+    ChoiceField,
     Field,
     FieldOptions,
     FieldRegistry,
@@ -487,8 +488,15 @@ class ModelView:
         """The actions of one kind: over a selection, a record or the view."""
         return tuple(item for item in self.get_actions(request) if item.on == target)
 
-    def action_named(self, name: str) -> Action:
-        """Find an action by name, or say it is not there."""
+    def action_named(self, name: str, request: Any = None) -> Action:
+        """Find an action by name, or say it is not there.
+
+        It looks through `get_actions` first, so an action built for this
+        request, with its own choices or labels, is the one that runs.
+        """
+        for item in self.get_actions(request):
+            if item.name == name:
+                return item
         try:
             return self._actions[name]
         except KeyError:
@@ -500,8 +508,12 @@ class ModelView:
         """Read the values an action asked for, checked like form fields."""
         result = FormResult()
         for item in found.inputs:
+            raw = data.get(item.name)
             try:
-                result.values[item.name] = item.parse(_as_text(data.get(item.name)))
+                if _holds_many(item):
+                    result.values[item.name] = item.parse_many(_as_list(raw))
+                else:
+                    result.values[item.name] = item.parse(_as_text(raw))
             except FieldValidationError as error:
                 result.errors[item.name] = error.message
         return result
@@ -703,7 +715,7 @@ class ModelView:
                     )
                     if choice is not UNCHANGED:
                         result.values[path] = choice
-                elif isinstance(item, RelationField) and item.collection:
+                elif _holds_many(item):
                     result.values[path] = item.parse_many(_as_list(raw))
                 else:
                     result.values[path] = item.parse(_as_text(raw))
@@ -1034,6 +1046,13 @@ def _as_text(raw: str | Sequence[str] | None) -> str | None:
     if isinstance(raw, str):
         return raw
     return raw[0] if raw else None
+
+
+def _holds_many(item: Field) -> TypeGuard[RelationField | ChoiceField]:
+    """Whether the input sends several values rather than one."""
+    if isinstance(item, RelationField):
+        return item.collection
+    return isinstance(item, ChoiceField) and item.multiple
 
 
 def _as_list(raw: str | Sequence[str] | None) -> list[str]:
