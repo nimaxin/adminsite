@@ -44,6 +44,7 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `list_filter` | Paths, or filters you built yourself. See [Filters](filters.md). |
 | `ordering` | The starting order. `-created_at` means newest first. |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
+| `page_sizes` | The sizes people may switch between. Empty leaves the size fixed. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
 | `global_search` | Whether the command palette searches this view. On by default. |
 | `list_columns` | More columns people can add from the Columns menu. |
@@ -73,6 +74,21 @@ remembered in the session, so the list keeps those columns next time. The CSV ex
 too. Only columns on offer can be picked: a column you hide from some users in
 `get_list_display` stays hidden, whatever the URL says. Override `get_column_choices(request)` to
 offer different extras per user.
+
+### Rows per page
+
+`page_size` sets how many rows a page holds. Offer a few sizes and a menu appears above the list:
+
+```python
+class OrderView(ModelView, model=Order):
+    page_size = 25
+    page_sizes = (25, 100, 500)
+```
+
+The choice goes in the URL as `?size=100`, stays while paging, sorting, searching and filtering,
+and is remembered in the session. Only a size on offer counts, so nobody can ask for a million
+rows by editing the URL. "Select all matching" still means every matching row, whatever the page
+shows.
 
 ### Saved views
 

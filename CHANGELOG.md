@@ -5,6 +5,9 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- `page_sizes` offers a rows per page menu above the list. The choice is kept in the URL and the
+  session, stays while paging, sorting, searching and filtering, and only a size the view offers
+  counts.
 - `before_save` can change what is stored: whatever it leaves in `context.values`, or writes with
   `context.set(path, value)`, is what is applied, so a slug or a derived value is stored instead of
   what was submitted. The caller's own values are left alone.

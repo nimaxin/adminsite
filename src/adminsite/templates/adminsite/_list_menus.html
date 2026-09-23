@@ -23,6 +23,17 @@
   </div>
 {% endif %}
 
+{% if page_sizes %}
+  <select name="size" form="sizes-{{ view.name }}" onchange="this.form.submit()"
+           class="select select-ghost select-sm w-auto" aria-label="{{ _('Rows per page') }}">
+    {% for size in page_sizes %}
+      <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>
+        {{ _('{count} rows', count=size) }}
+      </option>
+    {% endfor %}
+  </select>
+{% endif %}
+
 {% if saving_views %}
   <div class="dropdown dropdown-end">
     <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-ghost btn-sm">

@@ -9,6 +9,14 @@
   </form>
 {% endif %}
 
+{% if page_sizes %}
+  <form id="sizes-{{ view.name }}" method="get" action="{{ urls.list(view) }}" hidden>
+    {% for key, value in request.query_params.multi_items() if key not in ("size", "page", "after", "before") %}
+      <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+  </form>
+{% endif %}
+
 {% if saving_views %}
   {% for item in saved_views if item.owner == view_owner %}
     <form id="delete-view-{{ item.id }}" method="post" action="{{ urls.delete_view(view, item.id) }}" hidden>

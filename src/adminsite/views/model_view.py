@@ -68,6 +68,8 @@ class ModelView:
     list_filter: Sequence[str | Filter] = ()
     ordering: Sequence[str] = ()
     page_size: int = 25
+    # The sizes people may switch between. Empty leaves the size fixed.
+    page_sizes: Sequence[int] = ()
     count_mode: CountMode = CountMode.EXACT
     # Whether the command palette looks through this view's records.
     global_search: bool = True
@@ -138,6 +140,23 @@ class ModelView:
         if self.list_display:
             return tuple(self.list_display)
         return self._default_paths(skip=set(self.exclude))
+
+    def get_page_sizes(self, request: Any = None) -> tuple[int, ...]:
+        """The page sizes on offer, the view's own size among them."""
+        if not self.page_sizes:
+            return ()
+        return tuple(sorted({*self.page_sizes, self.page_size}))
+
+    def pick_page_size(self, wanted: int | None, request: Any = None) -> int:
+        """The rows per page for what someone picked.
+
+        Only a size on offer counts, so nobody can ask for a million rows
+        by editing the URL.
+        """
+        offered = self.get_page_sizes(request)
+        if wanted in offered:
+            return int(wanted or self.page_size)
+        return self.page_size
 
     def get_column_choices(self, request: Any = None) -> tuple[str, ...]:
         """The columns the picker offers: the list's own, then the extras."""
@@ -371,6 +390,7 @@ class ModelView:
         paths: Sequence[str] = (),
         after: str = "",
         before: str = "",
+        size: int | None = None,
     ) -> QuerySpec:
         """Describe the read this view wants, page by page."""
         wanted = tuple(self.loadable(tuple(paths) or self.get_list_display(request)))
@@ -380,7 +400,7 @@ class ModelView:
             search_paths=self.get_search_fields(request),
             filters=tuple(filters),
             sort=tuple(sort) or self.get_ordering(request),
-            limit=self.page_size,
+            limit=size or self.page_size,
             count=self.count_mode,
             keyset=self.pagination is Pagination.KEYSET,
             after=after,

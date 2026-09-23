@@ -15,6 +15,8 @@ from adminsite.views import ModelView
 
 COLUMNS_PARAM = "cols"
 COLUMNS_KEY = "adminsite_columns"
+SIZE_PARAM = "size"
+SIZE_KEY = "adminsite_page_size"
 
 
 @dataclass
@@ -54,6 +56,7 @@ class ListRequest:
     after: str = ""
     before: str = ""
     columns: tuple[str, ...] = ()
+    size: int = 0
 
 
 def read_list_request(request: Request, view: ModelView) -> ListRequest:
@@ -72,7 +75,31 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
         after=params.get("after", ""),
         before=params.get("before", ""),
         columns=read_columns(request, view),
+        size=read_page_size(request, view),
     )
+
+
+def read_page_size(request: Request, view: ModelView) -> int:
+    """The rows per page: the one picked in the URL, or from last time.
+
+    A pick is remembered in the session, when there is one, so a list keeps
+    the size someone chose for it on the next visit.
+    """
+    session = request.scope.get("session")
+    remembered: dict[str, int] = (
+        session.get(SIZE_KEY, {}) if session is not None else {}
+    )
+    picked: int | None = None
+    if SIZE_PARAM in request.query_params:
+        try:
+            picked = int(request.query_params[SIZE_PARAM])
+        except ValueError:
+            picked = None
+        if session is not None and picked in view.get_page_sizes(request):
+            session[SIZE_KEY] = {**remembered, view.name: picked}
+    else:
+        picked = remembered.get(view.name)
+    return view.pick_page_size(picked, request)
 
 
 def read_columns(request: Request, view: ModelView) -> tuple[str, ...]:
@@ -189,6 +216,8 @@ def as_context(
         "page": page,
         "page_number": read.page,
         "columns": read.columns,
+        "page_size": read.size,
+        "page_sizes": view.get_page_sizes(request),
         "column_choices": view.get_column_choices(request),
         "columns_changed": read.columns != view.get_list_display(request),
         "current_query": clean_query(request.url.query),

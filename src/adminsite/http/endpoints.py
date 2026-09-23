@@ -64,6 +64,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         after=read.after,
         before=read.before,
         paths=read.columns,
+        size=read.size,
     )
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
