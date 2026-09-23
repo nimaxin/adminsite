@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import json
+import os
 import secrets
 import tempfile
 import time
@@ -285,11 +286,17 @@ def save_plan(
     view: ModelView, owner: str | None, table: Sequence[Sequence[str]]
 ) -> str:
     """Keep a checked file until the import is confirmed, and name it."""
-    PLAN_FOLDER.mkdir(parents=True, exist_ok=True)
+    # The folder sits in the shared temporary directory, so it and the
+    # files in it are readable by this user alone.
+    PLAN_FOLDER.mkdir(mode=0o700, parents=True, exist_ok=True)
     _forget_old_plans()
     token = secrets.token_urlsafe(24)
     payload = {"view": view.name, "owner": owner, "table": [list(row) for row in table]}
-    (PLAN_FOLDER / f"{token}.json").write_text(json.dumps(payload), encoding="utf-8")
+    handle = os.open(
+        PLAN_FOLDER / f"{token}.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+    )
+    with os.fdopen(handle, "w", encoding="utf-8") as kept:
+        kept.write(json.dumps(payload))
     return token
 
 

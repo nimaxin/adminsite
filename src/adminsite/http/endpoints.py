@@ -117,7 +117,7 @@ async def stored_file(admin: "Admin", request: Request) -> Response:
     """A file kept by one of a view's file fields, for whoever may open the view."""
     view = find_view(admin, request)
     await view.ensure(Permission.VIEW, request=request)
-    item = view.field_for(request.path_params["path"])
+    item = field_or_404(view, request.path_params["path"])
     if not isinstance(item, FileField):
         raise HTTPException(status_code=404, detail=_("No such file."))
     key = request.path_params["key"]
@@ -374,6 +374,11 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             )
             await session.commit()
         except AdminSiteError as error:
+            # The rollback expired the record, and the form is about to
+            # read it again, which an async session cannot do on the fly.
+            record = await view.fetch_record(
+                session, key, paths=view.get_load_paths(request), request=request
+            )
             return await form_again(
                 admin, view, session, request, result, error, record, submitted
             )
@@ -420,7 +425,7 @@ async def lookup(admin: "Admin", request: Request) -> Response:
         await view.ensure(Permission.EDIT, request=request)
 
     path = request.path_params["path"]
-    item = view.field_for(path)
+    item = field_or_404(view, path)
     if not isinstance(item, RelationField):
         raise HTTPException(
             status_code=404, detail=_("{path} is not a link.", path=repr(path))
@@ -559,6 +564,16 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
     return view
 
 
+def field_or_404(view: ModelView, path: str) -> Any:
+    """The field a path in the URL names, or a 404 when it names none."""
+    try:
+        return view.field_for(path)
+    except AdminSiteError:
+        raise HTTPException(
+            status_code=404, detail=_("No field at {path}.", path=repr(path))
+        ) from None
+
+
 def read_key(request: Request) -> Any:
     """The primary key out of the URL, as one value or a tuple."""
     return key_of(request.path_params["key"])
@@ -624,7 +639,10 @@ async def logout(admin: "Admin", request: Request) -> Response:
 async def run_action(admin: "Admin", request: Request) -> Response:
     """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
-    found = view.action_named(request.path_params["name"], request)
+    try:
+        found = view.action_named(request.path_params["name"], request)
+    except AdminSiteError:
+        raise HTTPException(status_code=404, detail=_("No such action.")) from None
 
     submitted = await read_form(request)
     inputs = view.parse_action_inputs(found, submitted)

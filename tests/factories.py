@@ -9,6 +9,7 @@ from tests.models import (
     OrderStatus,
     Product,
     Setting,
+    Shelf,
 )
 
 CUSTOMERS = [
@@ -76,4 +77,10 @@ def build_sample_data() -> list[Base]:
         Setting(name="shop", options={"currency": "EUR"}, notes={"by": "nima"}),
     ]
 
-    return [*customers, *products, *orders, *settings]
+    shelves = [
+        Shelf(aisle="A", slot=1, label="Shirts"),
+        Shelf(aisle="A", slot=2, label="Scarves"),
+        Shelf(aisle="B", slot=1, label="Bags"),
+    ]
+
+    return [*customers, *products, *orders, *settings, *shelves]

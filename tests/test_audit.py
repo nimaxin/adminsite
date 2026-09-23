@@ -394,9 +394,13 @@ class TestWhoDidIt:
                     "_csrf": token.group(1),
                 },
             )
+            # Signing in starts a fresh session, with a token of its own.
+            form = await client.get("/admin/products/new")
+            fresh = re.search(r'name="_csrf" value="([^"]+)"', form.text)
+            assert fresh is not None
             await client.post(
                 "/admin/products/new",
-                data={"name": "Signed", "price": "5.00", "_csrf": token.group(1)},
+                data={"name": "Signed", "price": "5.00", "_csrf": fresh.group(1)},
             )
 
         entry = (await log.recent())[0]

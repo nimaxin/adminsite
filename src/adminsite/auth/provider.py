@@ -1,9 +1,11 @@
 from collections.abc import Mapping
+from functools import cache
 from typing import Any
 
+import anyio
 from starlette.requests import Request
 
-from adminsite.auth.passwords import looks_hashed, verify_password
+from adminsite.auth.passwords import hash_password, looks_hashed, verify_password
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
 
@@ -54,6 +56,10 @@ class AuthProvider:
         user = await self.verify(username, password)
         if user is None:
             return None
+        # Nothing from before the sign in comes with it, not even the
+        # form token, so a session planted in the browser earlier is
+        # worth nothing once the person is signed in.
+        request.session.clear()
         request.session[SESSION_KEY] = self.identity(user)
         return user
 
@@ -71,7 +77,7 @@ class AuthProvider:
         """Forget the user."""
         session = request.scope.get("session")
         if session:
-            session.pop(SESSION_KEY, None)
+            session.clear()
 
 
 class PasswordAuth(AuthProvider):
@@ -101,6 +107,17 @@ class PasswordAuth(AuthProvider):
     async def verify(self, username: str, password: str) -> Any | None:
         """Check the password against the stored hash."""
         stored = self.users.get(username)
-        if stored is None:
-            return None
-        return username if verify_password(password, stored) else None
+        # An unknown name is checked against a hash of nothing in particular,
+        # so it takes as long as a wrong password does. Answering at once
+        # would tell whoever is guessing which usernames exist. The hashing
+        # runs on a thread: 600,000 rounds would hold up every other request.
+        matched = await anyio.to_thread.run_sync(
+            verify_password, password, stored if stored is not None else _no_one()
+        )
+        return username if matched and stored is not None else None
+
+
+@cache
+def _no_one() -> str:
+    """A hash for a user who does not exist, made once and kept."""
+    return hash_password("nobody")

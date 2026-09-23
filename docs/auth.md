@@ -93,6 +93,16 @@ that post to the admin can send the token in an `X-CSRF-Token` header instead of
 The [JSON API](api.md) also takes a bearer token, once your provider's `authenticate_token`
 says who it belongs to.
 
+Signing in starts a fresh session, so a token taken from the login page stops working once the
+person is signed in. A script that drives the admin through a session takes its token from a page
+drawn after signing in.
+
+Without a `secret_key` there is no session, and so no token. That does not leave the admin open to
+a form posted from another site: browsers say where a post came from, in the `Sec-Fetch-Site` and
+`Origin` headers, and a post from elsewhere is refused. A request that carries neither, from a
+script or `curl`, goes through, as it did before. This matters for an admin left open on a private
+network, where the browser of anyone on that network could otherwise be made to post to it.
+
 ## The session cookie
 
 The cookie is signed with `secret_key` and lasts two weeks. Serve the admin over HTTPS and say so,

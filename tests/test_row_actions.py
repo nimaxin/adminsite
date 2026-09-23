@@ -192,8 +192,8 @@ class TestOnARecord:
         listed = await client.get("/admin/orders")
         page = await client.get("/admin/orders/2")
 
-        assert "runRecordAction('confirm', \"2\")" in listed.text
-        assert "runRecordAction('confirm', \"2\")" in page.text
+        assert 'runRecordAction("confirm", "2")' in listed.text
+        assert 'runRecordAction("confirm", "2")' in page.text
         assert 'id="action-form-confirm"' in listed.text
 
     async def test_a_record_that_refuses_hides_its_button(
@@ -203,9 +203,9 @@ class TestOnARecord:
         shipped = await client.get("/admin/orders/1")
 
         # Order 1 is shipped, so Confirm is not offered for it.
-        assert "runRecordAction('confirm', \"1\")" not in listed.text
-        assert "runRecordAction('confirm', \"1\")" not in shipped.text
-        assert "runRecordAction('download', \"1\")" in shipped.text
+        assert 'runRecordAction("confirm", "1")' not in listed.text
+        assert 'runRecordAction("confirm", "1")' not in shipped.text
+        assert 'runRecordAction("download", "1")' in shipped.text
 
     async def test_it_is_written_to_the_history(
         self, database: Database, tmp_path: Path
@@ -235,7 +235,7 @@ class TestOnTheView:
         listed = await client.get("/admin/orders")
 
         assert "Sync from the provider" in listed.text
-        assert "runRecordAction('sync', '')" in listed.text
+        assert 'runRecordAction("sync", "")' in listed.text
 
 
 class TestAnswersThatAreNotMessages:

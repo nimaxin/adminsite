@@ -2,7 +2,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Select, delete, false, func, select, update
+from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, update
 from sqlalchemy.sql import Executable
 
 from adminsite.audit.entry import Change, diff
@@ -64,9 +64,7 @@ class Selection:
         """Load the records, for work that needs each one in turn."""
         statement = self.repository.base_statement(
             self.view.scope_for(self.request)
-        ).where(
-            self._primary_key_column().in_(select(self.statement().subquery().c[0]))
-        )
+        ).where(self._covered())
         return list((await self.session.scalars(statement)).unique().all())
 
     async def update(self, **values: Any) -> int:
@@ -79,13 +77,7 @@ class Selection:
             return 0
         if self.view.audit is not None:
             await self._remember(list(values), after=values)
-        statement = (
-            update(self.view.model)
-            .where(
-                self._primary_key_column().in_(select(self.statement().subquery().c[0]))
-            )
-            .values(**values)
-        )
+        statement = update(self.view.model).where(self._covered()).values(**values)
         return await self._run(statement)
 
     async def delete(self) -> int:
@@ -97,9 +89,7 @@ class Selection:
                 if path in self.view.schema.fields
             ]
             await self._remember(paths, after=None)
-        statement = delete(self.view.model).where(
-            self._primary_key_column().in_(select(self.statement().subquery().c[0]))
-        )
+        statement = delete(self.view.model).where(self._covered())
         return await self._run(statement)
 
     async def _remember(
@@ -111,12 +101,12 @@ class Selection:
         """
         names = [path for path in paths if path in self.view.schema.fields]
         columns = [getattr(self.view.model, name) for name in names]
-        statement = select(self._primary_key_column(), *columns).where(
-            self._primary_key_column().in_(select(self.statement().subquery().c[0]))
-        )
+        key_columns = self._primary_key_columns()
+        statement = select(*key_columns, *columns).where(self._covered())
         result = await self.session.execute(statement)
         for row in result.all():
-            key, *current = row
+            key_parts, current = row[: len(key_columns)], row[len(key_columns) :]
+            key = ",".join(str(part) for part in key_parts)
             before = {
                 name: self.view.field_for(name).display(value)
                 for name, value in zip(names, current, strict=True)
@@ -140,16 +130,55 @@ class Selection:
         result = await self.session.execute(statement)
         return int(getattr(result, "rowcount", 0) or 0)
 
-    def _primary_key_column(self) -> Any:
-        return getattr(self.view.model, self.view.schema.primary_key[0])
+    def _primary_key_columns(self) -> list[Any]:
+        return [getattr(self.view.model, name) for name in self.view.schema.primary_key]
+
+    def _covered(self) -> Any:
+        """A condition matching the rows this selection covers.
+
+        The keys are read from a derived table, which MySQL insists on when
+        a write refers back to the table it changes. A composite key is
+        matched as a row value, so a selection of one line of an order
+        never covers the other lines of the same order.
+        """
+        covered = self.statement().subquery()
+        columns = self._primary_key_columns()
+        if len(columns) == 1:
+            return columns[0].in_(select(covered.c[0]))
+        return tuple_(*columns).in_(select(*covered.c))
 
     def _key_condition(self) -> Any:
-        column = self._primary_key_column()
-        field = self.view.schema.field_named(self.view.schema.primary_key[0])
+        """Match the keys that were ticked, written as the URLs write them."""
+        columns = self._primary_key_columns()
+        fields = [
+            self.view.schema.field_named(name) for name in self.view.schema.primary_key
+        ]
         wanted = []
         for key in self.keys:
+            parts = key.split(",") if len(columns) > 1 else [key]
+            if len(parts) != len(columns):
+                continue
             try:
-                wanted.append(to_column_type(field.python_type, key))
+                wanted.append(
+                    tuple(
+                        to_column_type(field.python_type, part)
+                        for field, part in zip(fields, parts, strict=True)
+                    )
+                )
             except ValueError:
                 continue
-        return column.in_(wanted) if wanted else false()
+        if not wanted:
+            return false()
+        if len(columns) == 1:
+            return columns[0].in_([values[0] for values in wanted])
+        return or_(
+            *[
+                and_(
+                    *[
+                        column == value
+                        for column, value in zip(columns, values, strict=True)
+                    ]
+                )
+                for values in wanted
+            ]
+        )

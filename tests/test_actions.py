@@ -177,8 +177,9 @@ class TestRunningActions:
     async def test_an_unknown_action_is_refused(
         self, client: httpx.AsyncClient
     ) -> None:
-        with pytest.raises(Exception, match="no action called"):
-            await client.post("/admin/orders/action/fly", data={"keys": "1"})
+        answer = await client.post("/admin/orders/action/fly", data={"keys": "1"})
+
+        assert answer.status_code == 404
 
 
 class TestActionInputs:

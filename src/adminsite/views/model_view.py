@@ -11,6 +11,7 @@ from starlette.responses import Response
 if TYPE_CHECKING:
     from adminsite.actions.selection import Selection
     from adminsite.audit import AuditLog
+    from adminsite.views.registry import ViewRegistry
 
 from adminsite.actions.action import Action, action_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, diff
@@ -21,6 +22,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
+    InvalidPathError,
     PermissionDeniedError,
     RecordNotFoundError,
     RefusedError,
@@ -103,6 +105,10 @@ class ModelView:
     # Importing is off until you switch it on: it writes many records at once.
     can_import: bool = False
     import_limit: int = 10_000
+
+    # The other views of the same admin, set when the view is registered,
+    # so a link can be checked against the view of the model it points at.
+    views: "ViewRegistry | None" = None
 
     # Set by the admin when auditing is switched on.
     audit: "AuditLog | None" = None
@@ -293,6 +299,14 @@ class ModelView:
     def sortable(self, path: str) -> bool:
         """Whether a list can be sorted by this column."""
         return self.field_for(path).stored
+
+    def readable_paths(self, request: Any = None) -> tuple[str, ...]:
+        """Every path this user may read on some page of the view."""
+        paths = list(self.get_column_choices(request))
+        for path in (*self.get_detail_fields(request), *self.get_form_fields(request)):
+            if path not in paths:
+                paths.append(path)
+        return tuple(paths)
 
     def _build_inline_view(self, inline: Inline) -> "ModelView":
         relation = self.schema.relation_named(inline.name)
@@ -497,12 +511,10 @@ class ModelView:
         for item in self.get_actions(request):
             if item.name == name:
                 return item
-        try:
-            return self._actions[name]
-        except KeyError:
-            raise AdminSiteError(
-                f"{type(self).__name__} has no action called {name!r}."
-            ) from None
+        # No falling back to the class's own list: an action `get_actions`
+        # leaves out for this user is not offered, so it cannot be run by
+        # asking for it by name either.
+        raise AdminSiteError(f"{type(self).__name__} has no action called {name!r}.")
 
     def parse_action_inputs(self, found: Action, data: FormData) -> FormResult:
         """Read the values an action asked for, checked like form fields."""
@@ -789,6 +801,7 @@ class ModelView:
         values, stored = await self._store_files(session, dict(values), record)
         try:
             async with session.transaction():
+                values = await self._resolve_links(session, values, request)
                 target = record if record is not None else self.repository.model()
                 context = SaveContext(
                     session=session,
@@ -809,7 +822,9 @@ class ModelView:
                 )
                 async with session.no_autoflush():
                     await self.repository.apply_values(session, target, values)
-                    await self._apply_inlines(session, target, inline_rows or {})
+                    await self._apply_inlines(
+                        session, target, inline_rows or {}, request
+                    )
                 if created:
                     await session.add(target)
                 await session.flush()
@@ -916,6 +931,7 @@ class ModelView:
         session: SessionAdapter,
         parent: Any,
         inline_rows: Mapping[str, Sequence[InlineRow]],
+        request: Any = None,
     ) -> None:
         """Add, change and remove child records as the form asked."""
         for inline in self.inlines:
@@ -929,9 +945,10 @@ class ModelView:
                 if row.is_new:
                     if not row.delete:
                         child = child_view.model()
-                        await child_view.repository.apply_values(
-                            session, child, row.values
+                        values = await self._resolve_links(
+                            session, row.values, request, fields_of=child_view
                         )
+                        await child_view.repository.apply_values(session, child, values)
                         children.append(child)
                     continue
                 existing = by_key.get(row.key)
@@ -942,7 +959,61 @@ class ModelView:
                         children.remove(existing)
                         await session.delete(existing)
                     continue
-                await child_view.repository.apply_values(session, existing, row.values)
+                values = await self._resolve_links(
+                    session, row.values, request, fields_of=child_view
+                )
+                await child_view.repository.apply_values(session, existing, values)
+
+    async def _resolve_links(
+        self,
+        session: SessionAdapter,
+        values: Mapping[str, Any],
+        request: Any,
+        *,
+        fields_of: "ModelView | None" = None,
+    ) -> dict[str, Any]:
+        """Turn the keys sent for links into records, through their own view.
+
+        The picker offered only the records the target's view lets this
+        user see, so a key for any other record did not come from the form.
+        It is refused like any other bad choice, and nothing is said about
+        whether the record exists. A target with no view is left to the
+        repository, which loads it by key.
+        """
+        owner = fields_of or self
+        resolved = dict(values)
+        for path, value in values.items():
+            item = owner.field_for(path)
+            if not isinstance(item, RelationField) or self.views is None:
+                continue
+            if value is None or value == "" or value == []:
+                continue
+            target = self.views.for_model(item.target)
+            if target is None:
+                continue
+            keys = value if isinstance(value, list | tuple | set) else [value]
+            found = []
+            for key in keys:
+                record = key
+                if not isinstance(record, item.target):
+                    record = await self._linked_through(target, session, key, request)
+                if record is None:
+                    raise RefusedError(_("Choose a record."), field=path)
+                found.append(record)
+            resolved[path] = found if item.collection else found[0]
+        return resolved
+
+    async def _linked_through(
+        self, target: "ModelView", session: SessionAdapter, key: Any, request: Any
+    ) -> Any | None:
+        """One linked record, if the target's view lets this user see it."""
+        wanted = key
+        if isinstance(key, str) and len(target.schema.primary_key) > 1:
+            wanted = tuple(key.split(","))
+        try:
+            return await target.fetch_record(session, wanted, request=request)
+        except (PermissionDeniedError, InvalidPathError):
+            return None
 
     def snapshot(self, record: Any, paths: Sequence[str]) -> dict[str, Any]:
         """What a record shows for these paths, as the history records it.

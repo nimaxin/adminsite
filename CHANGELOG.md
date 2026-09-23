@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+- **Security.** A link could be set to a record its own view would not show. The form's picker
+  offered only records within the target view's scope, but the key that came back was loaded by
+  itself, so a user scoped to one region could attach an order to a customer of another, and learn
+  from the answer whether a key existed. A key is now resolved through the target's own view, on
+  the form, in inline rows and in the API, and a key it will not give up is refused like any other
+  bad choice, with nothing said about whether the record exists.
+- **Security.** `?sort=` took any column, including one left out with `exclude` and columns of a
+  linked model, which put the rows in the order of a value the user could not see. A sort asked for
+  in the URL now has to name a column the user can read somewhere on the view.
+- **Security.** An admin without a `secret_key` has no session, and so had no form token, which
+  left it open to a form posted from another site through the browser of anyone on the same
+  network. Without a session, a post is now refused when the browser says it came from elsewhere,
+  through `Sec-Fetch-Site` and `Origin`. A request that says nothing, from a script, goes through
+  as before.
+- `PasswordAuth` answered an unknown username at once and a known one after 600,000 rounds of
+  hashing, so the time a sign in took said which usernames exist. An unknown name now costs the
+  same as a wrong password, and the hashing runs on a thread instead of holding up every other
+  request.
+- Signing in starts a fresh session, so nothing planted in the browser before it, the form token
+  included, is worth anything afterwards. Signing out ends the whole session. A script that takes
+  the token from the login page has to take it from a page drawn after signing in instead.
+- An action that `get_actions` leaves out for this user can no longer be run by name; asking for
+  it is a 404, as is asking for an action that does not exist at all, which used to be a crash.
+- The CSV export marks a cell that a spreadsheet would run as a formula, one starting with `=`,
+  `+`, `@` or a tab, as text with a leading apostrophe. Numbers are left alone.
+- The buttons of a record action were broken markup, since the record's key was written into a
+  double quoted attribute in double quotes. They are drawn in single quotes now.
+- A `before_save` that refused a change to an existing record crashed on an async engine, because
+  the form was drawn again from a record the rollback had expired. The record is loaded again
+  first.
+- A bulk action on a table whose key is two columns acted on the wrong rows: the rows were matched
+  by the first column of the key alone, so relabelling one line of an order relabelled every line
+  of it, and deleting one deleted them all. Rows are matched by the whole key now, and the log
+  names the whole key.
+- A path in the URL that names no field, in the lookup or the file route, is a 404 instead of a
+  crash. The JSON API writes a `ChoiceField(multiple=True)` from a list. A kept import file is
+  readable by the server's own user alone.
+
 - **Security.** A relation picker read the other model's table directly, so it ignored that model's
   view: it offered records outside `scope_query`, offered them to users whose permissions denied
   the view entirely, and searched every text column rather than the ones on show. A picker now

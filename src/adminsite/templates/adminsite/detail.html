@@ -14,7 +14,7 @@
 {% block header_actions %}
   {% for item in record_actions %}
     <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-ghost{% endif %}"
-            type="button" onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+            type="button" onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
       {{ item.label }}
     </button>
   {% endfor %}

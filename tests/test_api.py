@@ -279,12 +279,18 @@ class TestSigningIn:
             data={"username": "nima", "password": "letmein", "_csrf": token.group(1)},
         )
 
+        # Signing in starts a fresh session, so the token comes from a page
+        # drawn afterwards, as it would for a script run from the admin.
+        page = await guarded.get("/admin/orders")
+        fresh = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+        assert fresh is not None
+
         listed = await guarded.get("/admin/-/api/orders")
         refused = await guarded.patch("/admin/-/api/orders/1", json={"note": "x"})
         allowed = await guarded.patch(
             "/admin/-/api/orders/1",
             json={"note": "x"},
-            headers={"X-CSRF-Token": token.group(1)},
+            headers={"X-CSRF-Token": fresh.group(1)},
         )
 
         assert listed.status_code == 200

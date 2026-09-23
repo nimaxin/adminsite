@@ -73,6 +73,16 @@ That includes a picker on someone else's form. When an order links to a customer
 through `CustomerView`, so it offers only the customers this user may see, and offers none at all
 where they may not open the view. See [Fields](fields.md#links-to-many-records).
 
+The same holds when the form comes back. A key sent for a link is resolved through the target's
+own view, so a customer outside the user's scope cannot be attached by editing the form, and the
+answer to a key the view will not give up is the same as to a key that does not exist: "Choose a
+record." A model with no view of its own is loaded by key, since there is no view to ask.
+
+Sorting follows it too. `?sort=` in the URL is honoured only for a column the user can read
+somewhere on the view: one on offer in the list, on the record page or in the form. Sorting by
+anything else, such as a column left out with `exclude`, is ignored rather than putting the rows in
+the order of a value the user cannot see.
+
 ## Fields
 
 Hide a column or lock a field for some users with the `get_` methods:

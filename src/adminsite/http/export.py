@@ -1,6 +1,7 @@
 import csv
 import io
 from collections.abc import AsyncIterator, Sequence
+from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
@@ -22,8 +23,30 @@ def csv_rows(view: ModelView, records: Sequence[Any], paths: Sequence[str]) -> s
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for record in records:
-        writer.writerow([plain(view.display(record, path)) for path in paths])
+        writer.writerow([as_cell(plain(view.display(record, path))) for path in paths])
     return buffer.getvalue()
+
+
+# What a spreadsheet takes as the start of a formula.
+FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def as_cell(text: str) -> str:
+    """Text a spreadsheet reads as text, never as a formula.
+
+    A value typed into the application by anyone, such as a customer's
+    name, ends up in a file an administrator opens in Excel, which runs a
+    cell starting with `=` as a formula. Such a cell is marked as text with
+    a leading apostrophe, the way spreadsheets themselves do it. A number
+    is left alone, so an amount below zero still adds up.
+    """
+    if not text or text[0] not in FORMULA_STARTS:
+        return text
+    try:
+        Decimal(text.replace(",", "").replace(" ", ""))
+    except (InvalidOperation, ValueError):
+        return "'" + text
+    return text
 
 
 def csv_header(view: ModelView, paths: Sequence[str]) -> str:

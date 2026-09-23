@@ -5,7 +5,7 @@
   {% if allowed|length == 1 %}
     {% set item = allowed[0] %}
     <button class="btn btn-ghost btn-xs {% if item.dangerous %}text-error{% endif %}"
-            type="button" onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+            type="button" onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
       {{ item.label }}
     </button>
   {% else %}
@@ -16,7 +16,7 @@
         {% for item in allowed %}
           <li>
             <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
-                    onclick="runRecordAction('{{ item.name }}', {{ key|tojson }})">
+                    onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
               {{ item.label }}
             </button>
           </li>

@@ -329,6 +329,29 @@ class TestAFailedAttempt:
         assert answer.status_code == 303
 
 
+class TestAnUnknownName:
+    async def test_it_costs_as_much_as_a_wrong_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Both go through the hash, so neither answers faster."""
+        from adminsite.auth import provider
+
+        checked: list[str] = []
+
+        def counting(password: str, stored: str) -> bool:
+            checked.append(stored)
+            return False
+
+        monkeypatch.setattr(provider, "verify_password", counting)
+        auth = PasswordAuth({"nima": hash_password("letmein")})
+
+        assert await auth.verify("nobody", "x") is None
+        assert await auth.verify("nima", "x") is None
+
+        assert len(checked) == 2
+        assert checked[0] != checked[1]
+
+
 class TestPasswordHashing:
     def test_a_hash_does_not_contain_the_password(self) -> None:
         stored = hash_password("letmein")

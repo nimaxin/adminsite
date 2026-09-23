@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse, Response
 from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.exceptions import FieldValidationError, RefusedError
-from adminsite.fields import FileField, JSONField, RelationField
+from adminsite.fields import ChoiceField, FileField, JSONField, RelationField
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
@@ -151,6 +151,10 @@ def read_values(
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of keys."))
                 values[path] = item.parse_many([str(key) for key in raw])
+            elif isinstance(item, ChoiceField) and item.multiple:
+                if not isinstance(raw, list):
+                    raise FieldValidationError(path, _("Send a list of options."))
+                values[path] = item.parse_many([str(one) for one in raw])
             else:
                 values[path] = item.parse(as_text(raw))
         except FieldValidationError as error:

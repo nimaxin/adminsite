@@ -86,6 +86,19 @@ class OrderItem(Base):
     product: Mapped[Product] = relationship()
 
 
+class Shelf(Base):
+    """A row whose key is two columns, for what has to handle composite keys."""
+
+    __tablename__ = "shelves"
+
+    aisle: Mapped[str] = mapped_column(String(2), primary_key=True)
+    slot: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(60))
+
+    def __str__(self) -> str:
+        return f"{self.aisle}{self.slot}"
+
+
 class Setting(Base):
     """A row with JSON in it, for the fields that read and write documents."""
 

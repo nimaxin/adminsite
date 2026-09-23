@@ -20,6 +20,7 @@ class ViewRegistry:
                 f"Two views are called {built.name!r}. "
                 "Give one of them a different name."
             )
+        built.views = self
         self._views.append(built)
         self._by_name[built.name] = built
         return built

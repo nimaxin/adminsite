@@ -66,10 +66,9 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
     for key, value in params.multi_items():
         grouped.setdefault(key, []).append(value)
 
-    raw_sort = params.get("sort", "")
     return ListRequest(
         search=params.get("q", "").strip(),
-        sort=(Sort.parse(raw_sort),) if raw_sort else (),
+        sort=read_sort(params.get("sort", ""), view, request),
         page=read_page(params.get("page", "1")),
         values=parse_filters(view.get_filters(request), grouped),
         after=params.get("after", ""),
@@ -77,6 +76,21 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
         columns=read_columns(request, view),
         size=read_page_size(request, view),
     )
+
+
+def read_sort(raw: str, view: ModelView, request: Request) -> tuple[Sort, ...]:
+    """The sort asked for in the URL, if it is one the user may ask for.
+
+    Only a column this user can read somewhere on the view counts. Sorting
+    by any other column would put the rows in the order of a value that is
+    kept from them, which reads it back a page at a time.
+    """
+    if not raw:
+        return ()
+    sort = Sort.parse(raw)
+    if sort.path in view.readable_paths(request) and view.sortable(sort.path):
+        return (sort,)
+    return ()
 
 
 def read_page_size(request: Request, view: ModelView) -> int:
