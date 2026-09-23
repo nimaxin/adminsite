@@ -184,7 +184,7 @@ class TestTheList:
     async def test_the_pager_is_navigation(self, client: httpx.AsyncClient) -> None:
         page = await client.get("/admin/orders")
 
-        assert '<nav class="join" aria-label="Pages">' in page.text
+        assert re.search(r'<nav [^>]*aria-label="Pages"', page.text)
         assert re.search(r'aria-disabled="true" tabindex="-1"\s+href=', page.text)
 
     async def test_rows_are_chosen_by_name(self, client: httpx.AsyncClient) -> None:
@@ -198,13 +198,15 @@ class TestTheList:
         assert '<p id="records-status" class="sr-only" aria-live="polite">' in page.text
         assert '<span class="tabular-nums" data-count>' in page.text
 
-    async def test_the_filter_button_says_whether_it_is_open(
+    async def test_each_filter_says_whether_it_is_open(
         self, client: httpx.AsyncClient
     ) -> None:
         page = await client.get("/admin/orders")
 
-        assert 'aria-controls="filter-panel"' in page.text
-        assert 'id="filter-panel"' in page.text
+        assert re.search(
+            r'aria-expanded="false"\s+aria-controls="filter-status"', page.text
+        )
+        assert 'id="filter-status"' in page.text
 
 
 class TestTheForm:

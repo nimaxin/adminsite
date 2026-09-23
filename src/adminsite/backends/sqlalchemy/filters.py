@@ -129,6 +129,8 @@ class NumberRangeFilter(SQLFilter):
     """A range of numbers, written as `min,max` with either side empty."""
 
     template = "range"
+    # What each end of the range is typed into.
+    input_type = "number"
 
     def __init__(
         self,
@@ -185,6 +187,7 @@ class DateRangeFilter(SQLFilter):
     """A period, either one of the shortcuts or `from,to` as dates."""
 
     template = "range"
+    input_type = "date"
 
     PRESETS = (
         ("today", "Today", 1),

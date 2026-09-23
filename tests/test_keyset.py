@@ -262,7 +262,7 @@ def client(database: Database) -> httpx.AsyncClient:
 
 
 def link(text: str, label: str) -> str:
-    found = re.search(rf'href="([^"]*)"[^>]*>{label}</a>', text)
+    found = re.search(rf'aria-label="{label}"[^>]*?href="([^"]*)"', text, re.S)
     assert found is not None
     return html.unescape(found.group(1))
 

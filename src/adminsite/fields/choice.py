@@ -8,6 +8,9 @@ from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import humanize
 
+# How many badge tones the stylesheet has; choices past the sixth start over.
+TONES = 6
+
 
 class ChoiceField(Field):
     """A value picked from a fixed set, such as a status.
@@ -82,6 +85,24 @@ class ChoiceField(Field):
                 raise FieldValidationError(self.name, _("This field is required."))
             return []
         return [self.to_python(text.strip()) for text in raw if text.strip()]
+
+    def tone_of(self, value: Any) -> int | None:
+        """Which of the six badge tones a value is drawn in, if it is listed.
+
+        The tone follows the value's place among the choices, so a status
+        keeps its colour on every page and every list.
+        """
+        if value is None or isinstance(value, list | tuple | set):
+            return None
+        # An enum column may list its members by value while the record holds
+        # the member, so either spelling of it counts.
+        wanted = {self._stored_value(value).lower()}
+        if isinstance(value, Enum):
+            wanted.add(str(value.value).lower())
+        for index, (option, _label) in enumerate(self.choices):
+            if option.lower() in wanted:
+                return index % TONES
+        return None
 
     def values_of(self, value: Any) -> tuple[str, ...]:
         """The options chosen, as the select writes them."""

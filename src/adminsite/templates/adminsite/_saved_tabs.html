@@ -1,0 +1,30 @@
+{#- Saved views as tabs above the list, so they are one click away rather than
+    hidden in a menu. The first tab is the list as it comes. -#}
+{% import "adminsite/_icons.html" as icons %}
+{%- set on_all = not active_view and not request.url.query -%}
+<nav class="flex items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7"
+     aria-label="{{ _('Saved views') }}">
+  <a href="{{ urls.list(view) }}" {% if on_all %}aria-current="page"{% endif %}
+     class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+    {{ _('All {things}', things=view.label_plural|lower) }}
+  </a>
+  {% for item in saved_views %}
+    {% set on = active_view and active_view.id == item.id %}
+    <span class="group -mb-px flex h-10 shrink-0 items-center gap-1.5 border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
+      <a href="{{ urls.list(view) }}{{ '?' ~ item.query if item.query }}" {% if on %}aria-current="page"{% endif %}
+         class="text-[13.5px] font-medium {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
+        {{ item.name }}
+      </a>
+      {% if item.shared %}<span class="text-[11px] text-muted">{{ _('shared') }}</span>{% endif %}
+      {% if item.owner == view_owner %}
+        <button class="btn btn-ghost btn-xs btn-square text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"
+                type="submit" form="delete-view-{{ item.id }}"
+                aria-label="{{ _('Remove {name}', name=item.name) }}">{{ icons.icon("x", 12) }}</button>
+      {% endif %}
+    </span>
+  {% endfor %}
+  <button class="flex shrink-0 items-center gap-1 text-[13.5px] font-medium text-link hover:underline" type="button"
+          onclick="document.getElementById('save-view-{{ view.name }}').showModal()">
+    {{ icons.icon("plus", 14) }}{{ _('Save this view') }}
+  </button>
+</nav>

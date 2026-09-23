@@ -1,0 +1,6 @@
+{#- How many records the list holds, under its heading. The table sends it
+    again with every search and page, so it never goes stale. -#}
+<p id="records-total" class="mt-0.5 min-h-5 text-[13px] text-muted"
+   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+  {%- if total_text %}{{ total_text }} {{ view.label_plural|lower }}{% endif -%}
+</p>

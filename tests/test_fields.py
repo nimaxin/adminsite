@@ -227,3 +227,28 @@ class TestRegistry:
         assert created_at.required is True
         assert note.required is False
         assert identifier.readonly is True
+
+
+class TestChoiceTones:
+    def test_a_tone_follows_the_place_among_the_choices(self) -> None:
+        field = ChoiceField("size", choices=(("s", "Small"), ("m", "Medium")))
+
+        assert field.tone_of("s") == 0
+        assert field.tone_of("m") == 1
+        assert field.tone_of("xl") is None
+
+    def test_an_enum_member_finds_its_value(self) -> None:
+        field = ChoiceField(
+            "status",
+            enum_class=OrderStatus,
+            choices=tuple((member.value, member.name) for member in OrderStatus),
+        )
+
+        assert field.tone_of(OrderStatus.PENDING) == 0
+        assert field.tone_of(OrderStatus.PAID) == 1
+
+    def test_past_the_sixth_the_tones_start_over(self) -> None:
+        field = ChoiceField("n", choices=tuple((str(n), str(n)) for n in range(8)))
+
+        assert field.tone_of("6") == 0
+        assert field.tone_of(None) is None

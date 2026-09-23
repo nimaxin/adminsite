@@ -9,6 +9,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.filters import FilterOption, FilterValue, parse_filters
 from adminsite.http.forms import rows_for_inputs
 from adminsite.http.urls import PAGING_KEYS
+from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
@@ -216,6 +217,18 @@ def export_params(request: Request) -> dict[str, Any]:
     return params
 
 
+def total_text(page: Any) -> str:
+    """How many records match, as the list says it: exact, about, or more."""
+    if page.total is None:
+        return ""
+    number = f"{page.total:,}"
+    if page.at_least:
+        return _("more than {count}", count=number)
+    if page.estimated:
+        return _("about {count}", count=number)
+    return number
+
+
 def as_context(
     view: ModelView,
     request: Request,
@@ -229,6 +242,7 @@ def as_context(
         "view": view,
         "page": page,
         "page_number": read.page,
+        "total_text": total_text(page),
         "columns": read.columns,
         "page_size": read.size,
         "page_sizes": view.get_page_sizes(request),

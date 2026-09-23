@@ -6,6 +6,12 @@
   which now ships inside the package with no request to any other site. The sidebar gets icons,
   search at the top, and an active page you can read in light mode as well as dark. Colours
   come from two daisyUI themes, so a project can still restyle the admin with its own.
+- The list reads better. Saved views are tabs above it instead of a menu. Each filter is a chip
+  that opens a small form of its own, and a range is typed into two fields, or picked from
+  presets, instead of one box that wanted `from,to`. A choice such as a status is a coloured
+  badge, in a tone that follows its place among the choices so it never changes between pages.
+  A row's actions and its form sit in one menu at its end, ticked rows raise a bar of actions
+  over the table, and the pager numbers its pages.
 
 ## 0.1.0a5
 

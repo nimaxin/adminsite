@@ -1,101 +1,132 @@
-<div class="border-b border-base-300 px-3 py-2.5 lg:px-6" x-data="{ filters: false }">
-  <form class="flex flex-wrap items-center gap-2" method="get"
-        hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
-        hx-push-url="true">
-    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
-    {% if columns_changed %}
-      {% for path in columns %}<input type="hidden" name="cols" value="{{ path }}">{% endfor %}
-    {% endif %}
-
-    {% if view.get_search_fields(request) %}
-      <label class="input input-sm w-full sm:w-64">
-        <svg class="opacity-50" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
-          <path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4"/>
-        </svg>
+{#- Above the table: the search, one chip per filter, and the columns. Each
+    filter opens a small form of its own, which carries the rest of the query
+    along, so applying one filter never drops another. -#}
+{% import "adminsite/_icons.html" as icons %}
+{%- set kept = request.query_params.multi_items()|list -%}
+<div class="flex flex-wrap items-center gap-2 px-4 py-3 lg:px-7">
+  {% if view.get_search_fields(request) %}
+    <form class="w-full sm:w-72" method="get" action="{{ urls.list(view) }}" role="search"
+          hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML" hx-push-url="true">
+      {% for key, value in kept if key not in ("q", "page", "after", "before") %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <label class="input input-sm h-8.5 w-full">
+        <span class="text-muted">{{ icons.icon("search") }}</span>
         <input type="search" name="q" value="{{ search }}" class="grow"
                placeholder="{{ _('Search {things}', things=view.label_plural|lower) }}"
                aria-label="{{ _('Search {things}', things=view.label_plural|lower) }}"
                hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
-               hx-trigger="keyup changed delay:300ms, search" hx-include="closest form">
+               hx-trigger="keyup changed delay:300ms, search" hx-include="closest form"
+               hx-replace-url="true">
       </label>
-    {% endif %}
+    </form>
+  {% endif %}
 
-    {% for panel in chips %}
-      <span class="badge badge-soft badge-primary gap-1 pe-1">
-        {{ panel.chip }}
-        <a class="rounded px-1 hover:bg-primary/15"
-           href="{{ urls.here(**{panel.filter.name: None, 'page': None}) }}" aria-label="{{ _('Remove this filter') }}">&times;</a>
-      </span>
-    {% endfor %}
+  {% if panels %}
+    <span class="mx-1 hidden h-5 w-px bg-base-300 sm:block" aria-hidden="true"></span>
+    {% for panel in panels %}
+      {% set name = panel.filter.name %}
+      {% set panel_id = "filter-" ~ name|replace(".", "-") %}
+      {% set remove = urls.here(**{name: None, "page": None, "after": None, "before": None}) %}
+      <div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+        {% if panel.active %}
+          <div class="inline-flex h-7.5 items-center rounded-full border border-primary/25 bg-primary/10 text-primary">
+            <button class="h-full ps-3 pe-1 text-[13px] font-medium" type="button"
+                    @click="open = !open" :aria-expanded="open.toString()" aria-expanded="false"
+                    aria-controls="{{ panel_id }}">{{ panel.chip }}</button>
+            <a class="me-0.5 inline-flex size-6.5 items-center justify-center rounded-full hover:bg-primary/15"
+               href="{{ remove }}" aria-label="{{ _('Remove this filter') }}">{{ icons.icon("x", 14) }}</a>
+          </div>
+        {% else %}
+          <button class="inline-flex h-7.5 items-center gap-1 rounded-full border border-dashed border-line-strong ps-2.5 pe-3 text-[13px] font-medium text-muted hover:border-base-content/40 hover:text-base-content"
+                  type="button" @click="open = !open" :aria-expanded="open.toString()" aria-expanded="false"
+                  aria-controls="{{ panel_id }}">
+            {{ icons.icon("plus", 14) }}{{ panel.filter.label }}
+          </button>
+        {% endif %}
 
-    {% if panels %}
-      <button class="btn btn-ghost btn-sm" type="button" @click="filters = !filters"
-              :class="filters && 'btn-active'" :aria-expanded="filters.toString()"
-              aria-controls="filter-panel">
-        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M2 3.5h12M4.5 8h7M7 12.5h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
-        {{ _('Filter') }}
-      </button>
-    {% endif %}
-
-    <span class="flex-1"></span>
-    {% include "adminsite/_list_menus.html" %}
-    {% if can_import %}
-      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">{{ _('Import') }}</a>
-    {% endif %}
-    {% if can_export %}
-      <a class="btn btn-ghost btn-sm" href="{{ urls.export(view, **export_params) }}">{{ _('Export CSV') }}</a>
-    {% endif %}
-
-    {% if panels %}
-      <div class="w-full" id="filter-panel" x-show="filters" x-cloak>
-        <div class="mt-2 grid gap-5 rounded-box border border-base-300 bg-base-200 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          {% for panel in panels %}
-            <fieldset class="fieldset content-start">
-              <legend class="fieldset-legend">{{ panel.filter.label }}</legend>
-              {% if panel.filter.template == "choice" %}
-                {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
+        <form id="{{ panel_id }}" method="get" action="{{ urls.list(view) }}" x-show="open" x-cloak
+              class="absolute start-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-box border border-base-300 bg-base-100 p-4 shadow-float">
+          {% for key, value in kept if key not in (name, "page", "after", "before") %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <fieldset>
+            <legend class="mb-3 text-sm font-semibold">{{ panel.filter.label }}</legend>
+            {% if panel.filter.template == "choice" %}
+              {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
+              <div class="-mx-2 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
                 {% for option in panel.options %}
-                  <label class="label cursor-pointer gap-2 text-base-content">
-                    <input type="{{ kind }}" name="{{ panel.filter.name }}" value="{{ option.value }}"
+                  <label class="flex h-8 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200">
+                    <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}"
                            class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
                            {% if option.value in panel.chosen %}checked{% endif %}>
                     <span class="flex-1">{{ option.label }}</span>
                     {% if option.count is not none %}
-                      <span class="badge badge-ghost badge-sm font-mono">{{ option.count }}</span>
+                      <span class="text-xs tabular-nums text-muted">{{ option.count }}</span>
                     {% endif %}
                   </label>
                 {% endfor %}
-              {% elif panel.filter.template == "range" %}
-                <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
-                       value="{{ panel.chosen[0] if panel.chosen else '' }}"
-                       aria-label="{{ panel.filter.label }}"
-                       placeholder="{{ _('from,to') }}" list="{{ panel.filter.name }}-choices">
+              </div>
+            {% elif panel.filter.template == "range" %}
+              {#- A shortcut, or a value at each end. What is sent is one value,
+                  the shortcut's name or the two ends joined by a comma. -#}
+              {% set current = panel.chosen[0] if panel.chosen else "" %}
+              {% set presets = panel.options|map(attribute="value")|list %}
+              {% set custom = current and current not in presets %}
+              {% set ends = (current.split(",") if custom else []) + ["", ""] %}
+              {% set kind = panel.filter.input_type|default("text") %}
+              <div x-data='{ preset: {{ (current if current in presets else ("custom" if custom else ""))|tojson }}, low: {{ ends[0]|tojson }}, high: {{ ends[1]|tojson }} }'>
+                <input type="hidden" name="{{ name }}"
+                       :value="preset && preset !== 'custom' ? preset : ((low || high) ? low + ',' + high : '')">
                 {% if panel.options %}
-                  <datalist id="{{ panel.filter.name }}-choices">
+                  <div class="mb-3 grid grid-cols-2 gap-1.5">
                     {% for option in panel.options %}
-                      <option value="{{ option.value }}">{{ option.label }}</option>
+                      <label class="flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
+                        <input type="radio" class="radio radio-xs radio-primary" value="{{ option.value }}" x-model="preset">
+                        {{ option.label }}
+                      </label>
                     {% endfor %}
-                  </datalist>
-                  <p class="label">{{ _('Pick a period or write two values, such as 10,50.') }}</p>
+                    <label class="col-span-2 flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
+                      <input type="radio" class="radio radio-xs radio-primary" value="custom" x-model="preset">
+                      {{ _('Between two dates') if kind == "date" else _('Between two values') }}
+                    </label>
+                  </div>
                 {% endif %}
-              {% else %}
-                <input class="input input-sm w-full" type="text" name="{{ panel.filter.name }}"
-                       value="{{ panel.chosen[0] if panel.chosen else '' }}"
-                       aria-label="{{ panel.filter.label }}"
-                       placeholder="{{ panel.filter.label|lower }}">
-              {% endif %}
-            </fieldset>
-          {% endfor %}
-          <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+                <div class="grid grid-cols-2 gap-2.5" {% if panel.options %}x-show="preset === 'custom'"{% endif %}>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted">
+                    {{ _('From') }}
+                    <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}"
+                           {% if kind == "number" %}step="any"{% endif %} x-model="low" value="{{ ends[0] }}">
+                  </label>
+                  <label class="flex flex-col gap-1 text-xs font-medium text-muted">
+                    {{ _('To') }}
+                    <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}"
+                           {% if kind == "number" %}step="any"{% endif %} x-model="high" value="{{ ends[1] }}">
+                  </label>
+                </div>
+              </div>
+            {% else %}
+              <input class="input input-sm w-full" type="text" name="{{ name }}"
+                     value="{{ panel.chosen[0] if panel.chosen else '' }}"
+                     aria-label="{{ panel.filter.label }}" placeholder="{{ panel.filter.label|lower }}">
+            {% endif %}
+          </fieldset>
+          <div class="mt-4 flex items-center justify-end gap-2">
+            {% if panel.active %}
+              <a class="btn btn-ghost btn-sm" href="{{ remove }}">{{ _('Clear') }}</a>
+            {% endif %}
             <button class="btn btn-primary btn-sm" type="submit">{{ _('Apply') }}</button>
-            <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">{{ _('Clear all') }}</a>
           </div>
-        </div>
+        </form>
       </div>
+    {% endfor %}
+    {% if chips %}
+      <a class="px-1 text-[13px] font-medium text-muted underline underline-offset-3 hover:text-base-content"
+         href="{{ urls.list(view) }}">{{ _('Clear all') }}</a>
     {% endif %}
-  </form>
+  {% endif %}
+
+  <span class="flex-1"></span>
+  {% include "adminsite/_list_menus.html" %}
   {% include "adminsite/_list_forms.html" %}
 </div>

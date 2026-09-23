@@ -1,3 +1,4 @@
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -105,7 +106,7 @@ class TestComputed:
         listed = await client.get("/admin/orders")
         page = await client.get("/admin/orders/1")
 
-        assert ">Lines</span>" in listed.text
+        assert re.search(r">\s*Lines\s*</th>", listed.text)
         assert "Biggest line" in page.text
 
     async def test_it_is_not_sortable(self, client: httpx.AsyncClient) -> None:

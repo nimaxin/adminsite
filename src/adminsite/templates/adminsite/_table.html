@@ -1,57 +1,22 @@
-{%- set total_text -%}
-  {%- set number = "{:,}".format(page.total) if page.total is not none else "" -%}
-  {%- if page.at_least %}{{ _("more than {count}", count=number) }}
-  {%- elif page.estimated %}{{ _("about {count}", count=number) }}
-  {%- else %}{{ number }}{% endif -%}
-{%- endset -%}
-<div id="records" class="flex min-h-0 flex-1 flex-col"
+{% import "adminsite/_icons.html" as icons %}
+<div id="records" class="relative flex min-h-0 flex-1 flex-col"
      x-data="{ picked: 0, everything: false }">
+  {% if request.headers.get("hx-request") %}
+    {% with oob = true %}{% include "adminsite/_records_total.html" %}{% endwith %}
+  {% endif %}
   <form method="post" class="flex min-h-0 flex-1 flex-col"
         x-ref="actions" action="{{ urls.action(view, '') }}">
     {{ csrf_input | safe if csrf_input }}
     <input type="hidden" name="everything" :value="everything ? '1' : ''">
 
-    {% if actions %}
-      <div class="flex flex-wrap items-center gap-2 border-b border-base-300 bg-base-200 px-3 py-2 lg:px-6"
-           x-show="picked > 0" x-cloak>
-        <span class="font-medium"><span x-text="picked"></span> {{ _('selected') }}</span>
-        {% if page.total is not none %}
-          <button class="btn btn-link btn-xs px-1" type="button"
-                  x-show="!everything && picked >= {{ page|length }}"
-                  @click="everything = true">
-            {{ _("Select all {count} matching", count=total_text) }}
-          </button>
-          <span class="text-base-content/70" x-show="everything">
-            {{ _("All {count} matching rows are selected.", count=total_text) }}
-          </span>
-        {% endif %}
-        <span class="flex-1"></span>
-        {% for item in actions %}
-          {% if item.needs_dialog %}
-            <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% endif %}"
-                    type="button"
-                    onclick="document.getElementById('action-{{ item.name }}').showModal()">
-              {{ item.label }}
-            </button>
-          {% else %}
-            <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% endif %}"
-                    type="submit"
-                    formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
-              {{ item.label }}
-            </button>
-          {% endif %}
-        {% endfor %}
-      </div>
-    {% endif %}
-
     <div class="min-h-0 flex-1 overflow-auto">
-      <table class="table table-sm table-pin-rows">
+      <table class="w-full border-separate border-spacing-0">
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
-          <tr class="bg-base-100">
+          <tr>
             {% if actions %}
-              <th class="w-10">
-                <input type="checkbox" class="checkbox checkbox-sm" aria-label="{{ _('Select this page') }}"
+              <th class="sticky top-0 z-10 h-10 w-12 border-y border-base-300 bg-subtle ps-4 pe-1 text-start lg:ps-7">
+                <input type="checkbox" class="checkbox checkbox-sm align-middle" aria-label="{{ _('Select this page') }}"
                        @change="
                          $refs.actions.querySelectorAll('input[name=keys]')
                            .forEach(box => box.checked = $event.target.checked);
@@ -62,32 +27,35 @@
             {% endif %}
             {% for path in columns %}
               {% set state = sort_state(request, path) %}
-              <th class="{% if view.field_for(path).widget == 'number' %}text-end{% endif %}"
+              {% set numeric = view.field_for(path).widget == 'number' %}
+              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.first and not actions %}ps-4 lg:ps-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 {% if view.sortable(path) %}
-                  <a class="inline-flex items-center gap-1 font-medium hover:text-base-content"
+                  <a class="inline-flex items-center gap-1 hover:text-base-content"
                      href="{{ urls.sorted_by(path) }}"
                      hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"
                      hx-swap="outerHTML" hx-push-url="true">
                     {{ view.label_for(path) }}
-                    {% if state == "asc" %}<span class="text-primary" aria-hidden="true">&uarr;</span>{% endif %}
-                    {% if state == "desc" %}<span class="text-primary" aria-hidden="true">&darr;</span>{% endif %}
+                    {% if state == "asc" %}<span aria-hidden="true">&uarr;</span>{% endif %}
+                    {% if state == "desc" %}<span aria-hidden="true">&darr;</span>{% endif %}
                   </a>
                 {% else %}
-                  <span class="font-medium">{{ view.label_for(path) }}</span>
+                  {{ view.label_for(path) }}
                 {% endif %}
               </th>
             {% endfor %}
-            <th class="w-12"></th>
+            <th class="sticky top-0 z-10 h-10 w-14 border-y border-base-300 bg-subtle pe-4 lg:pe-5">
+              <span class="sr-only">{{ _('Actions') }}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {% for row in page %}
             {% set key = view.identity_of(row) %}
-            <tr class="hover:bg-base-200">
+            <tr class="hover:bg-subtle has-[input[name=keys]:checked]:bg-selected">
               {% if actions %}
-                <td>
-                  <input type="checkbox" class="checkbox checkbox-sm" name="keys" value="{{ key }}"
+                <td class="h-12 border-b border-line ps-4 pe-1 lg:ps-7">
+                  <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
                          aria-label="{{ _('Select {name}', name=view.title_of(row)) }}"
                          @change="
                            picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
@@ -96,51 +64,51 @@
                 </td>
               {% endif %}
               {% for path in columns %}
-                {% set widget = view.field_for(path).widget %}
+                {% set item = view.field_for(path) %}
+                {% set widget = item.widget %}
                 {% set text = view.display(row, path) %}
-                <td class="whitespace-nowrap {% if widget == 'number' %}text-end tabular-nums{% endif %}">
+                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if widget == 'number' %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.first and not actions %}ps-4 lg:ps-7{% endif %}">
                   {% if loop.first %}
                     {#- The first cell opens the record, or the form where a view
                         has no record page, or is plain text where it has neither. -#}
                     {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
+                    {% set is_key = widget == "number" and path in view.schema.primary_key %}
+                    {% set shown = ("#" ~ text if is_key and text else (text or view.title_of(row))) %}
                     {% if opens %}
-                      <a class="link link-hover link-primary font-medium" href="{{ opens }}">
-                        {{ text or view.title_of(row) }}
-                      </a>
+                      <a class="font-medium text-link hover:underline {% if is_key %}font-mono text-[13px]{% endif %}" href="{{ opens }}">{{ shown }}</a>
                     {% else %}
-                      <span class="font-medium">{{ text or view.title_of(row) }}</span>
+                      <span class="font-medium {% if is_key %}font-mono text-[13px]{% endif %}">{{ shown }}</span>
                     {% endif %}
                   {% elif widget == "image" and text %}
                     {% set stored = view.value_at(row, path) %}
                     <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
-                         class="h-8 w-8 rounded object-cover" loading="lazy">
+                         class="size-8 rounded-md object-cover" loading="lazy">
                   {% elif widget == "file" and text %}
-                    <a class="link link-hover" href="{{ urls.file(view, path, view.value_at(row, path)) }}">{{ text }}</a>
+                    <a class="text-link hover:underline" href="{{ urls.file(view, path, view.value_at(row, path)) }}">{{ text }}</a>
                   {% elif widget == "select" and text %}
-                    <span class="badge badge-soft badge-sm">{{ text }}</span>
+                    {% set tone = item.tone_of(view.value_at(row, path)) if item.tone_of is defined else none %}
+                    <span class="pill {{ 'tone-' ~ tone if tone is not none else 'tone-3' }}">{{ text }}</span>
                   {% elif widget == "checkbox" and text %}
-                    <span class="badge badge-sm {% if view.value_at(row, path) %}badge-success badge-soft{% else %}badge-ghost{% endif %}">{{ text }}</span>
+                    <span class="pill {{ 'tone-2' if view.value_at(row, path) else 'tone-3' }}">{{ text }}</span>
+                  {% elif widget in ("text", "textarea", "json") %}
+                    <span class="block max-w-md truncate">{{ text }}</span>
                   {% else %}
                     {{ text }}
                   {% endif %}
                 </td>
               {% endfor %}
-              <td class="text-end">
-                <div class="flex items-center justify-end gap-1">
-                  {% if row_actions and row_actions.get(key) %}
-                    {% with allowed = row_actions[key], title = view.title_of(row) %}
-                      {% include "adminsite/_row_actions.html" %}
-                    {% endwith %}
-                  {% endif %}
-                  {% if can_edit %}
-                    <a class="btn btn-ghost btn-xs" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
-                  {% endif %}
-                </div>
+              <td class="h-12 border-b border-line pe-4 text-end lg:pe-5">
+                {% with allowed = row_actions.get(key, []) if row_actions else [],
+                        title = view.title_of(row),
+                        edit_url = urls.edit(view, key) if can_edit else "",
+                        upward = loop.revindex <= 3 and loop.length > 5 %}
+                  {% include "adminsite/_row_actions.html" %}
+                {% endwith %}
               </td>
             </tr>
           {% else %}
             <tr>
-              <td class="py-16 text-center text-base-content/60" colspan="{{ columns|length + 2 }}">
+              <td class="py-20 text-center text-muted" colspan="{{ columns|length + 2 }}">
                 {{ _("No {things} to show.", things=view.label_plural|lower) }}
               </td>
             </tr>
@@ -148,6 +116,53 @@
         </tbody>
       </table>
     </div>
+
+    {% if actions %}
+      {#- Floats over the table while rows are ticked, so the actions are where
+          the eye already is. -#}
+      <div class="pointer-events-none absolute inset-x-0 bottom-20 z-20 flex justify-center px-4"
+           x-show="picked > 0" x-cloak>
+        <div role="region" aria-label="{{ _('Selection') }}"
+             class="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-box bg-neutral py-1.5 ps-4 pe-1.5 text-neutral-content shadow-float">
+          <span class="pe-2 font-medium">
+            <span x-show="!everything"><span x-text="picked"></span> {{ _('selected') }}</span>
+            {% if page.total is not none %}
+              <span x-show="everything">{{ _("All {count} matching rows are selected.", count=total_text) }}</span>
+            {% endif %}
+          </span>
+          {% if page.total is not none %}
+            <button class="btn btn-ghost btn-sm text-neutral-content underline underline-offset-3 hover:bg-neutral-content/10" type="button"
+                    x-show="!everything && picked >= {{ page|length }}" @click="everything = true">
+              {{ _("Select all {count} matching", count=total_text) }}
+            </button>
+          {% endif %}
+          <span class="mx-1 h-5 w-px bg-neutral-content/20" aria-hidden="true"></span>
+          {% for item in actions %}
+            {% if item.needs_dialog %}
+              <button class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-ghost text-neutral-content hover:bg-neutral-content/10{% endif %}"
+                      type="button"
+                      onclick="document.getElementById('action-{{ item.name }}').showModal()">
+                {{ item.label }}
+              </button>
+            {% else %}
+              <button class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-ghost text-neutral-content hover:bg-neutral-content/10{% endif %}"
+                      type="submit"
+                      formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                {{ item.label }}
+              </button>
+            {% endif %}
+          {% endfor %}
+          <span class="mx-1 h-5 w-px bg-neutral-content/20" aria-hidden="true"></span>
+          <button class="btn btn-ghost btn-sm btn-square text-neutral-content/70 hover:bg-neutral-content/10" type="button"
+                  aria-label="{{ _('Clear the selection') }}"
+                  @click="
+                    $refs.actions.querySelectorAll('input[type=checkbox]').forEach(box => box.checked = false);
+                    picked = 0;
+                    everything = false;
+                  ">{{ icons.icon("x") }}</button>
+        </div>
+      </div>
+    {% endif %}
   </form>
 
   {#- Each dialog is its own form, so a required input in one dialog never
@@ -155,7 +170,7 @@
       rows across from the table. -#}
   {% for item in actions if item.needs_dialog %}
     <dialog id="action-{{ item.name }}" class="modal">
-      <form class="modal-box" method="post"
+      <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post"
             action="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
             @submit="
               $el.querySelectorAll('input[data-copied]').forEach(node => node.remove());
@@ -170,11 +185,11 @@
             ">
         {{ csrf_input | safe if csrf_input }}
         <input type="hidden" name="everything" :value="everything ? '1' : ''">
-        <h3 class="text-lg font-semibold">{{ item.label }}</h3>
+        <h3 class="text-base font-semibold">{{ item.label }}</h3>
         {% if item.confirm %}
           <p class="pt-2 text-base-content/80">{{ item.confirm }}</p>
         {% endif %}
-        <p class="pt-1 text-base-content/60">
+        <p class="pt-1 text-muted">
           <span x-show="!everything"><span x-text="picked"></span> {{ _('selected') }}</span>
           {% if page.total is not none %}
             <span x-show="everything">{{ _("All {count} matching rows", count=total_text) }}</span>
@@ -202,7 +217,7 @@
 
   {% include "adminsite/_action_forms.html" %}
 
-  <div class="flex items-center gap-3 border-t border-base-300 px-3 py-2 text-base-content/70 lg:px-6">
+  <div class="flex flex-wrap items-center gap-3 border-t border-base-300 px-4 py-3 text-[13px] text-muted lg:px-7">
     <span class="tabular-nums" data-count>
       {% if page.keyset %}
         {% if page.total is not none %}{{ total_text }} {{ view.label_plural|lower }}{% endif %}
@@ -213,6 +228,16 @@
       {% endif %}
     </span>
     <span class="flex-1"></span>
+    {% if page_sizes %}
+      <select name="size" form="sizes-{{ view.name }}" onchange="this.form.submit()"
+              class="select select-sm w-auto text-base-content" aria-label="{{ _('Rows per page') }}">
+        {% for size in page_sizes %}
+          <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>
+            {{ _('{count} rows', count=size) }}
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
     {% if page.keyset %}
       {% set previous = urls.here(page=None, after=None, before=page.previous_cursor or None) %}
       {% set next = urls.here(page=None, before=None, after=page.next_cursor or None) %}
@@ -220,18 +245,33 @@
       {% set previous = urls.here(page=page_number - 1 if page_number > 2 else None) %}
       {% set next = urls.here(page=page_number + 1) %}
     {% endif %}
-    <nav class="join" aria-label="{{ _('Pages') }}">
-      <a class="join-item btn btn-sm {% if not page.has_previous %}btn-disabled{% endif %}"
+    <nav class="flex items-center gap-1" aria-label="{{ _('Pages') }}">
+      <a class="btn btn-plain btn-sm btn-square {% if not page.has_previous %}btn-disabled{% endif %}"
+         aria-label="{{ _('Previous') }}"
          {% if not page.has_previous %}aria-disabled="true" tabindex="-1"{% endif %}
          href="{{ previous }}" hx-get="{{ previous }}" hx-target="#records"
-         hx-swap="outerHTML" hx-push-url="true">{{ _('Previous') }}</a>
-      {% if not page.keyset %}
-        <span class="join-item btn btn-sm pointer-events-none" aria-current="page">{{ _("Page {number}", number=page_number) }}</span>
+         hx-swap="outerHTML" hx-push-url="true">{{ icons.icon("chevron-left") }}</a>
+      {#- Numbered pages only where the count is exact and pages have numbers:
+          the first, the last, and the ones either side of this one. -#}
+      {% set exact = page.total is not none and not page.estimated and not page.at_least %}
+      {% if exact and not page.keyset and page.limit %}
+        {% set last = [((page.total + page.limit - 1) // page.limit), 1]|max %}
+        {% for number in range(1, last + 1) if number == 1 or number == last or (number - page_number)|abs <= 1 %}
+          {% if not loop.first and number - loop.previtem > 1 %}
+            <span class="px-1" aria-hidden="true">…</span>
+          {% endif %}
+          {% set address = urls.here(page=number if number > 1 else None) %}
+          <a class="btn btn-sm min-w-8 px-2 tabular-nums {% if number == page_number %}btn-neutral{% else %}btn-plain{% endif %}"
+             aria-label="{{ _('Page {number}', number=number) }}" {% if number == page_number %}aria-current="page"{% endif %}
+             href="{{ address }}" hx-get="{{ address }}" hx-target="#records"
+             hx-swap="outerHTML" hx-push-url="true">{{ number }}</a>
+        {% endfor %}
       {% endif %}
-      <a class="join-item btn btn-sm {% if not page.has_next %}btn-disabled{% endif %}"
+      <a class="btn btn-plain btn-sm btn-square {% if not page.has_next %}btn-disabled{% endif %}"
+         aria-label="{{ _('Next') }}"
          {% if not page.has_next %}aria-disabled="true" tabindex="-1"{% endif %}
          href="{{ next }}" hx-get="{{ next }}" hx-target="#records"
-         hx-swap="outerHTML" hx-push-url="true">{{ _('Next') }}</a>
+         hx-swap="outerHTML" hx-push-url="true">{{ icons.icon("chevron-right") }}</a>
     </nav>
   </div>
 </div>

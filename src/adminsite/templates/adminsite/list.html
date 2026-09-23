@@ -1,26 +1,43 @@
 {% extends "adminsite/base.html" %}
+{% import "adminsite/_icons.html" as icons %}
 
 {% block page_title %}{{ view.label_plural }} · {{ title }}{% endblock %}
 
+{% block header_class %}lg:pt-5 lg:pb-3{% endblock %}
+
 {% block header %}
-  <h1 class="truncate text-base font-semibold">{{ view.label_plural }}</h1>
+  <h1 class="truncate text-[22px] font-semibold leading-tight tracking-tight">{{ view.label_plural }}</h1>
+  {% include "adminsite/_records_total.html" %}
 {% endblock %}
 
 {% block header_actions %}
   {% for item in view_actions %}
-    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-ghost{% endif %}"
+    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
             type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
       {{ item.label }}
     </button>
   {% endfor %}
+  {% if can_import %}
+    <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">
+      <span class="text-muted">{{ icons.icon("upload") }}</span>{{ _('Import') }}
+    </a>
+  {% endif %}
+  {% if can_export %}
+    <a class="btn btn-plain btn-sm" href="{{ urls.export(view, **export_params) }}">
+      <span class="text-muted">{{ icons.icon("download") }}</span>{{ _('Export CSV') }}
+    </a>
+  {% endif %}
   {% if can_create %}
-    <a class="btn btn-primary btn-sm" href="{{ urls.create(view) }}">{{ _('New {thing}', thing=view.label|lower) }}</a>
+    <a class="btn btn-primary btn-sm ps-2.5" href="{{ urls.create(view) }}">
+      {{ icons.icon("plus") }}{{ _('New {thing}', thing=view.label|lower) }}
+    </a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="flex h-full flex-col">
+<div class="flex min-h-0 flex-1 flex-col">
   <p id="records-status" class="sr-only" aria-live="polite"></p>
+  {% if saving_views %}{% include "adminsite/_saved_tabs.html" %}{% endif %}
   {% include "adminsite/_toolbar.html" %}
   {% include "adminsite/_table.html" %}
 </div>

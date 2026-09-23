@@ -35,6 +35,7 @@ def token_in(page: httpx.Response) -> str:
 
 def headers(page: httpx.Response) -> list[str]:
     head = page.text.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    head = re.sub(r'<span class="sr-only">.*?</span>', "", head)
     return re.findall(r">\s*([A-Z][a-z ]+?)\s*(?:<|&)", head)
 
 
@@ -212,7 +213,7 @@ class TestSavedViewsOnThePage:
         page = await client.get("/admin/orders?status=PAID")
 
         assert 'href="/admin/orders?status=PAID"' in page.text
-        assert re.search(r'role="button"[^>]*>\s*Paid\s*</div>', page.text)
+        assert re.search(r'aria-current="page"[^>]*>\s*Paid\s*</a>', page.text)
 
     async def test_a_view_needs_a_name(
         self, client: httpx.AsyncClient, store: SavedViews
