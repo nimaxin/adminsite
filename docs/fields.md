@@ -166,6 +166,36 @@ class Money(Field):
 Everything that shows a value goes through `text_for`: the list, the record page and the export.
 It falls back to `display`, so fields that do not need the record carry on as they are.
 
+## A link or a badge in a cell
+
+Cells are escaped text, so a name holding `<script>` shows as it was written and nothing else.
+Return `Html` where the cell is meant to be markup, such as a link to a file or to another system:
+
+```python
+from adminsite import Computed, Html
+
+
+class OrderView(ModelView, model=Order):
+    list_display = ("id", "customer.name", "tracking")
+    fields = (
+        Computed(
+            "tracking",
+            lambda order: Html('<a class="link" href="{}">Track</a>').format(
+                order.tracking_url
+            ),
+            needs=("tracking_url",),
+        ),
+    )
+```
+
+`Html` writes its own text into the page as markup. Everything put in with `format` or `%` is
+escaped first, so a value out of the database cannot carry markup of its own into the page. Write
+the markup yourself and the values through `format`, never the other way round.
+
+The CSV export and the JSON API send the same cell without its tags, since markup belongs on a page
+and not in a spreadsheet. The first column is already a link to the record, so put markup in
+another one.
+
 ## Files and pictures
 
 A file field keeps the upload in a storage and its key in a string column. Declare it among the

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A cell can hold markup. A field that returns `Html` writes it into the page as it is, so a
+  column can link to a related record, a file or another system. Values put in with `format`
+  are escaped, and the CSV export and the JSON API send the text without the tags.
+- The CSV export was missing computed columns. It wrote the columns the query loaded rather
+  than the columns the list shows, and a computed column loads nothing of its own.
 - `FieldOptions("name", label="Product name")` in a view's `fields` changes one thing about
   the field adminsite worked out, without naming its type or its target again. An option the
   field does not take is an error naming the path, not a setting that does nothing.

@@ -71,6 +71,8 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.Computed
 
+::: adminsite.Html
+
 
 ::: adminsite.fields.JSONField
 

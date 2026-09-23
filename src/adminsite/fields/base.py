@@ -6,7 +6,7 @@ from pydantic import ValidationError as PydanticValidationError
 from adminsite.exceptions import FieldValidationError
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
-from adminsite.text import humanize
+from adminsite.text import as_text, humanize
 
 
 class Field:
@@ -53,7 +53,7 @@ class Field:
         """Format the value for reading. An empty value shows as nothing."""
         if value is None:
             return ""
-        return str(value)
+        return as_text(value)
 
     def text_for(self, record: Any, value: Any) -> str:
         """The text shown for this value, given the record it belongs to.

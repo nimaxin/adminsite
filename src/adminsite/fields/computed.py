@@ -2,6 +2,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from adminsite.fields.base import Field
+from adminsite.text import as_text
 
 
 class Computed(Field):
@@ -51,4 +52,4 @@ class Computed(Field):
         """An empty value shows as nothing, anything else as text."""
         if value is None:
             return ""
-        return str(value)
+        return as_text(value)

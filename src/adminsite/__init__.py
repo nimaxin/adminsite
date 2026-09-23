@@ -25,6 +25,7 @@ from adminsite.schema import (
     RelationSchema,
 )
 from adminsite.security import Permission
+from adminsite.text import Html
 from adminsite.views import Inline, ModelView, ViewRegistry
 
 __version__ = version("adminsite")
@@ -39,6 +40,7 @@ __all__ = [
     "FieldOptions",
     "FieldPath",
     "FieldSchema",
+    "Html",
     "Inline",
     "InvalidPathError",
     "ModelCounts",

@@ -18,6 +18,7 @@ from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
 from adminsite.security import Permission
+from adminsite.text import plain
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
@@ -81,7 +82,8 @@ def json_value(view: ModelView, path: str, record: Any, urls: Urls) -> Any:
     item = view.field_for(path)
     if not item.stored:
         # Worked out from the record, so there is no stored value to send.
-        return item.text_for(record, None)
+        # Markup belongs on the page, so what goes out is its text.
+        return plain(item.text_for(record, None))
     value = view.value_at(record, path)
     if isinstance(item, RelationField):
         target = SQLAlchemyRepository(item.target, view.inspector)

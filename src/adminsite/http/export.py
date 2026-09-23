@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from starlette.requests import Request
 
 from adminsite.query import QuerySpec
+from adminsite.text import plain
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ def csv_rows(view: ModelView, records: Sequence[Any], paths: Sequence[str]) -> s
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for record in records:
-        writer.writerow([view.display(record, path) for path in paths])
+        writer.writerow([plain(view.display(record, path)) for path in paths])
     return buffer.getvalue()
 
 
@@ -39,9 +40,14 @@ async def stream_csv(
     view: ModelView,
     spec: QuerySpec,
     request: Request,
+    columns: Sequence[str] = (),
 ) -> AsyncIterator[str]:
-    """Send the whole result a batch at a time."""
-    paths = spec.paths or view.get_list_display(request)
+    """Send the whole result a batch at a time.
+
+    The columns are what the file holds; the spec says what to load, which
+    is not the same, since a computed column loads whatever it reads.
+    """
+    paths = tuple(columns) or view.get_list_display(request)
     yield csv_header(view, paths)
 
     offset = 0
@@ -49,7 +55,7 @@ async def stream_csv(
         while True:
             batch = await view.fetch_page(
                 session,
-                spec.replace(limit=BATCH_SIZE, offset=offset, paths=paths),
+                spec.replace(limit=BATCH_SIZE, offset=offset),
                 request=request,
             )
             if not len(batch):

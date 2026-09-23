@@ -754,7 +754,7 @@ async def export_records(admin: "Admin", request: Request) -> Response:
 
     filename = f"{view.name}.csv"
     return StreamingResponse(
-        stream_csv(admin, view, spec, request),
+        stream_csv(admin, view, spec, request, read.columns),
         media_type="text/csv",
         headers={"content-disposition": f'attachment; filename="{filename}"'},
     )
