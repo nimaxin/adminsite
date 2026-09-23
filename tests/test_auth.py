@@ -255,6 +255,80 @@ class TestCustomProvider:
             assert response.status_code == 200
 
 
+class TestAFailedAttempt:
+    async def test_the_provider_decides_what_it_says(self, database: Database) -> None:
+        class QuietAuth(PasswordAuth):
+            async def sign_in_failed(self, request: Any, username: str) -> str:
+                return "Ask the office for a new password."
+
+        app = Starlette()
+        app.mount(
+            "/admin",
+            build_admin(database, QuietAuth({"nima": hash_password("letmein")})),
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/login")
+
+            answer = await client.post(
+                "/admin/login",
+                data={
+                    "username": "nima",
+                    "password": "wrong",
+                    "_csrf": token_from(page.text),
+                },
+            )
+
+        assert answer.status_code == 401
+        assert "Ask the office for a new password." in answer.text
+        assert "do not match" not in answer.text
+
+    async def test_the_provider_sees_who_tried(self, database: Database) -> None:
+        tried: list[str] = []
+
+        class WatchfulAuth(PasswordAuth):
+            async def sign_in_failed(self, request: Any, username: str) -> str:
+                tried.append(username)
+                return await super().sign_in_failed(request, username)
+
+        app = Starlette()
+        app.mount(
+            "/admin",
+            build_admin(database, WatchfulAuth({"nima": hash_password("letmein")})),
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/login")
+            await client.post(
+                "/admin/login",
+                data={
+                    "username": "dana",
+                    "password": "wrong",
+                    "_csrf": token_from(page.text),
+                },
+            )
+
+        assert tried == ["dana"]
+
+    async def test_a_good_password_never_reaches_it(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/login")
+
+        answer = await client.post(
+            "/admin/login",
+            data={
+                "username": "nima",
+                "password": "letmein",
+                "_csrf": token_from(page.text),
+            },
+        )
+
+        assert answer.status_code == 303
+
+
 class TestPasswordHashing:
     def test_a_hash_does_not_contain_the_password(self) -> None:
         stored = hash_password("letmein")

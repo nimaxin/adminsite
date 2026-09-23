@@ -5,6 +5,7 @@ from starlette.requests import Request
 
 from adminsite.auth.passwords import looks_hashed, verify_password
 from adminsite.exceptions import AdminSiteError
+from adminsite.i18n import gettext as _
 
 SESSION_KEY = "adminsite_user"
 
@@ -55,6 +56,16 @@ class AuthProvider:
             return None
         request.session[SESSION_KEY] = self.identity(user)
         return user
+
+    async def sign_in_failed(self, request: Request, username: str) -> str:
+        """Called when a sign in fails. Returns what to tell the person.
+
+        Override it to record the attempt, to make the next one wait, or
+        to say something other than the default. Whatever it returns is
+        shown above the form, so keep it vague: a message that says the
+        username exists tells an attacker so too.
+        """
+        return _("That username and password do not match.")
 
     async def sign_out(self, request: Request) -> None:
         """Forget the user."""

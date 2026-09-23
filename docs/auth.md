@@ -61,9 +61,28 @@ class StaffAuth(AuthProvider):
 | `verify(username, password)` | Returns the user for these details, or `None`. |
 | `identity(user)` | The short string kept in the session cookie. |
 | `load_user(key)` | Turns that string back into a user on each request. |
+| `sign_in_failed(request, username)` | Runs when a sign in fails, and returns what to say. |
 
 The loaded user is on `request.scope["user_record"]`, for your [permission](permissions.md) checks,
 and its `str()` is what the sidebar and the [audit log](audit.md) show.
+
+## When a sign in fails
+
+The login page says "That username and password do not match." Override `sign_in_failed` to say
+something else, and to do something about it. It is the one place that sees every wrong password,
+so it is where a record of attempts, an alert or a wait belongs:
+
+```python
+class StaffAuth(AuthProvider):
+    async def sign_in_failed(self, request, username: str) -> str:
+        await note_attempt(username, request.client.host)
+        if await too_many_lately(request.client.host):
+            return "Too many tries. Wait a minute and try again."
+        return await super().sign_in_failed(request, username)
+```
+
+Keep the message vague. One that says the username exists tells whoever is guessing the same
+thing.
 
 ## CSRF
 

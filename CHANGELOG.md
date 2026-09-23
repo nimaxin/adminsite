@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `AuthProvider.sign_in_failed(request, username)` runs on every wrong password and returns
+  what the login page says, so an attempt can be recorded, alerted on or slowed down, and the
+  message is no longer fixed.
 - Action inputs can start with a value, `default=True`, hold several options,
   `ChoiceField(multiple=True)`, and be worked out per request, since the run now goes through
   `get_actions` too. `default` works on any field, so a form for a new record starts from it.

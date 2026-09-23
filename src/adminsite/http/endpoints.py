@@ -598,17 +598,14 @@ async def login(admin: "Admin", request: Request) -> Response:
         raise HTTPException(status_code=404, detail=_("Signing in is not set up."))
 
     submitted = await read_form(request)
+    username = str(submitted.get("username", ""))
     user = await admin.auth.sign_in(
-        request,
-        str(submitted.get("username", "")),
-        str(submitted.get("password", "")),
+        request, username, str(submitted.get("password", ""))
     )
     if user is None:
+        message = await admin.auth.sign_in_failed(request, username)
         return await admin.render(
-            "login.html",
-            request,
-            {"error": _("That username and password do not match.")},
-            status_code=401,
+            "login.html", request, {"error": message}, status_code=401
         )
     return RedirectResponse(Urls(request).index(), status_code=303)
 
