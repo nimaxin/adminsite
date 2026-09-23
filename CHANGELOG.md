@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `FieldOptions("name", label="Product name")` in a view's `fields` changes one thing about
+  the field adminsite worked out, without naming its type or its target again. An option the
+  field does not take is an error naming the path, not a setting that does nothing.
+- A field that says `readonly=True` is now treated as readonly by the form, the API and the
+  import, as `readonly_fields` already was. A primary key is the exception: a form that names
+  one means to set it.
 - A relationship holding many records can be edited on a large table. Above 100 records the
   picker became a search box that kept one key, which lost every other record the link held.
   It now keeps all of them, showing each as a chip with a button to take it off.

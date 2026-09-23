@@ -3,6 +3,7 @@ from adminsite.fields.choice import ChoiceField
 from adminsite.fields.computed import Computed
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
+from adminsite.fields.options import FieldOptions
 from adminsite.fields.registry import (
     FieldRegistry,
     build_default_registry,
@@ -30,6 +31,7 @@ __all__ = [
     "DecimalField",
     "EmailField",
     "Field",
+    "FieldOptions",
     "FieldRegistry",
     "FileField",
     "FloatField",

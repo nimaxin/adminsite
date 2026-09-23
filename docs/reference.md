@@ -67,6 +67,8 @@ The classes you use most, with their signatures and docstrings.
 
 ## Fields
 
+::: adminsite.FieldOptions
+
 ::: adminsite.Computed
 
 

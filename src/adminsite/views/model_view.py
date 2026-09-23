@@ -26,6 +26,7 @@ from adminsite.exceptions import (
 )
 from adminsite.fields import (
     Field,
+    FieldOptions,
     FieldRegistry,
     RelationField,
     default_registry,
@@ -81,9 +82,9 @@ class ModelView:
     readonly_fields: Sequence[str] = ()
     exclude: Sequence[str] = ()
 
-    # Fields that replace the ones worked out from the columns. Each one
-    # is matched to a path by its name.
-    fields: Sequence[Field] = ()
+    # Fields that replace the ones worked out from the columns, and
+    # `FieldOptions` that only change one. Each is matched by its name.
+    fields: Sequence[Field | FieldOptions] = ()
 
     # Child records edited inside this model's form.
     inlines: Sequence[Inline] = ()
@@ -123,7 +124,14 @@ class ModelView:
         self.label = self.label or self.schema.label
         self.label_plural = self.label_plural or self.schema.label_plural
 
-        self._overrides = {field.name: field for field in self.fields}
+        self._overrides = {
+            item.name: item for item in self.fields if isinstance(item, Field)
+        }
+        self._changes = {
+            item.name: item.changes
+            for item in self.fields
+            if isinstance(item, FieldOptions)
+        }
         self._actions = self._collect_actions()
         self._inline_views = {
             inline.name: self._build_inline_view(inline) for inline in self.inlines
@@ -210,8 +218,18 @@ class ModelView:
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """The fields shown but not editable."""
-        return tuple(self.readonly_fields)
+        """The fields shown but not editable, named here or by themselves.
+
+        A primary key is readonly by its nature, but a form that names one
+        means to set it, so a key stays editable unless it is named here.
+        """
+        named = tuple(self.readonly_fields)
+        keys = set(self.schema.primary_key)
+        return named + tuple(
+            path
+            for path in self.get_form_fields(request, record)
+            if path not in named and path not in keys and self.field_for(path).readonly
+        )
 
     def get_inlines(
         self, request: Any = None, record: Any = None
@@ -329,10 +347,18 @@ class ModelView:
             return override
 
         resolved = self.inspector.resolve(self.model, path)
-        if resolved.field is not None:
-            built: Field = self.registry.build(resolved.field, label=resolved.label)
-        else:
-            built = RelationField.from_relation(resolved.relations[-1])
+        changes = self._changes.get(path, {})
+        try:
+            if resolved.field is not None:
+                options: dict[str, Any] = {"label": resolved.label, **changes}
+                built: Field = self.registry.build(resolved.field, **options)
+            else:
+                built = RelationField.from_relation(resolved.relations[-1], **changes)
+        except TypeError as error:
+            raise AdminSiteError(
+                f"FieldOptions({path!r}) in {type(self).__name__}.fields holds "
+                f"something the field does not take: {error}"
+            ) from error
         self._fields[path] = built
         return built
 
@@ -343,7 +369,8 @@ class ModelView:
         reads Customer name rather than a bare Name.
         """
         label = self.field_for(path).label
-        if path in self._overrides or "." not in path:
+        named = "label" in self._changes.get(path, {})
+        if named or path in self._overrides or "." not in path:
             return label
         resolved = self.inspector.resolve(self.model, path)
         if resolved.field is None:

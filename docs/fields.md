@@ -63,6 +63,38 @@ class OrderView(ModelView, model=Order):
 
 Every field takes `label`, `required`, `readonly`, `help_text` and `max_length`.
 
+## Changing one thing about a field
+
+Most of the time the field adminsite worked out is the right one and only its label or a line of
+help is wrong. `FieldOptions` changes those without naming the type, the target or anything else
+again:
+
+```python
+from adminsite import FieldOptions
+
+
+class ProductView(ModelView, model=Product):
+    fields = (
+        FieldOptions("name", label="Product name"),
+        FieldOptions("description", help_text="Shown on the shop page."),
+    )
+
+
+class OrderView(ModelView, model=Order):
+    fields = (FieldOptions("customer", display_template="{name} ({email})"),)
+```
+
+It takes whatever the field takes, so `label`, `required`, `readonly`, `help_text` and
+`max_length` work on any field, and `display_template` works on a link. An option the field does
+not take is an error when the view first builds it, naming the path, rather than a setting that
+quietly does nothing.
+
+`FieldOptions` sits in the same `fields` tuple as whole fields. Where both name the same path the
+whole field wins, since it already says everything.
+
+A label given this way is used as it stands. Without one, a path through a link names the link as
+well, so `customer.name` reads Customer name.
+
 ## Links to many records
 
 A relationship that holds many records, such as a customer's orders, shows the linked records'
