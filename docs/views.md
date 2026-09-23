@@ -46,6 +46,7 @@ order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `page_sizes` | The sizes people may switch between. Empty leaves the size fixed. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
+| `deferred_fields` | Columns the list never shows, left out of its query. |
 | `global_search` | Whether the command palette searches this view. On by default. |
 | `list_columns` | More columns people can add from the Columns menu. |
 | `icon` | The sidebar icon: inline SVG markup, or the address of a picture. |
@@ -154,6 +155,20 @@ is a next page by reading one extra row, so a page is a single query.
 400 costs the same as page 1. The pager shows Previous and Next, without page numbers, and the URL
 carries a short cursor such as `?after=WyIyMDI2...`. The primary key is added to the order, so rows
 with the same value never repeat or go missing between pages.
+
+**Wide rows.** A list that never shows a large column still loads it on every row. Name those
+columns and the list query leaves them out:
+
+```python
+class EventView(ModelView, model=Event):
+    list_display = ("id", "kind", "created_at")
+    deferred_fields = ("payload",)
+```
+
+The record page, the form and the API load them as usual, so nothing disappears, and a column that
+the list does show is loaded whatever this says, as is the key and anything `display_template`
+reads. Those are the columns every row needs, and reading one afterwards would cost a query per
+row. Answer per request with `get_deferred_fields(request)`.
 
 A keyset needs columns it can compare. When the list is sorted by a column that can be empty, or by
 a path through a relationship such as `customer.name`, that page falls back to page numbers. Put an

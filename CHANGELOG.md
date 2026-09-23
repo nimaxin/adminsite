@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `deferred_fields` leaves heavy columns out of the list query, so a table carrying a large
+  JSON payload no longer loads it on every row. The record page, the form and the API load
+  them as usual, and a column the list shows is never left out.
 - A cell can hold markup. A field that returns `Html` writes it into the page as it is, so a
   column can link to a related record, a file or another system. Values put in with `format`
   are escaped, and the CSV export and the JSON API send the text without the tags.

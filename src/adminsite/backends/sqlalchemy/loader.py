@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import defer, joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
@@ -52,3 +52,8 @@ def _options_for(
         options.append(loader)
 
     return options
+
+
+def build_defer_options(model: type[Any], names: Iterable[str]) -> list[_AbstractLoad]:
+    """Leave heavy columns out of a query until something reads them."""
+    return [defer(getattr(model, name)) for name in names]

@@ -1,4 +1,5 @@
 from collections.abc import Mapping, Sequence
+from string import Formatter
 from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import uuid4
 
@@ -81,6 +82,10 @@ class ModelView:
     detail_fields: Sequence[str] = ()
     readonly_fields: Sequence[str] = ()
     exclude: Sequence[str] = ()
+
+    # Columns the list does not read, such as a large JSON payload, left out
+    # of its query. The record page and the form load them as usual.
+    deferred_fields: Sequence[str] = ()
 
     # Fields that replace the ones worked out from the columns, and
     # `FieldOptions` that only change one. Each is matched by its name.
@@ -214,6 +219,10 @@ class ModelView:
         if self.detail_fields:
             return tuple(self.detail_fields)
         return self.get_form_fields(request, record)
+
+    def get_deferred_fields(self, request: Any = None) -> tuple[str, ...]:
+        """The columns the list leaves out of its query."""
+        return tuple(self.deferred_fields)
 
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
@@ -423,6 +432,7 @@ class ModelView:
         wanted = tuple(self.loadable(tuple(paths) or self.get_list_display(request)))
         spec = QuerySpec(
             paths=wanted,
+            defer=self._deferred(request, wanted),
             search=search,
             search_paths=self.get_search_fields(request),
             filters=tuple(filters),
@@ -434,6 +444,38 @@ class ModelView:
             before=before,
         )
         return spec.page(page)
+
+    def _deferred(self, request: Any, loaded: Sequence[str]) -> tuple[str, ...]:
+        """The columns to leave out of this query.
+
+        A column the page reads is never left out, whatever the view says,
+        since reading it afterwards would cost a query for every row. That
+        covers the columns on show, the key, and the ones the record's name
+        is built from.
+        """
+        keep = set(loaded) | set(self.schema.primary_key) | self._named_in_title()
+        wanted = []
+        for path in self.get_deferred_fields(request):
+            if path not in self.schema.fields:
+                raise AdminSiteError(
+                    f"{type(self).__name__}.deferred_fields names {path!r}, "
+                    f"which is not a column of {self.model.__name__}."
+                )
+            if path not in keep:
+                wanted.append(path)
+        return tuple(wanted)
+
+    def _named_in_title(self) -> set[str]:
+        """The columns `display_template` reads, which every row needs."""
+        if not self.display_template:
+            return set()
+        return {
+            name
+            for _text, name, _spec, _conversion in Formatter().parse(
+                self.display_template
+            )
+            if name
+        }
 
     # Actions.
 

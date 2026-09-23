@@ -16,10 +16,14 @@ from sqlalchemy import (
 )
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import aliased
+from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.loader import build_load_options
+from adminsite.backends.sqlalchemy.loader import (
+    build_defer_options,
+    build_load_options,
+)
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
@@ -255,10 +259,7 @@ class SQLAlchemyRepository:
             statement = statement.order_by(
                 key.column.desc() if descending else key.column.asc()
             )
-        if spec.paths:
-            statement = statement.options(
-                *build_load_options(self.inspector, self.model, spec.paths)
-            )
+        statement = statement.options(*self._load_options(spec))
 
         limit = spec.limit or DEFAULT_PAGE_SIZE
         rows = list((await session.scalars(statement.limit(limit + 1))).unique().all())
@@ -375,11 +376,16 @@ class SQLAlchemyRepository:
         statement = self.narrow(self.base_statement(scope), spec)
         statement = self.apply_sort(statement, spec)
 
+        return statement.options(*self._load_options(spec))
+
+    def _load_options(self, spec: QuerySpec) -> Sequence[_AbstractLoad]:
+        """What a page loads with the row, and what it leaves behind."""
+        options: list[_AbstractLoad] = []
         if spec.paths:
-            statement = statement.options(
-                *build_load_options(self.inspector, self.model, spec.paths)
-            )
-        return statement
+            options += build_load_options(self.inspector, self.model, spec.paths)
+        if spec.defer:
+            options += build_defer_options(self.model, spec.defer)
+        return options
 
     def narrow(self, statement: Select[Any], spec: QuerySpec) -> Select[Any]:
         """Apply the search and the filters, which every read shares.

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Any
 
@@ -52,6 +52,8 @@ class QuerySpec:
     """What to read: which paths, which order, which page."""
 
     paths: tuple[str, ...] = ()
+    # Columns to leave out of the select, however wide the table is.
+    defer: tuple[str, ...] = ()
     search: str = ""
     search_paths: tuple[str, ...] = ()
     filters: tuple[FilterValue, ...] = ()
@@ -70,21 +72,7 @@ class QuerySpec:
 
     def replace(self, **changes: Any) -> "QuerySpec":
         """Return a copy with some parts changed."""
-        current = {
-            "paths": self.paths,
-            "search": self.search,
-            "search_paths": self.search_paths,
-            "filters": self.filters,
-            "sort": self.sort,
-            "offset": self.offset,
-            "limit": self.limit,
-            "count": self.count,
-            "keyset": self.keyset,
-            "after": self.after,
-            "before": self.before,
-        }
-        current.update(changes)
-        return QuerySpec(**current)  # type: ignore[arg-type]
+        return replace(self, **changes)
 
 
 @dataclass(frozen=True, slots=True)
