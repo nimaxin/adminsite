@@ -104,8 +104,22 @@ class OrderItem(Base):
     product: Mapped[Product] = relationship()
 
 
+def outline(paths: str) -> str:
+    """A sidebar icon drawn the way the admin draws its own."""
+    return (
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
+        'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+        f'stroke-linejoin="round">{paths}</svg>'
+    )
+
+
 class CustomerView(ModelView, model=Customer):
     group = "Sales"
+    icon = outline(
+        '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>'
+        '<path d="M16 4.5a3.5 3.5 0 0 1 0 7"/>'
+        '<path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
+    )
     display_template = "{name} ({email})"
     list_display = ("name", "email", "region", "is_active")
     search_fields = ("name", "email")
@@ -116,6 +130,9 @@ class CustomerView(ModelView, model=Customer):
 
 class OrderView(ModelView, model=Order):
     group = "Sales"
+    icon = outline(
+        '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'
+    )
     display_template = "Order #{id}"
     list_display = ("id", "customer.name", "status", "total", "created_at")
     list_columns = ("customer.email", "note")
@@ -175,6 +192,10 @@ class OrderView(ModelView, model=Order):
 
 class ProductView(ModelView, model=Product):
     group = "Catalogue"
+    icon = outline(
+        '<path d="m3 7.5 9-4.5 9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5"/>'
+        '<path d="M12 12v9"/>'
+    )
     list_display = ("name", "photo", "price", "description")
     fields = (ImageField("photo", storage=LocalStorage("shop_uploads")),)
     search_fields = ("name", "description")
@@ -252,23 +273,29 @@ def build_sample_shop() -> list[Base]:
         Product(name="Wool scarf", price=Decimal("38.50")),
     ]
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None, second=0, microsecond=0)
     statuses = list(OrderStatus)
-    orders = [
-        Order(
-            customer=customers[index % len(customers)],
-            status=statuses[index % len(statuses)],
-            total=Decimal(20 + index * 7),
-            created_at=now - timedelta(days=index),
-            items=[
-                OrderItem(
-                    product=products[(index + line) % len(products)],
-                    quantity=1 + (index + line) % 3,
-                    unit_price=products[(index + line) % len(products)].price,
-                )
-                for line in range(1 + index % 3)
-            ],
+    orders = []
+    for index in range(24):
+        items = [
+            OrderItem(
+                product=products[(index + line) % len(products)],
+                quantity=1 + (index + line) % 3,
+                unit_price=products[(index + line) % len(products)].price,
+            )
+            for line in range(1 + index % 3)
+        ]
+        orders.append(
+            Order(
+                customer=customers[index % len(customers)],
+                status=statuses[index % len(statuses)],
+                # The total is what the lines add up to, so an order's page
+                # never contradicts itself.
+                total=sum(
+                    (item.unit_price * item.quantity for item in items), Decimal(0)
+                ),
+                created_at=now - timedelta(days=index, minutes=(index * 97) % 600),
+                items=items,
+            )
         )
-        for index in range(24)
-    ]
     return [*customers, *products, *orders]

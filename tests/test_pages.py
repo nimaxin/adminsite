@@ -281,7 +281,7 @@ class TestTheSidebarOrder:
         async with serve(admin) as client:
             home = await client.get("/admin/")
 
-        assert home.text.count(">Reports</li>") == 1
+        assert home.text.count(">Reports</p>") == 1
         assert home.text.index("/admin/customers") < home.text.index(
             "/admin/-/sales_report"
         )

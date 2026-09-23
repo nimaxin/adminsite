@@ -8,6 +8,7 @@
     "vendor": "node vendor.mjs"
   },
   "devDependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
     "@tailwindcss/cli": "^4.0.0",
     "alpinejs": "^3.14.9",
     "htmx.org": "^2.0.4",

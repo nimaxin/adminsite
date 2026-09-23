@@ -166,7 +166,7 @@ class TestThePage:
     ) -> None:
         page = await client.get("/admin/orders")
 
-        assert '<nav class="flex-1" aria-label="Main">' in page.text
+        assert re.search(r'<nav [^>]*aria-label="Main"', page.text)
         assert re.search(r'href="/admin/orders" aria-current="page"', page.text)
         assert not re.search(r'href="/admin/customers" aria-current', page.text)
 

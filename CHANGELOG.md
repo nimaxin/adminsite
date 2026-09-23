@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A new look. The admin sits on a quiet ground with each page on a raised panel, set in Geist,
+  which now ships inside the package with no request to any other site. The sidebar gets icons,
+  search at the top, and an active page you can read in light mode as well as dark. Colours
+  come from two daisyUI themes, so a project can still restyle the admin with its own.
+
 ## 0.1.0a5
 
 A security release. A review of every route found ways to read or link records outside a
