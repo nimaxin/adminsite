@@ -501,7 +501,18 @@ async def form_again(
         errors=result.errors,
         request=request,
     )
-    context["form_error"] = str(error) if error is not None else ""
+    # A refusal about one field belongs next to that field, not above the
+    # form, so it reads like any other problem with what was typed.
+    beside_field = (
+        isinstance(error, RefusedError)
+        and error.field in {row.path for row in rows}
+        and error.field
+    )
+    if beside_field:
+        for row in rows:
+            if row.path == beside_field:
+                row.error = str(error)
+    context["form_error"] = "" if beside_field or error is None else str(error)
     if record is not None:
         context["can_delete"] = await view.allows(
             Permission.DELETE, request=request, record=record

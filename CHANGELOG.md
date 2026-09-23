@@ -5,6 +5,12 @@
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.
+- `before_save` can change what is stored: whatever it leaves in `context.values`, or writes with
+  `context.set(path, value)`, is what is applied, so a slug or a derived value is stored instead of
+  what was submitted. The caller's own values are left alone.
+- `RefusedError("...", field="delay")` puts a refusal next to that input instead of above the form,
+  keeping everything else that was typed. The API answers 422 with the field, and 409 for a
+  refusal about no field in particular.
 - JSON columns get a `JSONField`: readable on one line in the list, laid out in a box on the form,
   and a malformed document comes back as an error on the field instead of being stored as text.
 - A value that fails to parse comes back into its input as it was written. Before, the field fell

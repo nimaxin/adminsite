@@ -29,7 +29,18 @@ class RefusedError(AdminSiteError):
     The message is shown to the user on the form or above the list, and
     the transaction is rolled back. Any other exception is a fault, and
     is reported as one.
+
+    Name a field and the message appears next to that input instead of
+    above the form:
+
+    ```python
+    raise RefusedError("Keep this above the check delay.", field="delay")
+    ```
     """
+
+    def __init__(self, message: str, *, field: str = "") -> None:
+        super().__init__(message)
+        self.field = field
 
 
 class PermissionDeniedError(AdminSiteError):

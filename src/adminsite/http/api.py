@@ -290,6 +290,10 @@ async def save(
     try:
         return await view.save(session, values, record=record, request=request)
     except RefusedError as error:
+        if error.field:
+            raise ApiError(
+                422, _("Some fields need another look."), {error.field: str(error)}
+            ) from None
         raise ApiError(409, str(error)) from None
 
 

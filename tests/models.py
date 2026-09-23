@@ -1,6 +1,7 @@
 import enum
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.orm import (
@@ -92,8 +93,10 @@ class Setting(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(60))
-    options: Mapped[dict] = mapped_column(JSON, default=dict)
-    notes: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+    options: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    notes: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True, default=None
+    )
 
     def __str__(self) -> str:
         return self.name

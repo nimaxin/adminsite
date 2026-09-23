@@ -683,18 +683,22 @@ class ModelView:
             request=request,
             record=record,
         )
-        values, stored = await self._store_files(session, values, record)
+        # A copy, so a hook can change what is stored without the caller's
+        # own dictionary changing under it.
+        values, stored = await self._store_files(session, dict(values), record)
         try:
             async with session.transaction():
                 target = record if record is not None else self.repository.model()
                 context = SaveContext(
                     session=session,
                     record=target,
-                    values=values,
+                    values=dict(values),
                     created=created,
                     request=request,
                 )
                 await self.before_save(context)
+                # Whatever the hook left in context.values is what is stored.
+                values = context.values
 
                 auditing = self.audit is not None
                 before = (
@@ -899,7 +903,12 @@ class ModelView:
         session.after_commit(write)
 
     async def before_save(self, context: SaveContext) -> None:
-        """Runs before the values are written. Raise to refuse the save."""
+        """Runs before the values are written.
+
+        Change `context.values`, or `context.set("slug", ...)`, to store
+        something other than what was submitted. Raise `RefusedError` to
+        refuse the save, naming a field to put the message beside it.
+        """
 
     async def after_save(self, context: SaveContext) -> None:
         """Runs after the flush, while the transaction is still open."""

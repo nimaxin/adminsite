@@ -72,3 +72,37 @@ def count_lines(session):
 
 total = await context.session.run(count_lines)
 ```
+
+## Changing a value before it is stored
+
+`before_save` runs before the submitted values are written onto the record, so that is where to
+change them. Change `context.values`, or use `context.set`:
+
+```python
+class ProductView(ModelView, model=Product):
+    async def before_save(self, context: SaveContext) -> None:
+        name = context.values.get("name")
+        if name:
+            context.set("slug", slugify(name))
+```
+
+Whatever the hook leaves in `context.values` is what is stored, so the database never sees the
+untransformed value and a unique check fires against the value you meant. Setting an attribute on
+`context.record` here would be overwritten a moment later by the value from the form; set the
+attribute in `after_save` only for things the form does not send.
+
+## Refusing one field
+
+A refusal with a field name appears next to that input, like any other problem with what was
+typed, and everything else the person wrote stays in place:
+
+```python
+async def before_save(self, context: SaveContext) -> None:
+    delay = context.values.get("validation_delay")
+    if delay is not None and delay < context.record.check_delay:
+        raise RefusedError("Keep this above the check delay.", field="validation_delay")
+```
+
+Without a field the message sits above the form, as before. The [JSON API](api.md) answers 422
+with `{"errors": {"validation_delay": "..."}}` for a refusal about a field, and 409 for the rest.
+

@@ -25,13 +25,24 @@ class FormResult:
 
 @dataclass
 class SaveContext:
-    """What a save hook is given. Everything here is inside one transaction."""
+    """What a save hook is given. Everything here is inside one transaction.
+
+    In `before_save` the values have not been written onto the record yet,
+    so that is where to change them: `context.values` is the dictionary
+    that is about to be applied, and `set` writes into it. Setting an
+    attribute on `context.record` there would be overwritten a moment
+    later by the value from the form.
+    """
 
     session: SessionAdapter
     record: Any
-    values: Mapping[str, Any]
+    values: dict[str, Any]
     created: bool
     request: Any = None
+
+    def set(self, path: str, value: Any) -> None:
+        """Change a value before it is stored."""
+        self.values[path] = value
 
 
 @dataclass

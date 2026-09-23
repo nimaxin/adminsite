@@ -1,6 +1,7 @@
 import html
 import re
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 import pytest
@@ -36,7 +37,7 @@ def token_in(page: httpx.Response) -> str:
     return found.group(1)
 
 
-async def options_of(database: Database, key: int = 1) -> dict:
+async def options_of(database: Database, key: int = 1) -> dict[str, Any]:
     async with database.session() as session:
         setting = await session.get(Setting, key)
         assert setting is not None
