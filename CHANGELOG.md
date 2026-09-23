@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a5
+
+A security release. A review of every route found ways to read or link records outside a
+view's scope, to sort by columns the view hides, to post to an admin without a secret key from
+another site, and to tell usernames apart by how long a sign in took. All are closed. Anyone on
+0.1.0a4 or earlier should upgrade.
 
 - **Security.** A link could be set to a record its own view would not show. The form's picker
   offered only records within the target view's scope, but the key that came back was loaded by
