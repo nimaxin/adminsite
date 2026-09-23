@@ -38,12 +38,20 @@ class FormRow:
     selected: Sequence[str] = dataclasses.field(default_factory=tuple)
     searchable: bool = False
     picked_label: str = ""
+    # The records a searchable link already holds, each with its name, so a
+    # relationship holding many of them can be edited one chip at a time.
+    picked: Sequence[Choice] = dataclasses.field(default_factory=tuple)
     # The path the lookup searches by, when it differs from the input name,
     # as it does for a link inside an inline row.
     lookup_path: str = ""
     # False where an empty value is allowed in the browser even for a
     # required field, as in a blank inline row that may be left unused.
     browser_required: bool = True
+
+    @property
+    def picked_pairs(self) -> list[dict[str, str]]:
+        """The records already held, as the picker's script reads them."""
+        return [{"value": one.value, "label": one.label} for one in self.picked]
 
     @property
     def widget(self) -> str:
@@ -144,12 +152,12 @@ async def _fill_relation(
     total = await repository.count(session, QuerySpec(count=CountMode.EXACT))
 
     row.selected = tuple(_keys_of(repository, current))
-    shown = current
-    if row.selected and not isinstance(current, repository.model | list | tuple | set):
-        shown = await repository.get(session, row.selected[0])
-    row.picked_label = item.display(shown)
     row.searchable = total > PICKER_LIMIT
     row.value = row.selected[0] if row.selected else ""
+
+    if row.searchable:
+        row.picked = await _picked(admin, session, repository, item, current)
+        row.picked_label = row.picked[0].label if row.picked else ""
 
     if not row.searchable:
         page = await repository.list(
@@ -159,6 +167,32 @@ async def _fill_relation(
             Choice(repository.identity_of(found), title_for(admin, item, found))
             for found in page
         ]
+
+
+async def _picked(
+    admin: "Admin",
+    session: SessionAdapter,
+    repository: SQLAlchemyRepository,
+    item: RelationField,
+    current: Any,
+) -> list[Choice]:
+    """The records a link already holds, each with the name to show.
+
+    After a failed submit the values are keys rather than records, so the
+    records are read back to name them.
+    """
+    found = current if isinstance(current, list | tuple | set) else [current]
+    chosen: list[Choice] = []
+    for one in found:
+        record = one
+        if record is not None and not isinstance(record, repository.model):
+            record = await repository.get(session, str(one))
+        if record is None:
+            continue
+        chosen.append(
+            Choice(repository.identity_of(record), title_for(admin, item, record))
+        )
+    return chosen
 
 
 def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:

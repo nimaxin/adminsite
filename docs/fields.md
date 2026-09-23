@@ -66,8 +66,17 @@ Every field takes `label`, `required`, `readonly`, `help_text` and `max_length`.
 ## Links to many records
 
 A relationship that holds many records, such as a customer's orders, shows the linked records'
-names in the list and a multiple select in the form. On a table with more than 100 records the
-picker becomes a search box, served by a lookup that searches the other model's text columns.
+names in the list and a multiple select in the form.
+
+Above 100 records the select is no good, so the picker becomes a search box. It searches the other
+model's text columns through a lookup, and the records already linked sit above it as chips, each
+with a button to take it off. Picking a record adds one more, picking the same one twice changes
+nothing, and the box says how many are held. A link that holds a single record works the same way,
+except that picking replaces what is there.
+
+The search box is the only way the picker can work on a large table, so the records it offers are
+whatever the lookup finds, twenty at a time. Give the other model a `display_template` so those
+twenty read as something other than `<Order object at 0x...>`.
 
 ## JSON columns
 

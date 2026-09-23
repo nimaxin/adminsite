@@ -1,13 +1,32 @@
 {% if row.searchable %}
-  <div class="relative" x-data="{ open: false, label: {{ row.picked_label|tojson }} }"
-       @click.outside="open = false">
-    <input type="hidden" name="{{ row.path }}" value="{{ row.value }}" x-ref="key"
-           id="field-{{ row.path }}">
+  {#- Above a hundred records the picker searches instead of listing them.
+      It holds one record, or several where the link holds many. -#}
+  <div class="relative" @click.outside="open = false"
+       {#- Single quotes, because the records already held are written in as
+           JSON and their names hold double quotes. -#}
+       x-data='recordPicker({multiple: {{ "true" if row.field.collection else "false" }}, picked: {{ row.picked_pairs|tojson }}})'>
+    <template x-for="item in picked" :key="item.value">
+      <input type="hidden" name="{{ row.path }}" :value="item.value">
+    </template>
+    {% if row.field.collection %}
+      <div class="mb-1 flex flex-wrap gap-1" x-show="picked.length" x-cloak>
+        <template x-for="item in picked" :key="item.value">
+          <span class="badge badge-soft badge-primary gap-1 pe-1">
+            <span x-text="item.label"></span>
+            <button type="button" class="rounded px-1 hover:bg-primary/15"
+                    @click="remove(item.value)"
+                    :aria-label="REMOVE_CHOSEN.replace('{name}', item.label)">&times;</button>
+          </span>
+        </template>
+      </div>
+    {% endif %}
+
     <div class="join w-full">
-      <span class="input join-item w-full" x-text='label || {{ _("Nothing chosen")|tojson }}'></span>
+      <span class="input join-item w-full" x-text="summary"></span>
       <button class="btn join-item" type="button" @click="open = !open"
               :aria-expanded="open.toString()" {{ field_attrs|default('') }}>{{ _('Choose') }}</button>
     </div>
+
     <div class="absolute z-30 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
          x-show="open" x-cloak>
       <label class="input input-sm mb-1 w-full">

@@ -1,8 +1,8 @@
 <ul class="menu menu-sm w-full p-0">
   {% for choice in choices %}
     <li>
-      <button type="button"
-              @click="$refs.key.value = '{{ choice.value }}'; label = {{ choice.label|tojson }}; open = false">
+      {#- Single quotes, because a record's name may hold a double quote. -#}
+      <button type="button" @click='choose({{ choice.value|tojson }}, {{ choice.label|tojson }})'>
         {{ choice.label }}
       </button>
     </li>

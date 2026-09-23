@@ -12,6 +12,9 @@
 {% for src in admin.scripts %}<script src="{{ urls.asset(src) }}" defer></script>
 {% endfor %}
 <script>
+  const NOTHING_CHOSEN = {{ _("Nothing chosen")|tojson }};
+  const HOW_MANY_CHOSEN = {{ _("{count} chosen")|tojson }};
+  const REMOVE_CHOSEN = {{ _("Remove {name}")|tojson }};
   try {
     const saved = localStorage.getItem("adminsite-theme");
     if (saved) document.documentElement.dataset.theme = saved;
@@ -23,6 +26,36 @@
       : matchMedia("(prefers-color-scheme: dark)").matches;
     root.dataset.theme = dark ? "light" : "dark";
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
+  }
+
+  // A link that searches instead of listing. It holds one record, or
+  // several where the relationship holds many.
+  function recordPicker(config) {
+    return {
+      open: false,
+      multiple: config.multiple,
+      picked: config.picked,
+      choose(value, label) {
+        if (!this.multiple) {
+          this.picked = [{ value, label }];
+          this.open = false;
+          return;
+        }
+        if (!this.picked.some((item) => item.value === value)) {
+          this.picked = [...this.picked, { value, label }];
+        }
+      },
+      remove(value) {
+        this.picked = this.picked.filter((item) => item.value !== value);
+      },
+      get summary() {
+        if (!this.picked.length) return NOTHING_CHOSEN;
+        if (this.multiple) {
+          return HOW_MANY_CHOSEN.replace("{count}", this.picked.length);
+        }
+        return this.picked[0].label;
+      },
+    };
   }
 
   // The command palette: Ctrl+K or Cmd+K opens it, arrows move, Enter goes.

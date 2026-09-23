@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A relationship holding many records can be edited on a large table. Above 100 records the
+  picker became a search box that kept one key, which lost every other record the link held.
+  It now keeps all of them, showing each as a chip with a button to take it off.
 - `can_export = False` switches the CSV export off for a view, and the button now follows
   `Permission.EXPORT` instead of always showing. `can_detail = False` switches off the record
   page: rows open the form instead, and saving lands on the list.

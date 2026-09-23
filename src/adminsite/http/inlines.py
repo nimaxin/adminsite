@@ -84,6 +84,7 @@ class _CellMaker:
                 repository = SQLAlchemyRepository(item.target, self.admin.inspector)
                 row.value = repository.identity_of(current)
                 row.picked_label = item.display(current)
+                row.picked = (Choice(row.value, row.picked_label),)
             row.selected = (row.value,) if row.value else ()
         return row
 
