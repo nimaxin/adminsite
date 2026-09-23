@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "adminsite"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { editable = "." }
 dependencies = [
     { name = "itsdangerous" },

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a4
+
+The fourth alpha. It closes the gaps the first ports of real panels ran into: actions on one
+record and on the view, computed fields, JSON columns, markup in a cell, lighter field
+overrides, a relation picker that holds many records, and settings for the pages a view does
+not need. Tested on SQLite, Postgres and MySQL.
 
 - `AuthProvider.sign_in_failed(request, username)` runs on every wrong password and returns
   what the login page says, so an attempt can be recorded, alerted on or slowed down, and the
