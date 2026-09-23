@@ -69,6 +69,10 @@ It is applied to the list, its count, opening one record, the CSV export and bul
 outside the scope cannot be seen, opened, changed or deleted, and guessing its key in the URL gives
 a "not found". There is no path through the admin that forgets to check.
 
+That includes a picker on someone else's form. When an order links to a customer, the picker reads
+through `CustomerView`, so it offers only the customers this user may see, and offers none at all
+where they may not open the view. See [Fields](fields.md#links-to-many-records).
+
 ## Fields
 
 Hide a column or lock a field for some users with the `get_` methods:

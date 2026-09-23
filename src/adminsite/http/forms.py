@@ -6,14 +6,11 @@ from typing import TYPE_CHECKING, Any
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import ChoiceField, Field, FileField, RelationField
-from adminsite.query import CountMode, QuerySpec
+from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
-
-# Above this many records a relation is searched rather than listed.
-PICKER_LIMIT = 100
 
 
 @dataclass
@@ -120,7 +117,7 @@ async def build_rows(
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(current)
         elif isinstance(item, RelationField):
-            await _fill_relation(admin, session, row, item, current)
+            await _fill_relation(admin, session, row, item, current, request)
         rows.append(row)
     return rows
 
@@ -149,47 +146,52 @@ async def _fill_relation(
     row: FormRow,
     item: RelationField,
     current: Any,
+    request: Any = None,
 ) -> None:
     """Give a relation field either a list of records or a search box."""
-    repository = SQLAlchemyRepository(item.target, admin.inspector)
-    total = await repository.count(session, QuerySpec(count=CountMode.EXACT))
-
-    row.selected = tuple(_keys_of(repository, current))
-    row.searchable = total > PICKER_LIMIT
+    picker = Picker(admin, item, request)
+    row.selected = tuple(_keys_of(picker.repository, current))
     row.value = row.selected[0] if row.selected else ""
 
-    if row.searchable:
-        row.picked = await _picked(admin, session, repository, item, current)
-        row.picked_label = row.picked[0].label if row.picked else ""
+    # One page plus a probe row: enough to list them, or to know there are
+    # too many to list.
+    page = await picker.offered(session, limit=PICKER_LIMIT)
+    if page is None:
+        # The user may see none of these records, so there is nothing to
+        # offer. The form still draws, with an empty picker.
+        return
 
-    if not row.searchable:
-        page = await repository.list(
-            session, QuerySpec(limit=PICKER_LIMIT, count=CountMode.NONE)
-        )
-        row.choices = [
-            Choice(repository.identity_of(found), title_for(admin, item, found))
-            for found in page
-        ]
+    row.searchable = page.has_next
+    if row.searchable:
+        row.picked = await _picked(admin, session, picker, item, current)
+        row.picked_label = row.picked[0].label if row.picked else ""
+        return
+
+    row.choices = [
+        Choice(picker.repository.identity_of(found), title_for(admin, item, found))
+        for found in page.rows
+    ]
 
 
 async def _picked(
     admin: "Admin",
     session: SessionAdapter,
-    repository: SQLAlchemyRepository,
+    picker: Picker,
     item: RelationField,
     current: Any,
 ) -> list[Choice]:
     """The records a link already holds, each with the name to show.
 
     After a failed submit the values are keys rather than records, so the
-    records are read back to name them.
+    records are read back to name them, through the target's own view.
     """
     found = current if isinstance(current, list | tuple | set) else [current]
+    repository = picker.repository
     chosen: list[Choice] = []
     for one in found:
         record = one
         if record is not None and not isinstance(record, repository.model):
-            record = await repository.get(session, str(one))
+            record = await picker.get(session, str(one))
         if record is None:
             continue
         chosen.append(

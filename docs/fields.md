@@ -111,6 +111,16 @@ The search box is the only way the picker can work on a large table, so the reco
 whatever the lookup finds, twenty at a time. Give the other model a `display_template` so those
 twenty read as something other than `<Order object at 0x...>`.
 
+A picker reads through the other model's own view, so its `scope_query` and its permissions apply
+here as on any other page. A user who may see only their own region's customers sees only those in
+the picker, and a view nobody may open offers nothing at all. Where the other model has no view of
+its own, there is nothing to ask and its records are read directly.
+
+The search looks in the target view's `search_fields`. Where it names none, it looks in the text
+columns the records are named by, which the picker is already showing. So a column a view keeps off
+its pages cannot be read a letter at a time through a picker, and a target with neither
+`search_fields` nor a `display_template` cannot be narrowed at all.
+
 ## JSON columns
 
 A `JSON` or `JSONB` column gets a `JSONField` by itself. The list shows the document on one line,

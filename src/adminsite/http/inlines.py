@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import ChoiceField, RelationField
-from adminsite.http.forms import PICKER_LIMIT, Choice, FormRow, title_for
-from adminsite.query import CountMode, QuerySpec
+from adminsite.http.forms import Choice, FormRow, title_for
+from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.views import Inline, ModelView
 
 if TYPE_CHECKING:
@@ -107,7 +107,9 @@ async def build_inline_tables(
         paths = child.get_form_fields(request)
         readonly = set(child.get_readonly_fields(request))
         options = {
-            path: await _relation_options(admin, session, child.field_for(path))
+            path: await _relation_options(
+                admin, session, child.field_for(path), request
+            )
             for path in paths
             if isinstance(child.field_for(path), RelationField)
         }
@@ -187,20 +189,21 @@ def _rows_from_form(
 
 
 async def _relation_options(
-    admin: "Admin", session: SessionAdapter, item: Any
+    admin: "Admin", session: SessionAdapter, item: Any, request: Any = None
 ) -> _RelationOptions:
     """Load a link's choices once, for every row of the table to share."""
-    repository = SQLAlchemyRepository(item.target, admin.inspector)
-    total = await repository.count(session, QuerySpec(count=CountMode.EXACT))
-    if total > PICKER_LIMIT:
+    picker = Picker(admin, item, request)
+    page = await picker.offered(session, limit=PICKER_LIMIT)
+    if page is None:
+        # The user may see none of these records: an empty picker, not a
+        # search box that would find nothing either.
+        return _RelationOptions(choices=[], searchable=False)
+    if page.has_next:
         return _RelationOptions(choices=[], searchable=True)
-    page = await repository.list(
-        session, QuerySpec(limit=PICKER_LIMIT, count=CountMode.NONE)
-    )
     return _RelationOptions(
         choices=[
-            Choice(repository.identity_of(found), title_for(admin, item, found))
-            for found in page
+            Choice(picker.repository.identity_of(found), title_for(admin, item, found))
+            for found in page.rows
         ],
         searchable=False,
     )

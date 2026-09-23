@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Security.** A relation picker read the other model's table directly, so it ignored that model's
+  view: it offered records outside `scope_query`, offered them to users whose permissions denied
+  the view entirely, and searched every text column rather than the ones on show. A picker now
+  reads through the target's own view, and its lookup needs the permission that opens a form.
+  Anyone running 0.1.0a4 or earlier with a `scope_query` or a denied view should upgrade.
+- A picker's search looks in the target view's `search_fields`, and where it names none, in the
+  text columns its records are named by. A target with neither cannot be narrowed by typing.
+
 ## 0.1.0a4
 
 The fourth alpha. It closes the gaps the first ports of real panels ran into: actions on one

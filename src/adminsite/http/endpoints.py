@@ -7,7 +7,6 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response, StreamingResponse
 
 from adminsite.actions import Selection
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
@@ -30,11 +29,12 @@ from adminsite.http.listing import (
     read_list_request,
     wants_partial,
 )
+from adminsite.http.picker import RESULT_LIMIT, Picker
 from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
-from adminsite.query import CountMode, QuerySpec
+from adminsite.query import CountMode
 from adminsite.security import Permission
 from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.views import ModelView
@@ -409,8 +409,16 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
 
 
 async def lookup(admin: "Admin", request: Request) -> Response:
-    """The records a relation field offers, narrowed by what was typed."""
+    """The records a relation field offers, narrowed by what was typed.
+
+    A picker only appears on a form, so this needs the permission that
+    opens one. The records themselves come through the target's own view,
+    so its scope and its permissions apply here as on any other page.
+    """
     view = find_view(admin, request)
+    if not await view.allows(Permission.CREATE, request=request):
+        await view.ensure(Permission.EDIT, request=request)
+
     path = request.path_params["path"]
     item = view.field_for(path)
     if not isinstance(item, RelationField):
@@ -418,24 +426,19 @@ async def lookup(admin: "Admin", request: Request) -> Response:
             status_code=404, detail=_("{path} is not a link.", path=repr(path))
         )
 
-    target = SQLAlchemyRepository(item.target, admin.inspector)
-    schema = admin.inspector.inspect(item.target)
-    spec = QuerySpec(
-        search=request.query_params.get("q", "").strip(),
-        search_paths=tuple(
-            name
-            for name, found in schema.fields.items()
-            if found.python_type is str and not found.primary_key
-        ),
-        limit=20,
-        count=CountMode.NONE,
-    )
-
+    picker = Picker(admin, item, request)
     async with admin.database.session() as session:
-        page = await target.list(session, spec)
+        page = await picker.page(
+            session,
+            search=request.query_params.get("q", "").strip(),
+            limit=RESULT_LIMIT,
+        )
         choices = [
-            Choice(target.identity_of(record), title_for(admin, item, record))
-            for record in page
+            Choice(
+                picker.repository.identity_of(record),
+                title_for(admin, item, record),
+            )
+            for record in page.rows
         ]
 
     return await admin.render(

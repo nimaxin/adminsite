@@ -12,6 +12,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.fields import RelationField
+from adminsite.http.picker import RESULT_LIMIT
 from tests.models import Customer, Order, OrderItem, OrderStatus
 
 
@@ -129,10 +130,28 @@ class TestALinkThatSearches:
 
         assert 'choose("1", "Order #1")' in found.text
 
-    async def test_what_is_typed_narrows_the_results(
+    async def test_a_column_the_names_do_not_show_is_not_searched(
         self, client: httpx.AsyncClient
     ) -> None:
+        """A note nobody can see cannot be read a letter at a time."""
         found = await client.get("/admin/customers/lookup/orders?q=rush")
+
+        assert found.text.count("choose(") == RESULT_LIMIT
+
+    async def test_what_the_target_view_offers_is_searched(
+        self, big_database: Database
+    ) -> None:
+        class OrderView(ModelView, model=Order):
+            display_template = "Order #{id}"
+            search_fields = ("note",)
+
+        admin = Admin(big_database, views=[CustomerView, OrderView])
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            found = await client.get("/admin/customers/lookup/orders?q=rush")
 
         assert found.text.count("choose(") == 1
 
