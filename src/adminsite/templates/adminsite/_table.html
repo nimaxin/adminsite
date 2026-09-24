@@ -11,7 +11,7 @@
     <input type="hidden" name="everything" :value="everything ? '1' : ''">
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <table class="w-full border-separate border-spacing-0">
+      <table class="hidden w-full border-separate border-spacing-0 md:table">
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
           <tr>
@@ -113,6 +113,48 @@
           {% endfor %}
         </tbody>
       </table>
+
+      {#- On a phone each row is a card: its first column and its first badge
+          on top, the rest below with the first amount at the end. -#}
+      {%- set layout = namespace(badge=none, amount=none) -%}
+      {%- for path in columns[1:] -%}
+        {%- set kind = view.field_for(path).widget -%}
+        {%- if layout.badge is none and kind in ("select", "checkbox") %}{% set layout.badge = path %}{% endif -%}
+        {%- if layout.amount is none and kind == "number" %}{% set layout.amount = path %}{% endif -%}
+      {%- endfor -%}
+      <ul class="md:hidden" aria-label="{{ view.label_plural }}">
+        {% for row in page %}
+          {% set key = view.identity_of(row) %}
+          {% set first = columns[0] %}
+          {% set text = view.display(row, first) %}
+          {% set is_key = view.field_for(first).widget == "number" and first in view.schema.primary_key %}
+          {% set shown = ("#" ~ text if is_key and text else (text or view.title_of(row))) %}
+          {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
+          {% set rest = [] %}
+          {% for path in columns[1:] if path not in (layout.badge, layout.amount) and view.field_for(path).widget not in ("image", "file") %}
+            {% set value = view.display(row, path) %}
+            {% if value %}{% set ignored = rest.append(value|string) %}{% endif %}
+          {% endfor %}
+          <li class="border-b border-line">
+            <{{ "a" if opens else "div" }} {% if opens %}href="{{ opens }}"{% endif %} class="flex flex-col gap-1 px-4 py-3 active:bg-subtle">
+              <span class="flex items-center justify-between gap-3">
+                <span class="min-w-0 truncate font-medium {% if opens %}text-link{% endif %} {% if is_key %}font-mono text-[13.5px]{% endif %}">{{ shown }}</span>
+                {% if layout.badge and view.display(row, layout.badge) %}
+                  {{ values.badge(view.field_for(layout.badge), view.value_at(row, layout.badge), view.display(row, layout.badge)) }}
+                {% endif %}
+              </span>
+              <span class="flex items-baseline justify-between gap-3">
+                <span class="min-w-0 truncate text-[13px] text-muted">{{ rest|join(" · ") }}</span>
+                {% if layout.amount %}
+                  <span class="shrink-0 font-semibold tabular-nums">{{ view.display(row, layout.amount) }}</span>
+                {% endif %}
+              </span>
+            </{{ "a" if opens else "div" }}>
+          </li>
+        {% else %}
+          <li class="py-16 text-center text-muted">{{ _("No {things} to show.", things=view.label_plural|lower) }}</li>
+        {% endfor %}
+      </ul>
     </div>
 
     {% if actions %}

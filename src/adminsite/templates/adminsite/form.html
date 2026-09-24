@@ -20,14 +20,18 @@
 {% block header_class %}border-b border-base-300 lg:pt-2 lg:pb-5{% endblock %}
 
 {% block header %}
-  <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">
+  <h1 class="text-[22px] font-semibold leading-tight tracking-tight sm:truncate sm:text-[26px]">
     {{ _('Edit {name}', name=heading) if record is not none else heading }}
   </h1>
 {% endblock %}
 
 {% block header_actions %}
-  <a class="btn btn-plain btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
-  <button class="btn btn-primary btn-sm" type="submit" form="record-form">{{ submit_label }}</button>
+  {#- On a phone the buttons at the foot of the form are enough, and the title
+      gets the whole line. -#}
+  <div class="hidden items-center gap-2 sm:flex">
+    <a class="btn btn-plain btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
+    <button class="btn btn-primary btn-sm" type="submit" form="record-form">{{ submit_label }}</button>
+  </div>
 {% endblock %}
 
 {% block content %}

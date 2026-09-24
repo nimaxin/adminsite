@@ -1,11 +1,11 @@
 {% import "adminsite/_icons.html" as icons %}
 {% set body %}
-  <div class="flex h-full flex-col gap-2.5 px-5 py-4">
+  <div class="flex h-full flex-col gap-2.5 px-4 py-4 sm:px-5">
     <div class="flex items-center justify-between gap-2 text-[13px] text-muted">
       <span class="truncate">{{ widget.title }}</span>
       {% if widget.link %}{{ icons.icon("arrow-up-right") }}{% endif %}
     </div>
-    <div class="text-[30px] font-semibold leading-none tracking-tight tabular-nums">{{ data.value }}</div>
+    <div class="truncate text-2xl font-semibold leading-none tracking-tight tabular-nums sm:text-[30px]">{{ data.value }}</div>
     {% if data.change is not none %}
       <div class="text-xs font-medium {% if data.change >= 0 %}text-success{% else %}text-error{% endif %}">
         {{ _('{change} on the period before', change=("+" if data.change >= 0 else "−") ~ "{:.0f}".format(data.change|abs) ~ "%") }}

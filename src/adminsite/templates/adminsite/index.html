@@ -6,10 +6,10 @@
 
 {% block content %}
 {#- Written out whole, so the stylesheet build sees every class. -#}
-{% set spans = {1: "", 2: "sm:col-span-2", 3: "sm:col-span-2 xl:col-span-3", 4: "sm:col-span-2 xl:col-span-4"} %}
+{% set spans = {1: "", 2: "col-span-2", 3: "col-span-2 xl:col-span-3", 4: "col-span-2 xl:col-span-4"} %}
 <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
   {% if cards %}
-    <div class="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="grid grid-cols-2 items-start gap-3 sm:gap-4 xl:grid-cols-4">
       {% for card in cards %}
         <section class="{{ spans.get(card.widget.width, '') }} h-full min-w-0"
                  {% if card.widget.title %}aria-label="{{ card.widget.title }}"{% endif %}>

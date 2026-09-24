@@ -25,6 +25,10 @@
   that says what they are, its tallest bar picked out, and each bar's value on hover. A day that
   SQLite hands back as text reads as "Sep 14" like any other date. The latest records card links
   to the whole list.
+- On a phone the list becomes a column of cards, each with its first column and badge on top and
+  the rest below, its amount at the end. A page's secondary actions fold into one menu so the
+  header keeps to one line, the form's title gets the whole line, and the overview's cards sit
+  two to a row.
 
 ## 0.1.0a5
 

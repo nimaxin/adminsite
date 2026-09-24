@@ -29,25 +29,36 @@
 {% endblock %}
 
 {% block header_actions %}
-  {% for item in record_actions %}
-    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
-            type="button" onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
-      {{ item.label }}
-    </button>
-  {% endfor %}
+  <div class="hidden items-center gap-2 sm:flex">
+    {% for item in record_actions %}
+      <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
+              type="button" onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
+        {{ item.label }}
+      </button>
+    {% endfor %}
+  </div>
   {% if can_edit %}
     <a class="btn btn-primary btn-sm ps-2.5" href="{{ urls.edit(view, key) }}">{{ icons.icon("pencil") }}{{ _('Edit') }}</a>
   {% endif %}
-  {% if can_delete %}
-    <div class="dropdown dropdown-end">
+  {#- The menu holds delete, and on a phone the record's actions as well. -#}
+  {% if can_delete or record_actions %}
+    <div class="dropdown dropdown-end {% if not can_delete %}sm:hidden{% endif %}">
       <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-plain btn-sm btn-square"
            aria-label="{{ _('More actions') }}">{{ icons.icon("more") }}</div>
-      <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
-        <li>
-          <button type="button" class="text-error" onclick="document.getElementById('confirm-delete').showModal()">
-            {{ icons.icon("trash", 14) }}{{ _('Delete') }}
-          </button>
-        </li>
+      <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-52 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
+        {% for item in record_actions %}
+          <li class="sm:hidden">
+            <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
+                    onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>{{ item.label }}</button>
+          </li>
+        {% endfor %}
+        {% if can_delete %}
+          <li>
+            <button type="button" class="text-error" onclick="document.getElementById('confirm-delete').showModal()">
+              {{ icons.icon("trash", 14) }}{{ _('Delete') }}
+            </button>
+          </li>
+        {% endif %}
       </ul>
     </div>
   {% endif %}

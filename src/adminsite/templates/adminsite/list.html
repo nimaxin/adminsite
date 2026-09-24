@@ -11,25 +11,47 @@
 {% endblock %}
 
 {% block header_actions %}
-  {% for item in view_actions %}
-    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
-            type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
-      {{ item.label }}
-    </button>
-  {% endfor %}
-  {% if can_import %}
-    <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">
-      <span class="text-muted">{{ icons.icon("upload") }}</span>{{ _('Import') }}
-    </a>
-  {% endif %}
-  {% if can_export %}
-    <a class="btn btn-plain btn-sm" href="{{ urls.export(view, **export_params) }}">
-      <span class="text-muted">{{ icons.icon("download") }}</span>{{ _('Export CSV') }}
-    </a>
+  {#- On a phone the page's other actions fold into one menu, so the header
+      keeps to a single line. -#}
+  <div class="hidden items-center gap-2 sm:flex">
+    {% for item in view_actions %}
+      <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
+              type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
+        {{ item.label }}
+      </button>
+    {% endfor %}
+    {% if can_import %}
+      <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">
+        <span class="text-muted">{{ icons.icon("upload") }}</span>{{ _('Import') }}
+      </a>
+    {% endif %}
+    {% if can_export %}
+      <a class="btn btn-plain btn-sm" href="{{ urls.export(view, **export_params) }}">
+        <span class="text-muted">{{ icons.icon("download") }}</span>{{ _('Export CSV') }}
+      </a>
+    {% endif %}
+  </div>
+  {% if view_actions or can_import or can_export %}
+    <div class="dropdown dropdown-end sm:hidden">
+      <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-plain btn-sm btn-square"
+           aria-label="{{ _('More actions') }}">{{ icons.icon("more") }}</div>
+      <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-56 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
+        {% for item in view_actions %}
+          <li><button type="button" class="{% if item.dangerous %}text-error{% endif %}"
+                      onclick='runRecordAction({{ item.name|tojson }}, "")'>{{ item.label }}</button></li>
+        {% endfor %}
+        {% if can_import %}
+          <li><a href="{{ urls.list(view) }}/import"><span class="text-muted">{{ icons.icon("upload", 14) }}</span>{{ _('Import') }}</a></li>
+        {% endif %}
+        {% if can_export %}
+          <li><a href="{{ urls.export(view, **export_params) }}"><span class="text-muted">{{ icons.icon("download", 14) }}</span>{{ _('Export CSV') }}</a></li>
+        {% endif %}
+      </ul>
+    </div>
   {% endif %}
   {% if can_create %}
     <a class="btn btn-primary btn-sm ps-2.5" href="{{ urls.create(view) }}">
-      {{ icons.icon("plus") }}{{ _('New {thing}', thing=view.label|lower) }}
+      {{ icons.icon("plus") }}<span class="sm:hidden">{{ _('New') }}</span><span class="hidden sm:inline">{{ _('New {thing}', thing=view.label|lower) }}</span>
     </a>
   {% endif %}
 {% endblock %}
