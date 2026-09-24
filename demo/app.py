@@ -37,7 +37,8 @@ from examples.shop import (
     dashboard,
 )
 
-logger = logging.getLogger("demo")
+# uvicorn prints this logger, so each reset shows in the server's log.
+logger = logging.getLogger("uvicorn.error")
 
 BANNER = (
     "This is a public demo. Sign in as admin with the password admin. "
@@ -90,6 +91,8 @@ async def reset_every_hour(engine: AsyncEngine, uploads: Path) -> None:
         except Exception:
             # The next hour tries again, and the demo stays up meanwhile.
             logger.exception("Resetting the demo failed.")
+        else:
+            logger.info("The demo is back as it started.")
 
 
 def build_app(data: Path, secret_key: str) -> FastAPI:

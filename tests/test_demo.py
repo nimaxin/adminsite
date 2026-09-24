@@ -1,16 +1,26 @@
+import asyncio
+import logging
 import re
 from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 from fastapi import FastAPI
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
+import demo.app
 from adminsite.audit import audit_table
 from adminsite.fields import ImageField
 from adminsite.saved_views import saved_view_table
-from demo.app import MEGABYTE, build_app, reset, seconds_until_reset
+from demo.app import (
+    MEGABYTE,
+    build_app,
+    reset,
+    reset_every_hour,
+    seconds_until_reset,
+)
 from examples.shop import Order
 
 SECRET = "a-secret-for-the-tests"
@@ -74,6 +84,30 @@ class TestReset:
             # The keys start again from one, so a shared link to a record
             # keeps working after the reset.
             assert (await client.get("/admin/orders/1")).status_code == 200
+
+    async def test_the_hourly_loop_carries_on_after_a_failure(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        tries = 0
+
+        async def flaky(engine: AsyncEngine, uploads: Path) -> None:
+            nonlocal tries
+            tries += 1
+            if tries == 1:
+                raise RuntimeError("the disk is full")
+            if tries == 3:
+                raise asyncio.CancelledError  # the app shutting down
+
+        monkeypatch.setattr(demo.app, "reset", flaky)
+        monkeypatch.setattr(demo.app, "seconds_until_reset", lambda now: 0)
+        caplog.set_level(logging.INFO, logger="uvicorn.error")
+
+        with pytest.raises(asyncio.CancelledError):
+            await reset_every_hour(create_async_engine("sqlite+aiosqlite://"), Path())
+
+        assert tries == 3
+        assert "Resetting the demo failed." in caplog.text
+        assert "The demo is back as it started." in caplog.text
 
     def test_it_falls_at_the_start_of_an_hour(self) -> None:
         assert seconds_until_reset(7200.0) == 3600
