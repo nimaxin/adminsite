@@ -161,6 +161,17 @@ class TestThePage:
         assert page.text.index('href="#content"') < page.text.index("<aside")
         assert '<main id="content" tabindex="-1"' in page.text
 
+    async def test_text_for_screen_readers_stays_inside_the_scrolling_area(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/orders/1/edit")
+
+        # "sr-only" text is placed against the nearest positioned ancestor.
+        # Were that the page, a label low in a long form would stretch the
+        # page past the window, so the scrolling area is positioned itself.
+        assert re.search(r'<div class="relative [^"]*overflow-auto">', page.text)
+        assert page.text.count('class="sr-only"') >= 2
+
     async def test_the_sidebar_is_named_and_marks_where_you_are(
         self, client: httpx.AsyncClient
     ) -> None:

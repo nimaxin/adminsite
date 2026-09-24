@@ -1,4 +1,5 @@
 import datetime
+import re
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -153,6 +154,22 @@ class TestChart:
 
         assert "<svg" in text
         assert "<caption>Orders by status</caption>" in text
+
+    async def test_its_numbers_for_screen_readers_take_no_room(
+        self, database: Database
+    ) -> None:
+        text = await overview(
+            database,
+            Chart(
+                "Orders by status",
+                select(Order.status, func.count()).group_by(Order.status),
+            ),
+        )
+
+        # "sr-only" cannot shrink a table, which grows to fit its rows, so a
+        # table given it stretched the page. The div around it can.
+        assert re.search(r'<div class="sr-only">\s*<table>\s*<caption>', text)
+        assert '<table class="sr-only">' not in text
 
     async def test_a_line_chart_draws_a_line(self, database: Database) -> None:
         day = func.date(Order.created_at)

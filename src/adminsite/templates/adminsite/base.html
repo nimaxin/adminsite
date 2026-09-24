@@ -165,7 +165,10 @@
           {% block header_actions %}{% endblock %}
         </div>
       </header>
-      <div class="flex min-h-0 flex-1 flex-col overflow-auto">
+      {#- Relative, so text kept for screen readers ("sr-only") is placed inside
+          this scrolling area. Placed against the page instead, a label low in a
+          long form stretched the page and made the whole window scroll. -#}
+      <div class="relative flex min-h-0 flex-1 flex-col overflow-auto">
         {% block content %}{% endblock %}
       </div>
     </main>

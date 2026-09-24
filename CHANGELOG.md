@@ -36,6 +36,9 @@
   a column of rows.
 - `Admin(banner=...)` shows one line above every page and on the sign in page, such as
   "Staging: changes here are not real."
+- In a short window the overview and the forms no longer make the whole page scroll. The chart's
+  numbers for screen readers were hidden from sight but kept their full height, and text kept
+  for screen readers low in a long form was placed against the page instead of the panel.
 
 ## 0.1.0a5
 

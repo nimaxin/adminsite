@@ -41,15 +41,20 @@
     <div class="flex justify-between ps-17 pe-5 pt-2 pb-4 text-[11px] text-muted" aria-hidden="true">
       {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
     </div>
-    {#- The same numbers for screen readers, which cannot read the drawing. -#}
-    <table class="sr-only">
-      <caption>{{ widget.title }}</caption>
-      <tbody>
-        {% for point in data.points %}
-          <tr><th scope="row">{{ point.label }}</th><td>{{ point.value }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    {#- The same numbers for screen readers, which cannot read the drawing.
+        The wrapper hides them: a table grows to fit its rows whatever size
+        it is given, so "sr-only" on the table itself left it full height,
+        and it stretched the page past the window. -#}
+    <div class="sr-only">
+      <table>
+        <caption>{{ widget.title }}</caption>
+        <tbody>
+          {% for point in data.points %}
+            <tr><th scope="row">{{ point.label }}</th><td>{{ point.value }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
     <p class="py-12 text-center text-muted">{{ _('No data yet.') }}</p>
   {% endif %}
