@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `Computed(name, load=...)` works a value out with a query that runs once for every record on the
+  page, such as a count of related rows: an async function given the session and the records,
+  answering with each record's value by its primary key. The list, the record page, the form, the
+  export and the API all show it, and `default` covers a record the answer leaves out.
 - Delete in the selection bar of every view that allows deleting. Each chosen record goes through
   the same permission check, `before_delete`, `after_delete` and audit entry as a single delete,
   in one transaction: when one is refused, nothing is deleted and the message names it. Switch it

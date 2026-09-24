@@ -169,6 +169,35 @@ class ProductView(ModelView, model=Product):
 `needs` names the paths the function reads, so they are loaded with the page. Without it a list of
 25 records would ask the database 25 times.
 
+### A value that takes a query
+
+A count, a sum or a breakdown of related rows is not something to load row by row and count in
+Python. Give `load` instead of a function: an async function handed the session and every record on
+the page, which answers with each record's value by its primary key. It runs once for the page,
+however many rows the page holds:
+
+```python
+from sqlalchemy import func, select
+
+
+async def member_counts(session, groups):
+    rows = await session.execute(
+        select(Member.group_id, func.count())
+        .where(Member.group_id.in_([group.id for group in groups]))
+        .group_by(Member.group_id)
+    )
+    return dict(rows.tuples().all())
+
+
+class GroupView(ModelView, model=Group):
+    list_display = ("name", "members")
+    fields = (Computed("members", load=member_counts, default=0),)
+```
+
+A record the answer leaves out gets `default`, here 0 for a group with no members. The value shows
+in the list, on the record page, on the form, in the export and in the API, each loading it the
+same way. A composite key is looked up as a tuple of its values.
+
 A computed value is never written, sorted or filtered: its column has no sort link, the form
 leaves it out, and so do imports and the API's writes. The API still reads it.
 

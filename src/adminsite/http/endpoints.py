@@ -88,6 +88,12 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     )
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
+        await view.load_values(
+            session,
+            list(page),
+            read.columns or view.get_list_display(request),
+            request=request,
+        )
         panels = await build_panels(view, session, spec, request)
 
     context = as_context(view, request, spec, page, panels, read)
@@ -279,6 +285,8 @@ async def detail(admin: "Admin", request: Request) -> Response:
     )
 
     paths = view.get_detail_fields(request, record)
+    async with admin.database.session() as session:
+        await view.load_values(session, [record], paths, request=request)
     links = await linked_records(admin, view, record, paths, request)
     beside = {link.path for link in links}
     shown = await many_links_text(admin, view, record, counted, request)

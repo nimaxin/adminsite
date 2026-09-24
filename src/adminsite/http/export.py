@@ -83,6 +83,7 @@ async def stream_csv(
             )
             if not len(batch):
                 return
+            await view.load_values(session, list(batch), paths, request=request)
             yield csv_rows(view, list(batch.rows), paths)
             if len(batch) < BATCH_SIZE:
                 return

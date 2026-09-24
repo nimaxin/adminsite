@@ -223,6 +223,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
     urls = Urls(request)
     async with admin.database.session() as session:
         page = await view.fetch_page(session, spec, request=request)
+        await view.load_values(session, list(page), paths, request=request)
         items = [to_json(view, record, paths, urls) for record in page]
     return JSONResponse(
         {
@@ -247,6 +248,9 @@ async def create(admin: "Admin", request: Request, view: ModelView) -> Response:
         key = view.identity_of(record)
         fresh = await view.fetch_record(
             session, key, paths=api_paths(view, request), request=request
+        )
+        await view.load_values(
+            session, [fresh], api_paths(view, request), request=request
         )
         return JSONResponse(
             to_json(view, fresh, api_paths(view, request), urls), status_code=201
@@ -287,6 +291,7 @@ async def item(admin: "Admin", request: Request) -> Response:
                 session, read_key(request), paths=load, request=request
             )
 
+        await view.load_values(session, [record], paths, request=request)
         return JSONResponse(to_json(view, record, paths, urls))
 
 

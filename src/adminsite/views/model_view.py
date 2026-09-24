@@ -33,12 +33,14 @@ from adminsite.exceptions import (
 )
 from adminsite.fields import (
     ChoiceField,
+    Computed,
     Field,
     FieldOptions,
     FieldRegistry,
     RelationField,
     default_registry,
 )
+from adminsite.fields.computed import LOADED
 from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
@@ -445,6 +447,40 @@ class ModelView:
                 return [getattr(item, part, None) for item in value]
             value = getattr(value, part, None)
         return value
+
+    async def load_values(
+        self,
+        session: SessionAdapter,
+        records: Sequence[Any],
+        paths: Sequence[str],
+        *,
+        request: Any = None,
+    ) -> None:
+        """Run the loaders of the computed fields among `paths`, once for all.
+
+        Each value waits on its record for the rest of the request, where
+        the list, the record page, the export and the API read it.
+        """
+        if not records:
+            return
+        for path in dict.fromkeys(paths):
+            if "." in path:
+                continue
+            try:
+                item = self.field_for(path)
+            except AdminSiteError:
+                continue
+            if not isinstance(item, Computed) or item.load is None:
+                continue
+            found = await item.load(session, records)
+            for record in records:
+                waiting = vars(record).setdefault(LOADED, {})
+                waiting[item.name] = found.get(self.key_value(record), item.default)
+
+    def key_value(self, record: Any) -> Any:
+        """A record's primary key as its columns hold it: a tuple when composite."""
+        identity: tuple[Any, ...] = sqlalchemy_inspect(record).identity or ()
+        return identity[0] if len(identity) == 1 else tuple(identity)
 
     def display(self, record: Any, path: str) -> str:
         """The text shown in a cell."""
