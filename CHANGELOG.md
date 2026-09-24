@@ -1,33 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a6
 
-- The Activity page pages through the whole log, fifty entries at a time, where it stopped at the
-  latest 200. It filters by kind of entry, person, days and record as well as by model, and keeps
-  the filters in its address. A record's History tab shows the latest twenty, where it showed a
-  hundred, and links to the rest on the Activity page.
-- Every action is audited: on one record, with the fields it changed; on the whole model, which
-  wrote nothing before; and one that answers with a file, which returned before it was written
-  down. Each entry keeps the values the action was run with, with secrets as `***` and files by
-  name, type and size. A field's new `secret` option decides what is a secret, where a name such
-  as `password` or `api_key` does not. An action that is refused, not allowed or fails is written
-  down as failed with its reason, after its work is rolled back. Downloading a list as CSV is
-  written down with its search and filters.
-- The audit log keeps every sign in, failed attempt and sign out, with the address and browser.
-  `verify` can raise `SignInRefused(reason, user=...)` to say why an attempt failed; the reason
-  goes to the log, never to the person. `PasswordAuth.verify` now raises it, saying whether the
-  username was unknown or the password wrong, where it returned `None` before. The Activity page
-  shows these entries to people who may read every model's history, and
-  `AuthProvider.may_read_sign_ins` changes who.
-- The audit log can live anywhere. The admin writes and reads it through `AuditStore`, two
-  methods: `record` and `find`, which takes an `AuditQuery` with filters and a place to page from.
-  A store of your own can keep the log in a table your application already has, and the History
-  tab and the Activity page show its rows. `AuditLog` gains `find`; `history` and `recent` stay.
-- Every audit entry says who acted by the key `AuthProvider.identity` returns, as `user_key`, as
-  well as by the name shown, which it had already. It also keeps the IP address and the browser,
-  and the History tab shows the address. The audit table gains the columns `user_key`, `ip`,
-  `user_agent`, `error` and `inputs`, all of which may be empty. A table adminsite created adds
-  them by itself; for one in your own migrations, generate a migration after upgrading.
+A new look, and an audit log that answers what gets asked of it afterwards. The admin is
+redesigned throughout and fits a phone. The audit log now records sign ins, every action and
+export, and what failed, names each person by a key that lasts and the address they came from,
+pages and filters, and can live in a table of your own.
+
+Before upgrading:
+
+- The audit table gains the columns `user_key`, `ip`, `user_agent`, `error` and `inputs`, all of
+  which may be empty. A table adminsite created adds them by itself; for one in your own
+  migrations, generate a migration.
+- `PasswordAuth.verify` raises `SignInRefused` for an unknown username or a wrong password, where
+  it returned `None`.
+- A record's History tab shows its latest twenty entries, and the Activity page the rest.
+
+What changed:
+
 - A new look. The admin sits on a quiet ground with each page on a raised panel, set in Geist,
   which now ships inside the package with no request to any other site. The sidebar gets icons,
   search at the top, and an active page you can read in light mode as well as dark. Colours
@@ -65,6 +55,32 @@
 - In a short window the overview and the forms no longer make the whole page scroll. The chart's
   numbers for screen readers were hidden from sight but kept their full height, and text kept
   for screen readers low in a long form was placed against the page instead of the panel.
+- Every audit entry says who acted by the key `AuthProvider.identity` returns, as `user_key`, as
+  well as by the name shown, which it had already. It also keeps the IP address and the browser,
+  and the History tab shows the address. The audit table gains the columns `user_key`, `ip`,
+  `user_agent`, `error` and `inputs`, all of which may be empty. A table adminsite created adds
+  them by itself; for one in your own migrations, generate a migration after upgrading.
+- The audit log can live anywhere. The admin writes and reads it through `AuditStore`, two
+  methods: `record` and `find`, which takes an `AuditQuery` with filters and a place to page from.
+  A store of your own can keep the log in a table your application already has, and the History
+  tab and the Activity page show its rows. `AuditLog` gains `find`; `history` and `recent` stay.
+- The audit log keeps every sign in, failed attempt and sign out, with the address and browser.
+  `verify` can raise `SignInRefused(reason, user=...)` to say why an attempt failed; the reason
+  goes to the log, never to the person. `PasswordAuth.verify` now raises it, saying whether the
+  username was unknown or the password wrong, where it returned `None` before. The Activity page
+  shows these entries to people who may read every model's history, and
+  `AuthProvider.may_read_sign_ins` changes who.
+- Every action is audited: on one record, with the fields it changed; on the whole model, which
+  wrote nothing before; and one that answers with a file, which returned before it was written
+  down. Each entry keeps the values the action was run with, with secrets as `***` and files by
+  name, type and size. A field's new `secret` option decides what is a secret, where a name such
+  as `password` or `api_key` does not. An action that is refused, not allowed or fails is written
+  down as failed with its reason, after its work is rolled back. Downloading a list as CSV is
+  written down with its search and filters.
+- The Activity page pages through the whole log, fifty entries at a time, where it stopped at the
+  latest 200. It filters by kind of entry, person, days and record as well as by model, and keeps
+  the filters in its address. A record's History tab shows the latest twenty, where it showed a
+  hundred, and links to the rest on the Activity page.
 
 ## 0.1.0a5
 
