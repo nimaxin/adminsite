@@ -274,6 +274,14 @@
   }
 }
 
+/* daisyUI draws a checkbox's tick over 0.4 seconds, which drags when ticking
+   a column of rows. It appears at once instead. Outside any layer, so it wins
+   over daisyUI's own rule. */
+.checkbox,
+.checkbox::before {
+  transition: none;
+}
+
 @layer base {
   /* Alpine hides these until it has started, so nothing flashes open. */
   [x-cloak] {

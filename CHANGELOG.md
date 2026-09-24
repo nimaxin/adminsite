@@ -32,6 +32,8 @@
 - Every field takes `format`, such as `format="€{:,.2f}"`, for how its value is written in the
   list, on the record page, in the export and on the overview. The form keeps the plain number.
   The sign in page, error pages, the activity page, imports and action dialogs share the new look.
+- A checkbox's tick appears at once. daisyUI drew it over 0.4 seconds, which dragged when ticking
+  a column of rows.
 
 ## 0.1.0a5
 
