@@ -126,9 +126,15 @@ class TestRefusingOneField:
         assert answer.status_code == 422
         assert 'id="field-price-note"' in answer.text
         assert "A price cannot be below zero." in answer.text
-        # Beside the field, not above the form as well.
-        assert answer.text.count("A price cannot be below zero.") == 1
         assert 'aria-describedby="field-price-note"' in answer.text
+        # Beside the field, and in the list at the top as a link to it, but
+        # never as a message about the whole form.
+        summary = answer.text.split('role="alert"', 1)[1].split("</ul>", 1)[0]
+        assert (
+            '<a class="text-error underline underline-offset-3" href="#field-price">'
+            in (summary)
+        )
+        assert "Some fields need another look." in summary
 
     async def test_what_was_typed_is_still_there(
         self, client: httpx.AsyncClient

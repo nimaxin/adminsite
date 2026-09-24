@@ -1,1 +1,4 @@
-<input class="input w-full" id="field-{{ row.path }}" value="{{ row.display }}" disabled {{ field_attrs|default('') }}>
+{#- A value that cannot be changed reads as text, not as a greyed out box. It
+    carries no name, so it is never sent back. -#}
+<input class="h-10 w-full truncate border-0 bg-transparent p-0 text-[15px] font-semibold tabular-nums outline-none"
+       id="field-{{ row.path }}" value="{{ row.display or '—' }}" readonly {{ field_attrs|default('') }}>

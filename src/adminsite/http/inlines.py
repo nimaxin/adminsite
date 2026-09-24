@@ -142,7 +142,9 @@ async def build_inline_tables(
                         ],
                     )
                 )
-            for extra in range(inline.extra):
+            # Blank rows only where there are no rows yet: a record that has
+            # its children needs no empty line under them, only a way to add one.
+            for extra in range(0 if children else inline.extra):
                 index = len(children) + extra
                 table.rows.append(
                     InlineTableRow(

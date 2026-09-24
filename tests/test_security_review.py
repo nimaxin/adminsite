@@ -148,9 +148,10 @@ class TestLinkingARecordOutOfScope:
         )
 
         assert hidden.status_code == missing.status_code == 422
+        message = "Choose a record."
+        assert hidden.text.count(message) == missing.text.count(message) >= 1
         for page in (hidden, missing):
-            assert page.text.count("Choose a record.") == 1
-            assert "999" not in page.text.split("Choose a record.")[0][-200:]
+            assert "999" not in page.text.split(message)[0][-200:]
 
     async def test_a_record_in_scope_is_linked(
         self, client: httpx.AsyncClient, database: Database

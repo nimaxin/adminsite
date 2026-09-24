@@ -224,17 +224,18 @@ class OrderView(ModelView, model=Order):
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
 ```
 
-The lines show as a table under the order's fields, with a blank row to fill in, an
-**Add another** button and a box to remove each line. Everything is saved in one transaction with
-the order, so a line that fails to validate keeps the order unsaved too, and the page comes back
-with what was typed and the error next to the cell.
+The lines show as a table under the order's fields, with an **Add a row** button and a button to
+remove each line. A new order starts with one blank row to fill in; an order that has its lines
+gets no empty row under them. Everything is saved in one transaction with the order, so a line
+that fails to validate keeps the order unsaved too, and the page comes back with what was typed,
+the error next to the cell, and a list of every problem at the top of the form.
 
 | Option | What it does |
 |---|---|
 | `fields` | The child's columns, in order. Defaults to every field except the link back to the parent. |
 | `readonly_fields` | Shown, not editable. |
 | `label` | The heading above the table. Defaults to the relationship's name. |
-| `extra` | How many blank rows to show. Defaults to 1. |
+| `extra` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
 | `can_delete` | Whether rows can be removed. |
 | `display_template` | How a child is named, as on a view. |
 

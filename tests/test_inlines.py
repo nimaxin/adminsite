@@ -280,7 +280,7 @@ class TestPages:
         assert 'name="items-count"' in response.text
         assert 'name="items-0-quantity"' in response.text
         assert "Linen shirt" in response.text
-        assert "Add another" in response.text
+        assert "Add a row" in response.text
 
     async def test_the_new_page_offers_a_blank_line(
         self, client: httpx.AsyncClient

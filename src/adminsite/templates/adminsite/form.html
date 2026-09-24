@@ -1,62 +1,113 @@
 {% extends "adminsite/base.html" %}
+{% import "adminsite/_icons.html" as icons %}
 
 {% block page_title %}{{ heading }} · {{ title }}{% endblock %}
 
+{% block breadcrumb %}
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
+    <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
+    {{ icons.icon("chevron-right", 14) }}
+    {% if record is not none %}
+      <a class="truncate hover:text-base-content" href="{{ cancel_url }}">{{ heading }}</a>
+      {{ icons.icon("chevron-right", 14) }}
+      <span aria-current="page" class="text-base-content">{{ _('Edit') }}</span>
+    {% else %}
+      <span aria-current="page" class="truncate text-base-content">{{ heading }}</span>
+    {% endif %}
+  </nav>
+{% endblock %}
+
+{% block header_class %}border-b border-base-300 lg:pt-2 lg:pb-5{% endblock %}
+
 {% block header %}
-  <div class="breadcrumbs py-0 text-sm">
-    <ul>
-      <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li class="truncate font-semibold">{{ heading }}</li>
-    </ul>
-  </div>
+  <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">
+    {{ _('Edit {name}', name=heading) if record is not none else heading }}
+  </h1>
+{% endblock %}
+
+{% block header_actions %}
+  <a class="btn btn-plain btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
+  <button class="btn btn-primary btn-sm" type="submit" form="record-form">{{ submit_label }}</button>
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl p-4 lg:p-6">
-  <form class="card card-border bg-base-100" method="post" action="{{ action }}"
+{#- Every problem in one place at the top, each a link to its field, so a
+    mistake at the bottom of a long form is never missed. -#}
+{%- set problems = [] -%}
+{%- for row in rows if row.error -%}
+  {%- set ignored = problems.append((row.path, row.label, row.error)) -%}
+{%- endfor -%}
+{%- for table in inlines -%}
+  {%- for item in table.rows -%}
+    {%- set number = loop.index -%}
+    {%- for cell in item.cells if cell.error -%}
+      {%- set ignored = problems.append((cell.path, _("{thing}, row {number}, {field}", thing=table.label, number=number, field=cell.label|lower), cell.error)) -%}
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endfor -%}
+<div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+  <form id="record-form" class="flex max-w-3xl flex-col gap-5" method="post" action="{{ action }}"
         {% if rows|selectattr("widget", "in", ["file", "image"])|list %}enctype="multipart/form-data"{% endif %}>
     {{ csrf_input | safe if csrf_input }}
-    <div class="card-body gap-1">
-      {% if form_error %}
-        <div role="alert" class="alert alert-error alert-soft mb-2">
-          <span>{{ form_error }}</span>
+
+    {% if form_error or problems %}
+      <div role="alert" class="flex gap-3 rounded-box border border-error/30 bg-error/5 px-4 py-3.5">
+        <span class="mt-0.5 text-error">{{ icons.icon("alert", 18) }}</span>
+        <div class="flex min-w-0 flex-col gap-1.5">
+          <p class="font-semibold">{{ form_error or _('Some fields need another look.') }}</p>
+          {% if problems %}
+            <ul class="list-disc space-y-0.5 ps-4 text-[13.5px]">
+              {% for path, label, error in problems %}
+                <li>
+                  <a class="text-error underline underline-offset-3" href="#field-{{ path }}">{{ label }}</a>: {{ error }}
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </div>
-      {% endif %}
-
-      {% for row in rows %}
-        {% include "adminsite/_field.html" %}
-      {% endfor %}
-
-      {% include "adminsite/_inlines.html" %}
-
-      <div class="card-actions mt-4 items-center border-t border-base-300 pt-4">
-        <button class="btn btn-primary btn-sm" type="submit">{{ submit_label }}</button>
-        <a class="btn btn-ghost btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
-        <span class="flex-1"></span>
-        {% if can_delete and record is not none %}
-          <button class="btn btn-error btn-soft btn-sm" type="button"
-                  onclick="document.getElementById('confirm-delete').showModal()">
-            {{ _('Delete') }}
-          </button>
-        {% endif %}
       </div>
+    {% endif %}
+
+    {% if rows %}
+      <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="form-title">
+        <h2 id="form-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
+        <div class="grid gap-x-5 gap-y-5 p-5 sm:grid-cols-2">
+          {% for row in rows %}
+            {% include "adminsite/_field.html" %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% include "adminsite/_inlines.html" %}
+
+    <div class="flex flex-wrap items-center gap-2 pt-1">
+      <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
+      <a class="btn btn-ghost" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
+      <span class="flex-1"></span>
+      {% if can_delete and record is not none %}
+        <button class="btn btn-ghost text-error hover:bg-error/10" type="button"
+                onclick="document.getElementById('confirm-delete').showModal()">
+          {{ icons.icon("trash") }}{{ _('Delete') }}
+        </button>
+      {% endif %}
     </div>
   </form>
-
-  {% if can_delete and record is not none %}
-    <dialog id="confirm-delete" class="modal">
-      <form class="modal-box" method="post" action="{{ urls.delete(view, key) }}">
-        {{ csrf_input | safe if csrf_input }}
-        <h3 class="text-lg font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
-        <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
-        <div class="modal-action">
-          <button type="button" class="btn btn-ghost btn-sm"
-                  onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
-          <button type="submit" class="btn btn-error btn-sm">{{ _('Delete') }}</button>
-        </div>
-      </form>
-      <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
-    </dialog>
-  {% endif %}
 </div>
+
+{% if can_delete and record is not none %}
+  <dialog id="confirm-delete" class="modal">
+    <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post" action="{{ urls.delete(view, key) }}">
+      {{ csrf_input | safe if csrf_input }}
+      <h3 class="text-base font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
+      <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm"
+                onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
+        <button type="submit" class="btn btn-error btn-sm">{{ _('Delete') }}</button>
+      </div>
+    </form>
+    <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
+  </dialog>
+{% endif %}
 {% endblock %}

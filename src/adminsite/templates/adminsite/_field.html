@@ -1,5 +1,6 @@
 {#- Each widget lives in widgets/, so a project can override one by
     dropping a file with the same name into its own template folder. -#}
+{% import "adminsite/_icons.html" as icons %}
 {%- set field_id = "field-" ~ row.path|replace(".", "-") -%}
 {#- Ties the input to its name, and to its error or help, for screen readers. -#}
 {%- set field_attrs -%}
@@ -7,13 +8,14 @@
   {%- if row.error or row.field.help_text %} aria-describedby="{{ field_id }}-note"{% endif %}
   {%- if row.error %} aria-invalid="true"{% endif %}
 {%- endset -%}
-<fieldset class="fieldset">
-  <legend class="fieldset-legend" id="{{ field_id }}-label">
+{%- set wide = row.widget in ("textarea", "json", "file", "image") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
+<fieldset class="flex min-w-0 flex-col gap-1.5 {% if wide %}sm:col-span-2{% endif %}">
+  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium" id="{{ field_id }}-label">
     {{ row.label }}
     {% if row.readonly %}
-      <span class="badge badge-ghost badge-xs font-normal">{{ _('read only') }}</span>
+      <span class="inline-flex items-center gap-1 text-xs font-normal text-muted">{{ icons.icon("lock", 12) }}{{ _('read only') }}</span>
     {% elif row.required %}
-      <span class="font-normal text-base-content/60">{{ _('required') }}</span>
+      <span class="text-xs font-normal text-muted">{{ _('required') }}</span>
     {% endif %}
   </legend>
 
@@ -24,8 +26,10 @@
   {% endif %}
 
   {% if row.error %}
-    <p class="label text-error" id="{{ field_id }}-note">{{ row.error }}</p>
+    <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ field_id }}-note">
+      <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ row.error }}
+    </p>
   {% elif row.field.help_text %}
-    <p class="label" id="{{ field_id }}-note">{{ row.field.help_text }}</p>
+    <p class="text-[12.5px] leading-snug text-muted" id="{{ field_id }}-note">{{ row.field.help_text }}</p>
   {% endif %}
 </fieldset>

@@ -1,51 +1,59 @@
+{% import "adminsite/_icons.html" as icons %}
 {% for table in inlines %}
-  <section class="mt-6" x-data="{ count: {{ table.rows|length }} }">
-    <div class="mb-2 flex items-center justify-between">
-      <h2 class="font-semibold">{{ table.label }}</h2>
-      <button type="button" class="btn btn-ghost btn-xs"
-              @click="
-                const blank = $refs.blank.innerHTML.replaceAll('{{ table.name }}-__index__-', '{{ table.name }}-' + count + '-');
-                $refs.body.insertAdjacentHTML('beforeend', blank);
-                count++;
-              ">
-        + {{ _('Add another') }}
-      </button>
+  <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" x-data="{ count: {{ table.rows|length }} }"
+           aria-labelledby="inline-{{ table.name }}">
+    <div class="flex items-center gap-2 border-b border-line px-5 py-3.5">
+      <h2 id="inline-{{ table.name }}" class="text-sm font-semibold">{{ table.label }}</h2>
+      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-xs font-medium text-muted">{{ table.rows|length }}</span>
     </div>
     <input type="hidden" name="{{ table.name }}-count" :value="count" value="{{ table.rows|length }}">
 
-    <div class="overflow-x-auto rounded-box border border-base-300">
-      <table class="table table-sm">
+    <div class="overflow-x-auto px-5 pt-2 pb-4">
+      <table class="w-full">
         <thead>
           <tr>
-            {% for header in table.headers %}<th>{{ header }}</th>{% endfor %}
-            {% if table.inline.can_delete %}<th class="w-16 text-center">{{ _('Remove') }}</th>{% endif %}
+            {% for header in table.headers %}
+              <th class="h-9 pe-3 text-start text-[12.5px] font-medium text-muted">{{ header }}</th>
+            {% endfor %}
+            {% if table.inline.can_delete %}<th class="w-10"><span class="sr-only">{{ _('Remove') }}</span></th>{% endif %}
           </tr>
         </thead>
         <tbody x-ref="body">
           {% for item in table.rows %}
             {% set index = loop.index0 %}
-            <tr>
+            <tr class="has-[input[name$=-delete]:checked]:opacity-50">
               {% for row in item.cells %}
-                <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} align-top">
+                <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} pe-3 pb-2 align-top">
                   {% if loop.first %}
                     <input type="hidden" name="{{ table.name }}-{{ index }}-key" value="{{ item.key }}">
                   {% endif %}
                   {% if row.readonly %}
-                    <span class="text-base-content/70">{{ row.display or "—" }}</span>
+                    <span class="flex h-10 items-center text-muted">{{ row.display or "—" }}</span>
                   {% else %}
                     {% set note_id = table.name ~ "-" ~ index ~ "-" ~ row.path|replace(".", "-") ~ "-note" %}
                     {% set field_attrs %}aria-label="{{ row.label }}"{% if row.error %} aria-invalid="true" aria-describedby="{{ note_id }}"{% endif %}{% endset %}
                     {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
                   {% endif %}
-                  {% if row.error %}<p class="pt-1 text-xs text-error" id="{{ note_id }}">{{ row.error }}</p>{% endif %}
+                  {% if row.error %}
+                    <p class="flex items-start gap-1.5 pt-1.5 text-[12.5px] leading-snug text-error" id="{{ note_id }}">
+                      <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ row.error }}
+                    </p>
+                  {% endif %}
                 </td>
               {% endfor %}
               {% if table.inline.can_delete %}
-                <td class="text-center align-top">
+                <td class="pb-2 align-top">
                   {% if item.key %}
-                    <input type="checkbox" class="checkbox checkbox-sm checkbox-error mt-2"
-                           name="{{ table.name }}-{{ index }}-delete" aria-label="{{ _('Remove this row') }}"
-                           {% if item.delete %}checked{% endif %}>
+                    {#- A real box, so the removal is sent with the form; it looks
+                        like a button and dims the row it will remove. -#}
+                    <label class="btn btn-ghost btn-square text-muted has-checked:bg-error/10 has-checked:text-error">
+                      <input type="checkbox" class="sr-only" name="{{ table.name }}-{{ index }}-delete"
+                             aria-label="{{ _('Remove this row') }}" {% if item.delete %}checked{% endif %}>
+                      {{ icons.icon("trash") }}
+                    </label>
+                  {% else %}
+                    <button type="button" class="btn btn-ghost btn-square text-muted" aria-label="{{ _('Remove this row') }}"
+                            @click="$el.closest('tr').remove()">{{ icons.icon("trash") }}</button>
                   {% endif %}
                 </td>
               {% endif %}
@@ -53,26 +61,40 @@
           {% endfor %}
         </tbody>
       </table>
+
+      <button type="button" class="btn btn-sm mt-2 border-dashed border-line-strong bg-transparent font-medium shadow-none hover:bg-base-200"
+              @click="
+                const blank = $refs.blank.innerHTML.replaceAll('{{ table.name }}-__index__-', '{{ table.name }}-' + count + '-');
+                $refs.body.insertAdjacentHTML('beforeend', blank);
+                count++;
+              ">
+        {{ icons.icon("plus", 14) }}{{ _('Add a row') }}
+      </button>
     </div>
 
-    {#- The row "add another" copies. It sits in a template, so its inputs
-        are never submitted until they are copied into the table. -#}
+    {#- The row "add a row" copies. It sits in a template, so its inputs are
+        never submitted until they are copied into the table. -#}
     <template x-ref="blank">
       <tr>
         {% for row in table.blank.cells %}
-          <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} align-top">
+          <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} pe-3 pb-2 align-top">
             {% if loop.first %}
               <input type="hidden" name="{{ table.name }}-__index__-key" value="">
             {% endif %}
             {% if row.readonly %}
-              <span class="text-base-content/70">—</span>
+              <span class="flex h-10 items-center text-muted">—</span>
             {% else %}
               {% set field_attrs %}aria-label="{{ row.label }}"{% endset %}
               {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
             {% endif %}
           </td>
         {% endfor %}
-        {% if table.inline.can_delete %}<td></td>{% endif %}
+        {% if table.inline.can_delete %}
+          <td class="pb-2 align-top">
+            <button type="button" class="btn btn-ghost btn-square text-muted" aria-label="{{ _('Remove this row') }}"
+                    @click="$el.closest('tr').remove()">{{ icons.icon("trash") }}</button>
+          </td>
+        {% endif %}
       </tr>
     </template>
   </section>

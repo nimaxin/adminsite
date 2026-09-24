@@ -5,6 +5,7 @@
   "Actions": "کارها",
   "Actions for {name}": "عملیات‌های {name}",
   "Activity": "فعالیت‌ها",
+  "Add a row": "افزودن یک ردیف",
   "Add another": "افزودن ردیف",
   "Admin": "مدیریت",
   "All {count} matching rows": "همهٔ {count} ردیف یافته‌شده",
@@ -41,6 +42,7 @@
   "Does": "کار",
   "Download an empty file": "دریافت فایل خالی",
   "Edit": "ویرایش",
+  "Edit {name}": "ویرایش {name}",
   "Enter a date and time, for example 2026-09-18 14:30.": "تاریخ و ساعت وارد کنید، مثلاً 2026-09-18 14:30.",
   "Enter a date, for example 2026-09-18.": "تاریخ وارد کنید، مثلاً 2026-09-18.",
   "Enter a number.": "یک عدد وارد کنید.",
@@ -225,5 +227,6 @@
   "{thing} created.": "{thing} ایجاد شد.",
   "{thing} deleted.": "{thing} حذف شد.",
   "{thing} saved.": "{thing} ذخیره شد.",
+  "{thing}, row {number}, {field}": "{thing}، ردیف {number}، {field}",
   "{when} UTC": "{when} به وقت UTC"
 }

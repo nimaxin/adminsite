@@ -15,6 +15,12 @@
 - A record's page has a title with its status beside it, its actions as buttons and delete in a
   menu, its details in two columns, and the records it links to one by one as cards beside
   them, opening the linked record's own page. The history's latest entries sit there too.
+- The form lists every problem at the top, each a link to its field, as well as beside the field,
+  so a mistake at the bottom of a long form is never missed. Fields sit two to a row where they
+  are short, a value that cannot be changed reads as text instead of a greyed out box, and an
+  inline row is removed with a bin button instead of a red box. `Inline.extra` blank rows now
+  appear only while a table has no rows, so editing a record no longer shows an empty line under
+  its children.
 
 ## 0.1.0a5
 
