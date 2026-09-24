@@ -215,8 +215,8 @@ def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
 
 
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
-    """Name a related record, preferring the view registered for its model."""
-    view = admin.views.for_model(item.target)
+    """Name a related record, preferring the view its links open."""
+    view = admin.views.for_relation(item)
     if view is not None and view.display_template:
         return view.title_of(record)
     return item.label_for(record)

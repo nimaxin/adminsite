@@ -236,6 +236,10 @@ Anything the page names is loaded with the record, so a linked record costs no e
 `get_detail_fields(request, record)` to answer per user, and remember that a field only on the
 page is never read back from a form, so it needs no `readonly_fields` entry.
 
+A link to many records, such as `invoices` above, is the exception. It is never loaded whole,
+since a user may have thousands: the page names the first 20 and says how many more there are, in
+two small queries.
+
 ### Related records in the same form
 
 An order and its lines belong together, so edit them on one page. Name the relationship in
@@ -349,3 +353,20 @@ class ShippedOrders(ModelView, model=Order):
 ```
 
 `scope_query` narrows every read the view makes. It is covered in [Permissions](permissions.md).
+
+### Which view a link opens
+
+A link to a customer, as a card on an order's page, in a picker, or checked when a form is saved,
+goes to the first view registered for `Customer`. When customers are split between views by scope,
+name the view the link belongs to:
+
+```python
+class WalletView(ModelView, model=Wallet):
+    fields = (FieldOptions("owner", view="buyers"),)
+```
+
+The owner's card then opens the `buyers` view, and the picker lists buyers. `RelationField` takes
+`view=` the same way.
+
+Without `view`, a card for a record the first view's scope leaves out opens the first view that
+does hold it, rather than a page that answers 404.

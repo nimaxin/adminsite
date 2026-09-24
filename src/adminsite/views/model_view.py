@@ -775,6 +775,19 @@ class ModelView:
             session, key, tuple(paths), self.scope_for(request)
         )
 
+    async def fetch_related(
+        self,
+        session: SessionAdapter,
+        record: Any,
+        path: str,
+        *,
+        limit: int,
+        request: Any = None,
+    ) -> tuple[Sequence[Any], int]:
+        """The first records a to-many link of this record holds, and the total."""
+        await self.ensure(Permission.DETAIL, request=request, record=record)
+        return await self.repository.related(session, record, path, limit=limit)
+
     # Writing.
 
     def parse_form(
@@ -1065,7 +1078,7 @@ class ModelView:
                 continue
             if value is None or value == "" or value == []:
                 continue
-            target = self.views.for_model(item.target)
+            target = self.views.for_relation(item)
             if target is None:
                 continue
             keys = value if isinstance(value, list | tuple | set) else [value]

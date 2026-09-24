@@ -20,12 +20,16 @@ class RelationField(Field):
         target: type[Any],
         collection: bool = False,
         display_template: str | None = None,
+        view: str | None = None,
         **options: Any,
     ) -> None:
         super().__init__(name, **options)
         self.target = target
         self.collection = collection
         self.display_template = display_template
+        # The view the link opens and the picker lists from, by name, for a
+        # model shown by more than one view. None takes the first one.
+        self.view = view
 
     @classmethod
     def from_relation(cls, schema: RelationSchema, **overrides: Any) -> "RelationField":

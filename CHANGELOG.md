@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A relation can name the view its links open and its picker lists from, as
+  `FieldOptions("owner", view="buyers")` or `RelationField(..., view="buyers")`, for a model shown
+  by several views. Without it, a record's card for a record the first view leaves out opens the
+  first view that holds it, where it answered 404.
+- A link to many records on a record page names the first 20 and says how many more there are, in
+  two small queries, where it loaded every linked record into one long line.
 - A view's `search_condition(term, request=...)` decides what its search box matches, for example
   an exact, normalised phone number that an index can answer, where the usual search looks inside
   every search field. The list, its count, the export, "select all matching", the command palette

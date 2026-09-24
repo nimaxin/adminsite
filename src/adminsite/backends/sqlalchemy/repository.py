@@ -15,7 +15,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy import inspect as sqlalchemy_inspect
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, with_parent
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
@@ -333,6 +333,28 @@ class SQLAlchemyRepository:
                 *build_load_options(self.inspector, self.model, paths)
             )
         return (await session.scalars(statement)).unique().first()
+
+    async def related(
+        self, session: SessionAdapter, record: Any, path: str, *, limit: int
+    ) -> tuple[Sequence[Any], int]:
+        """The first records a to-many link holds, and how many it holds in all.
+
+        Two small queries, however many records the link holds.
+        """
+        link = getattr(self.model, path)
+        target = link.property.mapper
+        condition = with_parent(record, link)
+        first = (
+            select(target.class_)
+            .where(condition)
+            .order_by(*target.primary_key)
+            .limit(limit)
+        )
+        records = list((await session.scalars(first)).all())
+        total = await session.scalar(
+            select(func.count()).select_from(target.class_).where(condition)
+        )
+        return records, int(total or 0)
 
     async def create(self, session: SessionAdapter, values: Mapping[str, Any]) -> Any:
         """Build a record from the given values and put it in the session."""

@@ -37,7 +37,7 @@ class Picker:
     @property
     def view(self) -> ModelView | None:
         """The view registered for the model this link points at."""
-        return self.admin.views.for_model(self.item.target)
+        return self.admin.views.for_relation(self.item)
 
     @property
     def repository(self) -> SQLAlchemyRepository:

@@ -268,13 +268,22 @@ async def detail(admin: "Admin", request: Request) -> Response:
     """One record, read only."""
     view = find_view(admin, request)
     await view.ensure(Permission.DETAIL, request=request)
-    record = await load_or_404(admin, view, request)
+    # A to-many link is read a few records at a time below, never loaded
+    # whole: an invoice may cover thousands of records.
+    counted = many_links(view, view.get_detail_fields(request), request)
+    record = await load_or_404(
+        admin,
+        view,
+        request,
+        paths=[path for path in view.get_load_paths(request) if path not in counted],
+    )
 
     paths = view.get_detail_fields(request, record)
     links = await linked_records(admin, view, record, paths, request)
     beside = {link.path for link in links}
+    shown = await many_links_text(admin, view, record, counted, request)
     rows = [
-        (path, view.label_for(path), view.display(record, path))
+        (path, view.label_for(path), shown.get(path) or view.display(record, path))
         for path in paths
         if path not in beside
     ]
@@ -326,6 +335,54 @@ async def detail(admin: "Admin", request: Request) -> Response:
     )
 
 
+# How many records of a to-many link the record page names before it
+# says how many more there are.
+MANY_LINKS_SHOWN = 20
+
+
+def many_links(view: ModelView, paths: Sequence[str], request: Request) -> set[str]:
+    """The paths that are to-many links of the record, shown as a list of names.
+
+    A child table the view edits inline is left alone: it is shown whole.
+    """
+    inlines = {inline.name for inline in view.get_inlines(request)}
+    found = set()
+    for path in paths:
+        if "." in path or path in inlines or path not in view.schema.relations:
+            continue
+        item = view.field_for(path)
+        if isinstance(item, RelationField) and item.collection:
+            found.add(path)
+    return found
+
+
+async def many_links_text(
+    admin: "Admin",
+    view: ModelView,
+    record: Any,
+    paths: set[str],
+    request: Request,
+) -> dict[str, str]:
+    """The first names of each to-many link, and how many more it holds."""
+    if not paths:
+        return {}
+    shown = {}
+    async with admin.database.session() as session:
+        for path in sorted(paths):
+            item = view.field_for(path)
+            if not isinstance(item, RelationField):
+                continue
+            records, total = await view.fetch_related(
+                session, record, path, limit=MANY_LINKS_SHOWN, request=request
+            )
+            names = ", ".join(item.label_for(related) for related in records)
+            rest = total - len(records)
+            if rest > 0:
+                names += _(" and {count} more", count=f"{rest:,}")
+            shown[path] = names
+    return shown
+
+
 @dataclass(frozen=True)
 class LinkedRecord:
     """A record this one points at, shown beside its details."""
@@ -364,16 +421,48 @@ async def linked_records(
         value = view.value_at(record, path)
         if value is None:
             continue
-        target = admin.views.for_model(item.target)
-        opens = ""
-        if target is not None and await target.allows(
-            Permission.DETAIL, request=request, record=value
-        ):
-            opens = urls.detail(target, target.identity_of(value))
+        target = await view_that_opens(admin, item, value, request)
+        opens = urls.detail(target, target.identity_of(value)) if target else ""
         found.append(
             LinkedRecord(path, view.label_for(path), view.display(record, path), opens)
         )
     return found
+
+
+async def view_that_opens(
+    admin: "Admin", item: RelationField, value: Any, request: Request
+) -> ModelView | None:
+    """The view a link to this related record opens, if any will.
+
+    The relation's own view when it names one. Otherwise the first view of
+    the model, unless the model has several: then the first whose scope
+    holds this record, so a record another view leaves out still opens
+    rather than answering 404.
+    """
+    candidates = (
+        [admin.views.for_relation(item)]
+        if item.view is not None
+        else admin.views.all_for_model(item.target)
+    )
+    allowed = [
+        candidate
+        for candidate in candidates
+        if candidate is not None
+        and await candidate.allows(Permission.DETAIL, request=request, record=value)
+    ]
+    if len(allowed) <= 1 or item.view is not None:
+        return allowed[0] if allowed else None
+    async with admin.database.session() as session:
+        for candidate in allowed:
+            try:
+                found = await candidate.fetch_record(
+                    session, key_of(candidate.identity_of(value)), request=request
+                )
+            except PermissionDeniedError:
+                continue
+            if found is not None:
+                return candidate
+    return None
 
 
 async def activity(admin: "Admin", request: Request) -> Response:
@@ -658,13 +747,19 @@ async def after_save(
     return urls.list(view)
 
 
-async def load_or_404(admin: "Admin", view: ModelView, request: Request) -> Any:
+async def load_or_404(
+    admin: "Admin",
+    view: ModelView,
+    request: Request,
+    *,
+    paths: Sequence[str] | None = None,
+) -> Any:
     """Load the record the URL names, or raise a 404."""
     async with admin.database.session() as session:
         record = await view.fetch_record(
             session,
             read_key(request),
-            paths=view.get_load_paths(request),
+            paths=view.get_load_paths(request) if paths is None else paths,
             request=request,
         )
     if record is None:
