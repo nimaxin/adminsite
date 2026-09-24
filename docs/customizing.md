@@ -21,8 +21,11 @@ Keep the same relative path. To replace the sign in page, create
 | `adminsite/base.html` | The shell: sidebar, header, messages |
 | `adminsite/index.html` | The front page |
 | `adminsite/list.html`, `_toolbar.html`, `_table.html` | The list, its search and filters, and the table |
+| `adminsite/_saved_tabs.html`, `_row_actions.html` | The saved views above a list, and a row's menu |
 | `adminsite/detail.html`, `_history.html` | One record, and its history |
-| `adminsite/form.html`, `_field.html` | The create and edit form |
+| `adminsite/form.html`, `_field.html`, `_inlines.html` | The create and edit form, and its child rows |
+| `adminsite/dashboard/*.html` | The overview's cards |
+| `adminsite/_icons.html`, `_values.html` | The icons, and how a status or a yes and no is drawn |
 | `adminsite/widgets/*.html` | One form control each |
 | `adminsite/activity.html` | The activity page |
 | `adminsite/login.html` | Signing in |
@@ -61,6 +64,18 @@ cd frontend
 npm install
 npm run build
 ```
+
+Beside daisyUI's own colours the themes set a few more, as CSS variables on the page:
+`--subtle` for the surface behind cards, `--line` and `--line-strong` for the lines between rows,
+`--muted` for text that steps back, `--link`, `--selected` for ticked rows, and `--chart` and
+`--chart-strong` for bars. A project's own stylesheet can set any of them.
+
+A choice such as a status is drawn as a badge in one of six tones, `tone-0` to `tone-5`, set by
+the choice's place in the list: the first option is amber, the second blue, then green, grey,
+violet and rose. Reorder the choices to change which colour a status gets.
+
+The typeface is Geist, which ships inside the package in the two subsets European languages need.
+Any other script, Persian among them, is drawn in the system's own font.
 
 The build writes `src/adminsite/static/adminsite.css`. If your own templates use Tailwind or
 daisyUI classes the shipped stylesheet does not have, build your own stylesheet from the same input
