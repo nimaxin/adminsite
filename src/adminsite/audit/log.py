@@ -1,9 +1,10 @@
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import insert, select
+from sqlalchemy import Select, and_, insert, or_, select
 
 from adminsite.audit.entry import AuditEntry, audit_metadata, audit_table
+from adminsite.audit.store import AuditQuery
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.storage import Store
 
@@ -48,18 +49,16 @@ class AuditLog(Store):
                 )
             await session.commit()
 
+    async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
+        """The entries that match, newest first, at most `limit` of them."""
+        return await self._read(matching(query).limit(limit))
+
     async def history(
         self, view: str, record_key: str, *, limit: int = 100
     ) -> list[AuditEntry]:
         """What happened to one record, newest first."""
-        statement = (
-            select(audit_table)
-            .where(audit_table.c.view == view)
-            .where(audit_table.c.record_key == record_key)
-            .order_by(audit_table.c.occurred_at.desc(), audit_table.c.id.desc())
-            .limit(limit)
-        )
-        return await self._read(statement)
+        query = AuditQuery(view=view, record_key=record_key)
+        return await self.find(query, limit=limit)
 
     async def recent(
         self,
@@ -69,18 +68,43 @@ class AuditLog(Store):
         limit: int = 100,
     ) -> list[AuditEntry]:
         """The latest entries, across the admin, for some views or for one."""
-        statement = select(audit_table)
-        if view is not None:
-            statement = statement.where(audit_table.c.view == view)
-        if views is not None:
-            statement = statement.where(audit_table.c.view.in_(views))
-        statement = statement.order_by(
-            audit_table.c.occurred_at.desc(), audit_table.c.id.desc()
-        ).limit(limit)
-        return await self._read(statement)
+        return await self.find(AuditQuery(view=view, views=views), limit=limit)
 
     async def _read(self, statement: Any) -> list[AuditEntry]:
         await self.prepare()
         async with self.database.session() as session:
             result = await session.execute(statement)
             return [AuditEntry.from_row(row._mapping) for row in result.all()]
+
+
+def matching(query: AuditQuery) -> Select[Any]:
+    """The rows of the audit table a query asks for, newest first."""
+    table = audit_table
+    statement = select(table).order_by(table.c.occurred_at.desc(), table.c.id.desc())
+    if query.views is not None:
+        statement = statement.where(table.c.view.in_(query.views))
+    if query.view is not None:
+        statement = statement.where(table.c.view == query.view)
+    if query.record_key is not None:
+        statement = statement.where(table.c.record_key == query.record_key)
+    if query.user is not None:
+        statement = statement.where(
+            or_(table.c.user_key == query.user, table.c.user == query.user)
+        )
+    if query.events:
+        statement = statement.where(
+            table.c.event.in_([event.value for event in query.events])
+        )
+    if query.since is not None:
+        statement = statement.where(table.c.occurred_at >= query.since)
+    if query.until is not None:
+        statement = statement.where(table.c.occurred_at < query.until)
+    if query.older_than is not None:
+        when, key = query.older_than
+        statement = statement.where(
+            or_(
+                table.c.occurred_at < when,
+                and_(table.c.occurred_at == when, table.c.id < key),
+            )
+        )
+    return statement

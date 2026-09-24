@@ -8,12 +8,15 @@ from adminsite.audit.entry import (
     diff,
 )
 from adminsite.audit.log import AuditLog
+from adminsite.audit.store import AuditQuery, AuditStore
 
 __all__ = [
     "Actor",
     "AuditEntry",
     "AuditEvent",
     "AuditLog",
+    "AuditQuery",
+    "AuditStore",
     "actor_of",
     "as_json",
     "audit_metadata",

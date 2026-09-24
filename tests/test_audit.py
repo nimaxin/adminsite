@@ -1,7 +1,7 @@
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,8 @@ from adminsite.audit import (
     AuditEntry,
     AuditEvent,
     AuditLog,
+    AuditQuery,
+    AuditStore,
     as_json,
     audit_metadata,
     diff,
@@ -143,6 +145,51 @@ def columns_before_who_and_where() -> list[Column[Any]]:
     ]
 
 
+class KeptInAList:
+    """A store of one's own: the log in a list, filtered by hand."""
+
+    def __init__(self, entries: Sequence[AuditEntry] = ()) -> None:
+        self.entries = list(entries)
+
+    async def record(self, entries: Sequence[AuditEntry]) -> None:
+        self.entries.extend(entries)
+
+    async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
+        found = [
+            entry
+            for entry in self.entries
+            if (query.views is None or entry.view in query.views)
+            and query.view in (None, entry.view)
+            and query.record_key in (None, entry.record_key)
+        ]
+        found.sort(key=lambda entry: entry.occurred_at, reverse=True)
+        return found[:limit]
+
+
+def entry_at(day: int, **values: Any) -> AuditEntry:
+    """An entry on a given day of September 2026, with an id to page by."""
+    fields: dict[str, Any] = {
+        "view": "orders",
+        "record_key": "1",
+        "event": AuditEvent.UPDATED,
+        "occurred_at": datetime(2026, 9, day, 12),
+    }
+    return AuditEntry(**(fields | values))
+
+
+@pytest.fixture
+async def kept(database: Database) -> AuditLog:
+    """The log in the database under test, starting empty on every engine."""
+
+    def start_over(session: Session) -> None:
+        audit_metadata.drop_all(session.connection())
+
+    async with database.session() as session:
+        await session.run(start_over)
+        await session.commit()
+    return AuditLog(database, create_table=True)
+
+
 @pytest.fixture
 def log(tmp_path: Path) -> Iterator[AuditLog]:
     audit = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
@@ -249,6 +296,103 @@ class TestTheLog:
         changes = diff({"name": "Hat", "price": "10"}, {"name": "Cap", "price": "10"})
 
         assert changes == {"name": ("Hat", "Cap")}
+
+
+class TestFinding:
+    async def test_a_person_is_found_by_key_or_by_name(self, kept: AuditLog) -> None:
+        await kept.record(
+            [
+                entry_at(1, user="Lena Fischer", user_key="42"),
+                entry_at(2, user="Marco Rossi", user_key="7"),
+                entry_at(3, user="lena"),
+            ]
+        )
+
+        by_key = await kept.find(AuditQuery(user="42"), limit=10)
+        by_name = await kept.find(AuditQuery(user="lena"), limit=10)
+
+        assert [entry.user_key for entry in by_key] == ["42"]
+        assert [entry.user for entry in by_name] == ["lena"]
+
+    async def test_kinds_and_days_narrow_it(self, kept: AuditLog) -> None:
+        await kept.record(
+            [
+                entry_at(1, event=AuditEvent.CREATED),
+                entry_at(2),
+                entry_at(3, event=AuditEvent.DELETED),
+                entry_at(4),
+            ]
+        )
+
+        changes = await kept.find(AuditQuery(events=[AuditEvent.UPDATED]), limit=10)
+        middle = await kept.find(
+            AuditQuery(since=datetime(2026, 9, 2), until=datetime(2026, 9, 4)),
+            limit=10,
+        )
+
+        assert [entry.occurred_at.day for entry in changes] == [4, 2]
+        assert [entry.occurred_at.day for entry in middle] == [3, 2]
+
+    async def test_paging_reaches_the_first_entry(self, kept: AuditLog) -> None:
+        # Two entries share a moment, as the rows of a bulk action do, so
+        # the id has to break the tie or one of them would be skipped.
+        same = datetime(2026, 9, 5, 12)
+        await kept.record(
+            [entry_at(1, event=AuditEvent.CREATED)]
+            + [entry_at(day) for day in range(2, 5)]
+            + [entry_at(5, occurred_at=same), entry_at(5, occurred_at=same)]
+        )
+
+        seen: list[AuditEntry] = []
+        query = AuditQuery(view="orders", record_key="1")
+        while page := await kept.find(query, limit=2):
+            seen.extend(page)
+            last = page[-1]
+            assert last.id is not None
+            query = AuditQuery(
+                view="orders", record_key="1", older_than=(last.occurred_at, last.id)
+            )
+
+        assert len(seen) == 6
+        assert len({entry.id for entry in seen}) == 6
+        assert seen[-1].event is AuditEvent.CREATED
+
+
+class TestAStoreOfYourOwn:
+    async def test_the_admin_writes_and_reads_through_it(
+        self, database: Database
+    ) -> None:
+        earlier = AuditEntry(
+            view="products",
+            record_key="1",
+            event=AuditEvent.UPDATED,
+            user="the old panel",
+            occurred_at=datetime.now() - timedelta(days=30),
+        )
+        store = KeptInAList([earlier])
+        site = Admin(database, title="Shop", audit=store)
+        site.add_view(ProductView)
+        app = Starlette()
+        app.mount("/admin", site)
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            await client.post(
+                "/admin/products/1/edit", data={"name": "Cap", "price": "10.00"}
+            )
+            record = await client.get("/admin/products/1")
+            activity = await client.get("/admin/-/activity")
+
+        assert isinstance(store, AuditStore)
+        assert [entry.event for entry in store.entries] == [
+            AuditEvent.UPDATED,
+            AuditEvent.UPDATED,
+        ]
+        assert store.entries[-1].changes["name"][1] == "Cap"
+        for page in (record, activity):
+            assert "the old panel" in page.text
+            assert "Cap" in page.text
 
 
 class TestWhoAndFromWhere:
@@ -516,7 +660,7 @@ class TestPages:
 
         site = Admin(database, audit=True)
 
-        assert site.audit is not None
+        assert isinstance(site.audit, AuditLog)
         assert site.audit.create_table is True
         site.audit.close()
 

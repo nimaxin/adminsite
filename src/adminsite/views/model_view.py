@@ -10,7 +10,7 @@ from starlette.responses import Response
 
 if TYPE_CHECKING:
     from adminsite.actions.selection import Selection
-    from adminsite.audit import AuditLog
+    from adminsite.audit import AuditStore
     from adminsite.views.registry import ViewRegistry
 
 from adminsite.actions.action import Action, action_of
@@ -112,7 +112,7 @@ class ModelView:
     views: "ViewRegistry | None" = None
 
     # Set by the admin when auditing is switched on.
-    audit: "AuditLog | None" = None
+    audit: "AuditStore | None" = None
 
     def __init_subclass__(cls, model: type[Any] | None = None, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

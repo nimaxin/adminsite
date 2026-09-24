@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response, StreamingResponse
 
 from adminsite.actions import Selection
+from adminsite.audit import AuditQuery
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
@@ -43,6 +44,10 @@ from adminsite.views.writing import FormResult
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+
+# How many entries a record's History tab and the Activity page show.
+HISTORY_LIMIT = 100
+ACTIVITY_LIMIT = 200
 
 
 async def index(admin: "Admin", request: Request) -> Response:
@@ -271,7 +276,8 @@ async def detail(admin: "Admin", request: Request) -> Response:
     if admin.audit is not None and await view.allows(
         Permission.HISTORY, request=request, record=record
     ):
-        history = describe(admin, await admin.audit.history(view.name, key))
+        query = AuditQuery(view=view.name, record_key=key)
+        history = describe(admin, await admin.audit.find(query, limit=HISTORY_LIMIT))
 
     return await admin.render(
         "detail.html",
@@ -365,7 +371,8 @@ async def activity(admin: "Admin", request: Request) -> Response:
     chosen = request.query_params.get("view") or None
     if chosen is not None and chosen not in allowed:
         chosen = None
-    entries = await admin.audit.recent(view=chosen, views=allowed, limit=200)
+    query = AuditQuery(views=allowed, view=chosen)
+    entries = await admin.audit.find(query, limit=ACTIVITY_LIMIT)
 
     return await admin.render(
         "activity.html",

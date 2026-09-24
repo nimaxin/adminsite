@@ -124,7 +124,11 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.audit.AuditLog
     options:
-      members: [history, recent, record, close]
+      members: [find, history, recent, record, close]
+
+::: adminsite.audit.AuditStore
+
+::: adminsite.audit.AuditQuery
 
 ::: adminsite.audit.AuditEntry
 

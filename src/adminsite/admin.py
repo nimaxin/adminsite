@@ -16,7 +16,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from adminsite.audit import AuditLog
+from adminsite.audit import AuditLog, AuditStore
 from adminsite.audit.actor import USER_KEY
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
@@ -72,7 +72,7 @@ class Admin:
         template_dirs: Sequence[str | Path] = (),
         auth: AuthProvider | None = None,
         secret_key: str = "",
-        audit: AuditLog | bool = False,
+        audit: AuditStore | bool = False,
         saved_views: SavedViews | bool = False,
         session_cookie: str | None = None,
         pages: Sequence[AdminPage | type[AdminPage]] = (),
@@ -99,7 +99,7 @@ class Admin:
         self.views = ViewRegistry()
         self.templates = Templates(template_dirs)
         self.auth = auth
-        self.audit = AuditLog() if audit is True else (audit or None)
+        self.audit: AuditStore | None = AuditLog() if audit is True else (audit or None)
         self.saved_views = (
             SavedViews() if saved_views is True else (saved_views or None)
         )
