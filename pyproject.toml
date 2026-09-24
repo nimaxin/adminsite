@@ -68,6 +68,11 @@ dev = [
     "types-openpyxl>=3.1.5.20260827",
     "uvicorn>=0.30",
 ]
+demo = [
+    "aiosqlite>=0.20",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
 docs = [
     "mkdocs<2",
     "mkdocs-llmstxt>=0.5.0",
@@ -94,6 +99,10 @@ ignore = ["D100", "D104", "D105", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.isort]
+# The demo and the example live beside the package, not inside src.
+known-first-party = ["demo", "examples"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]

@@ -26,6 +26,11 @@ excel = [
 ]
 
 [package.dev-dependencies]
+demo = [
+    { name = "aiosqlite" },
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 dev = [
     { name = "aiomysql" },
     { name = "aiosqlite" },
@@ -65,6 +70,11 @@ requires-dist = [
 provides-extras = ["excel"]
 
 [package.metadata.requires-dev]
+demo = [
+    { name = "aiosqlite", specifier = ">=0.20" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
 dev = [
     { name = "aiomysql", specifier = ">=0.3.2" },
     { name = "aiosqlite", specifier = ">=0.20" },
