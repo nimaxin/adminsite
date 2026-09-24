@@ -4,16 +4,17 @@
       {% set event = item.entry.event %}
       <li class="relative mb-6 ps-5 last:mb-0">
         <span class="absolute -start-[5px] top-1.5 block size-2.5 rounded-full ring-4 ring-base-100
-          {% if event == 'deleted' %}bg-error
+          {% if event == 'deleted' or not item.entry.succeeded %}bg-error
           {% elif event == 'created' %}bg-success
           {% elif event == 'action' %}bg-info
+          {% elif not item.entry.view %}bg-base-content/40
           {% else %}bg-primary{% endif %}"></span>
 
         {% set name = item.entry.record_title or (item.view_label ~ " " ~ item.entry.record_key) %}
         <p>
           <span class="font-medium">{{ item.who }}</span>
           {{ item.what }}
-          {% if show_record %}
+          {% if show_record and item.entry.view %}
             {% if event != 'deleted' and item.entry.view in (detail_views or []) %}
               <a class="link link-hover font-medium"
                  href="{{ urls.detail(admin.views.get(item.entry.view), item.entry.record_key) }}">{{ name }}</a>
@@ -27,6 +28,9 @@
           {% if item.entry.ip %} · <span {% if item.entry.user_agent %}title="{{ item.entry.user_agent }}"{% endif %}>{{ _('from {address}', address=item.entry.ip) }}</span>{% endif %}
           {% if item.entry.batch %} · {{ _('part of a bulk action') }}{% endif %}
         </p>
+        {% if item.entry.error %}
+          <p class="mt-1 text-[13px] text-error">{{ item.entry.error }}</p>
+        {% endif %}
         {% if item.lines %}
           <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-box bg-base-200 px-3 py-2 text-[13px]">
             {% for line in item.lines %}

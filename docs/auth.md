@@ -35,17 +35,17 @@ For anything more than a handful of people, subclass `AuthProvider` and check yo
 ```python
 from sqlalchemy import select
 
-from adminsite.auth import AuthProvider, verify_password
+from adminsite.auth import AuthProvider, SignInRefused, verify_password
 
 
 class StaffAuth(AuthProvider):
     async def verify(self, username: str, password: str):
         async with session_factory() as session:
             user = await session.scalar(select(User).where(User.email == username))
-        if user is None or not user.is_staff:
+        if user is None or not verify_password(password, user.password_hash):
             return None
-        if not verify_password(password, user.password_hash):
-            return None
+        if not user.is_staff:
+            raise SignInRefused("Not a member of staff.", user=user)
         return user
 
     def identity(self, user) -> str:
@@ -58,19 +58,26 @@ class StaffAuth(AuthProvider):
 
 | Method | What it does |
 |---|---|
-| `verify(username, password)` | Returns the user for these details, or `None`. |
+| `verify(username, password)` | Returns the user for these details, or `None`, or raises `SignInRefused`. |
 | `identity(user)` | The short string kept in the session cookie. |
 | `load_user(key)` | Turns that string back into a user on each request. |
 | `sign_in_failed(request, username)` | Runs when a sign in fails, and returns what to say. |
+| `may_read_sign_ins(request, reads_everything=...)` | Whether this person sees sign ins on the Activity page. |
 
-The loaded user is on `request.scope["user_record"]`, for your [permission](permissions.md) checks,
-and its `str()` is what the sidebar and the [audit log](audit.md) show.
+`SignInRefused(reason, user=...)` refuses a sign in and says why. The reason goes to the
+[audit log](audit.md), filed under that user, and the person signing in is told only what
+`sign_in_failed` returns. `PasswordAuth` gives "There is no such username." or "The password was
+wrong."
+
+The loaded user is on `request.scope["user_record"]`, for your [permission](permissions.md) checks.
+Its `str()` is what the sidebar and the audit log show, and `identity(user)` is the key the audit
+log files it under.
 
 ## When a sign in fails
 
 The login page says "That username and password do not match." Override `sign_in_failed` to say
-something else, and to do something about it. It is the one place that sees every wrong password,
-so it is where a record of attempts, an alert or a wait belongs:
+something else, and to do something about it. With the [audit log](audit.md) on, every attempt is
+already written down; `sign_in_failed` is where an alert or a wait belongs:
 
 ```python
 class StaffAuth(AuthProvider):

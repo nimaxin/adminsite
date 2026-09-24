@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The audit log keeps every sign in, failed attempt and sign out, with the address and browser.
+  `verify` can raise `SignInRefused(reason, user=...)` to say why an attempt failed; the reason
+  goes to the log, never to the person. `PasswordAuth.verify` now raises it, saying whether the
+  username was unknown or the password wrong, where it returned `None` before. The Activity page
+  shows these entries to people who may read every model's history, and
+  `AuthProvider.may_read_sign_ins` changes who.
 - The audit log can live anywhere. The admin writes and reads it through `AuditStore`, two
   methods: `record` and `find`, which takes an `AuditQuery` with filters and a place to page from.
   A store of your own can keep the log in a table your application already has, and the History

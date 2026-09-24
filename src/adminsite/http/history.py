@@ -61,6 +61,12 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
 
 
 def _verb(entry: AuditEntry) -> str:
+    if entry.event is AuditEvent.SIGNED_IN:
+        return _("signed in")
+    if entry.event is AuditEvent.SIGN_IN_FAILED:
+        return _("could not sign in")
+    if entry.event is AuditEvent.SIGNED_OUT:
+        return _("signed out")
     if entry.event is AuditEvent.CREATED:
         return _("created")
     if entry.event is AuditEvent.DELETED:

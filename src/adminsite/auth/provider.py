@@ -6,7 +6,7 @@ import anyio
 from starlette.requests import Request
 
 from adminsite.auth.passwords import hash_password, looks_hashed, verify_password
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, SignInRefused
 from adminsite.i18n import gettext as _
 
 SESSION_KEY = "adminsite_user"
@@ -21,7 +21,12 @@ class AuthProvider:
     """
 
     async def verify(self, username: str, password: str) -> Any | None:
-        """Return the user for these details, or nothing."""
+        """Return the user for these details, or nothing.
+
+        To have the audit log say why an attempt failed, raise
+        `SignInRefused("This account is switched off.", user=account)`
+        instead of returning nothing.
+        """
         raise NotImplementedError
 
     async def load_user(self, key: str) -> Any | None:
@@ -73,6 +78,18 @@ class AuthProvider:
         """
         return _("That username and password do not match.")
 
+    async def may_read_sign_ins(
+        self, request: Request, *, reads_everything: bool
+    ) -> bool:
+        """Whether this person sees who signed in, on the Activity page.
+
+        Signing in belongs to no model, so no view's permissions decide it.
+        By default only someone who may read the history of every model
+        sees it, which `reads_everything` says. Override it to let in, say,
+        an auditor who reads less.
+        """
+        return reads_everything
+
     async def sign_out(self, request: Request) -> None:
         """Forget the user."""
         session = request.scope.get("session")
@@ -114,7 +131,11 @@ class PasswordAuth(AuthProvider):
         matched = await anyio.to_thread.run_sync(
             verify_password, password, stored if stored is not None else _no_one()
         )
-        return username if matched and stored is not None else None
+        if stored is None:
+            raise SignInRefused(_("There is no such username."))
+        if not matched:
+            raise SignInRefused(_("The password was wrong."), user=username)
+        return username
 
 
 @cache

@@ -8,10 +8,16 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response, StreamingResponse
 
 from adminsite.actions import Selection
-from adminsite.audit import AuditQuery
+from adminsite.audit import AuditEntry, AuditEvent, AuditQuery, actor_of
+from adminsite.audit.actor import NAME_LIMIT
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
-from adminsite.exceptions import AdminSiteError, PermissionDeniedError, RefusedError
+from adminsite.exceptions import (
+    AdminSiteError,
+    PermissionDeniedError,
+    RefusedError,
+    SignInRefused,
+)
 from adminsite.fields import FileField, RelationField
 from adminsite.http import importing
 from adminsite.http.export import stream_csv
@@ -365,6 +371,11 @@ async def activity(admin: "Admin", request: Request) -> Response:
     # latest entries this user may read rather than a few of the latest 200.
     readable = await admin.history_views(request)
     allowed = [view.name for view in readable]
+    # Signing in happens to no record, so its entries have no view.
+    if admin.auth is not None and await admin.auth.may_read_sign_ins(
+        request, reads_everything=len(readable) == len(admin.views.views)
+    ):
+        allowed.append("")
     if not allowed:
         raise PermissionDeniedError(Permission.HISTORY.value, _("the activity"))
 
@@ -685,14 +696,35 @@ async def login(admin: "Admin", request: Request) -> Response:
 
     submitted = await read_form(request)
     username = str(submitted.get("username", ""))
-    user = await admin.auth.sign_in(
-        request, username, str(submitted.get("password", ""))
-    )
+    try:
+        user = await admin.auth.sign_in(
+            request, username, str(submitted.get("password", ""))
+        )
+    except SignInRefused as refused:
+        await note_sign_in(
+            admin,
+            request,
+            AuditEvent.SIGN_IN_FAILED,
+            user=refused.user,
+            tried=username,
+            reason=refused.reason,
+        )
+        user = None
+    else:
+        if user is None:
+            await note_sign_in(
+                admin,
+                request,
+                AuditEvent.SIGN_IN_FAILED,
+                tried=username,
+                reason=_("The details did not match."),
+            )
     if user is None:
         message = await admin.auth.sign_in_failed(request, username)
         return await admin.render(
             "login.html", request, {"error": message}, status_code=401
         )
+    await note_sign_in(admin, request, AuditEvent.SIGNED_IN, user=user)
     return RedirectResponse(Urls(request).index(), status_code=303)
 
 
@@ -700,8 +732,38 @@ async def logout(admin: "Admin", request: Request) -> Response:
     """Sign the user out."""
     await read_form(request)
     if admin.auth is not None:
+        user = await admin.auth.current_user(request)
         await admin.auth.sign_out(request)
+        if user is not None:
+            await note_sign_in(admin, request, AuditEvent.SIGNED_OUT, user=user)
     return RedirectResponse(Urls(request).login(), status_code=303)
+
+
+async def note_sign_in(
+    admin: "Admin",
+    request: Request,
+    event: AuditEvent,
+    *,
+    user: Any = None,
+    tried: str = "",
+    reason: str | None = None,
+) -> None:
+    """Write down a sign in, a failed one or a sign out, if auditing is on.
+
+    It happens to no record, so the entry has no view. A failed attempt
+    without an account behind it is filed under the name that was tried.
+    """
+    if admin.audit is None or admin.auth is None:
+        return
+    actor = actor_of(request)
+    if user is not None:
+        actor["user"] = str(user)[:NAME_LIMIT]
+        actor["user_key"] = admin.auth.identity(user)
+    else:
+        actor["user"] = tried[:NAME_LIMIT] or None
+    await admin.audit.record(
+        [AuditEntry(view="", record_key="", event=event, error=reason, **actor)]
+    )
 
 
 async def run_action(admin: "Admin", request: Request) -> Response:

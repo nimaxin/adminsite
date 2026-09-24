@@ -9,6 +9,9 @@ USER_KEY = "user_key"
 # Enough for any browser's description of itself, and no more.
 AGENT_LIMIT = 300
 
+# As long as the audit table's user column.
+NAME_LIMIT = 200
+
 
 class Actor(TypedDict):
     """Who made a request and from where, as an audit entry holds it."""
@@ -17,9 +20,6 @@ class Actor(TypedDict):
     user_key: str | None
     ip: str | None
     user_agent: str | None
-
-
-NOBODY = Actor(user=None, user_key=None, ip=None, user_agent=None)
 
 
 def actor_of(request: Any) -> Actor:
@@ -31,13 +31,13 @@ def actor_of(request: Any) -> Actor:
     """
     scope = getattr(request, "scope", None)
     if not isinstance(scope, dict):
-        return NOBODY
+        return Actor(user=None, user_key=None, ip=None, user_agent=None)
     user = scope.get("user_record")
     key = scope.get(USER_KEY)
     client = scope.get("client")
     agent = Headers(raw=scope.get("headers") or []).get("user-agent")
     return Actor(
-        user=str(user) if user is not None else None,
+        user=str(user)[:NAME_LIMIT] if user is not None else None,
         user_key=str(key) if key is not None else None,
         ip=str(client[0]) if client else None,
         user_agent=agent[:AGENT_LIMIT] if agent else None,

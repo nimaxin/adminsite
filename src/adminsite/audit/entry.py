@@ -48,12 +48,23 @@ audit_table = Table(
 
 
 class AuditEvent(StrEnum):
-    """What happened to a record."""
+    """What happened: to a record, or to someone signing in or out."""
 
     CREATED = "created"
     UPDATED = "updated"
     DELETED = "deleted"
     ACTION = "action"
+    SIGNED_IN = "signed_in"
+    SIGN_IN_FAILED = "sign_in_failed"
+    SIGNED_OUT = "signed_out"
+
+
+# Signing in happens to no record, so these entries have no view.
+SIGN_IN_EVENTS = (
+    AuditEvent.SIGNED_IN,
+    AuditEvent.SIGN_IN_FAILED,
+    AuditEvent.SIGNED_OUT,
+)
 
 
 # One change is the value before and the value after, as JSON.

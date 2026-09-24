@@ -84,3 +84,17 @@ class InvalidPathError(AdminSiteError):
     def __init__(self, path: str, reason: str) -> None:
         super().__init__(f"Cannot resolve {path!r}: {reason}")
         self.path = path
+
+
+class SignInRefused(AdminSiteError):
+    """Raise this from `AuthProvider.verify` to refuse a sign in, saying why.
+
+    The reason goes to the audit log, never to the person signing in, who
+    sees only what `sign_in_failed` returns. Pass the account when there is
+    one, such as an inactive user, so the attempt is filed under them.
+    """
+
+    def __init__(self, reason: str, user: object = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.user = user

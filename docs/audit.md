@@ -77,6 +77,18 @@ and `entry.user_agent`. The History tab shows the address, and the browser when 
 The address is the one your ASGI server worked out, so behind a proxy it is the visitor's only when
 the server trusts that proxy, for example with uvicorn's `--forwarded-allow-ips`.
 
+## Signing in
+
+With a [sign in](auth.md) set up, the log also keeps every sign in, every failed attempt and every
+sign out, each with its address and browser. A failed attempt is filed under the account when there
+is one, and otherwise under the name that was typed. `PasswordAuth` says whether the username was
+unknown or the password wrong, and your own provider gives its reason by raising `SignInRefused`
+from `verify`. The reason stays in the log; the person signing in is never told it.
+
+Signing in happens to no model, so these entries have an empty `view` and no view's permissions
+decide who reads them. By default the Activity page shows them to someone who may read the history
+of every model. Override `AuthProvider.may_read_sign_ins` to let others see them too.
+
 ## Reading it yourself
 
 ```python
