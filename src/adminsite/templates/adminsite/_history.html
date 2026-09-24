@@ -56,5 +56,5 @@
     {% endfor %}
   </ol>
 {% else %}
-  <p class="py-8 text-center text-base-content/60">{{ _('Nothing recorded yet.') }}</p>
+  <p class="py-8 text-center text-base-content/60">{{ empty or _('Nothing recorded yet.') }}</p>
 {% endif %}

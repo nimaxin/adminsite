@@ -7,22 +7,69 @@
 {% block header %}<h1 class="text-[22px] font-semibold leading-tight tracking-tight">{{ _('Activity') }}</h1>{% endblock %}
 
 {% block content %}
-<nav class="flex items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
-  <a href="{{ urls.activity() }}" {% if not chosen %}aria-current="page"{% endif %}
-     class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if not chosen %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
-    {{ _('Everything') }}
-  </a>
-  {% for item in history_views %}
-    <a href="{{ urls.activity(view=item.name) }}" {% if chosen == item.name %}aria-current="page"{% endif %}
-       class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if chosen == item.name %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
-      {{ item.label_plural }}
+{#- It scrolls sideways, so without shrink-0 a long list below squeezes it away. -#}
+<nav class="flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
+  {% for label, url, name in tabs %}
+    {% set current = filters.view == name %}
+    <a href="{{ url }}" {% if current %}aria-current="page"{% endif %}
+       class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if current %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+      {{ label }}
     </a>
   {% endfor %}
 </nav>
 <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
-  <div class="max-w-3xl rounded-box border border-base-300 bg-base-100 p-5 shadow-quiet">
+  {#- A plain form that reads back into the address, so a result can be shared. -#}
+  <form method="get" action="{{ urls.activity() }}" aria-label="{{ _('Filter the activity') }}"
+        class="mb-4 flex max-w-4xl flex-wrap items-end gap-x-3 gap-y-2.5">
+    {% if filters.view %}<input type="hidden" name="view" value="{{ filters.view }}">{% endif %}
+    <div class="flex flex-col gap-1">
+      <label for="activity-event" class="text-[12.5px] font-medium text-muted">{{ _('Kind') }}</label>
+      <select id="activity-event" name="event" class="select select-sm w-38">
+        <option value="">{{ _('Every kind') }}</option>
+        {% for event, label in event_choices %}
+          <option value="{{ event.value }}" {% if filters.event == event %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="activity-user" class="text-[12.5px] font-medium text-muted">{{ _('Person') }}</label>
+      <input id="activity-user" name="user" value="{{ filters.user or '' }}" class="input input-sm w-38"
+             autocomplete="off">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="activity-since" class="text-[12.5px] font-medium text-muted">{{ _('From') }}</label>
+      <input id="activity-since" name="since" type="date" value="{{ filters.since.isoformat() if filters.since else '' }}"
+             class="input input-sm w-36">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="activity-until" class="text-[12.5px] font-medium text-muted">{{ _('To') }}</label>
+      <input id="activity-until" name="until" type="date" value="{{ filters.until.isoformat() if filters.until else '' }}"
+             class="input input-sm w-36">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label for="activity-record" class="text-[12.5px] font-medium text-muted">{{ _('Record') }}</label>
+      <input id="activity-record" name="record" value="{{ filters.record or '' }}" class="input input-sm w-24"
+             autocomplete="off">
+    </div>
+    <div class="flex items-center gap-1">
+      <button class="btn btn-primary btn-sm" type="submit">{{ _('Filter') }}</button>
+      {% if filters.narrowed %}
+        <a class="btn btn-ghost btn-sm" href="{{ clear_url }}">{{ _('Clear') }}</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="max-w-4xl rounded-box border border-base-300 bg-base-100 p-5 shadow-quiet">
     {% set show_record = True %}
+    {% if filters.narrowed or filters.older %}{% set empty = _('Nothing matches these filters.') %}{% endif %}
     {% include "adminsite/_history.html" %}
   </div>
+
+  {% if older_url or newest_url %}
+    <nav class="mt-4 flex max-w-4xl items-center justify-between gap-2" aria-label="{{ _('Pages') }}">
+      {% if newest_url %}<a class="btn btn-plain btn-sm" href="{{ newest_url }}">{{ _('Newest') }}</a>{% else %}<span></span>{% endif %}
+      {% if older_url %}<a class="btn btn-plain btn-sm" href="{{ older_url }}">{{ _('Older') }}</a>{% endif %}
+    </nav>
+  {% endif %}
 </div>
 {% endblock %}

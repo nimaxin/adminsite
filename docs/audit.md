@@ -7,8 +7,8 @@ each field was before and after.
 admin = Admin(engine, views=[OrderView, CustomerView], audit=True)
 ```
 
-Every record's page gets a **History** tab, and the sidebar gets an **Activity** page listing recent
-changes across the admin, which can be narrowed to one model.
+Every record's page gets a **History** tab, and the sidebar gets an **Activity** page listing
+everything across the admin.
 
 Values are written the way the admin shows them, so a change reads
 "Customer: Lena Fischer → Marco Rossi" rather than "customer_id: 1 → 2".
@@ -111,6 +111,20 @@ from `verify`. The reason stays in the log; the person signing in is never told 
 Signing in happens to no model, so these entries have an empty `view` and no view's permissions
 decide who reads them. By default the Activity page shows them to someone who may read the history
 of every model. Override `AuthProvider.may_read_sign_ins` to let others see them too.
+
+## The Activity page
+
+The Activity page lists the log newest first, fifty entries at a time, with a link to the older
+ones. Its tabs narrow it to one model, and its filters to:
+
+- one kind of entry, such as changes, actions, exports or failed sign ins;
+- one person, by the key their provider gives them or by the name shown;
+- a range of days, the last one included;
+- one record, by its key.
+
+The filters are part of the address, so a result can be bookmarked or sent to someone who may read
+it too. A record's History tab shows its latest twenty entries, and a link to the rest on the
+Activity page, filtered to that record.
 
 ## Reading it yourself
 

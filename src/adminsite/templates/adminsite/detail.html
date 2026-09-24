@@ -79,7 +79,7 @@
               aria-selected="false" :aria-selected="(tab === 'history').toString()" @click="tab = 'history'"
               class="-mb-px h-10 border-b-2 border-transparent text-[13.5px] font-medium text-muted"
               :class="tab === 'history' ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
-        {{ _('History ({count})', count=history|length) }}
+        {{ _('History ({count})', count=(history|length) ~ ('+' if older_history else '')) }}
       </button>
     </div>
   {% else %}
@@ -181,7 +181,7 @@
               <div class="flex flex-col gap-3.5 px-4 py-4">
                 {% for entry in history[:3] %}
                   <div class="flex gap-2.5">
-                    <span class="mt-1.5 size-2 shrink-0 rounded-full {% if entry.entry.event == 'deleted' %}bg-error{% elif entry.entry.event == 'action' %}bg-info{% else %}bg-primary{% endif %}"
+                    <span class="mt-1.5 size-2 shrink-0 rounded-full {% if entry.entry.event == 'deleted' or not entry.entry.succeeded %}bg-error{% elif entry.entry.event == 'action' %}bg-info{% else %}bg-primary{% endif %}"
                           aria-hidden="true"></span>
                     <div class="min-w-0">
                       <p class="text-[13.5px]"><span class="font-medium">{{ entry.who }}</span> {{ entry.what }}</p>
@@ -208,6 +208,11 @@
         {% set items = history %}
         {% set show_record = False %}
         {% include "adminsite/_history.html" %}
+        {% if older_history %}
+          <a class="mt-5 inline-block text-[13px] font-medium text-link hover:underline" href="{{ older_history }}">
+            {{ _('Older entries are on the Activity page') }}
+          </a>
+        {% endif %}
       </div>
     {% endif %}
   </div>

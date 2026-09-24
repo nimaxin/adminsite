@@ -21,6 +21,12 @@ from adminsite.exceptions import (
 )
 from adminsite.fields import FileField, RelationField
 from adminsite.http import importing
+from adminsite.http.activity import (
+    ACTIVITY_PAGE,
+    event_choices,
+    position_of,
+    read_filters,
+)
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import (
     Choice,
@@ -53,9 +59,9 @@ from adminsite.views.writing import FormResult
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
-# How many entries a record's History tab and the Activity page show.
-HISTORY_LIMIT = 100
-ACTIVITY_LIMIT = 200
+# How many entries a record's History tab shows before sending the rest
+# to the Activity page, which pages through them.
+HISTORY_LIMIT = 20
 
 
 async def index(admin: "Admin", request: Request) -> Response:
@@ -281,11 +287,16 @@ async def detail(admin: "Admin", request: Request) -> Response:
     ]
 
     history = None
+    older_history = None
     if admin.audit is not None and await view.allows(
         Permission.HISTORY, request=request, record=record
     ):
         query = AuditQuery(view=view.name, record_key=key)
-        history = describe(admin, await admin.audit.find(query, limit=HISTORY_LIMIT))
+        found = await admin.audit.find(query, limit=HISTORY_LIMIT + 1)
+        history = describe(admin, found[:HISTORY_LIMIT])
+        # The rest are paged through on the Activity page.
+        if len(found) > HISTORY_LIMIT:
+            older_history = Urls(request).activity(view=view.name, record=key)
 
     return await admin.render(
         "detail.html",
@@ -299,6 +310,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "links": links,
             "children": child_tables(view, record, request),
             "history": history,
+            "older_history": older_history,
             "record_actions": allowed_actions,
             "single_actions": allowed_actions,
             "action_rows": {
@@ -365,41 +377,67 @@ async def linked_records(
 
 
 async def activity(admin: "Admin", request: Request) -> Response:
-    """The latest changes across the admin, newest first."""
+    """The log across the admin, newest first, filtered and a page at a time."""
     if admin.audit is None:
         raise HTTPException(status_code=404, detail=_("Auditing is not switched on."))
 
-    # Filtering in the query, not afterwards, so the page still shows the
-    # latest entries this user may read rather than a few of the latest 200.
+    # Filtering in the query, not afterwards, so every page is full of
+    # entries this person may read.
     readable = await admin.history_views(request)
     allowed = [view.name for view in readable]
     # Signing in happens to no record, so its entries have no view.
-    if admin.auth is not None and await admin.auth.may_read_sign_ins(
+    sign_ins = admin.auth is not None and await admin.auth.may_read_sign_ins(
         request, reads_everything=len(readable) == len(admin.views.views)
-    ):
+    )
+    if sign_ins:
         allowed.append("")
     if not allowed:
         raise PermissionDeniedError(Permission.HISTORY.value, _("the activity"))
 
-    chosen = request.query_params.get("view") or None
-    if chosen is not None and chosen not in allowed:
-        chosen = None
-    query = AuditQuery(views=allowed, view=chosen)
-    entries = await admin.audit.find(query, limit=ACTIVITY_LIMIT)
+    choices = event_choices(sign_ins)
+    filters = read_filters(
+        request.query_params, allowed, [event for event, _label in choices]
+    )
+    # One more than a page says whether there is a page after this one.
+    found = await admin.audit.find(filters.query(allowed), limit=ACTIVITY_PAGE + 1)
+    entries = found[:ACTIVITY_PAGE]
 
+    urls = Urls(request)
+    older = (
+        urls.activity(**filters.params(older=position_of(entries[-1])))
+        if len(found) > ACTIVITY_PAGE
+        else None
+    )
+    tabs = [
+        (_("Everything"), urls.activity(**filters.params(view=None, older=None)), None),
+        *(
+            (
+                item.label_plural,
+                urls.activity(**filters.params(view=item.name, older=None)),
+                item.name,
+            )
+            for item in readable
+        ),
+    ]
     return await admin.render(
         "activity.html",
         request,
         {
             "items": describe(admin, entries),
-            "history_views": readable,
+            "tabs": tabs,
+            "filters": filters,
+            "event_choices": choices,
+            "older_url": older,
+            "newest_url": urls.activity(**filters.params(older=None))
+            if filters.older
+            else None,
+            "clear_url": urls.activity(view=filters.view),
             "detail_views": {
                 view.name
                 for view in await admin.views_allowing(
                     request, Permission.VIEW, Permission.DETAIL
                 )
             },
-            "chosen": chosen,
             "view": None,
             "on_activity": True,
         },

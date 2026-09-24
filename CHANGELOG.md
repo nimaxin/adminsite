@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The Activity page pages through the whole log, fifty entries at a time, where it stopped at the
+  latest 200. It filters by kind of entry, person, days and record as well as by model, and keeps
+  the filters in its address. A record's History tab shows the latest twenty, where it showed a
+  hundred, and links to the rest on the Activity page.
 - Every action is audited: on one record, with the fields it changed; on the whole model, which
   wrote nothing before; and one that answers with a file, which returned before it was written
   down. Each entry keeps the values the action was run with, with secrets as `***` and files by
