@@ -83,7 +83,10 @@ class TestSwitchingOn:
             "customer.name",
             "status",
         ]
-        assert orders["actions"] == [{"name": "add_note", "label": "Add a note"}]
+        assert orders["actions"] == [
+            {"name": "add_note", "label": "Add a note"},
+            {"name": "delete_selected", "label": "Delete"},
+        ]
 
 
 class TestReading:

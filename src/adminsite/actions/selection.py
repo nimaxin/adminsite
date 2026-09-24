@@ -6,6 +6,7 @@ from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, u
 from sqlalchemy.sql import Executable
 
 from adminsite.audit.entry import Change, diff
+from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.query import QuerySpec
@@ -60,11 +61,19 @@ class Selection:
         counted = select(func.count()).select_from(self.statement().subquery())
         return int(await self.session.scalar(counted) or 0)
 
-    async def records(self) -> list[Any]:
-        """Load the records, for work that needs each one in turn."""
+    async def records(self, *, paths: Sequence[str] = ()) -> list[Any]:
+        """Load the records, for work that needs each one in turn.
+
+        `paths` names links to load with them, such as `customer`, so work
+        on each record never waits on a query of its own.
+        """
         statement = self.repository.base_statement(
             self.view.scope_for(self.request)
         ).where(self._covered())
+        if paths:
+            statement = statement.options(
+                *build_load_options(self.repository.inspector, self.view.model, paths)
+            )
         return list((await self.session.scalars(statement)).unique().all())
 
     async def update(self, **values: Any) -> int:

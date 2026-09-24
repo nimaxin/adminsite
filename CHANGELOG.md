@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Delete in the selection bar of every view that allows deleting. Each chosen record goes through
+  the same permission check, `before_delete`, `after_delete` and audit entry as a single delete,
+  in one transaction: when one is refused, nothing is deleted and the message names it. Switch it
+  off with `bulk_delete = False`. `selection.records()` takes `paths=` to load links with the
+  records.
 - A relation can name the view its links open and its picker lists from, as
   `FieldOptions("owner", view="buyers")` or `RelationField(..., view="buyers")`, for a model shown
   by several views. Without it, a record's card for a record the first view leaves out opens the

@@ -54,6 +54,13 @@ from adminsite.views.writing import (
     SaveContext,
 )
 
+# The name of the built-in action that deletes the chosen rows.
+DELETE_ACTION = "delete_selected"
+
+# The most records one Delete removes, each loaded and run through the
+# hooks inside a single transaction.
+BULK_DELETE_LIMIT = 1000
+
 
 class ModelView:
     """How one model appears in the admin.
@@ -107,6 +114,9 @@ class ModelView:
     can_export: bool = True
     can_edit: bool = True
     can_delete: bool = True
+    # Whether the chosen rows can be deleted together, from the bar that
+    # rises when rows are ticked. can_delete has to allow it too.
+    bulk_delete: bool = True
     # Importing is off until you switch it on: it writes many records at once.
     can_import: bool = False
     import_limit: int = 10_000
@@ -521,8 +531,30 @@ class ModelView:
     # Actions.
 
     def get_actions(self, request: Any = None) -> tuple[Action, ...]:
-        """The actions this view offers, in the order they appear."""
-        return tuple(self._actions.values())
+        """The actions this view offers, in the order they appear.
+
+        Delete comes last, where the view allows deleting several at once,
+        unless the view has an action of its own by that name.
+        """
+        found = tuple(self._actions.values())
+        if self.can_delete and self.bulk_delete and DELETE_ACTION not in self._actions:
+            found += (self._delete_action(),)
+        return found
+
+    def _delete_action(self) -> Action:
+        """The built-in delete, worded for this view in the current language."""
+        return Action(
+            name=DELETE_ACTION,
+            label=_("Delete"),
+            method=DELETE_ACTION,
+            confirm=_(
+                "Delete the chosen {things}? This cannot be undone.",
+                things=self.label_plural.lower(),
+            ),
+            permission=Permission.DELETE,
+            dangerous=True,
+            writes_own_audit=True,
+        )
 
     def actions_on(self, target: str, request: Any = None) -> tuple[Action, ...]:
         """The actions of one kind: over a selection, a record or the view."""
@@ -631,20 +663,22 @@ class ModelView:
         entry = replace(
             self._action_entry(found, request, values, "", None), batch=str(uuid4())
         )
+        auditing = self.audit is not None and not found.writes_own_audit
         keys: list[str] = []
         try:
             await self.ensure(found.permission, request=request)
             # Read the keys before the action runs: afterwards the rows may no
             # longer match the filter they were chosen by.
-            if self.audit is not None:
+            if auditing:
                 keys = await selection.covered_keys()
             handler = getattr(self, found.method)
             answer = await handler(selection, **(values or {}))
             if self.audit is not None:
                 await selection.session.flush()
         except Exception as error:
-            failed = [replace(entry, record_key=key) for key in keys] or [entry]
-            self._audit_failure(selection.session, failed, error)
+            if auditing:
+                failed = [replace(entry, record_key=key) for key in keys] or [entry]
+                self._audit_failure(selection.session, failed, error)
             raise
 
         text = self._answer_text(found, answer)
@@ -977,36 +1011,7 @@ class ModelView:
         await self.ensure(Permission.DELETE, request=request, record=record)
         try:
             async with session.transaction():
-                context = DeleteContext(session=session, record=record, request=request)
-                await self.before_delete(context)
-                auditing = self.audit is not None
-                before = (
-                    self.snapshot(record, self.get_form_fields(request, record))
-                    if auditing
-                    else {}
-                )
-                key, title = self.identity_of(record), self.title_of(record)
-                await self.repository.delete(session, record)
-                await self.after_delete(context)
-                if not auditing:
-                    return
-                self._audit(
-                    session,
-                    [
-                        AuditEntry(
-                            view=self.name,
-                            record_key=key,
-                            record_title=title,
-                            event=AuditEvent.DELETED,
-                            changes={
-                                name: (value, None)
-                                for name, value in before.items()
-                                if value not in ("", None)
-                            },
-                            **actor_of(request),
-                        )
-                    ],
-                )
+                await self._delete_within(session, record, request=request)
         except IntegrityError as error:
             raise RefusedError(
                 _(
@@ -1015,6 +1020,83 @@ class ModelView:
                     thing=self.label.lower(),
                 )
             ) from error
+
+    async def _delete_within(
+        self, session: SessionAdapter, record: Any, *, request: Any = None
+    ) -> None:
+        """Delete one record inside a transaction the caller holds open."""
+        await self.ensure(Permission.DELETE, request=request, record=record)
+        context = DeleteContext(session=session, record=record, request=request)
+        await self.before_delete(context)
+        auditing = self.audit is not None
+        before = (
+            self.snapshot(record, self.get_form_fields(request, record))
+            if auditing
+            else {}
+        )
+        key, title = self.identity_of(record), self.title_of(record)
+        await self.repository.delete(session, record)
+        await self.after_delete(context)
+        if not auditing:
+            return
+        self._audit(
+            session,
+            [
+                AuditEntry(
+                    view=self.name,
+                    record_key=key,
+                    record_title=title,
+                    event=AuditEvent.DELETED,
+                    changes={
+                        name: (value, None)
+                        for name, value in before.items()
+                        if value not in ("", None)
+                    },
+                    **actor_of(request),
+                )
+            ],
+        )
+
+    async def delete_selected(self, selection: "Selection") -> str:
+        """Delete the chosen records, each as a single delete would, all or none.
+
+        Every record goes through `allows`, `before_delete` and
+        `after_delete`, and gets its own entry in the audit log. When one is
+        refused, nothing is deleted, and the message names it.
+        """
+        request = selection.request
+        records = await selection.records(
+            paths=self.loadable(self.get_form_fields(request))
+        )
+        if len(records) > BULK_DELETE_LIMIT:
+            raise RefusedError(
+                _(
+                    "Delete at most {count} at a time. Narrow the list first.",
+                    count=f"{BULK_DELETE_LIMIT:,}",
+                )
+            )
+        for record in records:
+            title = self.title_of(record)
+            try:
+                await self._delete_within(selection.session, record, request=request)
+            except (RefusedError, PermissionDeniedError) as error:
+                raise RefusedError(
+                    _(
+                        "Nothing was deleted, because {thing} cannot be: {reason}",
+                        thing=title,
+                        reason=str(error),
+                    )
+                ) from error
+            except IntegrityError as error:
+                raise RefusedError(
+                    _(
+                        "Nothing was deleted, because other records still refer "
+                        "to {thing}.",
+                        thing=title,
+                    )
+                ) from error
+        things = self.label if len(records) == 1 else self.label_plural
+        return _("{count} {things} deleted.", count=len(records), things=things.lower())
 
     async def _apply_inlines(
         self,

@@ -29,12 +29,26 @@ one statement. It gives you:
 | `await selection.update(**values)` | Changes every covered row in one `UPDATE`, and returns how many. |
 | `await selection.delete()` | Deletes every covered row in one `DELETE`, and returns how many. |
 | `await selection.count()` | How many rows it covers. |
-| `await selection.records()` | Loads the records, for work that needs each one. |
+| `await selection.records(paths=...)` | Loads the records, for work that needs each one, with the links `paths` names. |
 | `selection.statement()` | A `select()` of the covered primary keys, to use in your own queries. |
 
 `update` and `delete` never load the records, so they skip the save hooks, and a delete relies on
 the database for cascades. Give a child table's foreign key `ondelete="CASCADE"` where children
 should go with their parent. Use `records()` when the hooks matter.
+
+## Deleting the chosen rows
+
+Every view that allows deleting offers Delete in the bar that rises when rows are ticked, after
+asking to confirm. It deletes each record the way a single delete does: `allows(Permission.DELETE,
+record=...)`, `before_delete` and `after_delete` run for every one, and the audit log gets a
+delete entry for each.
+
+It is all or none. When one record is refused, by a hook, by a permission, or because other records
+still point at it, nothing is deleted and the message names that record. One Delete removes at most
+1,000 records; narrow the list first for more.
+
+Switch it off for a view with `bulk_delete = False`, or give the view an action of its own named
+`delete_selected` to replace it. `can_delete = False` removes it along with every other delete.
 
 ## Asking for values first
 

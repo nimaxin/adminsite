@@ -92,7 +92,16 @@ class TestDeclaringActions:
     def test_actions_are_found_on_the_view(self) -> None:
         names = [item.name for item in OrderView().get_actions()]
 
-        assert set(names) == {"ship", "discard", "never", "one_by_one", "add_note"}
+        assert set(names) == {
+            "ship",
+            "discard",
+            "never",
+            "one_by_one",
+            "add_note",
+            "delete_selected",
+        }
+        # The built-in Delete comes after the view's own actions.
+        assert names[-1] == "delete_selected"
 
     def test_an_action_with_inputs_opens_a_dialog(self) -> None:
         found = OrderView().action_named("add_note")

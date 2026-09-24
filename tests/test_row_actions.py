@@ -129,7 +129,10 @@ class TestDeclaring:
             "ship",
         ]
         assert [item.name for item in view.actions_on("view")] == ["summary", "sync"]
-        assert [item.name for item in view.actions_on("selection")] == ["note"]
+        assert [item.name for item in view.actions_on("selection")] == [
+            "note",
+            "delete_selected",
+        ]
 
     def test_anything_else_is_refused(self) -> None:
         with pytest.raises(AdminSiteError, match="'selection', 'record' or 'view'"):

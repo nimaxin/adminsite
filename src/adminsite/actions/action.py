@@ -38,6 +38,9 @@ class Action:
     # Whether the audit log keeps what the action answered. Switch it off
     # for an answer that holds a secret shown once, such as a new API key.
     audit_answer: bool = True
+    # Set on the built-in delete, which writes an entry for each record it
+    # deletes, so the log does not also say it "ran Delete".
+    writes_own_audit: bool = False
 
     @property
     def needs_confirming(self) -> bool:
