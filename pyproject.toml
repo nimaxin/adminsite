@@ -1,7 +1,7 @@
 [project]
 name = "adminsite"
 version = "0.1.0a6"
-description = "Admin panel for SQLAlchemy models, mounted into Starlette, FastAPI or Litestar."
+description = "An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and Litestar."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -46,6 +46,9 @@ excel = ["openpyxl>=3.1"]
 
 [project.urls]
 Homepage = "https://github.com/nimaxin/adminsite"
+Documentation = "https://nimaxin.github.io/adminsite/"
+Demo = "https://adminsite.duckdns.org"
+Changelog = "https://nimaxin.github.io/adminsite/changelog/"
 Repository = "https://github.com/nimaxin/adminsite"
 Issues = "https://github.com/nimaxin/adminsite/issues"
 
