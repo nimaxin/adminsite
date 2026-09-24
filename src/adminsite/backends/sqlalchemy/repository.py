@@ -1,7 +1,7 @@
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     ColumnElement,
@@ -410,7 +410,11 @@ class SQLAlchemyRepository:
     def search_clause(self, spec: QuerySpec) -> ColumnElement[bool] | None:
         """Match the search term against the searchable paths."""
         term = spec.search.strip()
-        if not term or not spec.search_paths:
+        if not term:
+            return None
+        if spec.search_condition is not None:
+            return cast("ColumnElement[bool]", spec.search_condition)
+        if not spec.search_paths:
             return None
 
         clauses = [

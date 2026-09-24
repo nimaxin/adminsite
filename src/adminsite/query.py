@@ -56,6 +56,10 @@ class QuerySpec:
     defer: tuple[str, ...] = ()
     search: str = ""
     search_paths: tuple[str, ...] = ()
+    # The condition the view works out for the search, used instead of
+    # matching the search paths. Left out of comparisons: a SQL condition
+    # answers == with another condition, not with True or False.
+    search_condition: Any = field(default=None, compare=False)
     filters: tuple[FilterValue, ...] = ()
     sort: tuple[Sort, ...] = ()
     offset: int = 0

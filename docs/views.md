@@ -59,6 +59,31 @@ Anything the list shows is loaded with the page. `customer.name` joins the custo
 query; a path through a collection such as `items.quantity` costs one more query for the whole
 page, not one per row.
 
+### How the search matches
+
+The search box looks for the term inside every search field, which is what people expect of a name
+or a note. On a table of millions of rows it cannot use an index, so every search reads the whole
+table. `search_condition` lets the view decide the condition instead:
+
+```python
+import re
+
+
+class ContactView(ModelView, model=Contact):
+    search_fields = ("phone", "name")
+
+    def search_condition(self, term, *, request=None):
+        digits = re.sub(r"\D", "", term)
+        if len(digits) >= 6:
+            # "+1 (555) 0100" finds 15550100, through the index on phone.
+            return Contact.phone == digits
+        return None
+```
+
+Return a condition, and the list, its count, the export, "select all matching", the command
+palette and pickers of this view all use it. Return `None` to fall back to the usual search, as
+above for a name.
+
 ### Choosing columns
 
 The **Columns** menu above the list hides and shows columns. It offers the columns of

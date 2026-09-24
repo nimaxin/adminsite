@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A view's `search_condition(term, request=...)` decides what its search box matches, for example
+  an exact, normalised phone number that an index can answer, where the usual search looks inside
+  every search field. The list, its count, the export, "select all matching", the command palette
+  and pickers all use it; returning `None` keeps the usual search.
 - An action can answer with a `Message`: one that stays until it is closed, carries a link, or
   shows a value with a button that copies it, such as a new API key. The audit log keeps the text
   and never the value to copy. An action that answers with `Html` has its markup kept, where it was

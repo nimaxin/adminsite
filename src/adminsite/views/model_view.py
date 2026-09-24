@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 from uuid import uuid4
 
 from markupsafe import Markup
-from sqlalchemy import Select
+from sqlalchemy import ColumnElement, Select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
 from starlette.responses import Response
@@ -210,6 +210,19 @@ class ModelView:
     def get_search_fields(self, request: Any = None) -> tuple[str, ...]:
         """The paths the search box looks in."""
         return tuple(self.search_fields)
+
+    def search_condition(
+        self, term: str, *, request: Any = None
+    ) -> "ColumnElement[bool] | None":
+        """The condition the search box matches with, or None for the usual one.
+
+        The usual one looks for the term inside every search field, which a
+        large table cannot answer from an index. Return a condition of your
+        own, such as an exact match on a normalised phone number, and the
+        list, its count, the export, "select all matching", the command
+        palette and pickers all use it. Return None to fall back.
+        """
+        return None
 
     def get_filters(self, request: Any = None) -> tuple[SQLFilter, ...]:
         """The filters offered beside the list."""
@@ -460,6 +473,9 @@ class ModelView:
             defer=self._deferred(request, wanted),
             search=search,
             search_paths=self.get_search_fields(request),
+            search_condition=self.search_condition(search.strip(), request=request)
+            if search.strip()
+            else None,
             filters=tuple(filters),
             sort=tuple(sort) or self.get_ordering(request),
             limit=size or self.page_size,

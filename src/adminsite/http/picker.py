@@ -79,13 +79,18 @@ class Picker:
         self, session: SessionAdapter, *, search: str = "", limit: int = PICKER_LIMIT
     ) -> Page:
         """One page of the records on offer, or raise if none are."""
+        view = self.view
+        term = search.strip()
         spec = QuerySpec(
             search=search,
             search_paths=self.search_paths(),
+            # The target view decides how its records are searched, here too.
+            search_condition=view.search_condition(term, request=self.request)
+            if view is not None and term
+            else None,
             limit=limit,
             count=CountMode.NONE,
         )
-        view = self.view
         if view is None:
             return await self.repository.list(session, spec)
         return await view.fetch_page(session, spec, request=self.request)
