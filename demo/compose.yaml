@@ -1,0 +1,54 @@
+# The online demo: the app, and Caddy in front of it for HTTPS.
+# Needs DEMO_HOST and DEMO_SECRET_KEY, from the environment or --env-file.
+name: adminsite-demo
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    image: adminsite-demo
+    restart: unless-stopped
+    environment:
+      DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:?Set DEMO_SECRET_KEY}
+    # Nothing needs to outlive the hour, so the image stays read-only and
+    # the data lives in memory, where uploads cannot fill the disk.
+    read_only: true
+    tmpfs:
+      - /data:size=256m,uid=10001,gid=10001,mode=0700
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 256
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set DEMO_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates survive a restart, so Let's Encrypt is not asked again.
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:

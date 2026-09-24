@@ -1,0 +1,11 @@
+# The demo over HTTPS, with a certificate Caddy gets and renews by itself.
+{$DEMO_HOST} {
+	encode zstd gzip
+	# The app refuses a file that is too big with a message of its own: an
+	# import stops at 20 MB and a photo at 1 MB. This stops anything larger
+	# before it reaches the app.
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy app:8000
+}

@@ -1,0 +1,55 @@
+name: Demo
+
+# Deploys the online demo once CI has passed on a push to main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy the demo
+    # Only a green CI run of a push to this repository: a pull request from a
+    # fork's own main branch must never reach the server.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    environment:
+      name: demo
+      url: https://${{ vars.DEMO_HOST }}
+    steps:
+      - name: Trust the server and hold the deploy key
+        env:
+          DEPLOY_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEMO_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/demo
+          chmod 600 ~/.ssh/demo
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # The server runs its deploy script with the commit, and nothing else.
+      - name: Deploy the commit CI checked
+        env:
+          HOST: ${{ vars.DEMO_HOST }}
+          COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: ssh -i ~/.ssh/demo -o IdentitiesOnly=yes -o BatchMode=yes "deploy@$HOST" "$COMMIT"
+
+      - name: Check the demo answers
+        env:
+          HOST: ${{ vars.DEMO_HOST }}
+        run: >-
+          curl --fail --silent --show-error --retry 10 --retry-delay 3
+          --retry-all-errors "https://$HOST/healthz"

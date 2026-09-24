@@ -1,0 +1,11 @@
+# Only what the image needs leaves the repository.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src/
+!examples/
+!demo/
+**/__pycache__
+**/*.db
