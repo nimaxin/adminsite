@@ -34,6 +34,8 @@
   The sign in page, error pages, the activity page, imports and action dialogs share the new look.
 - A checkbox's tick appears at once. daisyUI drew it over 0.4 seconds, which dragged when ticking
   a column of rows.
+- `Admin(banner=...)` shows one line above every page and on the sign in page, such as
+  "Staging: changes here are not real."
 
 ## 0.1.0a5
 

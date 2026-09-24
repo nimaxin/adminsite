@@ -126,6 +126,9 @@
   <input id="navigation" type="checkbox" class="drawer-toggle">
 
   <div class="drawer-content flex h-dvh min-w-0 flex-col lg:py-2 lg:pe-2">
+    {% if admin.banner %}
+      <p role="note" class="tone-0 shrink-0 px-4 py-2 text-center text-[13px] font-medium [&_a]:underline [&_a]:underline-offset-2 lg:mb-2 lg:rounded-box">{{ admin.banner }}</p>
+    {% endif %}
     {% if messages %}
       {#- Good news fades after a few seconds; a problem stays until it is closed,
           so nobody misses it for reading slowly. -#}

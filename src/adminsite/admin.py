@@ -64,6 +64,7 @@ class Admin:
         source: Database | SessionSource,
         *,
         title: str = "Admin",
+        banner: str = "",
         views: Sequence[ModelView | type[ModelView]] = (),
         inspector: SQLAlchemyInspector | None = None,
         fields: FieldRegistry | None = None,
@@ -89,6 +90,9 @@ class Admin:
             )
         self.database = source if isinstance(source, Database) else Database(source)
         self.title = title
+        # One line above every page and the sign in page, such as a warning
+        # that this copy is a staging one. Escaped, unless given as Html.
+        self.banner = banner
         self.inspector = inspector or SQLAlchemyInspector()
         self.fields = fields or default_registry
         self.views = ViewRegistry()

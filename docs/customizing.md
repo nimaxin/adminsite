@@ -30,6 +30,17 @@ Keep the same relative path. To replace the sign in page, create
 | `adminsite/activity.html` | The activity page |
 | `adminsite/login.html` | Signing in |
 
+## A line above every page
+
+`banner` puts one line of text above every page, the sign in page included. Use it to say which
+copy of the admin people are looking at:
+
+```python
+admin = Admin(engine, banner="Staging: changes here are not real.")
+```
+
+The text is escaped. Give it as `Html(...)` to include a link.
+
 ## One widget
 
 Each form control is its own small template under `adminsite/widgets/`, named after the field's
