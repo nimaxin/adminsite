@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -161,3 +162,36 @@ class TestAnOptionThatDoesNotExist:
             Wrong().field_for("name")
 
         assert "FieldOptions('name') in Wrong.fields" in str(raised.value)
+
+
+class TestAFormat:
+    def test_it_writes_the_value_wherever_it_is_shown(self) -> None:
+        class Priced(ModelView, model=Product):
+            name = "priced_products"
+            fields = (FieldOptions("price", format="€{:,.2f}"),)
+
+        item = Priced().field_for("price")
+
+        assert item.text_for(None, Decimal("1234.5")) == "€1,234.50"
+        assert item.text_for(None, None) == ""
+        # The input keeps the plain number, which is what it reads back.
+        assert item.serialize(Decimal("1234.50")) == "1234.50"
+
+    async def test_the_list_and_the_form_follow_it(self, database: Database) -> None:
+        class Priced(ModelView, model=Product):
+            name = "priced_products"
+            list_display = ("name", "price")
+            form_fields = ("name", "price")
+            fields = (FieldOptions("price", format="€{:,.2f}"),)
+
+        admin = Admin(database, views=[Priced])
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            listed = await client.get("/admin/priced_products")
+            form = await client.get("/admin/priced_products/1/edit")
+
+        assert "€59.00" in listed.text
+        assert 'value="59.00"' in form.text

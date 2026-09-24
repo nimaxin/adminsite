@@ -1,51 +1,59 @@
 {% extends "adminsite/base.html" %}
+{% import "adminsite/_icons.html" as icons %}
 
 {% block page_title %}{{ _('Import {things}', things=view.label_plural|lower) }} · {{ title }}{% endblock %}
 
+{% block breadcrumb %}
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
+    <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
+    {{ icons.icon("chevron-right", 14) }}
+    <span aria-current="page" class="text-base-content">{{ _('Import') }}</span>
+  </nav>
+{% endblock %}
+
+{% block header_class %}border-b border-base-300 lg:pt-2 lg:pb-5{% endblock %}
+
 {% block header %}
-  <div class="breadcrumbs py-0 text-sm">
-    <ul>
-      <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li class="font-semibold">{{ _('Import') }}</li>
-    </ul>
-  </div>
+  <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ _('Import {things}', things=view.label_plural|lower) }}</h1>
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl p-4 lg:p-6">
-  <form class="card card-border bg-base-100" method="post" action="{{ urls.list(view) }}/import"
+<div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+  <form class="flex max-w-2xl flex-col gap-5" method="post" action="{{ urls.list(view) }}/import"
         enctype="multipart/form-data">
     {{ csrf_input | safe if csrf_input }}
-    <div class="card-body gap-4">
-      {% if error %}
-        <div role="alert" class="alert alert-error alert-soft"><span>{{ error }}</span></div>
-      {% endif %}
+    {% if error %}
+      <div role="alert" class="flex gap-3 rounded-box border border-error/30 bg-error/5 px-4 py-3.5">
+        <span class="mt-0.5 text-error">{{ icons.icon("alert", 18) }}</span>
+        <p class="font-medium">{{ error }}</p>
+      </div>
+    {% endif %}
 
-      <fieldset class="fieldset">
-        <label class="fieldset-legend" for="import-file">{{ _('A CSV or Excel file') }}</label>
+    <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet">
+      <div class="flex flex-col gap-2 p-5">
+        <label class="text-[13px] font-medium" for="import-file">{{ _('A CSV or Excel file') }}</label>
         <input id="import-file" type="file" name="file" required
                accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-               class="file-input file-input-sm w-full">
-        <p class="label">{{ _('The first row names the columns. Nothing is saved until you have seen the preview.') }}</p>
-      </fieldset>
-
-      <div>
-        <h2 class="mb-2 font-medium">{{ _('Columns') }}</h2>
+               class="file-input w-full">
+        <p class="text-[12.5px] text-muted">{{ _('The first row names the columns. Nothing is saved until you have seen the preview.') }}</p>
+      </div>
+      <div class="border-t border-line p-5">
+        <h2 class="mb-2.5 text-sm font-semibold">{{ _('Columns') }}</h2>
         <div class="flex flex-wrap gap-1.5">
           {% for path, label in columns %}
-            <span class="badge badge-ghost font-mono" title="{{ label }}">{{ path }}</span>
+            <span class="rounded-md border border-base-300 bg-subtle px-2 py-0.5 font-mono text-xs" title="{{ label }}">{{ path }}</span>
           {% endfor %}
         </div>
-        <p class="mt-2 text-base-content/70">
+        <p class="mt-3 text-[13px] text-muted">
           {{ _('A header may be the name or the label, in any case. A row with a {key} that exists changes that {thing}; a row without one adds a new one.', key=columns[0][0], thing=view.label|lower) }}
-          <a class="link" href="{{ urls.list(view) }}/import/template">{{ _('Download an empty file') }}</a>.
+          <a class="font-medium text-link hover:underline" href="{{ urls.list(view) }}/import/template">{{ _('Download an empty file') }}</a>.
         </p>
       </div>
+    </section>
 
-      <div class="card-actions border-t border-base-300 pt-4">
-        <button class="btn btn-primary btn-sm" type="submit">{{ _('Preview') }}</button>
-        <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}">{{ _('Cancel') }}</a>
-      </div>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-primary" type="submit">{{ _('Preview') }}</button>
+      <a class="btn btn-ghost" href="{{ urls.list(view) }}">{{ _('Cancel') }}</a>
     </div>
   </form>
 </div>

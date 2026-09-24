@@ -29,6 +29,7 @@ class Field:
         help_text: str = "",
         max_length: int | None = None,
         default: Any = None,
+        format: str | None = None,
     ) -> None:
         self.name = name
         self.label = label if label is not None else humanize(name)
@@ -39,6 +40,9 @@ class Field:
         # What a new record's input starts with, and what an action's
         # dialog opens with. A stored value always wins over it.
         self.default = default
+        # How a value is written wherever it is shown, as `str.format` takes
+        # it: "€{:,.2f}" for money. Inputs keep the plain value.
+        self.format = format
         self._adapter: TypeAdapter[Any] = TypeAdapter(self.python_type)
 
     @classmethod
@@ -67,6 +71,8 @@ class Field:
         another column, such as an amount that reads differently per
         currency; override `display` where the value alone is enough.
         """
+        if self.format is not None and value is not None:
+            return self.format.format(value)
         return self.display(value)
 
     def serialize(self, value: Any) -> str:

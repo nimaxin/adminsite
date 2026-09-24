@@ -29,6 +29,9 @@
   the rest below, its amount at the end. A page's secondary actions fold into one menu so the
   header keeps to one line, the form's title gets the whole line, and the overview's cards sit
   two to a row.
+- Every field takes `format`, such as `format="€{:,.2f}"`, for how its value is written in the
+  list, on the record page, in the export and on the overview. The form keeps the plain number.
+  The sign in page, error pages, the activity page, imports and action dialogs share the new look.
 
 ## 0.1.0a5
 

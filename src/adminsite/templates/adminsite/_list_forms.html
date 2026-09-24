@@ -25,7 +25,7 @@
   {% endfor %}
 
   <dialog id="save-view-{{ view.name }}" class="modal">
-    <form class="modal-box max-w-md" method="post" action="{{ urls.save_view(view) }}">
+    <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post" action="{{ urls.save_view(view) }}">
       {{ csrf_input | safe if csrf_input }}
       <input type="hidden" name="query" value="{{ current_query }}">
       <h3 class="text-base font-semibold">{{ _('Save this view') }}</h3>

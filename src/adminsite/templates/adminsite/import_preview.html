@@ -1,63 +1,74 @@
 {% extends "adminsite/base.html" %}
+{% import "adminsite/_icons.html" as icons %}
 
 {% block page_title %}{{ _('Import {things}', things=view.label_plural|lower) }} · {{ title }}{% endblock %}
 
+{% block breadcrumb %}
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
+    <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
+    {{ icons.icon("chevron-right", 14) }}
+    <a class="hover:text-base-content" href="{{ urls.list(view) }}/import">{{ _('Import') }}</a>
+    {{ icons.icon("chevron-right", 14) }}
+    <span aria-current="page" class="text-base-content">{{ _('Preview') }}</span>
+  </nav>
+{% endblock %}
+
+{% block header_class %}lg:pt-2 lg:pb-4{% endblock %}
+
 {% block header %}
-  <div class="breadcrumbs py-0 text-sm">
-    <ul>
-      <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li><a href="{{ urls.list(view) }}/import">{{ _('Import') }}</a></li>
-      <li class="font-semibold">{{ _('Preview') }}</li>
-    </ul>
-  </div>
+  <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ filename }}</h1>
+{% endblock %}
+
+{% block header_actions %}
+  {% set problems = plan.count("error") %}
+  <form method="post" action="{{ urls.list(view) }}/import/{{ token }}" class="flex items-center gap-2">
+    {{ csrf_input | safe if csrf_input }}
+    <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">{{ _('Choose another file') }}</a>
+    <button class="btn btn-primary btn-sm" type="submit" {% if not plan.ready %}disabled{% endif %}>
+      {% if problems %}{{ _('Import {count} rows, skip {skipped}', count=plan.ready|length, skipped=problems) }}{% else %}{{ _('Import {count} rows', count=plan.ready|length) }}{% endif %}
+    </button>
+  </form>
 {% endblock %}
 
 {% block content %}
 {% set creating = plan.count("create") %}
 {% set updating = plan.count("update") %}
 {% set problems = plan.count("error") %}
-<div class="flex h-full flex-col">
-  <div class="flex flex-wrap items-center gap-3 border-b border-base-300 px-3 py-3 lg:px-6">
-    <span class="font-medium">{{ filename }}</span>
-    <span class="badge badge-soft badge-success">{{ _('{count} new', count=creating) }}</span>
-    <span class="badge badge-soft badge-info">{{ _('{count} changed', count=updating) }}</span>
-    {% if problems %}<span class="badge badge-soft badge-error">{{ _('{count} with problems', count=problems) }}</span>{% endif %}
+<div class="flex min-h-0 flex-1 flex-col">
+  <div class="flex flex-wrap items-center gap-2 border-b border-base-300 px-4 pb-3 lg:px-7">
+    <span class="pill tone-2">{{ _('{count} new', count=creating) }}</span>
+    <span class="pill tone-1">{{ _('{count} changed', count=updating) }}</span>
+    {% if problems %}<span class="pill tone-5">{{ _('{count} with problems', count=problems) }}</span>{% endif %}
     {% if plan.ignored %}
-      <span class="text-base-content/60">{{ _('Not used: {names}', names=plan.ignored|join(', ')) }}</span>
+      <span class="text-[13px] text-muted">{{ _('Not used: {names}', names=plan.ignored|join(', ')) }}</span>
     {% endif %}
-    <span class="flex-1"></span>
-    <form method="post" action="{{ urls.list(view) }}/import/{{ token }}" class="flex items-center gap-2">
-      {{ csrf_input | safe if csrf_input }}
-      <a class="btn btn-ghost btn-sm" href="{{ urls.list(view) }}/import">{{ _('Choose another file') }}</a>
-      <button class="btn btn-primary btn-sm" type="submit" {% if not plan.ready %}disabled{% endif %}>
-        {% if problems %}{{ _('Import {count} rows, skip {skipped}', count=plan.ready|length, skipped=problems) }}{% else %}{{ _('Import {count} rows', count=plan.ready|length) }}{% endif %}
-      </button>
-    </form>
   </div>
 
   <div class="min-h-0 flex-1 overflow-auto">
-    <table class="table table-sm table-pin-rows">
+    <table class="w-full border-separate border-spacing-0">
       <thead>
         <tr>
-          <th class="w-16">{{ _('Row') }}</th>
-          <th class="w-24">{{ _('Does') }}</th>
-          {% for path in plan.columns %}<th>{{ view.label_for(path) }}</th>{% endfor %}
+          <th class="sticky top-0 z-10 h-10 w-16 border-b border-base-300 bg-subtle ps-4 pe-3 text-start text-[12.5px] font-medium text-muted lg:ps-7">{{ _('Row') }}</th>
+          <th class="sticky top-0 z-10 h-10 w-24 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium text-muted">{{ _('Does') }}</th>
+          {% for path in plan.columns %}
+            <th class="sticky top-0 z-10 h-10 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium whitespace-nowrap text-muted">{{ view.label_for(path) }}</th>
+          {% endfor %}
         </tr>
       </thead>
       <tbody>
         {% for row in shown %}
           <tr class="{% if row.errors %}bg-error/5{% endif %}">
-            <td class="tabular-nums text-base-content/60">{{ row.number }}</td>
-            <td>
-              {% if row.action == "create" %}<span class="badge badge-soft badge-success badge-sm">{{ _('new') }}</span>
-              {% elif row.action == "update" %}<span class="badge badge-soft badge-info badge-sm">{{ _('change') }}</span>
-              {% else %}<span class="badge badge-soft badge-error badge-sm">{{ _('problem') }}</span>{% endif %}
+            <td class="border-b border-line py-2.5 ps-4 pe-3 align-top tabular-nums text-muted lg:ps-7">{{ row.number }}</td>
+            <td class="border-b border-line px-3 py-2.5 align-top">
+              {% if row.action == "create" %}<span class="pill tone-2">{{ _('new') }}</span>
+              {% elif row.action == "update" %}<span class="pill tone-1">{{ _('change') }}</span>
+              {% else %}<span class="pill tone-5">{{ _('problem') }}</span>{% endif %}
             </td>
             {% for path in plan.columns %}
-              <td class="align-top">
+              <td class="border-b border-line px-3 py-2.5 align-top">
                 <span class="whitespace-nowrap">{{ row.raw.get(path, "") }}</span>
                 {% if row.errors.get(path) %}
-                  <p class="text-xs text-error">{{ row.errors[path] }}</p>
+                  <p class="mt-1 text-xs text-error">{{ row.errors[path] }}</p>
                 {% endif %}
               </td>
             {% endfor %}
@@ -65,8 +76,8 @@
           {% set missing = row.errors.keys()|reject("in", plan.columns)|list %}
           {% if missing %}
             <tr class="bg-error/5">
-              <td></td>
-              <td colspan="{{ plan.columns|length + 1 }}" class="text-xs text-error">
+              <td class="border-b border-line"></td>
+              <td colspan="{{ plan.columns|length + 1 }}" class="border-b border-line px-3 py-2 text-xs text-error">
                 {% for path in missing %}{{ view.label_for(path) }}: {{ row.errors[path] }}{% if not loop.last %} · {% endif %}{% endfor %}
               </td>
             </tr>
@@ -75,7 +86,7 @@
       </tbody>
     </table>
     {% if shown|length < plan.rows|length %}
-      <p class="px-3 py-3 text-base-content/60 lg:px-6">
+      <p class="px-4 py-3 text-[13px] text-muted lg:px-7">
         {{ _('Showing {shown} of {total} rows: the first 50 and the ones with problems.', shown=shown|length, total=plan.rows|length) }}
       </p>
     {% endif %}

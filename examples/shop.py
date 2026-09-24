@@ -20,6 +20,7 @@ from starlette.responses import Response
 from adminsite import (
     Admin,
     Chart,
+    FieldOptions,
     Inline,
     ModelView,
     Permission,
@@ -104,6 +105,10 @@ class OrderItem(Base):
     product: Mapped[Product] = relationship()
 
 
+# How the shop writes an amount of money, on every page and in the export.
+EUROS = "€{:,.2f}"
+
+
 def outline(paths: str) -> str:
     """A sidebar icon drawn the way the admin draws its own."""
     return (
@@ -143,6 +148,7 @@ class OrderView(ModelView, model=Order):
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
     fields = (
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
+        FieldOptions("total", format=EUROS),
     )
 
     @action("Mark as paid", on="record")
@@ -197,7 +203,10 @@ class ProductView(ModelView, model=Product):
         '<path d="M12 12v9"/>'
     )
     list_display = ("name", "photo", "price", "description")
-    fields = (ImageField("photo", storage=LocalStorage("shop_uploads")),)
+    fields = (
+        ImageField("photo", storage=LocalStorage("shop_uploads")),
+        FieldOptions("price", format=EUROS),
+    )
     search_fields = ("name", "description")
     list_filter = ("price",)
 
@@ -208,7 +217,7 @@ engine = create_async_engine("sqlite+aiosqlite:///shop.db")
 order_day = func.date(Order.created_at)
 
 dashboard = [
-    Stat("Revenue", select(func.sum(Order.total)), format="€{:,.2f}"),
+    Stat("Revenue", select(func.sum(Order.total)), format=EUROS),
     Stat("Orders", select(func.count(Order.id)), link="orders"),
     Stat(
         "Waiting to ship",
@@ -221,7 +230,7 @@ dashboard = [
         select(order_day, func.sum(Order.total))
         .group_by(order_day)
         .order_by(order_day),
-        format="€{:,.2f}",
+        format=EUROS,
     ),
     RecentRecords("Latest orders", "orders", sort="-created_at", detail="total"),
 ]

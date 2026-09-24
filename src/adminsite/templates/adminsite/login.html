@@ -12,30 +12,41 @@
   } catch (error) {}
 </script>
 </head>
-<body class="flex min-h-screen items-center justify-center bg-base-200 p-4 font-sans text-sm antialiased">
-  <form class="card card-border w-full max-w-sm bg-base-100" method="post" action="{{ urls.login() }}">
-    {{ csrf_input | safe if csrf_input }}
-    <div class="card-body">
-      <h1 class="card-title">{{ title }}</h1>
-      <p class="text-base-content/60">{{ _('Sign in to continue.') }}</p>
+<body class="flex min-h-dvh items-center justify-center bg-base-200 p-4 font-sans text-sm text-base-content antialiased">
+  <main class="w-full max-w-sm">
+    <div class="mb-6 flex items-center justify-center gap-2.5">
+      <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" class="shrink-0">
+        <rect width="24" height="24" rx="7" class="fill-accent"/>
+        <path d="M7.5 16.5 12 7.5l4.5 9M9.4 13.2h5.2" fill="none" class="stroke-accent-content"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="text-lg font-semibold tracking-tight">{{ title }}</span>
+    </div>
+    <form class="flex flex-col gap-4 rounded-box border border-base-300 bg-base-100 p-6 shadow-panel" method="post" action="{{ urls.login() }}">
+      {{ csrf_input | safe if csrf_input }}
+      <div>
+        <h1 class="text-[20px] font-semibold tracking-tight">{{ _('Sign in') }}</h1>
+        <p class="mt-1 text-muted">{{ _('Sign in to continue.') }}</p>
+      </div>
 
       {% if error %}
-        <div role="alert" class="alert alert-error alert-soft" id="login-error">
-          <span>{{ error }}</span>
+        <div role="alert" class="rounded-field border border-error/30 bg-error/5 px-3 py-2.5 text-error" id="login-error">
+          {{ error }}
         </div>
       {% endif %}
 
-      <fieldset class="fieldset">
-        <label class="fieldset-legend" for="username">{{ _('Username') }}</label>
-        <input class="input w-full" id="username" name="username" autocomplete="username" autofocus>
-      </fieldset>
-      <fieldset class="fieldset">
-        <label class="fieldset-legend" for="password">{{ _('Password') }}</label>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[13px] font-medium" for="username">{{ _('Username') }}</label>
+        <input class="input w-full" id="username" name="username" autocomplete="username" autofocus
+               {% if error %}aria-describedby="login-error"{% endif %}>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[13px] font-medium" for="password">{{ _('Password') }}</label>
         <input class="input w-full" id="password" name="password" type="password"
                autocomplete="current-password">
-      </fieldset>
-      <button class="btn btn-primary mt-2" type="submit">{{ _('Sign in') }}</button>
-    </div>
-  </form>
+      </div>
+      <button class="btn btn-primary mt-1" type="submit">{{ _('Sign in') }}</button>
+    </form>
+  </main>
 </body>
 </html>

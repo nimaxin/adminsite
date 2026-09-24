@@ -2,19 +2,27 @@
 
 {% block page_title %}{{ _('Activity') }} · {{ title }}{% endblock %}
 
-{% block header %}<h1 class="text-base font-semibold">{{ _('Activity') }}</h1>{% endblock %}
+{% block header_class %}lg:pt-5 lg:pb-3{% endblock %}
+
+{% block header %}<h1 class="text-[22px] font-semibold leading-tight tracking-tight">{{ _('Activity') }}</h1>{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-3xl p-4 lg:p-6">
-  <div class="mb-5 flex flex-wrap gap-2">
-    <a class="btn btn-sm {% if not chosen %}btn-active{% else %}btn-ghost{% endif %}"
-       href="{{ urls.activity() }}">{{ _('Everything') }}</a>
-    {% for item in history_views %}
-      <a class="btn btn-sm {% if chosen == item.name %}btn-active{% else %}btn-ghost{% endif %}"
-         href="{{ urls.activity(view=item.name) }}">{{ item.label_plural }}</a>
-    {% endfor %}
+<nav class="flex items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
+  <a href="{{ urls.activity() }}" {% if not chosen %}aria-current="page"{% endif %}
+     class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if not chosen %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+    {{ _('Everything') }}
+  </a>
+  {% for item in history_views %}
+    <a href="{{ urls.activity(view=item.name) }}" {% if chosen == item.name %}aria-current="page"{% endif %}
+       class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if chosen == item.name %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+      {{ item.label_plural }}
+    </a>
+  {% endfor %}
+</nav>
+<div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+  <div class="max-w-3xl rounded-box border border-base-300 bg-base-100 p-5 shadow-quiet">
+    {% set show_record = True %}
+    {% include "adminsite/_history.html" %}
   </div>
-  {% set show_record = True %}
-  {% include "adminsite/_history.html" %}
 </div>
 {% endblock %}

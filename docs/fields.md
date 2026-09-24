@@ -61,8 +61,21 @@ class OrderView(ModelView, model=Order):
     )
 ```
 
-Every field takes `label`, `required`, `readonly`, `help_text`, `max_length` and `default`.
-`default` is what a new record's form starts with, and what an action's dialog opens with.
+Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default` and
+`format`. `default` is what a new record's form starts with, and what an action's dialog opens
+with. `format` is how a value is written wherever it is shown, as `str.format` takes it, the same
+way a dashboard's `Stat` and `Chart` take it:
+
+```python
+from adminsite import FieldOptions
+
+
+class OrderView(ModelView, model=Order):
+    fields = (FieldOptions("total", format="€{:,.2f}"),)
+```
+
+The list, the record page, the export and the overview's cards then read `€1,234.50`. The form's
+input keeps the plain number, since that is what it reads back.
 
 ## Changing one thing about a field
 

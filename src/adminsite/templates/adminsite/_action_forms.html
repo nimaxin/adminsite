@@ -10,11 +10,11 @@
 
   {% if item.needs_dialog %}
     <dialog id="action-{{ item.name }}" class="modal">
-      <form class="modal-box" method="post"
+      <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post"
             action="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
         {{ csrf_input | safe if csrf_input }}
         {% if item.on_record %}<input type="hidden" name="keys" value="">{% endif %}
-        <h3 class="text-lg font-semibold">{{ item.label }}</h3>
+        <h3 class="text-base font-semibold">{{ item.label }}</h3>
         {% if item.confirm %}
           <p class="pt-2 text-base-content/80">{{ item.confirm }}</p>
         {% endif %}

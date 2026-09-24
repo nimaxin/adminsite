@@ -11,7 +11,7 @@
     <input type="hidden" name="everything" :value="everything ? '1' : ''">
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <table class="hidden w-full border-separate border-spacing-0 md:table">
+      <table class="w-full border-separate border-spacing-0 max-md:hidden">
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
           <tr>
@@ -95,13 +95,15 @@
                   {% endif %}
                 </td>
               {% endfor %}
-              <td class="h-12 border-b border-line pe-4 text-end lg:pe-5">
-                {% with allowed = row_actions.get(key, []) if row_actions else [],
-                        title = view.title_of(row),
-                        edit_url = urls.edit(view, key) if can_edit else "",
-                        upward = loop.revindex <= 3 and loop.length > 5 %}
-                  {% include "adminsite/_row_actions.html" %}
-                {% endwith %}
+              <td class="h-12 border-b border-line pe-4 lg:pe-5">
+                <div class="flex justify-end">
+                  {% with allowed = row_actions.get(key, []) if row_actions else [],
+                          title = view.title_of(row),
+                          edit_url = urls.edit(view, key) if can_edit else "",
+                          upward = loop.revindex <= 3 and loop.length > 5 %}
+                    {% include "adminsite/_row_actions.html" %}
+                  {% endwith %}
+                </div>
               </td>
             </tr>
           {% else %}
