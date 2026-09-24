@@ -12,8 +12,9 @@ import os
 import secrets
 import shutil
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -22,7 +23,14 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from adminsite import Admin, FieldOptions, SavedViews
-from adminsite.audit import AuditLog, audit_metadata
+from adminsite.audit import (
+    AuditEntry,
+    AuditLog,
+    AuditQuery,
+    AuditStore,
+    audit_metadata,
+)
+from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.fields import ImageField
 from adminsite.files import LocalStorage
@@ -54,6 +62,32 @@ TABLES = (
     *audit_metadata.sorted_tables,
     *saved_view_metadata.sorted_tables,
 )
+
+
+class WhatNotWho:
+    """The demo's log: what visitors did, but not where they came from.
+
+    Everyone signs in as admin, so every visitor would read the others'
+    addresses, and whatever they typed as a username when a sign in failed.
+    Sign ins are left out, and so are the address and browser of the rest.
+    """
+
+    def __init__(self, store: AuditStore) -> None:
+        self.store = store
+
+    async def record(self, entries: Sequence[AuditEntry]) -> None:
+        """Keep what was done, without who signed in or from where."""
+        kept = [
+            replace(entry, ip=None, user_agent=None)
+            for entry in entries
+            if entry.event not in SIGN_IN_EVENTS
+        ]
+        if kept:
+            await self.store.record(kept)
+
+    async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
+        """Read the log as the store keeps it."""
+        return await self.store.find(query, limit=limit)
 
 
 class DemoCustomerView(CustomerView):
@@ -135,7 +169,7 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         auth=PasswordAuth({"admin": hash_password("admin")}),
         secret_key=secret_key,
         session_https_only=True,
-        audit=AuditLog(engine, create_table=True),
+        audit=WhatNotWho(AuditLog(engine, create_table=True)),
         saved_views=SavedViews(engine, create_table=True),
     )
     app.mount("/admin", admin)

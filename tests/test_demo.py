@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 import demo.app
-from adminsite.audit import audit_table
+from adminsite.audit import AuditEvent, AuditQuery, audit_table
 from adminsite.fields import ImageField
 from adminsite.saved_views import saved_view_table
 from demo.app import (
@@ -138,3 +138,26 @@ class TestDemo:
         assert views.get("customers").import_limit == 200
         assert isinstance(photo, ImageField)
         assert photo.max_size == MEGABYTE
+
+    async def test_the_log_keeps_what_was_done_but_not_who_signed_in(
+        self, tmp_path: Path
+    ) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            page = await client.get("/admin/login")
+            await client.post(
+                "/admin/login",
+                data={
+                    "username": "my real password",
+                    "password": "admin",
+                    "_csrf": token_from(page.text),
+                },
+            )
+            token = await sign_in(client)
+            await client.post("/admin/orders/1/delete", data={"_csrf": token})
+            activity = await client.get("/admin/-/activity")
+            entries = await app.state.admin.audit.find(AuditQuery(), limit=10)
+
+        assert [entry.event for entry in entries] == [AuditEvent.DELETED]
+        assert entries[0].ip is None
+        assert "my real password" not in activity.text

@@ -4,6 +4,9 @@ The example shop, served at https://adminsite.duckdns.org for anyone to try. Vis
 admin / admin and may change anything. Every hour `app.py` puts the shop, its history and saved
 views back as they started, and empties the uploads.
 
+Everyone signs in as the same admin, so the audit log keeps what visitors did but not their sign
+ins, IP addresses or browsers: each visitor would read the others' otherwise.
+
 ## Running it here
 
 ```bash
