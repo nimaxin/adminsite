@@ -348,6 +348,10 @@ async def action(admin: "Admin", request: Request) -> Response:
             raise ApiError(
                 409, _("Other records still refer to some of these.")
             ) from None
+        except Exception:
+            # Undone first, so the audit log can write the attempt down.
+            await session.rollback()
+            raise
     return JSONResponse({"message": message})
 
 

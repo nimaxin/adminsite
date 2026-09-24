@@ -49,20 +49,43 @@ New versions of adminsite add columns to this table. Every one of them may be em
 adminsite created itself gets them added the first time the log is used. For a table in your own
 migrations, generate a migration after upgrading.
 
-## Bulk actions
+## Actions
 
-A bulk action writes one entry for each record it touched, and the entries share a batch id. Every
-record's history shows the action, and the batch can still be read as one event. This is how
-Laravel Nova and Django's bulk delete record them.
+Every action run is written down, whatever it acts on and whatever it answers with, a file
+included:
 
-The records are read before the action runs. "Mark every pending order as shipped" would find no
-pending orders afterwards, so reading them first is the only way to know which ones it changed. For
-`selection.update`, the old values are read in the same single query.
+- An action on one record writes an entry for it, with the fields it changed, the way a save does.
+- A bulk action writes one entry for each record it touched, and the entries share a batch id.
+  Every record's history shows the action, and the batch can still be read as one event. This is
+  how Laravel Nova and Django's bulk delete record them.
+- An action on the whole model writes one entry for the model, with no record.
+
+The records a bulk action covers are read before it runs. "Mark every pending order as shipped"
+would find no pending orders afterwards, so reading them first is the only way to know which ones
+it changed. For `selection.update`, the old values are read in the same single query. A download
+over three chosen orders says who took which three.
+
+Each entry keeps the values the action was run with, in `entry.inputs`. A secret is kept as `***`:
+an input whose name is made of a word such as `password`, `secret`, `token`, `key` or `pin`, as in
+`api_key`, or one given `secret=True`. Give `secret=False` to keep a value whose name only looks
+secret. An uploaded file is kept by its name, type and size, never by what is in it.
+
+An action that is refused, that the person may not run, or that fails is written down too, as
+failed, with the reason in `entry.error`. Its work is rolled back first, and the entry is written
+after, outside that transaction. A refusal keeps its message; any other error keeps only its kind,
+such as `ZeroDivisionError`, since its text may hold the data itself.
+
+## Exports
+
+Downloading a list as CSV writes an entry for the model with the list's search, filters, sort and
+columns in `entry.inputs`. An export can hold thousands of rows, so the entry names the list rather
+than each record in it.
 
 ## What is never recorded
 
-- A change that was rolled back. Entries are written only after the commit succeeds, so a hook that
-  refuses a save leaves no trace.
+- A save that was rolled back. Entries are written only after the commit succeeds, so a hook that
+  refuses a save leaves no trace. Actions are different: a refused or failed one is written down as
+  failed, as above.
 - A save that changed nothing. Saving a form without edits writes no entry.
 
 ## Who did it, and from where

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Every action is audited: on one record, with the fields it changed; on the whole model, which
+  wrote nothing before; and one that answers with a file, which returned before it was written
+  down. Each entry keeps the values the action was run with, with secrets as `***` and files by
+  name, type and size. A field's new `secret` option decides what is a secret, where a name such
+  as `password` or `api_key` does not. An action that is refused, not allowed or fails is written
+  down as failed with its reason, after its work is rolled back. Downloading a list as CSV is
+  written down with its search and filters.
 - The audit log keeps every sign in, failed attempt and sign out, with the address and browser.
   `verify` can raise `SignInRefused(reason, user=...)` to say why an attempt failed; the reason
   goes to the log, never to the person. `PasswordAuth.verify` now raises it, saying whether the

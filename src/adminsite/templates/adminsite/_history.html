@@ -14,7 +14,7 @@
         <p>
           <span class="font-medium">{{ item.who }}</span>
           {{ item.what }}
-          {% if show_record and item.entry.view %}
+          {% if show_record and item.entry.record_key %}
             {% if event != 'deleted' and item.entry.view in (detail_views or []) %}
               <a class="link link-hover font-medium"
                  href="{{ urls.detail(admin.views.get(item.entry.view), item.entry.record_key) }}">{{ name }}</a>
@@ -30,6 +30,15 @@
         </p>
         {% if item.entry.error %}
           <p class="mt-1 text-[13px] text-error">{{ item.entry.error }}</p>
+        {% endif %}
+        {% if item.given %}
+          <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-box border border-base-300 px-3 py-2 text-[13px]"
+              aria-label="{{ _('Run with') }}">
+            {% for line in item.given %}
+              <dt class="text-base-content/60">{{ line.label }}</dt>
+              <dd class="break-all">{{ line.value }}</dd>
+            {% endfor %}
+          </dl>
         {% endif %}
         {% if item.lines %}
           <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-box bg-base-200 px-3 py-2 text-[13px]">

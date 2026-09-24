@@ -1,4 +1,5 @@
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from string import Formatter
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 from uuid import uuid4
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 from adminsite.actions.action import Action, action_of
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, diff
+from adminsite.audit.inputs import recorded_inputs
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
@@ -541,30 +543,28 @@ class ModelView:
         values: Mapping[str, Any] | None = None,
     ) -> Any:
         """Run an action on one record, and say what to tell the user."""
-        await self.ensure(found.permission, request=request, record=record)
-        key, title = self.identity_of(record), self.title_of(record)
-
-        handler = getattr(self, found.method)
-        answer = await handler(record, session, **(values or {}))
-        if isinstance(answer, Response):
-            return answer
-        text = str(answer) if answer else _("{action} done.", action=found.label)
-
-        self._audit(
-            session,
-            [
-                AuditEntry(
-                    view=self.name,
-                    record_key=key,
-                    record_title=title,
-                    event=AuditEvent.ACTION,
-                    action=found.label,
-                    **actor_of(request),
-                    message=text,
-                )
-            ],
+        entry = self._action_entry(
+            found, request, values, self.identity_of(record), self.title_of(record)
         )
-        return text
+        auditing = self.audit is not None
+        paths = list(self.get_form_fields(request, record)) if auditing else []
+        try:
+            await self.ensure(found.permission, request=request, record=record)
+            before = self.snapshot(record, paths)
+            handler = getattr(self, found.method)
+            answer = await handler(record, session, **(values or {}))
+            if auditing:
+                # Anything the record refuses surfaces here, while the entry
+                # can still be written down as failed.
+                await session.flush()
+        except Exception as error:
+            self._audit_failure(session, [entry], error)
+            raise
+
+        text = self._answer_text(found, answer)
+        changes = diff(before, self.snapshot(record, paths)) if auditing else {}
+        self._audit(session, [replace(entry, changes=changes, message=text)])
+        return answer if isinstance(answer, Response) else text
 
     async def run_view_action(
         self,
@@ -575,12 +575,20 @@ class ModelView:
         values: Mapping[str, Any] | None = None,
     ) -> Any:
         """Run an action that acts on the view, not on any record."""
-        await self.ensure(found.permission, request=request)
-        handler = getattr(self, found.method)
-        answer = await handler(session, **(values or {}))
-        if isinstance(answer, Response):
-            return answer
-        return str(answer) if answer else _("{action} done.", action=found.label)
+        entry = self._action_entry(found, request, values, "", None)
+        try:
+            await self.ensure(found.permission, request=request)
+            handler = getattr(self, found.method)
+            answer = await handler(session, **(values or {}))
+            if self.audit is not None:
+                await session.flush()
+        except Exception as error:
+            self._audit_failure(session, [entry], error)
+            raise
+
+        text = self._answer_text(found, answer)
+        self._audit(session, [replace(entry, message=text)])
+        return answer if isinstance(answer, Response) else text
 
     async def run_action(
         self,
@@ -594,36 +602,64 @@ class ModelView:
 
         The values the action asked for are passed to its method by name.
         """
-        await self.ensure(found.permission, request=request)
-        # Read the keys before the action runs: afterwards the rows may no
-        # longer match the filter they were chosen by.
-        keys = await selection.covered_keys() if self.audit is not None else []
+        entry = replace(
+            self._action_entry(found, request, values, "", None), batch=str(uuid4())
+        )
+        keys: list[str] = []
+        try:
+            await self.ensure(found.permission, request=request)
+            # Read the keys before the action runs: afterwards the rows may no
+            # longer match the filter they were chosen by.
+            if self.audit is not None:
+                keys = await selection.covered_keys()
+            handler = getattr(self, found.method)
+            answer = await handler(selection, **(values or {}))
+            if self.audit is not None:
+                await selection.session.flush()
+        except Exception as error:
+            failed = [replace(entry, record_key=key) for key in keys] or [entry]
+            self._audit_failure(selection.session, failed, error)
+            raise
 
-        handler = getattr(self, found.method)
-        message = await handler(selection, **(values or {}))
-        if isinstance(message, Response):
-            return message
-        text = str(message) if message else _("{action} done.", action=found.label)
-
-        batch = str(uuid4())
-        actor = actor_of(request)
+        text = self._answer_text(found, answer)
         self._audit(
             selection.session,
             [
-                AuditEntry(
-                    view=self.name,
+                replace(
+                    entry,
                     record_key=key,
-                    event=AuditEvent.ACTION,
-                    action=found.label,
-                    batch=batch,
                     changes=selection.changes.get(key, {}),
-                    **actor,
                     message=text,
                 )
                 for key in keys
             ],
         )
-        return text
+        return answer if isinstance(answer, Response) else text
+
+    def _action_entry(
+        self,
+        found: Action,
+        request: Any,
+        values: Mapping[str, Any] | None,
+        key: str,
+        title: str | None,
+    ) -> AuditEntry:
+        """The entry an action run is written down as, before it has run."""
+        return AuditEntry(
+            view=self.name,
+            record_key=key,
+            record_title=title,
+            event=AuditEvent.ACTION,
+            action=found.label,
+            inputs=recorded_inputs(found.inputs, values or {}),
+            **actor_of(request),
+        )
+
+    def _answer_text(self, found: Action, answer: Any) -> str | None:
+        """What to tell the user; nothing when the action sent a response."""
+        if isinstance(answer, Response):
+            return None
+        return str(answer) if answer else _("{action} done.", action=found.label)
 
     def _collect_actions(self) -> dict[str, Action]:
         found: dict[str, Action] = {}
@@ -1063,6 +1099,27 @@ class ModelView:
                 )
             ],
         )
+
+    def _audit_failure(
+        self, session: SessionAdapter, entries: Sequence[AuditEntry], error: Exception
+    ) -> None:
+        """Write entries down as failed, once the work they describe is undone."""
+        log = self.audit
+        if log is None or not entries:
+            return
+        # A refusal is worded for people; anything else is a fault, and only
+        # its kind goes in the log, since its text may hold the data itself.
+        reason = (
+            str(error)
+            if isinstance(error, AdminSiteError)
+            else _("It stopped with an error: {kind}.", kind=type(error).__name__)
+        )
+        failed = [replace(entry, error=reason) for entry in entries]
+
+        async def write() -> None:
+            await log.record(failed)
+
+        session.after_rollback(write)
 
     def _audit(self, session: SessionAdapter, entries: Sequence[AuditEntry]) -> None:
         """Write entries once the transaction they describe has committed."""

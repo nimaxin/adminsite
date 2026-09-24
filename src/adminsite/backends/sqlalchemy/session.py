@@ -25,6 +25,7 @@ class SessionAdapter(ABC):
 
     def __init__(self) -> None:
         self._after_commit: list[Callable[[], Awaitable[None]]] = []
+        self._after_rollback: list[Callable[[], Awaitable[None]]] = []
 
     def after_commit(self, work: Callable[[], Awaitable[None]]) -> None:
         """Run some work once the next commit has succeeded.
@@ -34,17 +35,30 @@ class SessionAdapter(ABC):
         """
         self._after_commit.append(work)
 
+    def after_rollback(self, work: Callable[[], Awaitable[None]]) -> None:
+        """Run some work once the next rollback is done.
+
+        The audit log writes down what failed this way: after the rollback,
+        so the entry is not undone with the work it describes, and so it
+        does not wait on locks the failed transaction still holds.
+        """
+        self._after_rollback.append(work)
+
     async def commit(self) -> None:
         """Commit the open transaction, then run the work waiting on it."""
         await self._commit()
+        self._after_rollback = []
         waiting, self._after_commit = self._after_commit, []
         for work in waiting:
             await work()
 
     async def rollback(self) -> None:
-        """Undo everything done since the last commit."""
+        """Undo everything done since the last commit, then run what waits on it."""
         self._after_commit = []
         await self._rollback()
+        waiting, self._after_rollback = self._after_rollback, []
+        for work in waiting:
+            await work()
 
     @abstractmethod
     async def execute(self, statement: Executable) -> Result[Any]:

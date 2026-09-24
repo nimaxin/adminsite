@@ -54,6 +54,7 @@ class AuditEvent(StrEnum):
     UPDATED = "updated"
     DELETED = "deleted"
     ACTION = "action"
+    EXPORTED = "exported"
     SIGNED_IN = "signed_in"
     SIGN_IN_FAILED = "sign_in_failed"
     SIGNED_OUT = "signed_out"

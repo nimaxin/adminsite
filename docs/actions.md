@@ -91,6 +91,10 @@ class OrderView(ModelView, model=Order):
 `default` works on any field, and a form for a new record starts from it too. A stored value
 always wins over it, so it never overwrites anything.
 
+With the [audit log](audit.md#actions) on, the values an action was run with are written down with
+it. A secret is kept as `***`: an input named like `password` or `api_key`, or one given
+`secret=True`.
+
 ### Choices worked out per request
 
 The inputs are read when the page is drawn, so `get_actions` can hand back an action carrying

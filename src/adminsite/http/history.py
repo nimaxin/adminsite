@@ -24,6 +24,14 @@ class ChangeLine:
 
 
 @dataclass(frozen=True, slots=True)
+class GivenLine:
+    """One value something was run with, ready to show."""
+
+    label: str
+    value: str
+
+
+@dataclass(frozen=True, slots=True)
 class HistoryItem:
     """One audit entry, worded for a person."""
 
@@ -33,6 +41,7 @@ class HistoryItem:
     what: str
     lines: Sequence[ChangeLine]
     view_label: str
+    given: Sequence[GivenLine] = ()
 
 
 def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]:
@@ -45,7 +54,7 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
                 entry=entry,
                 when=_WHEN.display(entry.occurred_at),
                 who=entry.user or _("Someone"),
-                what=_verb(entry),
+                what=_verb(entry, view),
                 lines=[
                     ChangeLine(
                         label=_label(view, name),
@@ -55,12 +64,22 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
                     for name, (before, after) in entry.changes.items()
                 ],
                 view_label=view.label if view is not None else humanize(entry.view),
+                given=[
+                    GivenLine(label=_given_label(view, name), value=_given_text(value))
+                    for name, value in entry.inputs.items()
+                ],
             )
         )
     return items
 
 
-def _verb(entry: AuditEntry) -> str:
+def _verb(entry: AuditEntry, view: object) -> str:
+    # An entry for no record in particular names the model instead.
+    things = str(getattr(view, "label_plural", "") or humanize(entry.view))
+    if entry.event is AuditEvent.EXPORTED:
+        return _("exported {things}", things=things)
+    if entry.event is AuditEvent.ACTION and entry.view and not entry.record_key:
+        return _("ran {action} on {things}", action=entry.action or "", things=things)
     if entry.event is AuditEvent.SIGNED_IN:
         return _("signed in")
     if entry.event is AuditEvent.SIGN_IN_FAILED:
@@ -93,3 +112,22 @@ def _text(value: object) -> str:
     if value is None or value == "":
         return _("empty")
     return str(value)
+
+
+def _given_label(view: object, name: str) -> str:
+    # The parts of a list's address an export names, beside its filters.
+    if name == "q":
+        return _("Search")
+    if name == "sort":
+        return _("Sort")
+    if name == "columns":
+        return _("Columns")
+    return _label(view, name)
+
+
+def _given_text(value: object) -> str:
+    if isinstance(value, dict) and "file" in value:
+        return _("{name}, {size} bytes", name=value["file"], size=value.get("size"))
+    if isinstance(value, list):
+        return ", ".join(_text(item) for item in value)
+    return _text(value)

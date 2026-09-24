@@ -61,9 +61,10 @@ class OrderView(ModelView, model=Order):
     )
 ```
 
-Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default` and
-`format`. `default` is what a new record's form starts with, and what an action's dialog opens
-with. `format` is how a value is written wherever it is shown, as `str.format` takes it, the same
+Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default`, `format`
+and `secret`. `default` is what a new record's form starts with, and what an action's dialog opens
+with. `secret` says whether the [audit log](audit.md#actions) keeps `***` instead of the value an
+action was run with; left out, a name such as `password` or `api_key` decides. `format` is how a value is written wherever it is shown, as `str.format` takes it, the same
 way a dashboard's `Stat` and `Chart` take it:
 
 ```python

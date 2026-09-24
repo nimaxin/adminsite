@@ -30,6 +30,7 @@ class Field:
         max_length: int | None = None,
         default: Any = None,
         format: str | None = None,
+        secret: bool | None = None,
     ) -> None:
         self.name = name
         self.label = label if label is not None else humanize(name)
@@ -43,6 +44,10 @@ class Field:
         # How a value is written wherever it is shown, as `str.format` takes
         # it: "€{:,.2f}" for money. Inputs keep the plain value.
         self.format = format
+        # Whether the audit log keeps "***" instead of the value, when the
+        # field asks for one of an action's values. Left as None, a name
+        # such as "password" or "api_key" decides.
+        self.secret = secret
         self._adapter: TypeAdapter[Any] = TypeAdapter(self.python_type)
 
     @classmethod

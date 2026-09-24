@@ -1,6 +1,7 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl
 
 from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
@@ -43,6 +44,7 @@ from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
 from adminsite.query import CountMode
+from adminsite.saved_views import clean_query
 from adminsite.security import Permission
 from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.views import ModelView
@@ -815,6 +817,11 @@ async def run_action(admin: "Admin", request: Request) -> Response:
                 kind="error",
             )
             return back_from_action(admin, request, view, found, submitted)
+        except Exception:
+            # Undone before the error page, so the audit log can write the
+            # attempt down as failed.
+            await session.rollback()
+            raise
         # An action that answers with a file or JSON sends it as it is.
         if isinstance(answer, Response):
             return answer
@@ -900,12 +907,37 @@ async def export_records(admin: "Admin", request: Request) -> Response:
         paths=read.columns,
     ).replace(limit=None, offset=0, count=CountMode.NONE, keyset=False)
 
+    if admin.audit is not None:
+        # Written when the download starts: the list is the search and the
+        # filters, since the rows of a large export are too many to name.
+        await admin.audit.record(
+            [
+                AuditEntry(
+                    view=view.name,
+                    record_key="",
+                    event=AuditEvent.EXPORTED,
+                    inputs=list_query(request.url.query),
+                    **actor_of(request),
+                )
+            ]
+        )
+
     filename = f"{view.name}.csv"
     return StreamingResponse(
         stream_csv(admin, view, spec, request, read.columns),
         media_type="text/csv",
         headers={"content-disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def list_query(query: str) -> dict[str, str | list[str]]:
+    """The search, filters, sort and columns a list was asked for, by name."""
+    found: dict[str, list[str]] = {}
+    for key, value in parse_qsl(clean_query(query)):
+        found.setdefault(key, []).append(value)
+    return {
+        key: values[0] if len(values) == 1 else values for key, values in found.items()
+    }
 
 
 def back_to_list(request: Request, view: ModelView) -> RedirectResponse:
