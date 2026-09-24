@@ -1,5 +1,6 @@
 import datetime
 import logging
+import math
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
@@ -129,6 +130,15 @@ class Point:
 
 
 @dataclass(frozen=True)
+class Tick:
+    """One line across a chart, with the value it stands for."""
+
+    label: str
+    # How far up the chart it sits, from 0 at the bottom to 100 at the top.
+    position: float
+
+
+@dataclass(frozen=True)
 class ChartData:
     """A chart ready to draw."""
 
@@ -136,6 +146,7 @@ class ChartData:
     width: float
     highest: str
     kind: str
+    ticks: Sequence[Tick] = ()
 
     @property
     def line(self) -> str:
@@ -190,21 +201,50 @@ class Chart(Widget):
         async with admin.database.session() as session:
             rows = await read_rows(session, self.rows)
         values = [float(value or 0) for _, value in rows]
-        top = max(values, default=0) or 1
+        top, step = round_axis(max(values, default=0))
         points = [
             Point(
                 label=label_text(label),
                 value=self.format.format(raw if raw is not None else 0),
                 x=index * 10,
-                y=100 - value / top * 96,
-                height=value / top * 96,
+                y=100 - value / top * 100,
+                height=value / top * 100,
             )
             for index, ((label, raw), value) in enumerate(
                 zip(rows, values, strict=True)
             )
         ]
         highest = self.format.format(max((raw or 0 for _, raw in rows), default=0))
-        return ChartData(points, max(len(points), 1) * 10, highest, self.kind)
+        ticks = [
+            Tick(self.tick_label(step * number), step * number / top * 100)
+            for number in range(round(top / step) + 1)
+        ]
+        return ChartData(points, max(len(points), 1) * 10, highest, self.kind, ticks)
+
+    def tick_label(self, value: float) -> str:
+        """A value on the axis, without cents where it is a whole number."""
+        text = self.format.format(value if value % 1 else int(value))
+        return text[:-3] if value % 1 == 0 and text.endswith(".00") else text
+
+
+# A round top for an axis and the gap between its lines, per power of ten:
+# up to 1 in steps of 0.2, up to 2 in steps of 0.5, and so on.
+ROUND_TOPS = ((1, 0.2), (2, 0.5), (2.5, 0.5), (5, 1), (10, 2))
+
+
+def round_axis(highest: float) -> tuple[float, float]:
+    """The round number an axis goes up to, and the step between its lines.
+
+    A highest value of 181 gives an axis to 200 in steps of 50, so the lines
+    across the chart fall on numbers people read at a glance.
+    """
+    if highest <= 0:
+        return 1.0, 0.2
+    power = 10 ** math.floor(math.log10(highest))
+    for multiple, step in ROUND_TOPS:
+        if highest <= multiple * power:
+            return multiple * power, step * power
+    return 10 * power, 2 * power
 
 
 def label_text(label: Any) -> str:
@@ -215,6 +255,12 @@ def label_text(label: Any) -> str:
         return label.strftime("%b %d")
     if isinstance(label, Decimal | float):
         return f"{label:,}"
+    if isinstance(label, str) and len(label) == 10:
+        # SQLite answers date() with text, so a day reads the same there too.
+        try:
+            return label_text(datetime.date.fromisoformat(label))
+        except ValueError:
+            pass
     return str(label)
 
 

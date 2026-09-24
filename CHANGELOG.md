@@ -21,6 +21,10 @@
   inline row is removed with a bin button instead of a red box. `Inline.extra` blank rows now
   appear only while a table has no rows, so editing a record no longer shows an empty line under
   its children.
+- The overview's cards share the new look. A chart gets lines across it at round numbers, an axis
+  that says what they are, its tallest bar picked out, and each bar's value on hover. A day that
+  SQLite hands back as text reads as "Sep 14" like any other date. The latest records card links
+  to the whole list.
 
 ## 0.1.0a5
 

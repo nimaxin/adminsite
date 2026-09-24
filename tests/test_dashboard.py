@@ -20,7 +20,7 @@ from adminsite import (
     Widget,
 )
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
-from adminsite.dashboard import ChartData, label_text
+from adminsite.dashboard import ChartData, label_text, round_axis
 from tests.models import Customer, Order, OrderStatus
 
 
@@ -100,17 +100,47 @@ class TestStat:
         assert data.value == "4"
 
 
+class TestLabels:
+    def test_a_day_sent_as_text_reads_as_a_day(self) -> None:
+        assert label_text("2026-09-14") == "Sep 14"
+        assert label_text("Paid") == "Paid"
+        assert label_text("2026-99-14") == "2026-99-14"
+
+
 class TestChart:
-    async def test_bars_are_scaled_to_the_highest(self, database: Database) -> None:
+    async def test_bars_are_scaled_to_a_round_axis(self, database: Database) -> None:
         async def rows(session: SessionAdapter) -> list[tuple[str, int]]:
             return [("a", 1), ("b", 2), ("c", 4)]
 
         data: ChartData = await load(database, Chart("Sales", rows))
 
-        assert [point.height for point in data.points] == [24, 48, 96]
+        assert [point.height for point in data.points] == [20, 40, 80]
         assert [point.x for point in data.points] == [0, 10, 20]
         assert data.width == 30
         assert data.highest == "4"
+        assert [tick.label for tick in data.ticks] == ["0", "1", "2", "3", "4", "5"]
+
+    async def test_money_on_the_axis_drops_its_cents(self, database: Database) -> None:
+        async def rows(session: SessionAdapter) -> list[tuple[str, float]]:
+            return [("a", 40.5), ("b", 181.0)]
+
+        chart = Chart("Revenue", rows, format="€{:,.2f}")
+        data: ChartData = await load(database, chart)
+
+        assert [tick.label for tick in data.ticks] == [
+            "€0",
+            "€50",
+            "€100",
+            "€150",
+            "€200",
+        ]
+        assert data.highest == "€181.00"
+
+    def test_the_axis_rounds_up_to_a_number_read_at_a_glance(self) -> None:
+        assert round_axis(181) == (200, 50)
+        assert round_axis(24) == (25, 5)
+        assert round_axis(7) == (10, 2)
+        assert round_axis(0) == (1.0, 0.2)
 
     async def test_a_select_gives_the_rows(self, database: Database) -> None:
         text = await overview(
@@ -187,7 +217,7 @@ class TestTheOverview:
 
         assert isinstance(admin.dashboard[0], ModelCounts)
         assert 'href="/admin/orders"' in text
-        assert ">7</div>" in text
+        assert ">7</span>" in text
 
     async def test_a_broken_card_does_not_break_the_page(
         self, database: Database, caplog: pytest.LogCaptureFixture

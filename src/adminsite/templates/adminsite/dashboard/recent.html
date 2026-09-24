@@ -1,13 +1,15 @@
-<div class="card h-full border border-base-300">
-  <div class="card-body gap-1 p-4">
-    <h2 class="mb-1 text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
-    {% for item in data %}
-      <a href="{{ item.url }}" class="flex items-center gap-3 rounded-field px-2 py-1.5 hover:bg-base-200">
-        <span class="min-w-0 flex-1 truncate">{{ item.title }}</span>
-        {% if item.detail %}<span class="font-mono text-xs text-base-content/60">{{ item.detail }}</span>{% endif %}
-      </a>
-    {% else %}
-      <p class="py-6 text-center text-base-content/60">{{ _('Nothing yet.') }}</p>
-    {% endfor %}
+{% set found = admin.views.find(widget.view) %}
+<div class="h-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet">
+  <div class="flex items-baseline justify-between gap-2 px-5 pt-4 pb-3">
+    <h2 class="text-sm font-semibold">{{ widget.title }}</h2>
+    {% if found %}<a class="text-[13px] font-medium text-link hover:underline" href="{{ urls.list(found) }}">{{ _('View all') }}</a>{% endif %}
   </div>
+  {% for item in data %}
+    <a href="{{ item.url }}" class="flex h-11 items-center gap-3 border-t border-line px-5 hover:bg-subtle">
+      <span class="min-w-0 flex-1 truncate font-medium">{{ item.title }}</span>
+      {% if item.detail %}<span class="text-[13px] tabular-nums text-muted">{{ item.detail }}</span>{% endif %}
+    </a>
+  {% else %}
+    <p class="border-t border-line px-5 py-8 text-center text-muted">{{ _('Nothing yet.') }}</p>
+  {% endfor %}
 </div>

@@ -1,19 +1,23 @@
+{% import "adminsite/_icons.html" as icons %}
 {% set body %}
-  <div class="stat">
-    <div class="stat-title">{{ widget.title }}</div>
-    <div class="stat-value font-mono text-2xl">{{ data.value }}</div>
+  <div class="flex h-full flex-col gap-2.5 px-5 py-4">
+    <div class="flex items-center justify-between gap-2 text-[13px] text-muted">
+      <span class="truncate">{{ widget.title }}</span>
+      {% if widget.link %}{{ icons.icon("arrow-up-right") }}{% endif %}
+    </div>
+    <div class="text-[30px] font-semibold leading-none tracking-tight tabular-nums">{{ data.value }}</div>
     {% if data.change is not none %}
-      <div class="stat-desc {% if data.change >= 0 %}text-success{% else %}text-error{% endif %}">
+      <div class="text-xs font-medium {% if data.change >= 0 %}text-success{% else %}text-error{% endif %}">
         {{ _('{change} on the period before', change=("+" if data.change >= 0 else "−") ~ "{:.0f}".format(data.change|abs) ~ "%") }}
       </div>
     {% elif widget.hint %}
-      <div class="stat-desc">{{ widget.hint }}</div>
+      <div class="text-xs text-muted">{{ widget.hint }}</div>
     {% endif %}
   </div>
 {% endset %}
 {% if widget.link %}
   <a href="{{ urls.asset(widget.link) }}"
-     class="stats h-full w-full border border-base-300 transition-colors hover:border-primary">{{ body }}</a>
+     class="block h-full rounded-box border border-base-300 bg-base-100 shadow-quiet transition-colors hover:border-base-content/25">{{ body }}</a>
 {% else %}
-  <div class="stats h-full w-full border border-base-300">{{ body }}</div>
+  <div class="h-full rounded-box border border-base-300 bg-base-100 shadow-quiet">{{ body }}</div>
 {% endif %}

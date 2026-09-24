@@ -1,16 +1,17 @@
+{% import "adminsite/_icons.html" as icons %}
 {% if data %}
-  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     {% for item in data %}
       <a href="{{ item.url }}"
-         class="stats border border-base-300 transition-colors hover:border-primary">
-        <div class="stat">
-          <div class="stat-title">{{ item.label }}</div>
-          <div class="stat-value font-mono text-2xl">{{ "{:,}".format(item.count) }}</div>
-          {% if item.group %}<div class="stat-desc">{{ item.group }}</div>{% endif %}
-        </div>
+         class="flex flex-col gap-2.5 rounded-box border border-base-300 bg-base-100 px-5 py-4 shadow-quiet transition-colors hover:border-base-content/25">
+        <span class="flex items-center justify-between gap-2 text-[13px] text-muted">
+          <span class="truncate">{{ item.label }}</span>{{ icons.icon("arrow-up-right") }}
+        </span>
+        <span class="text-[30px] font-semibold leading-none tracking-tight tabular-nums">{{ "{:,}".format(item.count) }}</span>
+        {% if item.group %}<span class="text-xs text-muted">{{ item.group }}</span>{% endif %}
       </a>
     {% endfor %}
   </div>
 {% else %}
-  <div class="alert">{{ _('No models are registered yet.') }}</div>
+  <p class="rounded-box border border-base-300 bg-base-100 px-5 py-4 text-muted">{{ _('No models are registered yet.') }}</p>
 {% endif %}

@@ -1,43 +1,56 @@
-<div class="card h-full border border-base-300">
-  <div class="card-body gap-3 p-4">
-    <div class="flex items-baseline justify-between gap-2">
-      <h2 class="text-sm font-medium text-base-content/70">{{ widget.title }}</h2>
-      {% if data.points %}<span class="text-xs text-base-content/60">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
-    </div>
-    {% if data.points %}
-      <svg class="h-36 w-full text-primary" viewBox="0 0 {{ data.width }} 100"
-           preserveAspectRatio="none" aria-hidden="true">
-        {% if data.kind == "line" %}
-          <polyline points="{{ data.line }}" fill="none" stroke="currentColor"
-                    stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
-          {% for point in data.points %}
-            <rect x="{{ point.x }}" y="0" width="10" height="100" fill="transparent">
-              <title>{{ point.label }}: {{ point.value }}</title>
-            </rect>
-          {% endfor %}
-        {% else %}
-          {% for point in data.points %}
-            <rect x="{{ point.x + 1 }}" y="{{ point.y }}" width="8" height="{{ point.height }}"
-                  rx="0.8" fill="currentColor" opacity="0.85">
-              <title>{{ point.label }}: {{ point.value }}</title>
-            </rect>
-          {% endfor %}
-        {% endif %}
-      </svg>
-      <div class="flex justify-between text-xs text-base-content/60" aria-hidden="true">
-        {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
-      </div>
-      {#- The same numbers for screen readers, which cannot read the drawing. -#}
-      <table class="sr-only">
-        <caption>{{ widget.title }}</caption>
-        <tbody>
-          {% for point in data.points %}
-            <tr><th scope="row">{{ point.label }}</th><td>{{ point.value }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="py-10 text-center text-base-content/60">{{ _('No data yet.') }}</p>
-    {% endif %}
+{#- Bars are plain boxes, so each can show its own value on hover; a line
+    chart is drawn in SVG. The lines across fall on round numbers. -#}
+<div class="h-full rounded-box border border-base-300 bg-base-100 shadow-quiet">
+  <div class="flex items-baseline justify-between gap-2 px-5 pt-4">
+    <h2 class="text-sm font-semibold">{{ widget.title }}</h2>
+    {% if data.points %}<span class="text-[13px] text-muted">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
   </div>
+  {% if data.points %}
+    {% set top = (data.points|max(attribute="height")).height %}
+    <div class="flex gap-2.5 px-5 pt-5" aria-hidden="true">
+      <div class="relative w-11 shrink-0 text-end text-[11px] tabular-nums text-muted">
+        {% for tick in data.ticks %}
+          <span class="absolute inset-e-0 translate-y-1/2" style="bottom: {{ tick.position }}%">{{ tick.label }}</span>
+        {% endfor %}
+      </div>
+      <div class="relative h-48 flex-1">
+        {% for tick in data.ticks %}
+          <span class="absolute inset-x-0 h-px {% if loop.first %}bg-base-300{% else %}bg-line{% endif %}" style="bottom: {{ tick.position }}%"></span>
+        {% endfor %}
+        {% if data.kind == "line" %}
+          <svg class="absolute inset-0 h-full w-full text-chart" viewBox="0 0 {{ data.width }} 100" preserveAspectRatio="none">
+            <polyline points="{{ data.line }}" fill="none" stroke="currentColor"
+                      stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+          </svg>
+        {% else %}
+          <div class="absolute inset-0 flex items-end gap-0.75">
+            {% for point in data.points %}
+              <div class="group relative h-full flex-1">
+                <div class="absolute inset-x-0 bottom-0 rounded-t-[3px] {% if point.height == top %}bg-chart-strong{% else %}bg-chart group-hover:bg-chart-strong{% endif %}"
+                     style="height: {{ point.height }}%"></div>
+                <div class="pointer-events-none absolute start-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral px-2 py-1 text-xs text-neutral-content opacity-0 shadow-float transition-opacity group-hover:opacity-100 rtl:translate-x-1/2"
+                     style="bottom: {{ point.height }}%">
+                  <span class="opacity-75">{{ point.label }}</span> · <span class="font-semibold">{{ point.value }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex justify-between ps-17 pe-5 pt-2 pb-4 text-[11px] text-muted" aria-hidden="true">
+      {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
+    </div>
+    {#- The same numbers for screen readers, which cannot read the drawing. -#}
+    <table class="sr-only">
+      <caption>{{ widget.title }}</caption>
+      <tbody>
+        {% for point in data.points %}
+          <tr><th scope="row">{{ point.label }}</th><td>{{ point.value }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="py-12 text-center text-muted">{{ _('No data yet.') }}</p>
+  {% endif %}
 </div>

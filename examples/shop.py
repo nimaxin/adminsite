@@ -280,10 +280,10 @@ def build_sample_shop() -> list[Base]:
         items = [
             OrderItem(
                 product=products[(index + line) % len(products)],
-                quantity=1 + (index + line) % 3,
+                quantity=1 + (index * 5 + line * 3) % 4,
                 unit_price=products[(index + line) % len(products)].price,
             )
-            for line in range(1 + index % 3)
+            for line in range(1 + (index * 7) % 3)
         ]
         orders.append(
             Order(

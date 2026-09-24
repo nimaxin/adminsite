@@ -99,6 +99,8 @@
   --muted: #63635e;
   --link: #0b7a53;
   --selected: #f1f8f4;
+  --chart: #2fa472;
+  --chart-strong: #0b5c40;
   --shadow-quiet: 0 1px 1px rgb(26 26 24 / 0.04);
   --shadow-panel: 0 1px 2px rgb(26 26 24 / 0.05);
   --shadow-float: 0 16px 40px rgb(26 26 24 / 0.16), 0 2px 8px rgb(26 26 24 / 0.08);
@@ -131,6 +133,8 @@
     --muted: #a4a49f;
     --link: #5ad9a0;
     --selected: #11211a;
+    --chart: #2f9e6c;
+    --chart-strong: #7fe8b8;
     --shadow-quiet: none;
     --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow-float: 0 18px 48px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.5);
@@ -163,6 +167,8 @@
   --muted: #a4a49f;
   --link: #5ad9a0;
   --selected: #11211a;
+  --chart: #2f9e6c;
+  --chart-strong: #7fe8b8;
   --shadow-quiet: none;
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-float: 0 18px 48px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.5);
@@ -194,6 +200,8 @@
   --color-muted: var(--muted);
   --color-link: var(--link);
   --color-selected: var(--selected);
+  --color-chart: var(--chart);
+  --color-chart-strong: var(--chart-strong);
   --shadow-quiet: var(--shadow-quiet);
   --shadow-panel: var(--shadow-panel);
   --shadow-float: var(--shadow-float);
