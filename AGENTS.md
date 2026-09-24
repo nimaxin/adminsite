@@ -17,6 +17,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
   vendored next to it.
 - `src/adminsite/locales/` holds the translation catalogs, one JSON file per language.
 - `docs/` is the MkDocs site; `examples/shop.py` is the demo.
+- `demo/` serves that shop at https://adminsite.duckdns.org, signed in as admin / admin and reset
+  every hour. `.github/workflows/demo.yml` deploys it after CI passes on main; `demo/README.md`
+  describes the server.
 - `tests/` runs every database test on SQLite async and sync, and on Postgres and MySQL when their
   URLs are set.
 

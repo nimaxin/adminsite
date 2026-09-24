@@ -6,6 +6,9 @@ team gets pages to search, filter, read and change your data.
 In alpha: `pip install adminsite==0.1.0a5`. Documentation: https://nimaxin.github.io/adminsite/
 For AI assistants: https://nimaxin.github.io/adminsite/llms.txt
 
+**Try it:** https://adminsite.duckdns.org is a live demo. Sign in as admin with the password
+admin and change anything you like. It goes back as it started every hour.
+
 ```python
 from adminsite import Admin, ModelView
 

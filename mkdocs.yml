@@ -32,6 +32,7 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Live demo: https://adminsite.duckdns.org
   - Guide:
       - Views: views.md
       - Fields: fields.md
