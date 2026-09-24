@@ -1,4 +1,5 @@
 {% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_values.html" as values %}
 <div id="records" class="relative flex min-h-0 flex-1 flex-col"
      x-data="{ picked: 0, everything: false }">
   {% if request.headers.get("hx-request") %}
@@ -85,11 +86,8 @@
                          class="size-8 rounded-md object-cover" loading="lazy">
                   {% elif widget == "file" and text %}
                     <a class="text-link hover:underline" href="{{ urls.file(view, path, view.value_at(row, path)) }}">{{ text }}</a>
-                  {% elif widget == "select" and text %}
-                    {% set tone = item.tone_of(view.value_at(row, path)) if item.tone_of is defined else none %}
-                    <span class="pill {{ 'tone-' ~ tone if tone is not none else 'tone-3' }}">{{ text }}</span>
-                  {% elif widget == "checkbox" and text %}
-                    <span class="pill {{ 'tone-2' if view.value_at(row, path) else 'tone-3' }}">{{ text }}</span>
+                  {% elif widget in ("select", "checkbox") and text %}
+                    {{ values.badge(item, view.value_at(row, path), text) }}
                   {% elif widget in ("text", "textarea", "json") %}
                     <span class="block max-w-md truncate">{{ text }}</span>
                   {% else %}

@@ -230,6 +230,7 @@ def child_tables(
             {
                 "label": inline.label or view.label_for(inline.name),
                 "headers": [child.label_for(path) for path in paths],
+                "numeric": [child.field_for(path).widget == "number" for path in paths],
                 "rows": [
                     [child.display(found, path) for path in paths] for found in children
                 ],

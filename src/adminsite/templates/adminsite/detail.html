@@ -1,93 +1,219 @@
 {% extends "adminsite/base.html" %}
+{% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_values.html" as values %}
 
 {% block page_title %}{{ heading }} · {{ title }}{% endblock %}
 
+{% block breadcrumb %}
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
+    <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
+    {{ icons.icon("chevron-right", 14) }}
+    <span aria-current="page" class="truncate text-base-content">{{ heading }}</span>
+  </nav>
+{% endblock %}
+
+{% block header_class %}lg:pt-2 lg:pb-5{% endblock %}
+
 {% block header %}
-  <div class="breadcrumbs py-0 text-sm">
-    <ul>
-      <li><a href="{{ urls.list(view) }}">{{ view.label_plural }}</a></li>
-      <li class="truncate font-semibold">{{ heading }}</li>
-    </ul>
+  {#- The first choice on the page, such as a status, stands beside the name. -#}
+  {% set first = namespace(path=none, value="") %}
+  {% for path, label, value in rows if first.path is none and value and view.field_for(path).widget == "select" %}
+    {% set first.path = path %}{% set first.value = value %}
+  {% endfor %}
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ heading }}</h1>
+    {% if first.path %}
+      {{ values.badge(view.field_for(first.path), view.value_at(record, first.path), first.value) }}
+    {% endif %}
   </div>
 {% endblock %}
 
 {% block header_actions %}
   {% for item in record_actions %}
-    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-ghost{% endif %}"
+    <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
             type="button" onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
       {{ item.label }}
     </button>
   {% endfor %}
   {% if can_edit %}
-    <a class="btn btn-primary btn-sm" href="{{ urls.edit(view, key) }}">{{ _('Edit') }}</a>
+    <a class="btn btn-primary btn-sm ps-2.5" href="{{ urls.edit(view, key) }}">{{ icons.icon("pencil") }}{{ _('Edit') }}</a>
+  {% endif %}
+  {% if can_delete %}
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-plain btn-sm btn-square"
+           aria-label="{{ _('More actions') }}">{{ icons.icon("more") }}</div>
+      <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
+        <li>
+          <button type="button" class="text-error" onclick="document.getElementById('confirm-delete').showModal()">
+            {{ icons.icon("trash", 14) }}{{ _('Delete') }}
+          </button>
+        </li>
+      </ul>
+    </div>
   {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl p-4 lg:p-6">
-  {% include "adminsite/_action_forms.html" %}
-  {% macro details() %}
-    <div class="card card-border bg-base-100">
-      <dl class="divide-y divide-base-300">
-        {% for path, label, value in rows %}
-          <div class="grid gap-1 px-5 py-3 sm:grid-cols-3 sm:gap-4">
-            <dt class="text-base-content/60">{{ label }}</dt>
-            {% set widget = view.field_for(path).widget %}
-            <dd class="sm:col-span-2">
-              {% if widget in ("file", "image") and value %}
-                {% set address = urls.file(view, path, view.value_at(record, path)) %}
-                {% if widget == "image" %}
-                  <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-48 rounded-box"></a>
-                {% else %}
-                  <a class="link" href="{{ address }}">{{ value }}</a>
-                {% endif %}
-              {% else %}
-                {{ value if value else "—" }}
-              {% endif %}
-            </dd>
-          </div>
-        {% endfor %}
-      </dl>
-    </div>
-    {% for table in children %}
-      <section class="mt-6">
-        <h2 class="mb-2 font-semibold">{{ table.label }}</h2>
-        <div class="overflow-x-auto rounded-box border border-base-300">
-          <table class="table table-sm">
-            <thead>
-              <tr>{% for header in table.headers %}<th>{{ header }}</th>{% endfor %}</tr>
-            </thead>
-            <tbody>
-              {% for cells in table.rows %}
-                <tr>{% for text in cells %}<td>{{ text or "—" }}</td>{% endfor %}</tr>
-              {% else %}
-                <tr>
-                  <td colspan="{{ table.headers|length }}" class="text-base-content/60">
-                    {{ _('None yet.') }}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    {% endfor %}
-  {% endmacro %}
-
+{% include "adminsite/_action_forms.html" %}
+<div class="flex flex-1 flex-col" x-data="{ tab: 'details' }">
   {% if history is not none %}
-    <div class="tabs tabs-border">
-      <input type="radio" name="record-tabs" class="tab" aria-label="{{ _('Details') }}" checked>
-      <div class="tab-content pt-4">{{ details() }}</div>
+    <div role="tablist" aria-label="{{ _('Sections') }}" class="flex gap-5 border-b border-base-300 px-4 lg:px-7">
+      <button role="tab" type="button" id="tab-details" aria-controls="panel-details"
+              aria-selected="true" :aria-selected="(tab === 'details').toString()" @click="tab = 'details'"
+              class="-mb-px h-10 border-b-2 text-[13.5px] font-medium"
+              :class="tab === 'details' ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
+        {{ _('Details') }}
+      </button>
+      <button role="tab" type="button" id="tab-history" aria-controls="panel-history"
+              aria-selected="false" :aria-selected="(tab === 'history').toString()" @click="tab = 'history'"
+              class="-mb-px h-10 border-b-2 border-transparent text-[13.5px] font-medium text-muted"
+              :class="tab === 'history' ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
+        {{ _('History ({count})', count=history|length) }}
+      </button>
+    </div>
+  {% else %}
+    <div class="border-b border-base-300"></div>
+  {% endif %}
 
-      <input type="radio" name="record-tabs" class="tab" aria-label="{{ _('History ({count})', count=history|length) }}">
-      <div class="tab-content pt-5">
+  <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+    <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" x-show="tab === 'details'"
+         class="grid max-w-6xl items-start gap-5 {% if links or history is not none %}lg:grid-cols-[minmax(0,1fr)_20rem]{% endif %}">
+      <div class="flex min-w-0 flex-col gap-5">
+        {% if rows %}
+          <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="details-title">
+            <h2 id="details-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ _('Details') }}</h2>
+            <dl class="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
+              {% for path, label, value in rows %}
+                {% set item = view.field_for(path) %}
+                {% set wide = item.widget in ("textarea", "json", "image") or (value|string|length > 60) %}
+                <div class="flex min-w-0 flex-col gap-1 {% if wide %}sm:col-span-2{% endif %}">
+                  <dt class="text-[12.5px] text-muted">{{ label }}</dt>
+                  <dd class="break-words">
+                    {% if item.widget in ("file", "image") and value %}
+                      {% set address = urls.file(view, path, view.value_at(record, path)) %}
+                      {% if item.widget == "image" %}
+                        <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-48 rounded-box border border-base-300"></a>
+                      {% else %}
+                        <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
+                      {% endif %}
+                    {% elif item.widget in ("select", "checkbox") and value %}
+                      {{ values.badge(item, view.value_at(record, path), value) }}
+                    {% elif item.widget == "number" and value %}
+                      <span class="text-[15px] font-semibold tabular-nums">{{ value }}</span>
+                    {% elif value %}
+                      {{ value }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </dd>
+                </div>
+              {% endfor %}
+            </dl>
+          </section>
+        {% endif %}
+
+        {% for table in children %}
+          <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
+                   aria-labelledby="child-{{ loop.index }}">
+            <div class="flex items-center gap-2 border-b border-line px-5 py-3.5">
+              <h2 id="child-{{ loop.index }}" class="text-sm font-semibold">{{ table.label }}</h2>
+              <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-xs font-medium text-muted">{{ table.rows|length }}</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-line">
+                    {% for header in table.headers %}
+                      <th class="h-9 px-5 text-[12.5px] font-medium text-muted {{ 'text-end' if table.numeric[loop.index0] else 'text-start' }}">{{ header }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-line">
+                  {% for cells in table.rows %}
+                    <tr>
+                      {% for text in cells %}
+                        <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{{ text or "—" }}</td>
+                      {% endfor %}
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="{{ table.headers|length }}" class="h-11 px-5 text-muted">{{ _('None yet.') }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+
+      {% if links or history is not none %}
+        <div class="flex min-w-0 flex-col gap-5">
+          {% for link in links %}
+            <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="link-{{ loop.index }}">
+              <h2 id="link-{{ loop.index }}" class="border-b border-line px-4 py-3.5 text-sm font-semibold">{{ link.label }}</h2>
+              <div class="flex items-center gap-3 px-4 py-4">
+                <span class="inline-flex size-9.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[13px] font-semibold text-primary"
+                      aria-hidden="true">{{ link.initials }}</span>
+                {% if link.url %}
+                  <a class="min-w-0 break-words font-semibold text-link hover:underline" href="{{ link.url }}">{{ link.title }}</a>
+                {% else %}
+                  <span class="min-w-0 break-words font-semibold">{{ link.title }}</span>
+                {% endif %}
+              </div>
+            </section>
+          {% endfor %}
+
+          {% if history is not none %}
+            <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="recent-title">
+              <h2 id="recent-title" class="border-b border-line px-4 py-3.5 text-sm font-semibold">{{ _('History') }}</h2>
+              <div class="flex flex-col gap-3.5 px-4 py-4">
+                {% for entry in history[:3] %}
+                  <div class="flex gap-2.5">
+                    <span class="mt-1.5 size-2 shrink-0 rounded-full {% if entry.entry.event == 'deleted' %}bg-error{% elif entry.entry.event == 'action' %}bg-info{% else %}bg-primary{% endif %}"
+                          aria-hidden="true"></span>
+                    <div class="min-w-0">
+                      <p class="text-[13.5px]"><span class="font-medium">{{ entry.who }}</span> {{ entry.what }}</p>
+                      <p class="text-xs text-muted"><time>{{ _('{when} UTC', when=entry.when) }}</time></p>
+                    </div>
+                  </div>
+                {% else %}
+                  <p class="text-[13.5px] text-muted">{{ _('Nothing recorded yet.') }}</p>
+                {% endfor %}
+                {% if history %}
+                  <button class="self-start text-[13px] font-medium text-link hover:underline" type="button"
+                          @click="tab = 'history'">{{ _('See the full history') }}</button>
+                {% endif %}
+              </div>
+            </section>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if history is not none %}
+      <div role="tabpanel" id="panel-history" aria-labelledby="tab-history" x-show="tab === 'history'" x-cloak
+           class="max-w-3xl rounded-box border border-base-300 bg-base-100 p-5 shadow-quiet">
         {% set items = history %}
         {% set show_record = False %}
         {% include "adminsite/_history.html" %}
       </div>
-    </div>
-  {% else %}
-    {{ details() }}
-  {% endif %}
+    {% endif %}
+  </div>
 </div>
+
+{% if can_delete %}
+  <dialog id="confirm-delete" class="modal">
+    <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post" action="{{ urls.delete(view, key) }}">
+      {{ csrf_input | safe if csrf_input }}
+      <h3 class="text-base font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
+      <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
+        <button type="submit" class="btn btn-error btn-sm">{{ _('Delete') }}</button>
+      </div>
+    </form>
+    <div class="modal-backdrop" onclick="this.closest('dialog').close()"></div>
+  </dialog>
+{% endif %}
 {% endblock %}

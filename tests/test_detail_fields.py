@@ -1,3 +1,4 @@
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -45,11 +46,14 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
 
 
 def labels(page: httpx.Response) -> list[str]:
-    body = page.text.split('<dl class="divide-y', 1)[1].split("</dl>", 1)[0]
-    return [
-        part.split("</dt>", 1)[0]
-        for part in body.split('<dt class="text-base-content/60">')[1:]
-    ]
+    """The fields listed among the record's details, in order."""
+    body = page.text.split("<dl", 1)[1].split("</dl>", 1)[0]
+    return re.findall(r"<dt[^>]*>(.*?)</dt>", body)
+
+
+def beside(page: httpx.Response) -> list[str]:
+    """The links to single records, shown as cards beside the details."""
+    return re.findall(r'<h2 id="link-\d+"[^>]*>(.*?)</h2>', page.text)
 
 
 class TestTheDetailPage:
@@ -58,7 +62,8 @@ class TestTheDetailPage:
     ) -> None:
         page = await client.get("/admin/orders/1")
 
-        assert labels(page) == ["Customer", "Status", "Total", "Created at"]
+        assert labels(page) == ["Status", "Total", "Created at"]
+        assert beside(page) == ["Customer"]
 
     async def test_the_form_keeps_its_own_fields(
         self, client: httpx.AsyncClient
@@ -89,7 +94,7 @@ class TestTheDetailPage:
         full = await client.get("/admin/audited/1?full=1")
 
         assert labels(short) == ["Status"]
-        assert len(labels(full)) == 5
+        assert len(labels(full)) + len(beside(full)) == 5
 
     async def test_the_api_reads_the_detail_fields_too(
         self, database: Database

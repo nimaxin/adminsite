@@ -12,6 +12,9 @@
   badge, in a tone that follows its place among the choices so it never changes between pages.
   A row's actions and its form sit in one menu at its end, ticked rows raise a bar of actions
   over the table, and the pager numbers its pages.
+- A record's page has a title with its status beside it, its actions as buttons and delete in a
+  menu, its details in two columns, and the records it links to one by one as cards beside
+  them, opening the linked record's own page. The history's latest entries sit there too.
 
 ## 0.1.0a5
 

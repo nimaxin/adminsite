@@ -1,4 +1,5 @@
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.exc import IntegrityError
@@ -251,7 +252,13 @@ async def detail(admin: "Admin", request: Request) -> Response:
     record = await load_or_404(admin, view, request)
 
     paths = view.get_detail_fields(request, record)
-    rows = [(path, view.label_for(path), view.display(record, path)) for path in paths]
+    links = await linked_records(admin, view, record, paths, request)
+    beside = {link.path for link in links}
+    rows = [
+        (path, view.label_for(path), view.display(record, path))
+        for path in paths
+        if path not in beside
+    ]
     key = view.identity_of(record)
 
     allowed_actions = [
@@ -275,6 +282,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": key,
             "heading": view.title_of(record),
             "rows": rows,
+            "links": links,
             "children": child_tables(view, record, request),
             "history": history,
             "record_actions": allowed_actions,
@@ -285,8 +293,61 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "can_edit": await view.allows(
                 Permission.EDIT, request=request, record=record
             ),
+            "can_delete": await view.allows(
+                Permission.DELETE, request=request, record=record
+            ),
         },
     )
+
+
+@dataclass(frozen=True)
+class LinkedRecord:
+    """A record this one points at, shown beside its details."""
+
+    path: str
+    label: str
+    title: str
+    url: str
+
+    @property
+    def initials(self) -> str:
+        """Up to two letters to stand for the record, taken from its name."""
+        letters = [word[0] for word in self.title.split() if word[:1].isalpha()]
+        return "".join(letters[:2]).upper()
+
+
+async def linked_records(
+    admin: "Admin",
+    view: ModelView,
+    record: Any,
+    paths: Sequence[str],
+    request: Request,
+) -> list[LinkedRecord]:
+    """The single records a page links to, each with a way to open it.
+
+    A link to one record reads better as a card beside the details than as
+    one more line among them. It opens the record's own page where its view
+    lets this user see one.
+    """
+    urls = Urls(request)
+    found = []
+    for path in paths:
+        item = view.field_for(path)
+        if not isinstance(item, RelationField) or item.collection or "." in path:
+            continue
+        value = view.value_at(record, path)
+        if value is None:
+            continue
+        target = admin.views.for_model(item.target)
+        opens = ""
+        if target is not None and await target.allows(
+            Permission.DETAIL, request=request, record=value
+        ):
+            opens = urls.detail(target, target.identity_of(value))
+        found.append(
+            LinkedRecord(path, view.label_for(path), view.display(record, path), opens)
+        )
+    return found
 
 
 async def activity(admin: "Admin", request: Request) -> Response:
