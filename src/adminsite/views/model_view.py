@@ -4,6 +4,7 @@ from string import Formatter
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
 from uuid import uuid4
 
+from markupsafe import Markup
 from sqlalchemy import Select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
@@ -41,6 +42,7 @@ from adminsite.fields import (
 from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
+from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, pluralize, snake_case
@@ -572,7 +574,7 @@ class ModelView:
             session,
             [replace(entry, changes=changes, message=self._kept_answer(found, text))],
         )
-        return answer if isinstance(answer, Response) else text
+        return self._shown(answer, text)
 
     async def run_view_action(
         self,
@@ -596,7 +598,7 @@ class ModelView:
 
         text = self._answer_text(found, answer)
         self._audit(session, [replace(entry, message=self._kept_answer(found, text))])
-        return answer if isinstance(answer, Response) else text
+        return self._shown(answer, text)
 
     async def run_action(
         self,
@@ -642,7 +644,7 @@ class ModelView:
                 for key in keys
             ],
         )
-        return answer if isinstance(answer, Response) else text
+        return self._shown(answer, text)
 
     def _action_entry(
         self,
@@ -668,6 +670,16 @@ class ModelView:
         if isinstance(answer, Response):
             return None
         return str(answer) if answer else _("{action} done.", action=found.label)
+
+    def _shown(self, answer: Any, text: str | None) -> Any:
+        """What the page is given: the answer itself, when it says more than text.
+
+        A response is sent as it is, and a `Message` or `Html` keeps what
+        plain text would lose: a link, a value to copy, its markup.
+        """
+        if isinstance(answer, Response | Message | Markup):
+            return answer
+        return text
 
     def _kept_answer(self, found: Action, text: str | None) -> str | None:
         """What the audit log keeps of the answer: nothing, if it is secret."""

@@ -864,7 +864,7 @@ async def run_action(admin: "Admin", request: Request) -> Response:
         if isinstance(answer, Response):
             return answer
 
-    add_message(request, str(answer))
+    add_message(request, answer)
     return back_from_action(admin, request, view, found, submitted)
 
 

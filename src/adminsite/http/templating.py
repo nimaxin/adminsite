@@ -16,6 +16,7 @@ from starlette.responses import HTMLResponse
 
 from adminsite.http.urls import Urls, sort_state
 from adminsite.i18n import direction, gettext, native_name
+from adminsite.messages import Message, stored_message
 from adminsite.security.csrf import hidden_input
 
 if TYPE_CHECKING:
@@ -140,7 +141,7 @@ def read_messages(request: Request) -> list[dict[str, str]]:
     return list(messages)
 
 
-def add_message(request: Request, text: str, kind: str = "info") -> None:
+def add_message(request: Request, text: "str | Message", kind: str = "info") -> None:
     """Leave a message for the page the user lands on next."""
     session = request.scope.get("session")
     if session is None:
@@ -148,4 +149,4 @@ def add_message(request: Request, text: str, kind: str = "info") -> None:
     # Assigned, not appended in place: the session is only saved when one of
     # its keys is set, so a change inside the list would be lost.
     waiting = list(session.get("adminsite_messages", []))
-    session["adminsite_messages"] = [*waiting, {"text": text, "kind": kind}]
+    session["adminsite_messages"] = [*waiting, stored_message(text, kind)]

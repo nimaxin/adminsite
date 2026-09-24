@@ -199,6 +199,40 @@ class OrderView(ModelView, model=Order):
         return f"{await fetch_new_orders(session)} orders fetched."
 ```
 
+## Answering with more than a line
+
+A message that all went well fades after a few seconds. When the person has to read, follow or copy
+something, return a `Message` instead of a string:
+
+```python
+from adminsite import Message
+
+
+@action("Rotate the key", on="record", audit_answer=False)
+async def rotate(self, account: Account, session: SessionAdapter) -> Message:
+    key = await issue_key(session, account)
+    return Message(
+        "The new key is ready. Copy it now: it is not shown again.", copy=key
+    )
+
+
+@action("Export", on="view")
+async def export(self, session: SessionAdapter) -> Message:
+    await queue_export(session)
+    return Message(
+        "The export is on its way.", link="/admin/exports", link_text="See the exports"
+    )
+```
+
+| Option | What it does |
+|---|---|
+| `sticky` | Keeps the message on screen until it is closed. |
+| `link`, `link_text` | An address to follow, written after the text. |
+| `copy` | A value shown with a button that copies it. The message stays, and the audit log never keeps the value. |
+
+The text is escaped. Return `Html(...)`, or give it as the message's text, for markup of your own.
+The JSON API answers with the message, the link and the value to copy as fields of its reply.
+
 ## Answering with a file
 
 An action can return a response instead of a message, which is how a download works:

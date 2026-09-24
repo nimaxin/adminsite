@@ -268,7 +268,8 @@ class TestMessages:
             )
             page = await client.get("/admin/products")
 
-        problem = page.text.split('role="alert"', 1)[1].split("</div>", 1)[0]
+        # Up to the end of its close button, the last thing in the alert.
+        problem = page.text.split('role="alert"', 1)[1].split("</button>", 1)[0]
         assert "cannot be deleted" in problem
         assert "setTimeout" not in problem
         assert 'aria-label="Close"' in problem

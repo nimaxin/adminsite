@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- An action can answer with a `Message`: one that stays until it is closed, carries a link, or
+  shows a value with a button that copies it, such as a new API key. The audit log keeps the text
+  and never the value to copy. An action that answers with `Html` has its markup kept, where it was
+  escaped before. The JSON API returns the link and the value as fields.
 - `in_sidebar = False` leaves a view out of the sidebar, the command palette's list of pages and the
   overview's counts, for a view whose records are only opened from other records. Its pages, links
   and record search stay as they were.

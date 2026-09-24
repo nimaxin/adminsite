@@ -12,6 +12,7 @@ from adminsite.exceptions import (
     UnknownFieldError,
 )
 from adminsite.fields import Computed, FieldOptions
+from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
 from adminsite.protocols import ModelInspector
@@ -43,6 +44,7 @@ __all__ = [
     "Html",
     "Inline",
     "InvalidPathError",
+    "Message",
     "ModelCounts",
     "ModelInspector",
     "ModelSchema",

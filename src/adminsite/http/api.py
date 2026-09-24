@@ -17,6 +17,7 @@ from adminsite.fields import ChoiceField, FileField, JSONField, RelationField
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.messages import Message
 from adminsite.security import Permission
 from adminsite.text import plain
 from adminsite.views import ModelView
@@ -352,7 +353,9 @@ async def action(admin: "Admin", request: Request) -> Response:
             # Undone first, so the audit log can write the attempt down.
             await session.rollback()
             raise
-    return JSONResponse({"message": message})
+    if isinstance(message, Message):
+        return JSONResponse(message.as_json())
+    return JSONResponse({"message": str(message)})
 
 
 def read_key(request: Request) -> Any:
