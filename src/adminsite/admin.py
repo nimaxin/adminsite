@@ -17,6 +17,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from adminsite.audit import AuditLog
+from adminsite.audit.actor import USER_KEY
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
@@ -490,6 +491,7 @@ class Admin:
                             headers={"WWW-Authenticate": "Bearer"},
                         )
                     request.scope["user_record"] = user
+                    request.scope[USER_KEY] = self.auth.identity(user)
                 # A browser sends the session cookie by itself, so a change
                 # made with it has to carry the form token as a header.
                 if request.method not in SAFE_METHODS and not by_token:
@@ -554,6 +556,7 @@ class Admin:
                     if user is None:
                         return RedirectResponse(Urls(request).login(), status_code=303)
                     request.scope["user_record"] = user
+                    request.scope[USER_KEY] = self.auth.identity(user)
                 answer: Response = await endpoint(self, request)
                 return answer
             finally:

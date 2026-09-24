@@ -195,6 +195,7 @@
   "edit": "ویرایش",
   "empty": "خالی",
   "export": "خروجی گرفتن از",
+  "from {address}": "از {address}",
   "from,to": "از,تا",
   "history": "دیدن تاریخچهٔ",
   "import": "ورود داده به",

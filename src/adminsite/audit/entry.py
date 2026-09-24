@@ -6,7 +6,17 @@ from enum import Enum, StrEnum
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON, Column, DateTime, Integer, MetaData, String, Table, Text
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+)
 
 # The table lives on its own metadata, so a project can add it to its
 # migrations without it ever mixing with the project's own models.
@@ -26,6 +36,14 @@ audit_table = Table(
     Column("user", String(200), nullable=True),
     Column("changes", JSON, nullable=False),
     Column("message", Text, nullable=True),
+    # These came after the columns above. Every one may be empty, so a table
+    # made before them takes them with ALTER TABLE ... ADD COLUMN alone.
+    Column("user_key", String(200), nullable=True, index=True),
+    Column("ip", String(45), nullable=True),
+    Column("user_agent", String(300), nullable=True),
+    Column("error", Text, nullable=True),
+    Column("inputs", JSON, nullable=True),
+    Index("ix_adminsite_audit_log_record", "view", "record_key"),
 )
 
 
@@ -44,7 +62,14 @@ Change = tuple[Any, Any]
 
 @dataclass(frozen=True, slots=True)
 class AuditEntry:
-    """One thing that happened to one record."""
+    """One thing that happened in the admin, who did it, and from where.
+
+    `user` is the name the admin shows for the person, and `user_key` what
+    `AuthProvider.identity` returns for them, which does not change when the
+    name does. `ip` and `user_agent` say where the request came from.
+    `error` holds why something failed; it is empty when it worked.
+    `inputs` holds the values an action was run with, secrets masked.
+    """
 
     view: str
     record_key: str
@@ -59,6 +84,16 @@ class AuditEntry:
         default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
     id: int | None = None
+    user_key: str | None = None
+    ip: str | None = None
+    user_agent: str | None = None
+    error: str | None = None
+    inputs: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def succeeded(self) -> bool:
+        """Whether what the entry describes worked."""
+        return self.error is None
 
     def as_row(self) -> dict[str, Any]:
         """The entry as a row for the audit table."""
@@ -73,6 +108,11 @@ class AuditEntry:
             "user": self.user,
             "changes": {name: list(pair) for name, pair in self.changes.items()},
             "message": self.message,
+            "user_key": self.user_key,
+            "ip": self.ip,
+            "user_agent": self.user_agent,
+            "error": self.error,
+            "inputs": dict(self.inputs) or None,
         }
 
     @classmethod
@@ -93,6 +133,11 @@ class AuditEntry:
                 for name, pair in (row["changes"] or {}).items()
             },
             message=row["message"],
+            user_key=row.get("user_key"),
+            ip=row.get("ip"),
+            user_agent=row.get("user_agent"),
+            error=row.get("error"),
+            inputs=row.get("inputs") or {},
         )
 
 

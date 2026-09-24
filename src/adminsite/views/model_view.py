@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from adminsite.views.registry import ViewRegistry
 
 from adminsite.actions.action import Action, action_of
+from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, diff
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
@@ -558,7 +559,7 @@ class ModelView:
                     record_title=title,
                     event=AuditEvent.ACTION,
                     action=found.label,
-                    user=user_of(request),
+                    **actor_of(request),
                     message=text,
                 )
             ],
@@ -605,7 +606,7 @@ class ModelView:
         text = str(message) if message else _("{action} done.", action=found.label)
 
         batch = str(uuid4())
-        user = user_of(request)
+        actor = actor_of(request)
         self._audit(
             selection.session,
             [
@@ -616,7 +617,7 @@ class ModelView:
                     action=found.label,
                     batch=batch,
                     changes=selection.changes.get(key, {}),
-                    user=user,
+                    **actor,
                     message=text,
                 )
                 for key in keys
@@ -913,7 +914,7 @@ class ModelView:
                                 for name, value in before.items()
                                 if value not in ("", None)
                             },
-                            user=user_of(request),
+                            **actor_of(request),
                         )
                     ],
                 )
@@ -1058,7 +1059,7 @@ class ModelView:
                     record_title=self.title_of(record),
                     event=AuditEvent.CREATED if created else AuditEvent.UPDATED,
                     changes=changes,
-                    user=user_of(request),
+                    **actor_of(request),
                 )
             ],
         )
@@ -1142,10 +1143,3 @@ def _deleting(item: FileField, key: str) -> Any:
         await item.storage.delete(key)
 
     return work
-
-
-def user_of(request: Any) -> str | None:
-    """Who is signed in, as the audit log writes it down."""
-    scope = getattr(request, "scope", None)
-    user = scope.get("user_record") if isinstance(scope, dict) else None
-    return str(user) if user is not None else None

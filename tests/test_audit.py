@@ -1,18 +1,39 @@
 import re
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+    create_engine,
+    inspect,
+)
+from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
-from adminsite.audit import AuditEntry, AuditEvent, AuditLog, as_json, diff
-from adminsite.auth import PasswordAuth, hash_password
+from adminsite.audit import (
+    AuditEntry,
+    AuditEvent,
+    AuditLog,
+    as_json,
+    audit_metadata,
+    diff,
+)
+from adminsite.auth import AuthProvider, PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.fields import ChoiceField
@@ -51,6 +72,75 @@ class RefusingProducts(ModelView, model=Product):
 
     async def after_save(self, context: SaveContext) -> None:
         raise RefusedError("Not today.")
+
+
+class Person:
+    """A user as an application keeps one: a key, and a name to show."""
+
+    def __init__(self, key: str, name: str) -> None:
+        self.key = key
+        self.name = name
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class People(AuthProvider):
+    """Signs in one person, whose key is not their name."""
+
+    async def verify(self, username: str, password: str) -> Person | None:
+        return Person("42", "Lena Fischer") if password == "right" else None
+
+    def identity(self, user: Any) -> str:
+        return str(user.key)
+
+    async def load_user(self, key: str) -> Person:
+        return Person(key, "Lena Fischer")
+
+
+def form_token(body: str) -> str:
+    found = re.search(r'name="_csrf" value="([^"]+)"', body)
+    assert found is not None
+    return found.group(1)
+
+
+@asynccontextmanager
+async def signed_in(site: Admin) -> AsyncIterator[tuple[httpx.AsyncClient, str]]:
+    """A client signed in to the admin, and the token its forms carry."""
+    app = Starlette()
+    app.mount("/admin", site)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"user-agent": "Firefox/140"},
+    ) as client:
+        page = await client.get("/admin/login")
+        await client.post(
+            "/admin/login",
+            data={
+                "username": "lena",
+                "password": "right",
+                "_csrf": form_token(page.text),
+            },
+        )
+        yield client, form_token((await client.get("/admin/products/new")).text)
+
+
+def columns_before_who_and_where() -> list[Column[Any]]:
+    """The audit table as adminsite 0.1.0a5 made it."""
+    return [
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("occurred_at", DateTime, nullable=False, index=True),
+        Column("view", String(100), nullable=False),
+        Column("record_key", String(200), nullable=False),
+        Column("record_title", String(300), nullable=True),
+        Column("event", String(20), nullable=False),
+        Column("action", String(100), nullable=True),
+        Column("batch", String(36), nullable=True, index=True),
+        Column("user", String(200), nullable=True),
+        Column("changes", JSON, nullable=False),
+        Column("message", Text, nullable=True),
+    ]
 
 
 @pytest.fixture
@@ -159,6 +249,71 @@ class TestTheLog:
         changes = diff({"name": "Hat", "price": "10"}, {"name": "Cap", "price": "10"})
 
         assert changes == {"name": ("Hat", "Cap")}
+
+
+class TestWhoAndFromWhere:
+    async def test_an_entry_says_who_and_from_where(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        site = Admin(
+            database,
+            title="Shop",
+            audit=log,
+            auth=People(),
+            secret_key="a-secret-for-the-tests",
+        )
+        site.add_view(ProductView)
+
+        async with signed_in(site) as (client, token):
+            response = await client.post(
+                "/admin/products/new",
+                data={"name": "Felt hat", "price": "42.00", "_csrf": token},
+            )
+            key = response.headers["location"].rsplit("/", 1)[-1]
+            page = await client.get(f"/admin/products/{key}")
+
+        entry = (await log.history("products", key))[0]
+
+        # The name is shown, and the key finds the person again after it
+        # changes. The address is the one the ASGI server resolved.
+        assert (entry.user, entry.user_key) == ("Lena Fischer", "42")
+        assert (entry.ip, entry.user_agent) == ("127.0.0.1", "Firefox/140")
+        assert entry.succeeded
+        assert 'title="Firefox/140">from 127.0.0.1</span>' in page.text
+
+    async def test_a_table_from_an_older_version_gains_the_new_columns(
+        self, database: Database
+    ) -> None:
+        older = MetaData()
+        Table("adminsite_audit_log", older, *columns_before_who_and_where())
+
+        def start_over(session: Session) -> None:
+            audit_metadata.drop_all(session.connection())
+            older.create_all(session.connection())
+
+        async with database.session() as session:
+            await session.run(start_over)
+            await session.commit()
+
+        log = AuditLog(database, create_table=True)
+        await log.record(
+            [
+                AuditEntry(
+                    view="orders",
+                    record_key="1",
+                    event=AuditEvent.ACTION,
+                    ip="10.0.0.1",
+                    user_key="42",
+                    inputs={"amount": "50"},
+                    error="Already paid.",
+                )
+            ]
+        )
+        entry = (await log.history("orders", "1"))[0]
+
+        assert (entry.ip, entry.user_key) == ("10.0.0.1", "42")
+        assert entry.inputs == {"amount": "50"}
+        assert not entry.succeeded
 
 
 class TestSavesAndDeletes:

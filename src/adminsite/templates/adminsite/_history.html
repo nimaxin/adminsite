@@ -24,6 +24,7 @@
         </p>
         <p class="text-xs text-base-content/60">
           <time>{{ _('{when} UTC', when=item.when) }}</time>
+          {% if item.entry.ip %} · <span {% if item.entry.user_agent %}title="{{ item.entry.user_agent }}"{% endif %}>{{ _('from {address}', address=item.entry.ip) }}</span>{% endif %}
           {% if item.entry.batch %} · {{ _('part of a bulk action') }}{% endif %}
         </p>
         {% if item.lines %}

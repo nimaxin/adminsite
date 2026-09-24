@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Every audit entry says who acted by the key `AuthProvider.identity` returns, as `user_key`, as
+  well as by the name shown, which it had already. It also keeps the IP address and the browser,
+  and the History tab shows the address. The audit table gains the columns `user_key`, `ip`,
+  `user_agent`, `error` and `inputs`, all of which may be empty. A table adminsite created adds
+  them by itself; for one in your own migrations, generate a migration after upgrading.
 - A new look. The admin sits on a quiet ground with each page on a raised panel, set in Geist,
   which now ships inside the package with no request to any other site. The sidebar gets icons,
   search at the top, and an active page you can read in light mode as well as dark. Colours

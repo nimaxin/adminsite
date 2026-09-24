@@ -45,6 +45,10 @@ audit = AuditLog(engine, create_table=True)
 
 A file of its own at another path works too: `AuditLog("sqlite:////var/lib/shop/audit.db")`.
 
+New versions of adminsite add columns to this table. Every one of them may be empty, so a table
+adminsite created itself gets them added the first time the log is used. For a table in your own
+migrations, generate a migration after upgrading.
+
 ## Bulk actions
 
 A bulk action writes one entry for each record it touched, and the entries share a batch id. Every
@@ -61,10 +65,17 @@ pending orders afterwards, so reading them first is the only way to know which o
   refuses a save leaves no trace.
 - A save that changed nothing. Saving a form without edits writes no entry.
 
-## Who did it
+## Who did it, and from where
 
-The user comes from your [auth provider](auth.md): whatever `identity(user)` returns, which is the
-username for `PasswordAuth`. Without signing in, entries show "Someone".
+Each entry names the person twice. `entry.user` is the name the admin shows for them, and
+`entry.user_key` is what your [auth provider](auth.md)'s `identity(user)` returns. The name reads
+well; the key still finds the same person after their name changes. For `PasswordAuth` both are the
+username. Without signing in, entries show "Someone".
+
+Each entry also keeps the IP address and the browser's own description of itself, as `entry.ip`
+and `entry.user_agent`. The History tab shows the address, and the browser when you point at it.
+The address is the one your ASGI server worked out, so behind a proxy it is the visitor's only when
+the server trusts that proxy, for example with uvicorn's `--forwarded-allow-ips`.
 
 ## Reading it yourself
 
