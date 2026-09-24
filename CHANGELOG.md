@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `in_sidebar = False` leaves a view out of the sidebar, the command palette's list of pages and the
+  overview's counts, for a view whose records are only opened from other records. Its pages, links
+  and record search stay as they were.
+- A filter that `get_filters` returns for one request, without `list_filter` naming it, now
+  narrows the list. It was offered and could be picked, but changed nothing.
+- `@action(..., audit_answer=False)` keeps an action's answer out of the audit log, for one that
+  shows a secret once, such as a new API key. The entry still says who ran it, on what and when.
+
 ## 0.1.0a6
 
 A new look, and an audit log that answers what gets asked of it afterwards. The admin is

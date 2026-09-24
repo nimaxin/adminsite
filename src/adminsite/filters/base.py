@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field, replace
+from typing import Any, Protocol
 
 from adminsite.text import humanize
 
@@ -20,6 +20,9 @@ class FilterValue:
 
     name: str
     values: tuple[str, ...]
+    # The filter these were read for, so one that get_filters adds for a
+    # single request is applied by the query that request makes.
+    source: Any = field(default=None, compare=False, repr=False)
 
     @property
     def first(self) -> str:
@@ -97,5 +100,5 @@ def parse_filters(
             continue
         parsed = item.parse(raw)
         if parsed is not None:
-            values.append(parsed)
+            values.append(replace(parsed, source=item))
     return tuple(values)

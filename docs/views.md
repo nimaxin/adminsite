@@ -274,6 +274,20 @@ class OrderView(ModelView, model=Order):
 Markup is written into the page as it is, so keep it to icons you control. A relative address is
 served from the admin, so a plugin's `add_static` folder works.
 
+### Left out of the sidebar
+
+Some views exist only so their records can be opened from the records that point at them: a
+customer's sessions, an invoice's payments. `in_sidebar = False` leaves such a view out of the
+sidebar, the command palette's list of pages and the overview's counts:
+
+```python
+class SessionView(ModelView, model=Session):
+    in_sidebar = False
+```
+
+Nothing else changes. Its list and record pages still open, links from other records still lead to
+them, and the command palette still finds its records.
+
 ## Answering per request
 
 Every `get_` method receives the request, so the answer can depend on the user:

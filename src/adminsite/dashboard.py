@@ -356,6 +356,8 @@ class ModelCounts(Widget):
         found = []
         async with admin.database.session() as session:
             for view in await admin.views_allowing(request):
+                if not view.in_sidebar:
+                    continue
                 statement = view.repository.base_statement(view.scope_for(request))
                 total = await session.scalar(
                     select(func.count()).select_from(statement.subquery())

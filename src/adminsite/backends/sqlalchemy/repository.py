@@ -398,7 +398,11 @@ class SQLAlchemyRepository:
             statement = statement.where(condition)
 
         for value in spec.filters:
-            item = self._filters_by_name.get(value.name)
+            # The filter the value was read for comes first: it may be one
+            # the view added for this request alone.
+            item = value.source
+            if not hasattr(item, "apply"):
+                item = self._filters_by_name.get(value.name)
             if item is not None:
                 statement = item.apply(statement, value, self)
         return statement

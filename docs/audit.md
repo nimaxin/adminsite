@@ -70,6 +70,17 @@ an input whose name is made of a word such as `password`, `secret`, `token`, `ke
 `api_key`, or one given `secret=True`. Give `secret=False` to keep a value whose name only looks
 secret. An uploaded file is kept by its name, type and size, never by what is in it.
 
+The entry also keeps what the action answered, such as "3 orders shipped". An action whose answer
+holds a secret shown once, such as a new API key, says so with `audit_answer=False`: its entry
+records who ran it, on what and when, and keeps nothing of the answer.
+
+```python
+@action("Rotate the key", on="record", audit_answer=False)
+async def rotate(self, account: Account, session: SessionAdapter) -> str:
+    key = await issue_key(session, account)
+    return f"The new key is {key}. Copy it now: it is not shown again."
+```
+
 An action that is refused, that the person may not run, or that fails is written down too, as
 failed, with the reason in `entry.error`. Its work is rolled back first, and the entry is written
 after, outside that transaction. A refusal keeps its message; any other error keeps only its kind,

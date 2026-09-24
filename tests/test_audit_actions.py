@@ -71,6 +71,10 @@ class OrderView(ModelView, model=Order):
         records = await selection.records()
         return Response(f"{len(records)} orders", media_type="application/zip")
 
+    @action("Rotate the key", on="record", audit_answer=False)
+    async def rotate(self, record: Order, session: SessionAdapter) -> str:
+        return "Your new key: abc123"
+
     @action("Sync from the provider", on="view", permission=Permission.VIEW)
     async def sync(self, session: SessionAdapter) -> str:
         return "Synced 3 orders."
@@ -194,6 +198,31 @@ class TestWhatItWasRunWith:
         kept = recorded_inputs([StringField("rows")], {"rows": upload})
 
         assert kept == {"rows": {"file": "rows.csv", "type": "text/csv", "size": 8}}
+
+
+class TestAnAnswerKeptOutOfTheLog:
+    async def test_a_new_key_never_reaches_the_log(
+        self, client: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        await run(client, "rotate", {"keys": "1"})
+        shown = await client.get("/admin/orders")
+        record = await client.get("/admin/orders/1")
+        activity = await client.get("/admin/-/activity")
+
+        entry = (await entries(log))[0]
+        everything = await log.find(AuditQuery(), limit=100)
+
+        # The person who ran it sees the key once; the log never holds it.
+        assert "abc123" in shown.text
+        assert (entry.action, entry.record_key, entry.message) == (
+            "Rotate the key",
+            "1",
+            None,
+        )
+        assert entry.user_agent == "Firefox/140"
+        assert not any("abc123" in repr(item) for item in everything)
+        assert "abc123" not in record.text
+        assert "abc123" not in activity.text
 
 
 class TestEveryAction:

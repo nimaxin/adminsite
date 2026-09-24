@@ -113,6 +113,11 @@ class ModelView:
     # so a link can be checked against the view of the model it points at.
     views: "ViewRegistry | None" = None
 
+    # False leaves the view out of the sidebar, the command palette's pages
+    # and the overview's counts. Its pages, links and pickers stay as they
+    # are, for a view whose records are only opened from other records.
+    in_sidebar: bool = True
+
     # Set by the admin when auditing is switched on.
     audit: "AuditStore | None" = None
 
@@ -563,7 +568,10 @@ class ModelView:
 
         text = self._answer_text(found, answer)
         changes = diff(before, self.snapshot(record, paths)) if auditing else {}
-        self._audit(session, [replace(entry, changes=changes, message=text)])
+        self._audit(
+            session,
+            [replace(entry, changes=changes, message=self._kept_answer(found, text))],
+        )
         return answer if isinstance(answer, Response) else text
 
     async def run_view_action(
@@ -587,7 +595,7 @@ class ModelView:
             raise
 
         text = self._answer_text(found, answer)
-        self._audit(session, [replace(entry, message=text)])
+        self._audit(session, [replace(entry, message=self._kept_answer(found, text))])
         return answer if isinstance(answer, Response) else text
 
     async def run_action(
@@ -629,7 +637,7 @@ class ModelView:
                     entry,
                     record_key=key,
                     changes=selection.changes.get(key, {}),
-                    message=text,
+                    message=self._kept_answer(found, text),
                 )
                 for key in keys
             ],
@@ -660,6 +668,10 @@ class ModelView:
         if isinstance(answer, Response):
             return None
         return str(answer) if answer else _("{action} done.", action=found.label)
+
+    def _kept_answer(self, found: Action, text: str | None) -> str | None:
+        """What the audit log keeps of the answer: nothing, if it is secret."""
+        return text if found.audit_answer else None
 
     def _collect_actions(self) -> dict[str, Action]:
         found: dict[str, Action] = {}

@@ -133,6 +133,7 @@ than accepted because the class said so.
 | `dangerous` | Draws the button in red. |
 | `permission` | What the user needs to run it. `Permission.EDIT` unless you say otherwise. |
 | `name` | The name in the URL, if the method name will not do. |
+| `audit_answer` | `False` keeps the answer out of the [audit log](audit.md#actions), for one that holds a secret shown once. |
 
 ## Refusing
 

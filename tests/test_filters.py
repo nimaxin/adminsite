@@ -1,9 +1,13 @@
+import re
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, select
+import httpx
+from sqlalchemy import ColumnElement, Select, func, select
+from starlette.applications import Starlette
 
+from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import (
     BooleanFilter,
     ChoiceFilter,
@@ -343,6 +347,48 @@ class TestCustomFilters:
 
             assert OrderStatus.SHIPPED not in {row.status for row in page}
             assert len(page) == 5
+
+
+class BigOrderFilter(SQLFilter):
+    """Orders worth more than the chosen amount."""
+
+    def condition(
+        self, value: FilterValue, repository: SQLAlchemyRepository
+    ) -> ColumnElement[bool] | None:
+        return Order.total > Decimal(value.first)
+
+
+class OrdersWithAFilterPerRequest(ModelView, model=Order):
+    """Adds a filter for this request only; list_filter does not name it."""
+
+    name = "orders"
+    list_display = ("id", "total")
+
+    def get_filters(self, request: Any = None) -> tuple[SQLFilter, ...]:
+        return (*super().get_filters(request), BigOrderFilter("big"))
+
+
+class TestFiltersAddedPerRequest:
+    async def test_one_only_get_filters_returns_still_narrows_the_list(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            expected = await session.scalar(
+                select(func.count()).where(Order.total > Decimal("100"))
+            )
+        app = Starlette()
+        app.mount("/admin", Admin(database, views=[OrdersWithAFilterPerRequest]))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            listing = await client.get("/admin/orders?big=100")
+            export = await client.get("/admin/orders/export?big=100")
+
+        total = re.search(r"(\d+) orders", listing.text)
+        assert total is not None
+        assert int(total.group(1)) == expected
+        assert len(export.text.strip().splitlines()) - 1 == expected
+        assert expected < 7
 
 
 class TestChips:

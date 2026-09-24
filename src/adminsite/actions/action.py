@@ -35,6 +35,9 @@ class Action:
     dangerous: bool = False
     inputs: tuple["Field", ...] = ()
     on: str = ON_SELECTION
+    # Whether the audit log keeps what the action answered. Switch it off
+    # for an answer that holds a secret shown once, such as a new API key.
+    audit_answer: bool = True
 
     @property
     def needs_confirming(self) -> bool:
@@ -71,6 +74,7 @@ def action(
     dangerous: bool = False,
     inputs: Sequence["Field"] = (),
     on: str = ON_SELECTION,
+    audit_answer: bool = True,
 ) -> Callable[[Handler], Handler]:
     """Mark a method as an action.
 
@@ -99,6 +103,11 @@ def action(
 
     A method returns the message to show, or a response to send instead,
     such as a file to download.
+
+    The audit log keeps that message with the entry for the run. Give
+    `audit_answer=False` when it holds something shown only once, such as
+    a new API key: the entry then says who ran it, on what and when, and
+    keeps nothing of the answer.
     """
     if on not in TARGETS:
         raise AdminSiteError(
@@ -125,6 +134,7 @@ def action(
                 dangerous=dangerous,
                 inputs=tuple(inputs),
                 on=on,
+                audit_answer=audit_answer,
             ),
         )
         return handler

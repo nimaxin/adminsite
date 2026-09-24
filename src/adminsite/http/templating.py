@@ -108,6 +108,8 @@ async def navigation(
     urls = Urls(request)
     groups: dict[str, list[NavItem]] = {}
     for view in await admin.views_allowing(request):
+        if not view.in_sidebar:
+            continue
         groups.setdefault(view.group, []).append(
             NavItem(f"view:{view.name}", view.label_plural, urls.list(view), view.icon)
         )

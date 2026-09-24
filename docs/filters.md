@@ -92,6 +92,9 @@ class BigSpenders(SQLFilter):
         return statement.where(Customer.id.in_(spent))
 ```
 
+A filter can also depend on who is asking: return it from `get_filters(request)` instead of naming
+it in `list_filter`, and it is offered and applied for that request alone.
+
 ## One place for every read
 
 The list, its count, a CSV export and a bulk action all go through the same filters. "Select all

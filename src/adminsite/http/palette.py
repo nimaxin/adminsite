@@ -49,6 +49,10 @@ async def pages_matching(admin: "Admin", request: Request, term: str) -> Palette
     urls = Urls(request)
     found = [PaletteItem(_("Overview"), urls.index())]
     for view in await admin.views_allowing(request):
+        # Left out of the sidebar, a view is left out here too; its records
+        # are still found below.
+        if not view.in_sidebar:
+            continue
         found.append(PaletteItem(view.label_plural, urls.list(view), view.group))
         if await view.allows(Permission.CREATE, request=request):
             found.append(
