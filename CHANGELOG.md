@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pasting into a list's search box or a link picker's search box now searches. Both only reacted
+  to keys being typed, so text pasted with the mouse found nothing until another key was pressed.
 - An action can ask for another record. A `RelationField` among its `inputs` offers the records
   that model's view lets the user see, as a list, or as a search box above a hundred, and the
   method receives the chosen record. A key the user could not have picked is refused. The audit

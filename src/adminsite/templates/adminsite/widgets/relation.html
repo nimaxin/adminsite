@@ -35,7 +35,7 @@
         <input type="search" name="q" class="grow" placeholder="{{ _('Search') }}"
                hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
                hx-target="#options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}"
-               hx-trigger="keyup changed delay:250ms, focus">
+               hx-trigger="input changed delay:250ms, focus">
       </label>
       <div id="options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}" class="max-h-60 overflow-auto"></div>
     </div>

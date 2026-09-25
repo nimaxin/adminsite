@@ -16,7 +16,7 @@
                placeholder="{{ _('Search {things}', things=view.label_plural|lower) }}"
                aria-label="{{ _('Search {things}', things=view.label_plural|lower) }}"
                hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML"
-               hx-trigger="keyup changed delay:300ms, search" hx-include="closest form"
+               hx-trigger="input changed delay:300ms, search" hx-include="closest form"
                hx-replace-url="true">
       </label>
     </form>
