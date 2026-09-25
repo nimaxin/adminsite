@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A record page answered 500 when a to-many link it shows held no records, or when a computed
+  field on it needed a link the page also shows. Both broke in 0.1.0a7.
 - An audit log kept in your own database, with `AuditLog(engine)`, is written in the same
   transaction as the change it describes, so the two are saved together or not at all. A log kept
   elsewhere, such as the default SQLite file, is still written after the change. When that write

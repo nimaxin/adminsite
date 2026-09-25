@@ -1,3 +1,4 @@
+import re
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
@@ -7,7 +8,7 @@ import pytest
 from sqlalchemy import Select, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, ModelView
+from adminsite import Admin, Computed, FieldOptions, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField
@@ -173,3 +174,96 @@ class TestAToManyLinkOnTheRecordPage:
         ]
         assert orders
         assert all("limit" in item or "count(" in item for item in orders)
+
+
+class CustomerFormView(ModelView, model=Customer):
+    """A to-many link on the form, which the record page shows as well."""
+
+    name = "customer_forms"
+    form_fields = ("name", "orders")
+
+
+class CountedOrderView(ModelView, model=Order):
+    """A computed field that reads the items the page also lists."""
+
+    name = "counted_orders"
+    display_template = "Order #{id}"
+    detail_fields = ("status", "items", "item_count")
+    fields = (Computed("item_count", lambda order: len(order.items), needs=("items",)),)
+
+
+@pytest.fixture
+async def pages(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    admin = Admin(database, views=[CustomerView, CustomerFormView, CountedOrderView])
+    app = Starlette()
+    app.mount("/admin", admin)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client
+
+
+async def add(database: Database, record: Any) -> int:
+    async with database.session() as session:
+        await session.add(record)
+        await session.flush()
+        key = int(record.id)
+        await session.commit()
+    return key
+
+
+def value_of(page: httpx.Response, label: str) -> str:
+    found = re.search(rf"{label}</dt>\s*<dd[^>]*>(.*?)</dd>", page.text, re.S)
+    assert found is not None, label
+    return re.sub(r"<[^>]+>", "", found.group(1)).strip()
+
+
+class TestAToManyLinkThatHoldsNothing:
+    async def test_the_record_page_shows_it_empty(
+        self, pages: httpx.AsyncClient, database: Database
+    ) -> None:
+        nadia = await add(database, Customer(name="Nadia New", email="nadia@new.nl"))
+
+        page = await pages.get(f"/admin/customers/{nadia}")
+
+        assert page.status_code == 200
+        assert value_of(page, "Orders") == "—"
+
+    async def test_so_does_one_that_is_on_the_form(
+        self, pages: httpx.AsyncClient, database: Database
+    ) -> None:
+        nadia = await add(database, Customer(name="Nadia New", email="nadia@new.nl"))
+
+        page = await pages.get(f"/admin/customer_forms/{nadia}")
+
+        assert page.status_code == 200
+        assert value_of(page, "Orders") == "—"
+
+
+class TestAComputedFieldThatReadsAShownLink:
+    async def test_it_is_worked_out_from_the_link(
+        self, pages: httpx.AsyncClient
+    ) -> None:
+        page = await pages.get("/admin/counted_orders/1")
+
+        assert page.status_code == 200
+        assert value_of(page, "Item count") == "2"
+        assert value_of(page, "Items").startswith("Order item #")
+
+    async def test_it_holds_nothing_too(
+        self, pages: httpx.AsyncClient, database: Database
+    ) -> None:
+        empty = await add(
+            database,
+            Order(
+                customer_id=1,
+                status=OrderStatus.PENDING,
+                created_at=datetime(2026, 9, 1),
+            ),
+        )
+
+        page = await pages.get(f"/admin/counted_orders/{empty}")
+
+        assert page.status_code == 200
+        assert value_of(page, "Item count") == "0"
+        assert value_of(page, "Items") == "—"

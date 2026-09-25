@@ -284,11 +284,19 @@ async def detail(admin: "Admin", request: Request) -> Response:
     # A to-many link is read a few records at a time below, never loaded
     # whole: an invoice may cover thousands of records.
     counted = many_links(view, view.get_detail_fields(request), request)
+    # Unless a computed field on the page reads it, which needs it whole.
+    needed = computed_needs(
+        view, (*view.get_form_fields(request), *view.get_detail_fields(request))
+    )
     record = await load_or_404(
         admin,
         view,
         request,
-        paths=[path for path in view.get_load_paths(request) if path not in counted],
+        paths=[
+            path
+            for path in view.get_load_paths(request)
+            if path not in counted or path in needed
+        ],
     )
 
     paths = view.get_detail_fields(request, record)
@@ -297,8 +305,14 @@ async def detail(admin: "Admin", request: Request) -> Response:
     links = await linked_records(admin, view, record, paths, request)
     beside = {link.path for link in links}
     shown = await many_links_text(admin, view, record, counted, request)
+    # A to-many link was named above, even when it holds nothing: the record
+    # never loaded it, so reading it now would fail.
     rows = [
-        (path, view.label_for(path), shown.get(path) or view.display(record, path))
+        (
+            path,
+            view.label_for(path),
+            shown[path] if path in shown else view.display(record, path),
+        )
         for path in paths
         if path not in beside
     ]
@@ -369,6 +383,15 @@ def many_links(view: ModelView, paths: Sequence[str], request: Request) -> set[s
         if isinstance(item, RelationField) and item.collection:
             found.add(path)
     return found
+
+
+def computed_needs(view: ModelView, paths: Sequence[str]) -> set[str]:
+    """What the computed fields among these paths read from the record."""
+    return {
+        needed
+        for path in paths
+        for needed in getattr(view.field_for(path), "needs", ())
+    }
 
 
 async def many_links_text(
