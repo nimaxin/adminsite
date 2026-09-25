@@ -18,6 +18,7 @@ from starlette.staticfiles import StaticFiles
 
 from adminsite.audit import AuditLog, AuditStore
 from adminsite.audit.actor import USER_KEY
+from adminsite.audit.store import lives_in
 from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
@@ -140,6 +141,8 @@ class Admin:
         built = view(self.inspector, self.fields) if isinstance(view, type) else view
         if built.audit is None:
             built.audit = self.audit
+        if built.audit is not None:
+            built.audit_with_changes = lives_in(built.audit, self.database)
         return self.views.add(built)
 
     def add_page(self, page: AdminPage | type[AdminPage]) -> AdminPage:

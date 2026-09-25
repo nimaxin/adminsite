@@ -19,6 +19,7 @@ from adminsite.actions.action import Action, action_of
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
 from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
+from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
@@ -135,6 +136,9 @@ class ModelView:
 
     # Set by the admin when auditing is switched on.
     audit: "AuditStore | None" = None
+    # Set by the admin when that log lives in the admin's own database, so a
+    # change and its entries are saved in one transaction.
+    audit_with_changes: bool = False
 
     def __init_subclass__(cls, model: type[Any] | None = None, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -1460,18 +1464,32 @@ class ModelView:
         failed = [replace(entry, error=reason) for entry in entries]
 
         async def write() -> None:
-            await log.record(failed)
+            await record_or_warn(log, failed)
 
         session.after_rollback(write)
 
     def _audit(self, session: SessionAdapter, entries: Sequence[AuditEntry]) -> None:
-        """Write entries once the transaction they describe has committed."""
+        """Write entries down with the change they describe.
+
+        A log in the admin's own database is written in the same transaction,
+        so the change and its entries are saved together or not at all. Any
+        other log is written once the change has committed; if that fails,
+        the change stays, and the server log says which entries were lost.
+        """
         log = self.audit
         if log is None or not entries:
             return
+        within = getattr(log, "record_within", None)
+        if self.audit_with_changes and within is not None:
+
+            async def write_within() -> None:
+                await within(session, entries)
+
+            session.before_commit(write_within)
+            return
 
         async def write() -> None:
-            await log.record(entries)
+            await record_or_warn(log, entries)
 
         session.after_commit(write)
 

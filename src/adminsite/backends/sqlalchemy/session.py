@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -23,19 +25,45 @@ SessionSource = (
     Engine | AsyncEngine | sessionmaker[Session] | async_sessionmaker[AsyncSession]
 )
 
+logger = logging.getLogger("adminsite")
+
+
+async def _run_after(moment: str, work: Callable[[], Awaitable[None]]) -> None:
+    """Run work that waited on a commit or a rollback, and log it if it fails.
+
+    What it waited on has happened by now, so a failure here must not undo
+    it or stop the rest of the waiting work.
+    """
+    try:
+        await work()
+    except Exception:
+        logger.exception("Work that waited on a %s failed.", moment)
+
 
 class SessionAdapter(ABC):
     """One way to talk to the database, whether the session is async or not."""
 
     def __init__(self) -> None:
+        self._before_commit: list[Callable[[], Awaitable[None]]] = []
         self._after_commit: list[Callable[[], Awaitable[None]]] = []
         self._after_rollback: list[Callable[[], Awaitable[None]]] = []
+
+    def before_commit(self, work: Callable[[], Awaitable[None]]) -> None:
+        """Run some work inside the transaction, just before it commits.
+
+        If the work fails, the transaction is rolled back instead, so what
+        it writes, such as an audit entry in the same database, is saved
+        with the change it describes or not at all.
+        """
+        self._before_commit.append(work)
 
     def after_commit(self, work: Callable[[], Awaitable[None]]) -> None:
         """Run some work once the next commit has succeeded.
 
         A rollback drops it, so nothing that runs here, such as an audit
-        entry, can describe a change that never happened.
+        entry, can describe a change that never happened. Work that fails
+        is written to the log and stops nothing else, since what it waited
+        on is already committed.
         """
         self._after_commit.append(work)
 
@@ -50,19 +78,27 @@ class SessionAdapter(ABC):
 
     async def commit(self) -> None:
         """Commit the open transaction, then run the work waiting on it."""
+        waiting, self._before_commit = self._before_commit, []
+        try:
+            for work in waiting:
+                await work()
+        except BaseException:
+            await self.rollback()
+            raise
         await self._commit()
         self._after_rollback = []
         waiting, self._after_commit = self._after_commit, []
         for work in waiting:
-            await work()
+            await _run_after("commit", work)
 
     async def rollback(self) -> None:
         """Undo everything done since the last commit, then run what waits on it."""
+        self._before_commit = []
         self._after_commit = []
         await self._rollback()
         waiting, self._after_rollback = self._after_rollback, []
         for work in waiting:
-            await work()
+            await _run_after("rollback", work)
 
     @abstractmethod
     async def execute(self, statement: Executable) -> Rows:
@@ -276,6 +312,26 @@ class Database:
     def __init__(self, source: SessionSource) -> None:
         self.is_async = isinstance(source, AsyncEngine | async_sessionmaker)
         self._factory = self._factory_for(source)
+        # A session factory names its engine as its bind, if it has one.
+        bind = source if isinstance(source, Engine | AsyncEngine) else None
+        if bind is None and isinstance(source, sessionmaker | async_sessionmaker):
+            found = source.kw.get("bind")
+            bind = found if isinstance(found, Engine | AsyncEngine) else None
+        self.engine: Engine | AsyncEngine | None = bind
+
+    def same_as(self, other: "Database") -> bool:
+        """Whether both talk to one database, so one transaction can hold both.
+
+        The same engine is one database, and so are two engines at one
+        address, such as an async and a sync engine on one file. Two SQLite
+        databases in memory are two, however alike their addresses.
+        """
+        if self.engine is None or other.engine is None:
+            return False
+        if self.engine is other.engine:
+            return True
+        mine = _address(self.engine)
+        return mine is not None and mine == _address(other.engine)
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[SessionAdapter]:
@@ -305,3 +361,18 @@ class Database:
         raise AdminSiteError(
             f"Pass an engine or a session factory, not {type(source).__name__}."
         )
+
+
+def _address(engine: Engine | AsyncEngine) -> tuple[Any, ...] | None:
+    """Where an engine's database is, whatever driver reaches it.
+
+    None for a SQLite database in memory, which only its own engine sees.
+    """
+    url = engine.url
+    backend = url.get_backend_name()
+    database = url.database or ""
+    if backend == "sqlite":
+        if database in ("", ":memory:") or url.query.get("mode") == "memory":
+            return None
+        database = os.path.abspath(database)
+    return (backend, url.username, url.host, url.port, database)

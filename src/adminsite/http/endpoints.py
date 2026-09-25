@@ -11,6 +11,7 @@ from starlette.responses import RedirectResponse, Response, StreamingResponse
 from adminsite.actions import Selection
 from adminsite.audit import AuditEntry, AuditEvent, AuditQuery, actor_of
 from adminsite.audit.actor import NAME_LIMIT
+from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import (
@@ -938,8 +939,9 @@ async def note_sign_in(
         actor["user_key"] = admin.auth.identity(user)
     else:
         actor["user"] = tried[:NAME_LIMIT] or None
-    await admin.audit.record(
-        [AuditEntry(view="", record_key="", event=event, error=reason, **actor)]
+    await record_or_warn(
+        admin.audit,
+        [AuditEntry(view="", record_key="", event=event, error=reason, **actor)],
     )
 
 
@@ -1085,7 +1087,8 @@ async def export_records(admin: "Admin", request: Request) -> Response:
     if admin.audit is not None:
         # Written when the download starts: the list is the search and the
         # filters, since the rows of a large export are too many to name.
-        await admin.audit.record(
+        await record_or_warn(
+            admin.audit,
             [
                 AuditEntry(
                     view=view.name,
@@ -1094,7 +1097,7 @@ async def export_records(admin: "Admin", request: Request) -> Response:
                     inputs=list_query(request.url.query),
                     **actor_of(request),
                 )
-            ]
+            ],
         )
 
     filename = f"{view.name}.csv"

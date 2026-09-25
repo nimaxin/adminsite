@@ -27,11 +27,11 @@ from adminsite.audit import (
     AuditEntry,
     AuditLog,
     AuditQuery,
-    AuditStore,
     audit_metadata,
 )
 from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.auth import PasswordAuth, hash_password
+from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.fields import ImageField
 from adminsite.files import LocalStorage
 from adminsite.saved_views import saved_view_metadata
@@ -72,18 +72,33 @@ class WhatNotWho:
     Sign ins are left out, and so are the address and browser of the rest.
     """
 
-    def __init__(self, store: AuditStore) -> None:
+    def __init__(self, store: AuditLog) -> None:
         self.store = store
 
     async def record(self, entries: Sequence[AuditEntry]) -> None:
         """Keep what was done, without who signed in or from where."""
-        kept = [
+        kept = self._kept(entries)
+        if kept:
+            await self.store.record(kept)
+
+    def lives_in(self, database: Database) -> bool:
+        """Whether the log is in that database: in the demo it always is."""
+        return self.store.lives_in(database)
+
+    async def record_within(
+        self, session: SessionAdapter, entries: Sequence[AuditEntry]
+    ) -> None:
+        """Keep what was done in the same transaction as the change itself."""
+        kept = self._kept(entries)
+        if kept:
+            await self.store.record_within(session, kept)
+
+    def _kept(self, entries: Sequence[AuditEntry]) -> list[AuditEntry]:
+        return [
             replace(entry, ip=None, user_agent=None)
             for entry in entries
             if entry.event not in SIGN_IN_EVENTS
         ]
-        if kept:
-            await self.store.record(kept)
 
     async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
         """Read the log as the store keeps it."""

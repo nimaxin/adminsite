@@ -5,7 +5,11 @@ from sqlalchemy import Select, and_, insert, or_, select
 
 from adminsite.audit.entry import AuditEntry, audit_metadata, audit_table
 from adminsite.audit.store import AuditQuery
-from adminsite.backends.sqlalchemy.session import Database, SessionSource
+from adminsite.backends.sqlalchemy.session import (
+    Database,
+    SessionAdapter,
+    SessionSource,
+)
 from adminsite.storage import Store
 
 DEFAULT_URL = "sqlite:///adminsite_audit.db"
@@ -22,8 +26,10 @@ class AuditLog(Store):
     table is then `adminsite_audit_log` on `audit_metadata`, which you add to
     your migrations.
 
-    Entries are written after the change they describe has committed, so a
-    change that was rolled back never shows up in the history.
+    Kept in the admin's own database, a change and its entries are saved in
+    one transaction: both or neither. Kept anywhere else, entries are written
+    once the change has committed, so a change that was rolled back never
+    shows up, but one whose entries fail to write is not logged.
     """
 
     metadata = audit_metadata
@@ -48,6 +54,31 @@ class AuditLog(Store):
                     insert(audit_table).values(rows[start : start + BATCH_SIZE])
                 )
             await session.commit()
+
+    def lives_in(self, database: Database) -> bool:
+        """Whether the entries are kept in that database."""
+        return self.database.same_as(database)
+
+    async def record_within(
+        self, session: SessionAdapter, entries: Sequence[AuditEntry]
+    ) -> None:
+        """Write entries through the caller's session, inside its transaction.
+
+        Nothing is committed here: the entries are saved with the change
+        they describe, when its transaction commits, or not at all.
+        """
+        if not entries:
+            return
+        if self.create_table and not self._ready:
+            # Created through the same session, since a second connection
+            # could wait forever on the locks this transaction holds.
+            await session.run(self._create_tables)
+            self._ready = True
+        rows = [entry.as_row() for entry in entries]
+        for start in range(0, len(rows), BATCH_SIZE):
+            await session.execute(
+                insert(audit_table).values(rows[start : start + BATCH_SIZE])
+            )
 
     async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
         """The entries that match, newest first, at most `limit` of them."""

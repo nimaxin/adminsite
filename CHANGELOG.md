@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- An audit log kept in your own database, with `AuditLog(engine)`, is written in the same
+  transaction as the change it describes, so the two are saved together or not at all. A log kept
+  elsewhere, such as the default SQLite file, is still written after the change. When that write
+  fails, a saved change, a sign in or a download no longer ends in an error page: the change stays,
+  and the server log names the entries that were lost. A store of your own joins the transaction
+  with `lives_in` and `record_within`.
+- Work that waits on a commit, such as removing a file a save replaced, all runs even when one
+  piece of it fails.
+
 ## 0.1.0a7
 
 What a large back office asks of its admin day to day. Actions can ask for another record, delete

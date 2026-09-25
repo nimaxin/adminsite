@@ -36,6 +36,13 @@ The same goes for the values an [action](#actions) is run with.
 `audit=True` keeps the log in a SQLite file of its own, `adminsite_audit.db` in the working
 directory. It needs no setup and no migration.
 
+!!! warning "The default audit log can miss a change"
+
+    The default log is a separate SQLite file. Your data and the log are in two separate
+    databases, so they can't be saved in one transaction, and each entry is saved after its
+    change. If saving the entry fails, the change stays but isn't logged. To save every change
+    together with its entry, keep the log in your own database with `AuditLog(engine)`.
+
 That suits a single server. Each worker process or container gets its own file, though, so with
 several of them, or with containers that are rebuilt, keep the log in your own database instead:
 
@@ -244,6 +251,32 @@ class ChangeLogStore:
 
 admin = Admin(engine, views=[OrderView], audit=ChangeLogStore(sessions))
 ```
+
+A store like this one writes after the change has committed, so a failure leaves the change saved
+but not logged, and the server log names the entries that were lost. A store that keeps its
+entries in the admin's own database can join the transaction instead, so each change and its
+entries are saved together. It needs two more methods:
+
+```python
+from adminsite.backends.sqlalchemy import Database, SessionAdapter
+
+
+class ChangeLogStore:
+    ...
+
+    def lives_in(self, database: Database) -> bool:
+        """Whether the entries are kept in that database."""
+        return database.same_as(Database(self.sessions))
+
+    async def record_within(
+        self, session: SessionAdapter, entries: Sequence[AuditEntry]
+    ) -> None:
+        """Write the entries through the admin's session, without committing."""
+        for entry in entries:
+            await session.add(ChangeLog(...))
+```
+
+A store that wraps another passes both on, or its entries are written after the commit.
 
 A row whose kind has no `AuditEvent` of its own can come back as `AuditEvent.ACTION`, with its name
 in `action`. `diff` and `as_json`, which the admin uses to describe a change, are in
