@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `translations={"en": {...}}` changes the admin's own English wording, such as "Username" to
+  "Email" on the sign-in page, without copying a template. English was never looked up before.
 - A Postgres `ARRAY` column is edited as a list, one value per line, where it was a JSON document
   to type by hand. Each value is checked by the field its type calls for, and a mistake is named by
   its line. The list and the export show the values separated by commas, the JSON API takes a

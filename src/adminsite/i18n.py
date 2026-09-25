@@ -74,14 +74,14 @@ def shipped_languages() -> list[str]:
 def gettext(text: str, **values: Any) -> str:
     """Translate a piece of English text into the current language.
 
-    A project's own translations win over the built in ones, and text with
-    no translation stays in English rather than disappearing.
+    A project's own translations win over the built in ones, English
+    included, so a word of the admin's own can be changed without copying
+    the template it is in. Text with no translation stays in English rather
+    than disappearing.
     """
     language = current_language.get()
-    translated = text
-    if language != DEFAULT_LANGUAGE:
-        own = (_extra.get() or {}).get(language, {})
-        translated = own.get(text) or built_in(language).get(text) or text
+    own = (_extra.get() or {}).get(language, {})
+    translated = own.get(text) or built_in(language).get(text) or text
     return translated.format(**values) if values else translated
 
 

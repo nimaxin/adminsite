@@ -8,6 +8,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView, Permission
+from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.i18n import (
     activate,
@@ -56,6 +57,13 @@ class TestGettext:
 
         assert gettext("Save") == "ثبت"
         assert gettext("Cancel") == "انصراف"
+
+    def test_a_project_can_reword_the_english_too(self) -> None:
+        activate("en", {"en": {"Username": "Email", "Page {number}": "Sheet {number}"}})
+
+        assert gettext("Username") == "Email"
+        assert gettext("Page {number}", number=3) == "Sheet 3"
+        assert gettext("Password") == "Password"
 
     def test_right_to_left_languages(self) -> None:
         assert direction("fa") == "rtl"
@@ -175,6 +183,24 @@ async def both(database: Database) -> AsyncIterator[httpx.AsyncClient]:
     )
     async with serve(admin) as client:
         yield client
+
+
+class TestRewordingTheEnglish:
+    async def test_the_sign_in_page_says_what_the_project_calls_it(
+        self, database: Database
+    ) -> None:
+        admin = Admin(
+            database,
+            views=[OrderView],
+            auth=PasswordAuth({"nima": hash_password("letmein")}),
+            secret_key="for-the-session",
+            translations={"en": {"Username": "Email"}},
+        )
+        async with serve(admin) as client:
+            page = await client.get("/admin/login")
+
+        assert re.search(r'for="username">Email</label>', page.text)
+        assert "Username" not in page.text
 
 
 class TestSwitchingLanguages:

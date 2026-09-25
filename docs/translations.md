@@ -56,6 +56,13 @@ Your translations win over the ones adminsite ships, and a text with no translat
 English rather than disappearing. Keep the `{placeholders}` as they are; only their place in the
 sentence may move.
 
+English works the same way, so a word of the admin's own can change without copying the template
+it is in. A project that signs people in with their email address:
+
+```python
+admin = Admin(engine, auth=auth, translations={"en": {"Username": "Email"}})
+```
+
 In your own code, such as a hook's refusal or an action's message, use the same function:
 
 ```python
