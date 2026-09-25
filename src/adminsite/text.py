@@ -42,6 +42,16 @@ def snake_case(name: str) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "_", spaced).strip("_").lower()
 
 
+def names_itself(record: Any) -> bool:
+    """Whether a record's class gives it a name, with a `__str__` of its own.
+
+    Without one, `str` falls back to `__repr__`, which says where the record
+    sits in memory or, written for a dataclass, prints every column.
+    """
+    found: Any = type(record).__str__
+    return found is not object.__str__
+
+
 class RecordValues(Mapping[str, Any]):
     """Reads attributes of a record the way `str.format` reads a mapping.
 

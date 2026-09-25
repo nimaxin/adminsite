@@ -47,7 +47,7 @@ from adminsite.i18n import gettext as _
 from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
-from adminsite.text import RecordValues, pluralize, snake_case
+from adminsite.text import RecordValues, names_itself, pluralize, snake_case
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.writing import (
     DeleteContext,
@@ -538,10 +538,17 @@ class ModelView:
         return item.text_for(record, self.value_at(record, path))
 
     def title_of(self, record: Any) -> str:
-        """Name a record, for a heading or a link to it."""
+        """Name a record, for a heading or a link to it.
+
+        The view's `display_template` first, then the model's own `__str__`.
+        A model with neither is named by the view's label and the record's
+        key, "Order #12", rather than by where it sits in memory.
+        """
         if self.display_template:
             return self.display_template.format_map(RecordValues(record))
-        return str(record)
+        if names_itself(record):
+            return str(record)
+        return _("{thing} #{key}", thing=self.label, key=self.identity_of(record))
 
     def identity_of(self, record: Any) -> str:
         """The key of a record, as it appears in a URL."""

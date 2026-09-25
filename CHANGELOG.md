@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A record is named by its view's label and its key, "Order #12", when the view has no
+  `display_template` and the model no `__str__` of its own. The page heading, the row menu, the
+  command palette and the audit log showed `<Order object at 0x...>`. A model's `__repr__` is no
+  longer used as a name, since one written for a dataclass prints every column.
 - `translations={"en": {...}}` changes the admin's own English wording, such as "Username" to
   "Email" on the sign-in page, without copying a template. English was never looked up before.
 - A Postgres `ARRAY` column is edited as a list, one value per line, where it was a JSON document

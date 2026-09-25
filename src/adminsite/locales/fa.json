@@ -266,6 +266,7 @@
   "{first} to {last} of {total}": "{first} تا {last} از {total}",
   "{name}, {size} bytes": "{name}، {size} بایت",
   "{path} is not a link.": "{path} پیوند نیست.",
+  "{thing} #{key}": "{thing} #{key}",
   "{thing} created.": "{thing} ایجاد شد.",
   "{thing} deleted.": "{thing} حذف شد.",
   "{thing} saved.": "{thing} ذخیره شد.",

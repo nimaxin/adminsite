@@ -30,7 +30,12 @@ class OrderView(ModelView, model=Order):
 | `label` | `Order`, `Order item` | headings and buttons |
 | `label_plural` | `Orders`, `Order items` | the sidebar and the list heading |
 | `group` | none | the sidebar section the view sits under |
-| `display_template` | `str(record)` | how a record is named elsewhere, for example `"{name} ({email})"` |
+| `display_template` | `str(record)`, or `Order #12` | how a record is named elsewhere, for example `"{name} ({email})"` |
+
+Without a `display_template`, a record is named by its model's `__str__`. A model without one, as
+SQLAlchemy models start out, is named by the view's label and the record's key, `Order #12`,
+rather than `<Order object at 0x...>`. A `__repr__` is not used as a name, since one written for a
+dataclass prints every column.
 
 `display_template` is also used when another model links to this one, so a customer picker on the
 order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
