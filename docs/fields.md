@@ -214,7 +214,7 @@ async def member_counts(session, groups):
         .where(Member.group_id.in_([group.id for group in groups]))
         .group_by(Member.group_id)
     )
-    return dict(rows.tuples().all())
+    return dict(rows.all())
 
 
 class GroupView(ModelView, model=Group):

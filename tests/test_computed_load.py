@@ -22,7 +22,10 @@ async def order_counts(
         .where(Order.customer_id.in_([customer.id for customer in customers]))
         .group_by(Order.customer_id)
     )
-    return dict(rows.tuples().all())
+    counts: dict[Any, Any] = {}
+    for customer_id, count in rows.all():
+        counts[customer_id] = count
+    return counts
 
 
 # The start of the next cell in a list row, up to the value it shows.
@@ -57,7 +60,10 @@ async def counts_by_name(backend: Backend) -> dict[str, int]:
             .outerjoin(Order, Order.customer_id == Customer.id)
             .group_by(Customer.name)
         )
-        return dict(rows.tuples().all())
+        counts: dict[str, int] = {}
+        for name, count in rows.all():
+            counts[name] = count
+        return counts
 
 
 class TestAValueFromTheDatabase:

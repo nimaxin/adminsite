@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import ARRAY, Column, Enum
+from sqlalchemy import ARRAY, JSON, Column, Enum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Mapper, RelationshipProperty
@@ -140,6 +140,10 @@ class SQLAlchemyInspector:
         return tuple(column_type.enums) if isinstance(column_type, Enum) else None
 
     def _python_type_of(self, column_type: TypeEngine[Any]) -> type[Any]:
+        if isinstance(column_type, JSON):
+            # A document, whatever SQLAlchemy calls its type: 2.0 says dict
+            # and 2.1 says object, since JSON can hold any value.
+            return dict
         try:
             return column_type.python_type
         except NotImplementedError:
