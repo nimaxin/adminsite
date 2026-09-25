@@ -75,12 +75,6 @@ minutes.
 - [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL, with no N+1 queries.
 - No Node and no CDN: everything ships inside the package.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/record.png" alt="An order's page, with its history" width="40%">
-  <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/overview-dark.png" alt="The overview in dark mode" width="40%">
-  <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/phone.png" alt="The orders list on a phone" width="15.7%">
-</p>
-
 ## How it works
 
 adminsite is one ASGI app, mounted inside yours. Every page and the JSON API go through the
