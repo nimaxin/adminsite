@@ -63,9 +63,10 @@ class Picker:
     def _named_in_label(self) -> tuple[str, ...]:
         """The text columns the picker's own labels are built from."""
         view = self.view
-        template = self.item.display_template or ""
-        if view is not None and view.display_template:
-            template = view.display_template
+        # Named by the link's own template first, as everywhere else.
+        template = self.item.display_template or (
+            view.display_template if view is not None else ""
+        )
         if not template:
             return ()
         fields = self.admin.inspector.inspect(self.item.target).fields

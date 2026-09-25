@@ -9,6 +9,7 @@ from adminsite.fields import ChoiceField, Field, FileField, RelationField
 from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
+from adminsite.views.naming import name_linked
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -240,11 +241,8 @@ def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
 
 
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
-    """Name a related record, preferring the view its links open."""
-    view = admin.views.for_relation(item)
-    if view is not None and view.display_template:
-        return view.title_of(record)
-    return item.label_for(record)
+    """Name a related record in a picker, as it is named everywhere else."""
+    return name_linked(item, record, views=admin.views, inspector=admin.inspector)
 
 
 def rows_for_inputs(fields: Sequence[Field]) -> list[FormRow]:

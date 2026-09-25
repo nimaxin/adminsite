@@ -383,7 +383,7 @@ async def many_links_text(
             records, total = await view.fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
-            names = ", ".join(item.label_for(related) for related in records)
+            names = ", ".join(view.name_linked(item, one) for one in records)
             rest = total - len(records)
             if rest > 0:
                 names += _(" and {count} more", count=f"{rest:,}")

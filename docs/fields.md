@@ -125,8 +125,8 @@ nothing, and the box says how many are held. A link that holds a single record w
 except that picking replaces what is there.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
-whatever the lookup finds, twenty at a time. Give the other model a `display_template` so those
-twenty read as something other than `<Order object at 0x...>`.
+whatever the lookup finds, twenty at a time. Give the other model's view a `display_template` so those
+twenty read as something more telling than `Order #12`.
 
 A picker reads through the other model's own view, so its `scope_query` and its permissions apply
 here as on any other page. A user who may see only their own region's customers sees only those in

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A linked record is named the same way everywhere: by the link's own `display_template`, or else
+  as the view showing that model names it. List cells, the record page, the export and the audit
+  log used the model's `__str__`, which reads `<Group object at 0x...>` for a model without one,
+  while pickers used the other view's template. A picker now puts the link's own template first.
 - A record is named by its view's label and its key, "Order #12", when the view has no
   `display_template` and the model no `__str__` of its own. The page heading, the row menu, the
   command palette and the audit log showed `<Order object at 0x...>`. A model's `__repr__` is no

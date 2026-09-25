@@ -49,6 +49,7 @@ from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.security import Permission, permission_name
 from adminsite.text import RecordValues, names_itself, pluralize, snake_case
 from adminsite.views.inline import Inline, InlineRow
+from adminsite.views.naming import name_all_linked, name_linked
 from adminsite.views.writing import (
     DeleteContext,
     FormData,
@@ -535,7 +536,17 @@ class ModelView:
         if item.form_only:
             # Never read from the record, so there is nothing to show.
             return ""
-        return item.text_for(record, self.value_at(record, path))
+        value = self.value_at(record, path)
+        if isinstance(item, RelationField):
+            # A linked record reads here as it does everywhere else.
+            return name_all_linked(
+                item, value, views=self.views, inspector=self.inspector
+            )
+        return item.text_for(record, value)
+
+    def name_linked(self, item: RelationField, record: Any) -> str:
+        """Name a record one of this view's links points at."""
+        return name_linked(item, record, views=self.views, inspector=self.inspector)
 
     def title_of(self, record: Any) -> str:
         """Name a record, for a heading or a link to it.

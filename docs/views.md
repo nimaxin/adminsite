@@ -37,8 +37,10 @@ SQLAlchemy models start out, is named by the view's label and the record's key, 
 rather than `<Order object at 0x...>`. A `__repr__` is not used as a name, since one written for a
 dataclass prints every column.
 
-`display_template` is also used when another model links to this one, so a customer picker on the
-order form shows `Lena Fischer (lena@fischer.de)` instead of just the name.
+`display_template` is also used wherever another model links to this one: in its list cells, on
+its record pages, in its export, in its audit log and in its pickers. A customer then reads
+`Lena Fischer (lena@fischer.de)` on every order, not just the name. A link given its own
+`display_template` keeps it.
 
 ## The list
 
