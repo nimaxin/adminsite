@@ -62,6 +62,7 @@ class StaffAuth(AuthProvider):
 | `identity(user)` | The short string kept in the session cookie. |
 | `load_user(key)` | Turns that string back into a user on each request. |
 | `sign_in_failed(request, username)` | Runs when a sign in fails, and returns what to say. |
+| `sign_in_values(request)` | What the sign in form starts with. Nothing unless you say. |
 | `may_read_sign_ins(request, reads_everything=...)` | Whether this person sees sign ins on the Activity page. |
 
 `SignInRefused(reason, user=...)` refuses a sign in and says why. The reason goes to the
@@ -90,6 +91,28 @@ class StaffAuth(AuthProvider):
 
 Keep the message vague. One that says the username exists tells whoever is guessing the same
 thing.
+
+After a failed attempt the form keeps the username that was typed, so only the password has to be
+typed again.
+
+## A public demo
+
+A demo that everyone signs in to with the same account can fill in the form, so visitors only
+press Sign in:
+
+```python
+class DemoAuth(PasswordAuth):
+    async def sign_in_values(self, request):
+        return {"username": "admin", "password": "admin"}
+
+
+admin = Admin(engine, auth=DemoAuth({"admin": hash_password("admin")}), ...)
+```
+
+!!! warning "Only for a demo"
+
+    Anyone who opens the sign in page can read what this fills in. Never use it with real
+    credentials.
 
 ## CSRF
 

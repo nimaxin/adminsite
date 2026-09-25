@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `AuthProvider.sign_in_values(request)` fills in the sign in form, for a public demo whose
+  visitors all share one account. The live demo now opens with its details already in place.
+- After a failed sign in the form keeps the username that was typed, and the cursor waits in the
+  password box.
+
 ## 0.1.0a8
 
 A fix for record pages that 0.1.0a7 broke, and an audit log that is saved with the change it

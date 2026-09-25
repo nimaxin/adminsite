@@ -12,12 +12,12 @@ import os
 import secrets
 import shutil
 import time
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -105,6 +105,14 @@ class WhatNotWho:
         return await self.store.find(query, limit=limit)
 
 
+class DemoAuth(PasswordAuth):
+    """The demo's one account, filled in on the sign in page for visitors."""
+
+    async def sign_in_values(self, request: Request) -> Mapping[str, str]:
+        """Everyone signs in as admin, so nobody has to find the details."""
+        return {"username": "admin", "password": "admin"}
+
+
 class DemoCustomerView(CustomerView):
     """The example's customers, with a smaller import for strangers."""
 
@@ -181,7 +189,7 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         banner=BANNER,
         views=[OrderView, DemoCustomerView, DemoProductView],
         dashboard=dashboard,
-        auth=PasswordAuth({"admin": hash_password("admin")}),
+        auth=DemoAuth({"admin": hash_password("admin")}),
         secret_key=secret_key,
         session_https_only=True,
         audit=WhatNotWho(AuditLog(engine, create_table=True)),

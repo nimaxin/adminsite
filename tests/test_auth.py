@@ -377,3 +377,61 @@ class TestPasswordHashing:
     def test_plain_passwords_are_refused_at_startup(self) -> None:
         with pytest.raises(AdminSiteError, match="not hashed"):
             PasswordAuth({"nima": "letmein"})
+
+
+class FilledIn(PasswordAuth):
+    async def sign_in_values(self, request: Any) -> dict[str, str]:
+        return {"username": "demo", "password": "demo"}
+
+
+def box(page: httpx.Response, name: str) -> str:
+    found = re.search(rf'<input[^>]*name="{name}"[^>]*>', page.text)
+    assert found is not None, name
+    return found.group(0)
+
+
+def button(page: httpx.Response) -> str:
+    found = re.search(r'<button class="btn btn-primary[^>]*>', page.text)
+    assert found is not None
+    return found.group(0)
+
+
+class TestTheSignInForm:
+    async def test_it_starts_empty(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/login")
+
+        assert 'value=""' in box(page, "username")
+        assert 'value=""' in box(page, "password")
+        assert "autofocus" in box(page, "username")
+
+    async def test_the_auth_provider_can_fill_it_in(self, database: Database) -> None:
+        app = Starlette()
+        app.mount("/admin", build_admin(database, FilledIn({})))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/login")
+
+        assert 'value="demo"' in box(page, "username")
+        assert 'value="demo"' in box(page, "password")
+        # Both are there, so Enter signs in.
+        assert "autofocus" in button(page)
+
+    async def test_a_failed_attempt_keeps_the_username(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/login")
+        answer = await client.post(
+            "/admin/login",
+            data={
+                "username": "nima",
+                "password": "wrong",
+                "_csrf": token_from(page.text),
+            },
+        )
+
+        assert answer.status_code == 401
+        assert 'value="nima"' in box(answer, "username")
+        assert 'value=""' in box(answer, "password")
+        assert "wrong" not in answer.text
+        assert "autofocus" in box(answer, "password")

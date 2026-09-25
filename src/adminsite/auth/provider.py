@@ -78,6 +78,15 @@ class AuthProvider:
         """
         return _("That username and password do not match.")
 
+    async def sign_in_values(self, request: Request) -> Mapping[str, str]:
+        """What the sign in form starts with, by input name.
+
+        Nothing by default. A public demo can fill in its shared username
+        and password, so visitors only press Sign in. Never put real
+        credentials here: anyone who opens the page can read them.
+        """
+        return {}
+
     async def may_read_sign_ins(
         self, request: Request, *, reads_everything: bool
     ) -> bool:

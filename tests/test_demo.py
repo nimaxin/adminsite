@@ -122,6 +122,9 @@ class TestDemo:
             page = await client.get("/admin/login")
 
         assert "Sign in as admin with the password admin." in page.text
+        # And the details are already in the boxes.
+        assert re.search(r'<input[^>]*name="username"[^>]*value="admin"', page.text)
+        assert re.search(r'<input[^>]*name="password"[^>]*value="admin"', page.text)
 
     async def test_the_front_door_leads_to_the_admin(self, tmp_path: Path) -> None:
         async with client_for(build_app(tmp_path, SECRET)) as client:

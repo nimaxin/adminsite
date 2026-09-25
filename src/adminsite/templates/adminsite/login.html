@@ -38,17 +38,24 @@
         </div>
       {% endif %}
 
+      {#- What the auth provider fills in, and the username typed before a
+          failed attempt. The cursor starts at the first box left empty. -#}
+      {%- set filled = values|default({}) -%}
       <div class="flex flex-col gap-1.5">
         <label class="text-[13px] font-medium" for="username">{{ _('Username') }}</label>
-        <input class="input w-full" id="username" name="username" autocomplete="username" autofocus
+        <input class="input w-full" id="username" name="username" autocomplete="username"
+               value="{{ filled.get('username', '') }}"
+               {% if not filled.get('username') %}autofocus{% endif %}
                {% if error %}aria-describedby="login-error"{% endif %}>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="text-[13px] font-medium" for="password">{{ _('Password') }}</label>
         <input class="input w-full" id="password" name="password" type="password"
-               autocomplete="current-password">
+               autocomplete="current-password" value="{{ filled.get('password', '') }}"
+               {% if filled.get('username') and not filled.get('password') %}autofocus{% endif %}>
       </div>
-      <button class="btn btn-primary mt-1" type="submit">{{ _('Sign in') }}</button>
+      <button class="btn btn-primary mt-1" type="submit"
+              {% if filled.get('username') and filled.get('password') %}autofocus{% endif %}>{{ _('Sign in') }}</button>
     </form>
   </main>
 </body>

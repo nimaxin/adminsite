@@ -887,7 +887,8 @@ async def read_form(request: Request) -> dict[str, Any]:
 
 async def login_form(admin: "Admin", request: Request) -> Response:
     """The sign in page."""
-    return await admin.render("login.html", request, {"error": ""})
+    values = await admin.auth.sign_in_values(request) if admin.auth else {}
+    return await admin.render("login.html", request, {"error": "", "values": values})
 
 
 async def login(admin: "Admin", request: Request) -> Response:
@@ -922,8 +923,13 @@ async def login(admin: "Admin", request: Request) -> Response:
             )
     if user is None:
         message = await admin.auth.sign_in_failed(request, username)
+        # The username typed stays, so a mistyped password costs only that.
+        values = {**await admin.auth.sign_in_values(request), "username": username}
         return await admin.render(
-            "login.html", request, {"error": message}, status_code=401
+            "login.html",
+            request,
+            {"error": message, "values": values},
+            status_code=401,
         )
     await note_sign_in(admin, request, AuditEvent.SIGNED_IN, user=user)
     return RedirectResponse(Urls(request).index(), status_code=303)
