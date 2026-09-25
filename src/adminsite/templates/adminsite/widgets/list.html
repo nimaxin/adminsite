@@ -1,0 +1,4 @@
+{#- One value per line, as the field reads them back. -#}
+<textarea class="textarea h-28 w-full {% if row.error %}textarea-error{% endif %}"
+          id="field-{{ row.path }}" name="{{ row.path }}" spellcheck="false"
+          {% if row.required and row.browser_required %}required{% endif %} {{ field_attrs|default('') }}>{{ row.value }}</textarea>

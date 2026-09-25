@@ -90,6 +90,13 @@ class Field:
             return self.format.format(value)
         return self.display(value)
 
+    def hint(self) -> str:
+        """How to fill the input in, shown under it when there is no help text.
+
+        A method, so it is worded in the language of each request.
+        """
+        return ""
+
     def serialize(self, value: Any) -> str:
         """Format the value for a form input."""
         if value is None:

@@ -13,7 +13,13 @@ from starlette.responses import JSONResponse, Response
 from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.exceptions import FieldValidationError, RefusedError
-from adminsite.fields import ChoiceField, FileField, JSONField, RelationField
+from adminsite.fields import (
+    ChoiceField,
+    FileField,
+    JSONField,
+    ListField,
+    RelationField,
+)
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
@@ -156,6 +162,10 @@ def read_values(
             if isinstance(item, JSONField) and not isinstance(raw, str):
                 # Sent as JSON already, so it needs no reading from text.
                 values[path] = raw
+            elif isinstance(item, ListField) and isinstance(raw, list):
+                values[path] = item.parse_values(
+                    ["" if one is None else str(one) for one in raw]
+                )
             elif isinstance(item, RelationField) and item.collection:
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of keys."))

@@ -3,6 +3,7 @@ from adminsite.fields.choice import ChoiceField
 from adminsite.fields.computed import Computed
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
+from adminsite.fields.list_field import ListField
 from adminsite.fields.options import FieldOptions
 from adminsite.fields.password import PasswordField
 from adminsite.fields.registry import (
@@ -39,6 +40,7 @@ __all__ = [
     "ImageField",
     "IntegerField",
     "JSONField",
+    "ListField",
     "PasswordField",
     "RelationField",
     "StringField",

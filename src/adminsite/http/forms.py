@@ -71,12 +71,13 @@ class FormRow:
 
     @property
     def note(self) -> str:
-        """The help under the input: the field's own, or what empty means."""
+        """The help under the input: the field's own, or how to fill it in."""
         if self.field.help_text:
             return self.field.help_text
         if self.keeps_when_blank:
             return _("Leave it empty to keep the current one.")
-        return ""
+        # How to fill it in means nothing where it cannot be changed.
+        return "" if self.readonly else self.field.hint()
 
 
 async def build_rows(

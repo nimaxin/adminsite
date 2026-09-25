@@ -1,10 +1,11 @@
 from typing import Any
 
-from sqlalchemy import Column, Enum
+from sqlalchemy import ARRAY, Column, Enum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Mapper, RelationshipProperty
 from sqlalchemy.orm.interfaces import MANYTOMANY, MANYTOONE
+from sqlalchemy.types import TypeEngine
 
 from adminsite.exceptions import (
     InvalidPathError,
@@ -103,13 +104,10 @@ class SQLAlchemyInspector:
         return fields
 
     def _read_field(self, name: str, column: Column[Any]) -> FieldSchema:
-        enum_values = (
-            tuple(column.type.enums) if isinstance(column.type, Enum) else None
-        )
         return FieldSchema(
             name=name,
             label=humanize(name.removesuffix("_id")),
-            python_type=self._python_type_of(column),
+            python_type=self._python_type_of(column.type),
             nullable=bool(column.nullable),
             primary_key=bool(column.primary_key),
             foreign_key=bool(column.foreign_keys),
@@ -117,12 +115,33 @@ class SQLAlchemyInspector:
             or column.server_default is not None
             or bool(column.primary_key and column.autoincrement is not False),
             max_length=getattr(column.type, "length", None),
-            enum_values=enum_values,
+            enum_values=self._enum_values_of(column.type),
+            item=self._read_item(name, column.type),
         )
 
-    def _python_type_of(self, column: Column[Any]) -> type[Any]:
+    def _read_item(self, name: str, column_type: TypeEngine[Any]) -> FieldSchema | None:
+        """What each value of an array column is, or None for another column.
+
+        An array of arrays is left as a document, since one value per line
+        cannot hold it.
+        """
+        if not isinstance(column_type, ARRAY) or (column_type.dimensions or 1) > 1:
+            return None
+        item_type = column_type.item_type
+        return FieldSchema(
+            name=name,
+            label=humanize(name),
+            python_type=self._python_type_of(item_type),
+            max_length=getattr(item_type, "length", None),
+            enum_values=self._enum_values_of(item_type),
+        )
+
+    def _enum_values_of(self, column_type: TypeEngine[Any]) -> tuple[str, ...] | None:
+        return tuple(column_type.enums) if isinstance(column_type, Enum) else None
+
+    def _python_type_of(self, column_type: TypeEngine[Any]) -> type[Any]:
         try:
-            return column.type.python_type
+            return column_type.python_type
         except NotImplementedError:
             # Custom types may not name a python type. Treat them as text so
             # the field still renders, and let a field override fix it.

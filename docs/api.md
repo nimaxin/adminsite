@@ -41,8 +41,8 @@ filters by name such as `status=SHIPPED`, `page`, and `limit` up to 500.
 ```
 
 A record carries the paths of `list_display`, then those of the form. Links come as the key of the
-linked record, links to many as a list of keys, decimals as strings so no cents are lost, dates and
-times in ISO format, and files as their name and address. With
+linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
+cents are lost, dates and times in ISO format, and files as their name and address. With
 [keyset pagination](views.md#large-tables), `page` is null and `next` and `previous` are cursors to
 pass back as `after` and `before`.
 

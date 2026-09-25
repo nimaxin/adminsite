@@ -148,6 +148,31 @@ so nothing is lost and nothing malformed is stored.
 The [JSON API](api.md) reads and writes these columns as JSON, so `{"options": {"free_over": 10}}`
 is stored as an object, not as a string.
 
+## Lists
+
+A Postgres `ARRAY` column, such as tags or country codes, gets a `ListField` by itself. The form
+takes one value per line, and each value is read by the field its type calls for: `ARRAY(Integer)`
+takes whole numbers, `ARRAY(String(2))` two letters at most, and a mistake is named by its line.
+The list, the record page and the export show the values on one line, separated by commas. An
+empty box stores an empty list, so a column that cannot be null still takes it.
+
+The [JSON API](api.md) reads and writes a list as a JSON list, and an [import](import.md) takes the
+values separated by commas, as the export writes them, or one per line. An array of arrays stays a
+JSON document.
+
+A JSON column holding a list can be edited the same way, on any database:
+
+```python
+from adminsite.fields import IntegerField, ListField
+
+
+class ProductView(ModelView, model=Product):
+    fields = (
+        ListField("tags"),
+        ListField("sizes", item=IntegerField("sizes")),
+    )
+```
+
 ## A value the view works out
 
 Not every column on a page is a column. `Computed` shows something the view works out from the

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A Postgres `ARRAY` column is edited as a list, one value per line, where it was a JSON document
+  to type by hand. Each value is checked by the field its type calls for, and a mistake is named by
+  its line. The list and the export show the values separated by commas, the JSON API takes a
+  list, and an import takes values separated by commas. `ListField` does the same for a JSON
+  column holding a list.
 - A form can hold inputs that are not columns. A field given `form_only=True` is never read from
   the record or written onto it; its value reaches `before_save` and `after_save`, which store it
   where it belongs. A view's `form_values` gives these inputs their starting values, such as

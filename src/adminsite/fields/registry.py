@@ -7,6 +7,7 @@ from uuid import UUID
 from adminsite.fields.base import Field
 from adminsite.fields.choice import ChoiceField
 from adminsite.fields.json_field import JSONField
+from adminsite.fields.list_field import ListField
 from adminsite.fields.scalars import (
     BooleanField,
     DecimalField,
@@ -35,6 +36,8 @@ class FieldRegistry:
 
     def field_class_for(self, schema: FieldSchema) -> type[Field]:
         """Return the field type that fits the column."""
+        if schema.item is not None:
+            return ListField
         if schema.enum_values:
             return ChoiceField
 
@@ -54,7 +57,11 @@ class FieldRegistry:
 
     def build(self, schema: FieldSchema, **overrides: Any) -> Field:
         """Build the field for a column, ready to display and to parse."""
-        return self.field_class_for(schema).from_schema(schema, **overrides)
+        field_class = self.field_class_for(schema)
+        if schema.item is not None and issubclass(field_class, ListField):
+            # Each value is read by the field its own type calls for.
+            overrides.setdefault("item", self.build(schema.item))
+        return field_class.from_schema(schema, **overrides)
 
     def _narrow(self, field_class: type[Field], schema: FieldSchema) -> type[Field]:
         if field_class is StringField and self._wants_a_box(schema):

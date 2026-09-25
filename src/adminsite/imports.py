@@ -13,7 +13,7 @@ from typing import Any
 
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import AdminSiteError, FieldValidationError
-from adminsite.fields import ChoiceField, FileField, RelationField
+from adminsite.fields import ChoiceField, FileField, ListField, RelationField
 from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
 
@@ -279,6 +279,8 @@ def normalize(item: Any, text: str) -> str:
                 return value
     if item.widget == "number":
         return text.replace(",", "").replace(" ", "")
+    if isinstance(item, ListField) and "\n" not in text:
+        return "\n".join(text.split(","))
     return text
 
 

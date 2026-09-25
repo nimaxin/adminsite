@@ -32,8 +32,9 @@ many records are left out.
   creates a stray record.
 
 Values are checked by the same fields as the form, and a few spreadsheet habits are accepted: a
-choice may be written as its label ("Shipped"), numbers may group thousands ("1,250.50"), and yes
-or no columns take yes, no, true, false, 1 and 0. A link to another record takes that record's key.
+choice may be written as its label ("Shipped"), numbers may group thousands ("1,250.50"), yes or no
+columns take yes, no, true, false, 1 and 0, and a list takes its values separated by commas. A link
+to another record takes that record's key.
 
 CSV files may be separated by commas, semicolons or tabs, and saved as UTF-8 or in the Windows code
 page older Excel versions use.

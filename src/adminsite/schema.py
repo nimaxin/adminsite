@@ -28,6 +28,9 @@ class FieldSchema:
     has_default: bool = False
     max_length: int | None = None
     enum_values: tuple[str, ...] | None = None
+    # For a column holding a list of values, such as a Postgres ARRAY, what
+    # each value is. None for any other column.
+    item: "FieldSchema | None" = None
 
     @property
     def required(self) -> bool:
