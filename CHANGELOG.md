@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- An action can ask for another record. A `RelationField` among its `inputs` offers the records
+  that model's view lets the user see, as a list, or as a search box above a hundred, and the
+  method receives the chosen record. A key the user could not have picked is refused. The audit
+  log names the record, and the JSON API takes its key. Each dialog's inputs have ids of their
+  own, so two dialogs on one page that ask for the same name no longer clash.
 - A linked record is named the same way everywhere: by the link's own `display_template`, or else
   as the view showing that model names it. List cells, the record page, the export and the audit
   log used the model's `__str__`, which reads `<Group object at 0x...>` for a model without one,

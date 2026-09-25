@@ -73,7 +73,9 @@ Content-Type: application/json
 
 Send `"everything": true` instead of keys to run the action over every record the query matches,
 as the "select all matching" link does on the list page. The answer is the action's message:
-`{"message": "2 orders marked as shipped."}`.
+`{"message": "2 orders marked as shipped."}`. An input that asks for
+[another record](actions.md#another-record) takes its key, or a list of keys for several, and a key
+the user may not pick answers 422 with the reason under the input's name.
 
 ## Signing in
 

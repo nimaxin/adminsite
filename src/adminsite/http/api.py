@@ -338,7 +338,13 @@ async def action(admin: "Admin", request: Request) -> Response:
 
     raw_inputs = body.get("inputs", {})
     inputs = view.parse_action_inputs(
-        found, {name: as_text(value) or "" for name, value in raw_inputs.items()}
+        found,
+        {
+            name: [str(one) for one in value]
+            if isinstance(value, list)
+            else as_text(value) or ""
+            for name, value in raw_inputs.items()
+        },
     )
     if not inputs.ok:
         raise ApiError(422, _("Some values need another look."), inputs.errors)
@@ -363,6 +369,11 @@ async def action(admin: "Admin", request: Request) -> Response:
             await session.commit()
         except RefusedError as error:
             await session.rollback()
+            if error.field:
+                # About one of the values sent, as a form's refusal is.
+                raise ApiError(
+                    422, _("Some values need another look."), {error.field: str(error)}
+                ) from None
             raise ApiError(409, str(error)) from None
         except IntegrityError:
             await session.rollback()

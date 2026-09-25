@@ -68,6 +68,10 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def action_lookup(self, view: ModelView, action: str, name: str) -> str:
+        """Where a link an action asks for searches for records."""
+        return f"{self.base}/{view.name}/action/{action}/lookup/{name}"
+
     def page(self, name: str) -> str:
         """A page of the project's own."""
         return f"{self.base}/-/{name}"

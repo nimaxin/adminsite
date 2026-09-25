@@ -32,7 +32,7 @@ from adminsite.http.forms import (
     Choice,
     FormRow,
     build_rows,
-    rows_for_inputs,
+    rows_for_actions,
     title_for,
 )
 from adminsite.http.history import describe
@@ -120,6 +120,12 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         if await view.allows(item.permission, request=request)
     ]
     context["record_actions"] = record_actions
+    context["action_rows"] = await rows_for_actions(
+        admin,
+        view,
+        [*allowed, *context["view_actions"], *record_actions],
+        request,
+    )
     # A record action can be refused for one record and allowed for the next.
     context["row_actions"] = {
         view.identity_of(record): [
@@ -330,9 +336,9 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "older_history": older_history,
             "record_actions": allowed_actions,
             "single_actions": allowed_actions,
-            "action_rows": {
-                item.name: rows_for_inputs(item.inputs) for item in allowed_actions
-            },
+            "action_rows": await rows_for_actions(
+                admin, view, allowed_actions, request
+            ),
             "can_edit": await view.allows(
                 Permission.EDIT, request=request, record=record
             ),
@@ -646,7 +652,35 @@ async def lookup(admin: "Admin", request: Request) -> Response:
         raise HTTPException(
             status_code=404, detail=_("{path} is not a link.", path=repr(path))
         )
+    return await looked_up(admin, request, view, item)
 
+
+async def action_lookup(admin: "Admin", request: Request) -> Response:
+    """The records a link in an action's dialog offers, narrowed by what was typed.
+
+    It needs what running the action needs, and the records come through
+    the target's own view, as a form's link does.
+    """
+    view = find_view(admin, request)
+    try:
+        found = view.action_named(request.path_params["name"], request)
+    except AdminSiteError:
+        raise HTTPException(status_code=404, detail=_("No such action.")) from None
+    await view.ensure(found.permission, request=request)
+
+    name = request.path_params["input"]
+    item = next((one for one in found.inputs if one.name == name), None)
+    if not isinstance(item, RelationField):
+        raise HTTPException(
+            status_code=404, detail=_("{path} is not a link.", path=repr(name))
+        )
+    return await looked_up(admin, request, view, item)
+
+
+async def looked_up(
+    admin: "Admin", request: Request, view: ModelView, item: RelationField
+) -> Response:
+    """The records a link offers for what was typed, as a list to pick from."""
     picker = Picker(admin, item, request)
     async with admin.database.session() as session:
         page = await picker.page(

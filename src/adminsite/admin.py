@@ -420,6 +420,11 @@ class Admin:
                 name="action",
             ),
             Route(
+                "/{view}/action/{name}/lookup/{input}",
+                self._handler(endpoints.action_lookup),
+                name="action_lookup",
+            ),
+            Route(
                 "/{view}/lookup/{path}",
                 self._handler(endpoints.lookup),
                 name="lookup",

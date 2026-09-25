@@ -109,10 +109,37 @@ With the [audit log](audit.md#actions) on, the values an action was run with are
 it. A secret is kept as `***`: an input named like `password` or `api_key`, or one given
 `secret=True`.
 
+### Another record
+
+A `RelationField` asks for one of another model's records. The dialog offers the records that
+model's view lets this user see: a list while there are a hundred or fewer, and a search box above
+that. The list is read when the page is drawn, so a product added a minute ago is on offer at once.
+The method receives the record itself:
+
+```python
+from adminsite.fields import RelationField
+
+
+class RunView(ModelView, model=Run):
+    @action(
+        "Assign to product",
+        inputs=[RelationField("product", target=Product, required=True)],
+    )
+    async def assign(self, selection: Selection, product: Product) -> str:
+        changed = await selection.update(product_id=product.id)
+        return f"{changed} runs now sell as {product.name}."
+```
+
+The key that comes back is read through the product view, with its `scope_query` and its
+permissions, so a record this user could not have picked is refused. `collection=True` asks for
+several, and the method receives a list. The audit log names the chosen record, and the
+[JSON API](api.md#actions) takes its key: `{"inputs": {"product": "12"}}`.
+
 ### Choices worked out per request
 
-The inputs are read when the page is drawn, so `get_actions` can hand back an action carrying
-whatever this user may pick:
+Choices that are records are asked for with a `RelationField`, above. For any other kind, the inputs
+are read when the page is drawn, so `get_actions` can hand back an action carrying whatever this
+user may pick:
 
 ```python
 import dataclasses

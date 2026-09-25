@@ -709,9 +709,10 @@ class ModelView:
         paths = list(self.get_form_fields(request, record)) if auditing else []
         try:
             await self.ensure(found.permission, request=request, record=record)
+            given, entry = await self._given(found, session, values, entry, request)
             before = self.snapshot(record, paths)
             handler = getattr(self, found.method)
-            answer = await handler(record, session, **(values or {}))
+            answer = await handler(record, session, **given)
             if auditing:
                 # Anything the record refuses surfaces here, while the entry
                 # can still be written down as failed.
@@ -742,8 +743,9 @@ class ModelView:
         entry = self._action_entry(found, request, values, "", None)
         try:
             await self.ensure(found.permission, request=request)
+            given, entry = await self._given(found, session, values, entry, request)
             handler = getattr(self, found.method)
-            answer = await handler(session, **(values or {}))
+            answer = await handler(session, **given)
             if self.audit is not None:
                 await session.flush()
         except Exception as error:
@@ -777,8 +779,11 @@ class ModelView:
             # longer match the filter they were chosen by.
             if auditing:
                 keys = await selection.covered_keys()
+            given, entry = await self._given(
+                found, selection.session, values, entry, request
+            )
             handler = getattr(self, found.method)
-            answer = await handler(selection, **(values or {}))
+            answer = await handler(selection, **given)
             if self.audit is not None:
                 await selection.session.flush()
         except Exception as error:
@@ -801,6 +806,83 @@ class ModelView:
             ],
         )
         return self._shown(answer, text)
+
+    async def resolve_inputs(
+        self,
+        found: Action,
+        session: SessionAdapter,
+        values: Mapping[str, Any],
+        *,
+        request: Any = None,
+    ) -> dict[str, Any]:
+        """The values an action was given, with the records its links name.
+
+        A key is read through the target's own view, as a form's link is, so
+        the method only ever gets a record this user may see. A key for any
+        other record is refused, and nothing says whether it exists.
+        """
+        given = dict(values)
+        for item in found.inputs:
+            value = given.get(item.name)
+            if not isinstance(item, RelationField) or value in (None, "", []):
+                continue
+            keys = value if isinstance(value, list | tuple | set) else [value]
+            records = [
+                await self._input_record(item, session, key, request) for key in keys
+            ]
+            given[item.name] = records if item.collection else records[0]
+        return given
+
+    async def _input_record(
+        self, item: RelationField, session: SessionAdapter, key: Any, request: Any
+    ) -> Any:
+        """The record a link input names, or a refusal naming the input."""
+        target = self.views.for_relation(item) if self.views is not None else None
+        if target is not None:
+            record = await self._linked_through(target, session, key, request)
+        else:
+            record = await self._linked_directly(item, session, key)
+        if record is None:
+            raise RefusedError(
+                _("{field}: choose from the records offered.", field=item.label),
+                field=item.name,
+            )
+        return record
+
+    async def _linked_directly(
+        self, item: RelationField, session: SessionAdapter, key: Any
+    ) -> Any | None:
+        """A linked record by its key, for a model no view shows."""
+        repository = SQLAlchemyRepository(item.target, self.inspector)
+        wanted = key
+        if isinstance(key, str) and len(repository.schema.primary_key) > 1:
+            wanted = tuple(key.split(","))
+        try:
+            return await repository.get(session, wanted)
+        except InvalidPathError:
+            return None
+
+    async def _given(
+        self,
+        found: Action,
+        session: SessionAdapter,
+        values: Mapping[str, Any] | None,
+        entry: AuditEntry,
+        request: Any,
+    ) -> tuple[dict[str, Any], AuditEntry]:
+        """What the method is given, and the entry that writes it down.
+
+        The entry keeps a linked record by its name, as the history names
+        it everywhere else, rather than by its key.
+        """
+        given = await self.resolve_inputs(found, session, values or {}, request=request)
+        named = dict(given)
+        for item in found.inputs:
+            if isinstance(item, RelationField) and named.get(item.name) is not None:
+                named[item.name] = name_all_linked(
+                    item, named[item.name], views=self.views, inspector=self.inspector
+                )
+        return given, replace(entry, inputs=recorded_inputs(found.inputs, named))
 
     def _action_entry(
         self,

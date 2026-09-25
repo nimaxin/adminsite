@@ -7,7 +7,6 @@ from starlette.requests import Request
 from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.filters import FilterOption, FilterValue, parse_filters
-from adminsite.http.forms import rows_for_inputs
 from adminsite.http.urls import PAGING_KEYS
 from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec, Sort
@@ -258,8 +257,4 @@ def as_context(
         "actions": view.actions_on("selection", request),
         "record_actions": view.actions_on("record", request),
         "view_actions": view.actions_on("view", request),
-        "action_rows": {
-            item.name: rows_for_inputs(item.inputs)
-            for item in view.get_actions(request)
-        },
     }

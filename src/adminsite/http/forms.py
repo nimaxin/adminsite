@@ -3,10 +3,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from adminsite.actions.action import Action
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import ChoiceField, Field, FileField, RelationField
 from adminsite.http.picker import PICKER_LIMIT, Picker
+from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
 from adminsite.views.naming import name_linked
@@ -49,6 +51,17 @@ class FormRow:
     # True where leaving it empty keeps what the record has, as for a
     # password: then it is never required, and the form says so.
     keeps_when_blank: bool = False
+    # Put before the path in the input's id, so two dialogs on one page that
+    # both ask for a "product" do not share one.
+    id_prefix: str = ""
+    # Where a searchable link looks records up, when it is not the form's
+    # own lookup, as for a link an action asks for.
+    lookup_url: str = ""
+
+    @property
+    def input_id(self) -> str:
+        """The id of the input itself."""
+        return f"field-{self.id_prefix}{self.path}"
 
     @property
     def picked_pairs(self) -> list[dict[str, str]]:
@@ -245,7 +258,7 @@ def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
     return name_linked(item, record, views=admin.views, inspector=admin.inspector)
 
 
-def rows_for_inputs(fields: Sequence[Field]) -> list[FormRow]:
+def rows_for_inputs(fields: Sequence[Field], *, prefix: str = "") -> list[FormRow]:
     """Build the form rows for the values an action asks for.
 
     Each starts at the field's default, so a dialog of five switches that
@@ -253,9 +266,46 @@ def rows_for_inputs(fields: Sequence[Field]) -> list[FormRow]:
     """
     rows = []
     for item in fields:
-        row = FormRow(path=item.name, field=item, value=item.serialize(item.default))
+        row = FormRow(
+            path=item.name,
+            field=item,
+            value=item.serialize(item.default),
+            id_prefix=prefix,
+        )
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(item.default)
         rows.append(row)
+    return rows
+
+
+async def rows_for_actions(
+    admin: "Admin",
+    view: ModelView,
+    actions: Sequence[Action],
+    request: Any = None,
+) -> dict[str, list[FormRow]]:
+    """The rows each action's dialog asks for, by the action's name.
+
+    A link among them offers the records its target's view lets this user
+    see, as a form's link does, and searches where there are too many to
+    list. A session is opened only when some action asks for a link.
+    """
+    rows = {
+        found.name: rows_for_inputs(found.inputs, prefix=f"{found.name}-")
+        for found in actions
+    }
+    links = [
+        (found, row, row.field)
+        for found in actions
+        for row in rows[found.name]
+        if isinstance(row.field, RelationField)
+    ]
+    if not links:
+        return rows
+    urls = Urls(request)
+    async with admin.database.session() as session:
+        for found, row, item in links:
+            await _fill_relation(admin, session, row, item, None, request)
+            row.lookup_url = urls.action_lookup(view, found.name, row.path)
     return rows

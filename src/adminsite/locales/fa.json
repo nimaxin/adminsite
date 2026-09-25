@@ -262,6 +262,7 @@
   "{count} rows": "{count} ردیف",
   "{count} with problems": "{count} دارای مشکل",
   "{count} {things} deleted.": "{count} {things} حذف شد.",
+  "{field}: choose from the records offered.": "{field}: یکی از موارد پیشنهادشده را انتخاب کنید.",
   "{first} to {last}": "{first} تا {last}",
   "{first} to {last} of {total}": "{first} تا {last} از {total}",
   "{name}, {size} bytes": "{name}، {size} بایت",

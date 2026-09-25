@@ -1,6 +1,6 @@
 <label class="label cursor-pointer justify-start gap-3 text-base-content">
   <input type="checkbox" class="toggle toggle-primary toggle-sm"
-         id="field-{{ row.path }}" name="{{ row.path }}" value="true"
+         id="{{ row.input_id }}" name="{{ row.path }}" value="true"
          {% if row.value %}checked{% endif %} {{ field_attrs|default('') }}>
   {{ _('Yes') }}
 </label>

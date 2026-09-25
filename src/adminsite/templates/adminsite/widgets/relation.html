@@ -27,20 +27,22 @@
               :aria-expanded="open.toString()" {{ field_attrs|default('') }}>{{ _('Choose') }}</button>
     </div>
 
-    <div class="absolute z-30 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+    {#- Inside a dialog the list takes its place in the dialog, which grows,
+        since the dialog would cut off anything floating past its edge. -#}
+    <div class="absolute z-30 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg in-[.modal-box]:static"
          x-show="open" x-cloak>
       <label class="input input-sm mb-1 w-full">
         <input type="search" name="q" class="grow" placeholder="{{ _('Search') }}"
-               hx-get="{{ urls.lookup(view, row.lookup_path or row.path) }}"
-               hx-target="#options-{{ row.path|replace('.', '-') }}"
+               hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
+               hx-target="#options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}"
                hx-trigger="keyup changed delay:250ms, focus">
       </label>
-      <div id="options-{{ row.path|replace('.', '-') }}" class="max-h-60 overflow-auto"></div>
+      <div id="options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}" class="max-h-60 overflow-auto"></div>
     </div>
   </div>
 {% else %}
   <select class="select w-full {% if row.error %}select-error{% endif %} {% if row.field.collection %}h-auto py-2{% endif %}"
-          id="field-{{ row.path }}" name="{{ row.path }}"
+          id="{{ row.input_id }}" name="{{ row.path }}"
           {% if row.field.collection %}multiple size="5"{% endif %} {{ field_attrs|default('') }}>
     {% if not row.field.collection %}<option value="">{{ _('Not set') }}</option>{% endif %}
     {% for choice in row.choices %}

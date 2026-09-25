@@ -1,7 +1,7 @@
 {#- Each widget lives in widgets/, so a project can override one by
     dropping a file with the same name into its own template folder. -#}
 {% import "adminsite/_icons.html" as icons %}
-{%- set field_id = "field-" ~ row.path|replace(".", "-") -%}
+{%- set field_id = "field-" ~ (row.id_prefix ~ row.path)|replace(".", "-") -%}
 {#- Ties the input to its name, and to its error or help, for screen readers. -#}
 {%- set field_attrs -%}
   aria-labelledby="{{ field_id }}-label"
