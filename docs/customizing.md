@@ -81,9 +81,9 @@ Beside daisyUI's own colours the themes set a few more, as CSS variables on the 
 `--muted` for text that steps back, `--link`, `--selected` for ticked rows, and `--chart` and
 `--chart-strong` for bars. A project's own stylesheet can set any of them.
 
-A choice such as a status is drawn as a badge in one of six tones, `tone-0` to `tone-5`, set by
-the choice's place in the list: the first option is amber, the second blue, then green, grey,
-violet and rose. Reorder the choices to change which colour a status gets.
+A choice such as a status is drawn as a badge in one of six tones, `tone-0` to `tone-5`: amber,
+blue, green, grey, violet and rose. A field's `tones` say which value gets which, by name; without
+them the choice's place in the list decides. See [Badge colours](fields.md#badge-colours).
 
 The typeface is Geist, which ships inside the package in the two subsets European languages need.
 Any other script, Persian among them, is drawn in the system's own font.

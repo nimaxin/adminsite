@@ -174,6 +174,10 @@ class ModelView:
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, Field] = {}
+        # Built now, so a mistake in FieldOptions, such as a tone that does not
+        # exist, stops the admin starting rather than the page that shows it.
+        for path in self._changes:
+            self.field_for(path)
 
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
@@ -425,6 +429,12 @@ class ModelView:
             raise AdminSiteError(
                 f"FieldOptions({path!r}) in {type(self).__name__}.fields holds "
                 f"something the field does not take: {error}"
+            ) from error
+        except AdminSiteError as error:
+            if not changes:
+                raise
+            raise AdminSiteError(
+                f"FieldOptions({path!r}) in {type(self).__name__}.fields: {error}"
             ) from error
         self._fields[path] = built
         return built

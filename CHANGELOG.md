@@ -5,8 +5,9 @@
 What a large back office asks of its admin day to day. Actions can ask for another record, delete
 the chosen rows through each record's own hooks, and answer with a message that stays or holds a
 value to copy. A form can hold inputs that are not columns, such as a password. A computed value
-can come from one query for the whole page, a Postgres array is edited as a list, and every record
-and link has a readable name, never a memory address.
+can come from one query for the whole page, a Postgres array is edited as a list, a status says
+which colour each of its values is, and every record and link has a readable name, never a memory
+address.
 
 Before upgrading:
 
@@ -19,6 +20,10 @@ Before upgrading:
   holds one.
 - The JSON API reads a Postgres `ARRAY` column from a list. A string is read as one value per line.
 - The inputs in an action's dialog have ids of the form `field-<action>-<name>`.
+- A mistake in `FieldOptions` is an error when the view is created, where it waited for the first
+  page that used the field.
+- `ChoiceField.tone_of` answers `None` for a value drawn with no badge. A value that is not one of
+  the choices answers grey, where it answered `None` and was drawn grey.
 
 What changed:
 
@@ -28,6 +33,11 @@ What changed:
   new answer for its type turned it into a text box. `SessionAdapter.execute` and a chart's query
   are typed for rows of any number of columns, as 2.1 types them column by column. The tests pass
   on SQLAlchemy 2.0 and 2.1.
+- A choice or a yes or no says which colour each value's badge is, by name:
+  `FieldOptions("status", tones={OrderStatus.FAILED: "rose", OrderStatus.DONE: "green"})`. A value
+  left out is grey, and `None` draws no badge, so a risk flag can be a rose badge when it is set and
+  nothing when it is not. One tone, such as `tones="grey"`, colours every value alike. Without
+  `tones`, a choice still takes the colour of its place in the list.
 - Pasting into a list's search box or a link picker's search box now searches. Both only reacted
   to keys being typed, so text pasted with the mouse found nothing until another key was pressed.
 - An action can ask for another record. A `RelationField` among its `inputs` offers the records

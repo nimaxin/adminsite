@@ -20,6 +20,7 @@ from adminsite.fields import (
     TimeField,
     default_registry,
 )
+from adminsite.fields.tones import NEUTRAL
 from tests.models import Customer, Order, OrderStatus, Product
 
 
@@ -235,7 +236,8 @@ class TestChoiceTones:
 
         assert field.tone_of("s") == 0
         assert field.tone_of("m") == 1
-        assert field.tone_of("xl") is None
+        # Not one of the choices: grey, which means nothing good or bad.
+        assert field.tone_of("xl") == NEUTRAL
 
     def test_an_enum_member_finds_its_value(self) -> None:
         field = ChoiceField(
@@ -251,4 +253,4 @@ class TestChoiceTones:
         field = ChoiceField("n", choices=tuple((str(n), str(n)) for n in range(8)))
 
         assert field.tone_of("6") == 0
-        assert field.tone_of(None) is None
+        assert field.tone_of(None) == NEUTRAL

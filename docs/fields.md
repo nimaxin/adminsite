@@ -104,7 +104,7 @@ class OrderView(ModelView, model=Order):
 
 It takes whatever the field takes, so `label`, `required`, `readonly`, `help_text` and
 `max_length` work on any field, and `display_template` works on a link. An option the field does
-not take is an error when the view first builds it, naming the path, rather than a setting that
+not take is an error as soon as the view is created, naming the path, rather than a setting that
 quietly does nothing.
 
 `FieldOptions` sits in the same `fields` tuple as whole fields. Where both name the same path the
@@ -112,6 +112,41 @@ whole field wins, since it already says everything.
 
 A label given this way is used as it stands. Without one, a path through a link names the link as
 well, so `customer.name` reads Customer name.
+
+## Badge colours
+
+A status, any other choice, and a yes or no are drawn as a coloured badge. By default a choice
+takes the colour of its place in the list: the first is amber, then blue, green, grey, violet and
+rose. A yes is green and a no grey. Give the field `tones` to say which colour means what:
+
+```python
+from adminsite import FieldOptions
+
+
+class OrderView(ModelView, model=Order):
+    fields = (
+        FieldOptions(
+            "status",
+            tones={
+                OrderStatus.PENDING: "amber",
+                OrderStatus.SHIPPED: "green",
+                OrderStatus.FAILED: "rose",
+            },
+        ),
+        FieldOptions("country", tones="grey"),
+        FieldOptions("high_risk", tones={True: "rose", False: None}),
+    )
+```
+
+The six tones are `amber`, `blue`, `green`, `grey`, `violet` and `rose`. A value left out is
+grey, and `None` draws no badge at all, so a risk flag shows only when it is set. A single tone,
+such as `"grey"`, colours every value alike, which suits choices that are categories rather than
+states.
+
+A value is named by its enum member, or by the value the column stores, in any case. A tone or a
+value the field does not know is an error when the view is created, listing what it does know. The
+list, a phone's card, the record page and the badge beside a record's title all draw a value the
+same way.
 
 ## Links to many records
 

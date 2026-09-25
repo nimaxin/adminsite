@@ -149,6 +149,15 @@ class OrderView(ModelView, model=Order):
     fields = (
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
         FieldOptions("total", format=EUROS),
+        FieldOptions(
+            "status",
+            tones={
+                OrderStatus.PENDING: "amber",
+                OrderStatus.PAID: "blue",
+                OrderStatus.SHIPPED: "green",
+                OrderStatus.REFUNDED: "rose",
+            },
+        ),
     )
 
     @action("Mark as paid", on="record")

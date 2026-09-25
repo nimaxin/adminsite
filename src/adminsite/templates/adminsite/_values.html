@@ -1,10 +1,8 @@
-{#- How a value that is one of a few is drawn: a badge in its choice's tone,
-    or green and grey for yes and no. -#}
+{#- How a value that is one of a few is drawn: a badge in the tone its field
+    gives it, or nothing where the field draws that value with no badge. -#}
 {% macro badge(item, raw, text) -%}
-  {%- if item.widget == "checkbox" -%}
-    <span class="pill {{ 'tone-2' if raw else 'tone-3' }}">{{ text }}</span>
-  {%- else -%}
-    {%- set tone = item.tone_of(raw) if item.tone_of is defined else none -%}
-    <span class="pill {{ 'tone-' ~ tone if tone is not none else 'tone-3' }}">{{ text }}</span>
+  {%- set tone = item.tone_of(raw) if item.tone_of is defined else 3 -%}
+  {%- if tone is not none -%}
+    <span class="pill tone-{{ tone }}">{{ text }}</span>
   {%- endif -%}
 {%- endmacro %}
