@@ -13,6 +13,24 @@ everything across the admin.
 Values are written the way the admin shows them, so a change reads
 "Customer: Lena Fischer → Marco Rossi" rather than "customer_id: 1 → 2".
 
+## Secrets
+
+A field that holds a secret is kept as `***`, before and after, so the log shows that it changed and
+never what it holds. The name decides: one made of a word such as `password`, `secret`, `token` or
+`pin`, as in `password_hash`, or a key named for what it opens, as in `api_key` or `private_key`. A
+`sort_key` is not a secret. Give a field `secret=True` to hide a value whose name does not say so,
+or `secret=False` to keep one whose name only looks secret:
+
+```python
+from adminsite import FieldOptions
+
+
+class WalletView(ModelView, model=Wallet):
+    fields = (FieldOptions("seed_ciphertext", secret=True),)
+```
+
+The same goes for the values an [action](#actions) is run with.
+
 ## Where the entries go
 
 `audit=True` keeps the log in a SQLite file of its own, `adminsite_audit.db` in the working
@@ -65,10 +83,9 @@ would find no pending orders afterwards, so reading them first is the only way t
 it changed. For `selection.update`, the old values are read in the same single query. A download
 over three chosen orders says who took which three.
 
-Each entry keeps the values the action was run with, in `entry.inputs`. A secret is kept as `***`:
-an input whose name is made of a word such as `password`, `secret`, `token`, `key` or `pin`, as in
-`api_key`, or one given `secret=True`. Give `secret=False` to keep a value whose name only looks
-secret. An uploaded file is kept by its name, type and size, never by what is in it.
+Each entry keeps the values the action was run with, in `entry.inputs`. A
+[secret](#secrets) is kept as `***`, decided by its name or by `secret=` as for a field. An
+uploaded file is kept by its name, type and size, never by what is in it.
 
 The entry also keeps what the action answered, such as "3 orders shipped". An action whose answer
 holds a secret shown once, such as a new API key, says so with `audit_answer=False`: its entry

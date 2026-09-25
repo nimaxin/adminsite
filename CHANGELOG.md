@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- A form can hold inputs that are not columns. A field given `form_only=True` is never read from
+  the record or written onto it; its value reaches `before_save` and `after_save`, which store it
+  where it belongs. A view's `form_values` gives these inputs their starting values, such as
+  settings kept as rows of another table.
+- `PasswordField`, a password input that is never filled in. On a record that exists, leaving it
+  empty keeps the password there. The JSON API takes it and never sends it back.
+- The audit log keeps `***` for a secret field in what a save or a delete changed: one named like
+  `password_hash` or `api_key`, or given `secret=True`. A name with `key` in it now counts as
+  secret only when it says what the key is for, as in `api_key` or `private_key`, so a `sort_key`
+  is shown again.
+- Adding a record through the JSON API to a view with a computed field failed with an error. It
+  now answers 201 with the record.
 - `Computed(name, load=...)` works a value out with a query that runs once for every record on the
   page, such as a count of related rows: an async function given the session and the records,
   answering with each record's value by its primary key. The list, the record page, the form, the

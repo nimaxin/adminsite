@@ -5,7 +5,7 @@
 {#- Ties the input to its name, and to its error or help, for screen readers. -#}
 {%- set field_attrs -%}
   aria-labelledby="{{ field_id }}-label"
-  {%- if row.error or row.field.help_text %} aria-describedby="{{ field_id }}-note"{% endif %}
+  {%- if row.error or row.note %} aria-describedby="{{ field_id }}-note"{% endif %}
   {%- if row.error %} aria-invalid="true"{% endif %}
 {%- endset -%}
 {%- set wide = row.widget in ("textarea", "json", "file", "image") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
@@ -29,7 +29,7 @@
     <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ field_id }}-note">
       <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ row.error }}
     </p>
-  {% elif row.field.help_text %}
-    <p class="text-[12.5px] leading-snug text-muted" id="{{ field_id }}-note">{{ row.field.help_text }}</p>
+  {% elif row.note %}
+    <p class="text-[12.5px] leading-snug text-muted" id="{{ field_id }}-note">{{ row.note }}</p>
   {% endif %}
 </fieldset>

@@ -18,6 +18,9 @@ class Field:
     # Whether the value is stored on the record. A computed field is not,
     # so it is never loaded, written, sorted or filtered.
     stored = True
+    # Whether leaving the input empty on an existing record keeps what the
+    # record has, instead of clearing it, as for a password.
+    blank_keeps = False
 
     def __init__(
         self,
@@ -31,6 +34,7 @@ class Field:
         default: Any = None,
         format: str | None = None,
         secret: bool | None = None,
+        form_only: bool = False,
     ) -> None:
         self.name = name
         self.label = label if label is not None else humanize(name)
@@ -48,6 +52,12 @@ class Field:
         # field asks for one of an action's values. Left as None, a name
         # such as "password" or "api_key" decides.
         self.secret = secret
+        # On the form under a name of its own, never read from the record or
+        # written to it: its value reaches before_save and after_save, which
+        # store it wherever it belongs.
+        self.form_only = form_only
+        if form_only:
+            self.stored = False
         self._adapter: TypeAdapter[Any] = TypeAdapter(self.python_type)
 
     @classmethod

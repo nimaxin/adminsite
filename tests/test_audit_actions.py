@@ -180,8 +180,17 @@ class TestWhatItWasRunWith:
         assert looks_secret("api_key")
         assert looks_secret("newPassword")
         assert looks_secret("pin-code")
+        assert looks_secret("password_hash")
+        assert looks_secret("privateKey")
         assert not looks_secret("keyboard")
         assert not looks_secret("monkey")
+
+    def test_a_key_is_secret_only_when_the_name_says_what_for(self) -> None:
+        assert looks_secret("signing_key")
+        assert looks_secret("license_key")
+        assert not looks_secret("key")
+        assert not looks_secret("sort_key")
+        assert not looks_secret("idempotency_key")
 
     def test_a_file_is_kept_by_name_type_and_size(self) -> None:
         from io import BytesIO

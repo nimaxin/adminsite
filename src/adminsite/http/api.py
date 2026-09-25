@@ -71,10 +71,15 @@ def api_paths(view: ModelView, request: Any = None) -> tuple[str, ...]:
 def to_json(
     view: ModelView, record: Any, paths: Sequence[str], urls: Urls
 ) -> dict[str, Any]:
-    """One record as plain JSON values, keyed by path."""
+    """One record as plain JSON values, keyed by path.
+
+    A form-only field, such as a password to set, is written and never read,
+    so it is left out.
+    """
     body: dict[str, Any] = {"key": view.identity_of(record)}
     for path in paths:
-        body[path] = json_value(view, path, record, urls)
+        if not view.field_for(path).form_only:
+            body[path] = json_value(view, path, record, urls)
     return body
 
 
@@ -138,8 +143,11 @@ def read_values(
             errors[path] = _("This field cannot be written.")
             continue
         item = view.field_for(path)
-        if not item.stored:
+        if not (item.stored or item.form_only):
             errors[path] = _("This field cannot be written.")
+            continue
+        if item.blank_keeps and record is not None and not (as_text(raw) or "").strip():
+            # Sent empty for a record that exists: it keeps what it has.
             continue
         if isinstance(item, FileField):
             errors[path] = _("Files are uploaded through the form, not the API.")
@@ -246,15 +254,12 @@ async def create(admin: "Admin", request: Request, view: ModelView) -> Response:
     async with admin.database.session() as session:
         record = await save(view, session, values, None, request)
         key = view.identity_of(record)
+        paths = api_paths(view, request)
         fresh = await view.fetch_record(
-            session, key, paths=api_paths(view, request), request=request
+            session, key, paths=view.loadable(paths), request=request
         )
-        await view.load_values(
-            session, [fresh], api_paths(view, request), request=request
-        )
-        return JSONResponse(
-            to_json(view, fresh, api_paths(view, request), urls), status_code=201
-        )
+        await view.load_values(session, [fresh], paths, request=request)
+        return JSONResponse(to_json(view, fresh, paths, urls), status_code=201)
 
 
 async def item(admin: "Admin", request: Request) -> Response:

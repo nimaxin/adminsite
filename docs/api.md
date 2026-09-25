@@ -58,6 +58,8 @@ field, with status 422:
 ```
 
 Only the form's fields can be written, read only fields never. Files are uploaded through the form.
+A [form-only field](fields.md#inputs-that-are-not-columns), such as a password, can be written and
+is never sent back; a password sent empty in a `PATCH` keeps the one there.
 A hook that refuses, or a delete other records depend on, answers 409 with the reason.
 
 ## Actions

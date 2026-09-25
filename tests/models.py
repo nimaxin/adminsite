@@ -99,6 +99,19 @@ class Shelf(Base):
         return f"{self.aisle}{self.slot}"
 
 
+class Account(Base):
+    """A row keeping a password as its hash, for inputs that are not columns."""
+
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+
+    def __str__(self) -> str:
+        return self.email
+
+
 class Setting(Base):
     """A row with JSON in it, for the fields that read and write documents."""
 

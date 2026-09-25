@@ -61,11 +61,14 @@ class OrderView(ModelView, model=Order):
     )
 ```
 
-Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default`, `format`
-and `secret`. `default` is what a new record's form starts with, and what an action's dialog opens
-with. `secret` says whether the [audit log](audit.md#actions) keeps `***` instead of the value an
-action was run with; left out, a name such as `password` or `api_key` decides. `format` is how a value is written wherever it is shown, as `str.format` takes it, the same
-way a dashboard's `Stat` and `Chart` take it:
+Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default`, `format`,
+`secret` and `form_only`. `default` is what a new record's form starts with, and what an action's
+dialog opens with. `secret` says whether the [audit log](audit.md#secrets) keeps `***` instead of
+the value, in what a save changed and in what an action was run with; left out, a name such as
+`password_hash` or `api_key` decides. `form_only` is for
+[an input that is not a column](#inputs-that-are-not-columns). `format` is how a value is written
+wherever it is shown, as `str.format` takes it, the same way a dashboard's `Stat` and `Chart` take
+it:
 
 ```python
 from adminsite import FieldOptions
@@ -200,6 +203,89 @@ same way. A composite key is looked up as a tuple of its values.
 
 A computed value is never written, sorted or filtered: its column has no sort link, the form
 leaves it out, and so do imports and the API's writes. The API still reads it.
+
+## Inputs that are not columns
+
+A form can hold an input that is not a column: a password to hash, a value that belongs in another
+table, settings saved as rows. Give its field `form_only=True`. Its value is never read from the
+record or written onto it. It reaches `before_save` and `after_save` in `context.values`, and the
+[hooks](hooks.md) store it where it belongs. The record page, the list, the export and the API's
+answers leave it out, and imports do not offer it.
+
+### A password
+
+`PasswordField` is a form-only input for a password. It is never filled in, not even after a
+failed save, and on a record that exists, leaving it empty keeps the password there:
+
+```python
+from adminsite import RefusedError
+from adminsite.fields import PasswordField
+from adminsite.views.writing import SaveContext
+
+
+class AccountView(ModelView, model=Account):
+    form_fields = ("email", "password")
+    fields = (PasswordField("password", required=True),)
+
+    async def before_save(self, context: SaveContext) -> None:
+        password = context.values.get("password")
+        if password is None:
+            return
+        if len(password) < 12:
+            raise RefusedError("Use 12 characters or more.", field="password")
+        context.set("password_hash", hash_password(password))
+```
+
+`required` holds for a new record. On one that exists the input says "Leave it empty to keep the
+current one.", and left empty, `password` is not in `context.values` at all. A password is kept as
+typed, spaces included, but spaces alone count as empty. A refusal naming the field shows beside
+it.
+
+The hash never shows. `password_hash` is not on the form, and the audit log keeps `***` for it, so
+a change reads `Password hash: *** → ***`. The [JSON API](api.md) takes `password` in a `POST` or
+a `PATCH` the same way, and never sends it back. As one of an
+[action's inputs](actions.md), a `PasswordField` is kept out of the log as well.
+
+### A value kept somewhere else
+
+A form-only field starts empty. To start it from somewhere else, answer `form_values`, which is
+given the session and the record, or None on the form for a new one:
+
+```python
+from sqlalchemy import delete, select
+
+from adminsite.fields import JSONField
+
+
+class GroupView(ModelView, model=Group):
+    form_fields = ("name", "settings")
+    fields = (JSONField("settings", form_only=True),)
+
+    async def form_values(self, session, record, *, request=None):
+        if record is None:
+            return {}
+        rows = await session.scalars(
+            select(GroupSetting).where(GroupSetting.group_id == record.id)
+        )
+        return {"settings": {row.name: row.value for row in rows}}
+
+    async def after_save(self, context: SaveContext) -> None:
+        settings = context.values.get("settings")
+        if settings is None:
+            return
+        group = context.record
+        await context.session.execute(
+            delete(GroupSetting).where(GroupSetting.group_id == group.id)
+        )
+        for name, value in settings.items():
+            await context.session.add(
+                GroupSetting(group_id=group.id, name=name, value=value)
+            )
+```
+
+`after_save` runs once the record is flushed, so a new group already has its `id`. It runs inside
+the same transaction as the save, so a refusal from either hook undoes the rows and the record
+together.
 
 ## When a field needs the whole record
 

@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 from adminsite.actions.action import Action, action_of
 from adminsite.audit.actor import actor_of
-from adminsite.audit.entry import AuditEntry, AuditEvent, diff
-from adminsite.audit.inputs import recorded_inputs
+from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
+from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
@@ -257,10 +257,17 @@ class ModelView:
     def get_detail_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """What the record page shows. The form's fields unless you say."""
+        """What the record page shows. The form's fields unless you say.
+
+        A form-only field, such as a password to set, has nothing to show.
+        """
         if self.detail_fields:
             return tuple(self.detail_fields)
-        return self.get_form_fields(request, record)
+        return tuple(
+            path
+            for path in self.get_form_fields(request, record)
+            if not self.field_for(path).form_only
+        )
 
     def get_deferred_fields(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list leaves out of its query."""
@@ -421,6 +428,46 @@ class ModelView:
         self._fields[path] = built
         return built
 
+    async def form_values(
+        self, session: SessionAdapter, record: Any, *, request: Any = None
+    ) -> Mapping[str, Any]:
+        """The values form-only fields start from, by name.
+
+        Nothing by default, so they start empty. Answer with, say, settings
+        kept as rows of another table, to edit them as one value; `record`
+        is None on the form for a new record.
+        """
+        return {}
+
+    def _form_only(self, path: str) -> bool:
+        """Whether a path is a form-only field of this view."""
+        try:
+            return self.field_for(path).form_only
+        except AdminSiteError:
+            return False
+
+    def _masked(self, changes: Mapping[str, Change]) -> dict[str, Change]:
+        """Changes as the audit log keeps them: a secret's values as ***.
+
+        A field given `secret=True`, or named like `password_hash` or
+        `api_key`, is kept as *** before and after, so a change to it
+        still shows, and what it holds never does.
+        """
+        kept = {}
+        for path, (before, after) in changes.items():
+            if self._secret(path):
+                before = HIDDEN if before not in (None, "") else before
+                after = HIDDEN if after not in (None, "") else after
+            kept[path] = (before, after)
+        return kept
+
+    def _secret(self, path: str) -> bool:
+        try:
+            chosen = self.field_for(path).secret
+        except AdminSiteError:
+            chosen = None
+        return looks_secret(path.rsplit(".", 1)[-1]) if chosen is None else chosen
+
     def label_for(self, path: str) -> str:
         """The column heading for a path.
 
@@ -485,6 +532,9 @@ class ModelView:
     def display(self, record: Any, path: str) -> str:
         """The text shown in a cell."""
         item = self.field_for(path)
+        if item.form_only:
+            # Never read from the record, so there is nothing to show.
+            return ""
         return item.text_for(record, self.value_at(record, path))
 
     def title_of(self, record: Any) -> str:
@@ -653,7 +703,9 @@ class ModelView:
             raise
 
         text = self._answer_text(found, answer)
-        changes = diff(before, self.snapshot(record, paths)) if auditing else {}
+        changes = (
+            self._masked(diff(before, self.snapshot(record, paths))) if auditing else {}
+        )
         self._audit(
             session,
             [replace(entry, changes=changes, message=self._kept_answer(found, text))],
@@ -724,7 +776,7 @@ class ModelView:
                 replace(
                     entry,
                     record_key=key,
-                    changes=selection.changes.get(key, {}),
+                    changes=self._masked(selection.changes.get(key, {})),
                     message=self._kept_answer(found, text),
                 )
                 for key in keys
@@ -872,10 +924,13 @@ class ModelView:
         readonly = set(self.get_readonly_fields(request, record))
 
         for path in self.get_form_fields(request, record):
-            if path in readonly or not self.field_for(path).stored:
-                continue
             item = self.field_for(path)
+            if path in readonly or not (item.stored or item.form_only):
+                continue
             raw = data.get(path)
+            if item.blank_keeps and record is not None and _is_blank(raw):
+                # Left empty on a record that exists: it keeps what it has.
+                continue
             try:
                 if isinstance(item, FileField):
                     choice = item.parse_upload(
@@ -971,8 +1026,13 @@ class ModelView:
                     request=request,
                 )
                 await self.before_save(context)
-                # Whatever the hook left in context.values is what is stored.
-                values = context.values
+                # Whatever the hook left in context.values is what is stored,
+                # apart from form-only values, which the hooks store themselves.
+                values = {
+                    path: value
+                    for path, value in context.values.items()
+                    if not self._form_only(path)
+                }
 
                 auditing = self.audit is not None
                 before = (
@@ -1083,11 +1143,13 @@ class ModelView:
                     record_key=key,
                     record_title=title,
                     event=AuditEvent.DELETED,
-                    changes={
-                        name: (value, None)
-                        for name, value in before.items()
-                        if value not in ("", None)
-                    },
+                    changes=self._masked(
+                        {
+                            name: (value, None)
+                            for name, value in before.items()
+                            if value not in ("", None)
+                        }
+                    ),
                     **actor_of(request),
                 )
             ],
@@ -1234,7 +1296,7 @@ class ModelView:
         return {
             path: self.display(record, path)
             for path in paths
-            if path.split(".", 1)[0] not in unloaded
+            if path.split(".", 1)[0] not in unloaded and not self._form_only(path)
         }
 
     def _audit_save(
@@ -1250,7 +1312,7 @@ class ModelView:
         if self.audit is None:
             return
         after = self.snapshot(record, paths)
-        changes = (
+        changes = self._masked(
             {name: (None, value) for name, value in after.items() if value}
             if created
             else diff(before, after)
@@ -1346,6 +1408,11 @@ def _as_text(raw: str | Sequence[str] | None) -> str | None:
     if isinstance(raw, str):
         return raw
     return raw[0] if raw else None
+
+
+def _is_blank(raw: str | Sequence[str] | None) -> bool:
+    """Whether nothing but spaces was sent."""
+    return not (_as_text(raw) or "").strip()
 
 
 def _holds_many(item: Field) -> TypeGuard[RelationField | ChoiceField]:

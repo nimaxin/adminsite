@@ -91,6 +91,10 @@ untransformed value and a unique check fires against the value you meant. Settin
 `context.record` here would be overwritten a moment later by the value from the form; set the
 attribute in `after_save` only for things the form does not send.
 
+The values of [inputs that are not columns](fields.md#inputs-that-are-not-columns), such as a
+password to hash, are in `context.values` too. They are never stored on the record: the hooks store
+them where they belong.
+
 ## Refusing one field
 
 A refusal with a field name appears next to that input, like any other problem with what was

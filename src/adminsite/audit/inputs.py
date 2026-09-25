@@ -6,10 +6,16 @@ from starlette.datastructures import UploadFile
 
 from adminsite.audit.entry import as_json
 
-# A name made of one of these words, such as "password" or "api_key", holds
-# a secret. A field says otherwise with `secret=`.
+# A name holding one of these words, such as "password_hash", holds a
+# secret. A field says otherwise with `secret=`.
 SECRET_WORDS = frozenset(
-    {"password", "passwd", "passphrase", "secret", "token", "key", "pin", "otp"}
+    {"password", "passwd", "passphrase", "secret", "token", "pin", "otp"}
+)
+
+# "key" is a secret only after one of these, as in api_key or private_key:
+# a sort key or a settings table's key is not.
+SECRET_KEYS = frozenset(
+    {"api", "private", "secret", "access", "signing", "encryption", "license"}
 )
 
 # What the log keeps in place of a secret.
@@ -19,7 +25,13 @@ HIDDEN = "***"
 def looks_secret(name: str) -> bool:
     """Whether a name, such as "api_key" or "newPassword", names a secret."""
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name).lower()
-    return any(word in SECRET_WORDS for word in re.split(r"[^a-z0-9]+", spaced))
+    words = [word for word in re.split(r"[^a-z0-9]+", spaced) if word]
+    if any(word in SECRET_WORDS for word in words):
+        return True
+    return any(
+        word == "key" and index > 0 and words[index - 1] in SECRET_KEYS
+        for index, word in enumerate(words)
+    )
 
 
 def recorded_inputs(fields: Sequence[Any], values: Mapping[str, Any]) -> dict[str, Any]:

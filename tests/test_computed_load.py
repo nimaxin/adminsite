@@ -106,6 +106,17 @@ class TestAValueFromTheDatabase:
         items = api.json()["items"]
         assert {item["name"]: int(item["orders_placed"]) for item in items} == expected
 
+    async def test_a_record_added_through_the_api_carries_it(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await client.post(
+            "/admin/-/api/customers",
+            json={"name": "Nadia New", "email": "nadia@new.example"},
+        )
+
+        assert answer.status_code == 201
+        assert answer.json()["orders_placed"] == "0"
+
     async def test_a_record_the_loader_leaves_out_gets_the_default(
         self, client: httpx.AsyncClient, backend: Backend
     ) -> None:

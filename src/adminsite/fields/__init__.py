@@ -4,6 +4,7 @@ from adminsite.fields.computed import Computed
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
 from adminsite.fields.options import FieldOptions
+from adminsite.fields.password import PasswordField
 from adminsite.fields.registry import (
     FieldRegistry,
     build_default_registry,
@@ -38,6 +39,7 @@ __all__ = [
     "ImageField",
     "IntegerField",
     "JSONField",
+    "PasswordField",
     "RelationField",
     "StringField",
     "TextField",

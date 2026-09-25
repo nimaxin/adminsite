@@ -7,6 +7,7 @@ from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import ChoiceField, Field, FileField, RelationField
 from adminsite.http.picker import PICKER_LIMIT, Picker
+from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
@@ -44,6 +45,9 @@ class FormRow:
     # False where an empty value is allowed in the browser even for a
     # required field, as in a blank inline row that may be left unused.
     browser_required: bool = True
+    # True where leaving it empty keeps what the record has, as for a
+    # password: then it is never required, and the form says so.
+    keeps_when_blank: bool = False
 
     @property
     def picked_pairs(self) -> list[dict[str, str]]:
@@ -63,7 +67,16 @@ class FormRow:
     @property
     def required(self) -> bool:
         """Whether a value has to be given."""
-        return self.field.required
+        return self.field.required and not self.keeps_when_blank
+
+    @property
+    def note(self) -> str:
+        """The help under the input: the field's own, or what empty means."""
+        if self.field.help_text:
+            return self.field.help_text
+        if self.keeps_when_blank:
+            return _("Leave it empty to keep the current one.")
+        return ""
 
 
 async def build_rows(
@@ -92,10 +105,15 @@ async def build_rows(
             session, [record], view.get_form_fields(request, record), request=request
         )
 
+    starting = await view.form_values(session, record, request=request)
+
     rows = []
     for path in view.get_form_fields(request, record):
         item = view.field_for(path)
-        stored = view.value_at(record, path) if record is not None else None
+        if item.form_only:
+            stored = starting.get(path)
+        else:
+            stored = view.value_at(record, path) if record is not None else None
         # A file cannot be put back into a file input, so after a failed
         # submit the field shows what is stored, not what was sent.
         current = (
@@ -117,6 +135,7 @@ async def build_rows(
             ),
             error=errors.get(path, ""),
             readonly=path in readonly,
+            keeps_when_blank=item.blank_keeps and record is not None,
         )
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
