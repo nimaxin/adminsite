@@ -14,9 +14,6 @@ An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and
 
 [![The orders list of the demo shop](https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/orders.png)](https://adminsite.duckdns.org)
 
-The demo is the example shop. Sign in as admin with the password admin and change anything you
-like: it goes back as it started every hour.
-
 adminsite is in alpha. It is tested and it works, but names may still change before 0.1.0, so pin
 the version you install.
 
@@ -49,40 +46,47 @@ minutes.
 
 ## Features
 
-- **[Pages from your models](https://nimaxin.github.io/adminsite/views/):** a searchable, sortable list with filters and saved
+- [Pages from your models](https://nimaxin.github.io/adminsite/views/): a searchable, sortable list with filters and saved
   views, a page for each record, and forms with validation.
-- **[Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records):** pick a related record from a
+- [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a related record from a
   searchable list, and edit child rows, such as an order's lines, inside the parent's form.
-- **[Built-in filters](https://nimaxin.github.io/adminsite/filters/)** for choices, yes or no, number and date ranges, related
+- [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number and date ranges, related
   records and text.
-- **[Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own)** for anything the built-in ones do not
+- [Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own) for anything the built-in ones do not
   cover, such as "overdue" or "spent over €1,000".
-- **[Actions](https://nimaxin.github.io/adminsite/actions/)** that run your own code on the selected rows, on every row the
+- [Actions](https://nimaxin.github.io/adminsite/actions/) that run your own code on the selected rows, on every row the
   filters match, on one record or on the whole table, with a dialog for any values they need.
-- **[Permissions](https://nimaxin.github.io/adminsite/permissions/)** for each view, action, field and row.
-- **[Hooks](https://nimaxin.github.io/adminsite/hooks/)** that run your code before and after a save or delete, in the same
+- [Permissions](https://nimaxin.github.io/adminsite/permissions/) for each view, action, field and row.
+- [Hooks](https://nimaxin.github.io/adminsite/hooks/) that run your code before and after a save or delete, in the same
   transaction, and can refuse it with a message.
-- **[An audit log](https://nimaxin.github.io/adminsite/audit/):** who changed what and when, including actions, exports and sign
+- [An audit log](https://nimaxin.github.io/adminsite/audit/): who changed what and when, including actions, exports and sign
   ins, with a history on every record and an activity page you can filter.
-- **[Import](https://nimaxin.github.io/adminsite/import/)** from CSV or Excel with a preview of every row, and export to CSV.
-- **[File and image uploads](https://nimaxin.github.io/adminsite/fields/#files-and-pictures)**, stored on disk or wherever you
+- [Import](https://nimaxin.github.io/adminsite/import/) from CSV or Excel with a preview of every row, and export to CSV.
+- [File and image uploads](https://nimaxin.github.io/adminsite/fields/#files-and-pictures), stored on disk or wherever you
   choose.
-- **[A dashboard](https://nimaxin.github.io/adminsite/dashboard/)** of stats, charts and the latest records.
-- **[A JSON API](https://nimaxin.github.io/adminsite/api/)** that shares the same views and permissions.
-- **[Signing in](https://nimaxin.github.io/adminsite/auth/)** with a fixed list of users or your own user table.
-- **[Pages and plugins](https://nimaxin.github.io/adminsite/pages/)** of your own, such as reports or settings, in the same
+- [A dashboard](https://nimaxin.github.io/adminsite/dashboard/) of stats, charts and the latest records.
+- [A JSON API](https://nimaxin.github.io/adminsite/api/) that shares the same views and permissions.
+- [Signing in](https://nimaxin.github.io/adminsite/auth/) with a fixed list of users or your own user table.
+- [Pages and plugins](https://nimaxin.github.io/adminsite/pages/) of your own, such as reports or settings, in the same
   layout.
-- **[Translations](https://nimaxin.github.io/adminsite/translations/)**, with Persian built in and right to left layouts.
-- **[Light and dark themes](https://nimaxin.github.io/adminsite/customizing/)**, a layout for phones, and
+- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right to left layouts.
+- [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones, and
   [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a screen reader.
-- **[Async or sync](https://nimaxin.github.io/adminsite/databases/)**, on SQLite, Postgres and MySQL, with no N+1 queries.
-- **No Node and no CDN:** everything ships inside the package.
+- [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL, with no N+1 queries.
+- No Node and no CDN: everything ships inside the package.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/record.png" alt="An order's page, with its history" width="40%">
   <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/overview-dark.png" alt="The overview in dark mode" width="40%">
   <img src="https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/phone.png" alt="The orders list on a phone" width="15.7%">
 </p>
+
+## How it works
+
+adminsite is one ASGI app, mounted inside yours. Every page and the JSON API go through the
+`ModelView` you write for each model, so its rules hold everywhere.
+
+![A request goes from the browser or a script to adminsite's pages or JSON API, through each model's ModelView and a SQLAlchemy repository, to your database](https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/architecture.png)
 
 ## Documentation
 

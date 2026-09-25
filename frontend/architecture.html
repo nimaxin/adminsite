@@ -1,0 +1,395 @@
+<!doctype html>
+<!--
+  The architecture picture in the README, docs/assets/architecture.png.
+
+  To change it, edit this page, open it in a browser, and capture the #diagram
+  element at twice its size with a transparent background, for example with
+  Playwright: locator("#diagram").screenshot(omit_background=True) on a page
+  with device_scale_factor=2.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>adminsite architecture</title>
+<style>
+  @font-face {
+    font-family: "Geist";
+    font-weight: 100 900;
+    src: url("../src/adminsite/static/fonts/geist-latin.woff2") format("woff2");
+  }
+
+  :root {
+    --ground: #f3f3f0;
+    --panel: #ffffff;
+    --subtle: #f8f8f6;
+    --line: #e3e3de;
+    --line-soft: #eeeeea;
+    --line-strong: #cfcfc8;
+    --ink: #1a1a18;
+    --muted: #63635e;
+    --green: #0b7a53;
+    --green-soft: #f1f8f4;
+    --arrow: #8d8a83;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  body {
+    background: transparent;
+    font-family: Geist, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #diagram {
+    position: relative;
+    width: 880px;
+    padding: 34px 40px 30px;
+    background: var(--ground);
+    border-radius: 24px;
+  }
+
+  /* Who asks. The side padding lines the two pills up with the two boxes
+     inside the admin, which sit 42px in from both frames. */
+  .clients {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 0 42px;
+    margin-bottom: 38px;
+  }
+
+  .client {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px 9px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    box-shadow: 0 1px 2px rgb(26 26 24 / 0.05);
+  }
+
+  .client svg { flex: none; }
+  .client strong { font-size: 15px; font-weight: 600; }
+  .client span { font-size: 14px; color: var(--muted); }
+
+  /* The app it is mounted in. */
+  .app {
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 20px;
+    padding: 18px 18px 14px;
+  }
+
+  .app-label {
+    margin-top: 12px;
+    padding-left: 4px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .admin {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 22px 22px;
+    box-shadow: 0 1px 2px rgb(26 26 24 / 0.05);
+  }
+
+  .admin-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .admin-head strong { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+  .admin-head span { font-size: 14px; color: var(--muted); }
+
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 34px;
+  }
+
+  .box {
+    background: var(--subtle);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .box h3 {
+    font-size: 16px;
+    font-weight: 620;
+    margin-bottom: 4px;
+  }
+
+  .box p {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  .box h3 small {
+    font-size: 14px;
+    font-weight: 450;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+
+  /* Where a project's own code goes. */
+  .view {
+    background: var(--green-soft);
+    border: 2px solid var(--green);
+    margin-bottom: 34px;
+  }
+
+  .view-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .view-head h3 { margin: 0; }
+
+  .yours {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--panel);
+    background: var(--green);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  .chip {
+    font-size: 13.5px;
+    font-weight: 550;
+    border-radius: 999px;
+    padding: 3px 11px;
+  }
+
+  .tone-0 { background: #fdf1dc; color: #8a4b00; }
+  .tone-1 { background: #e6eefc; color: #1d4ea3; }
+  .tone-2 { background: #e2f4ea; color: #0f6a41; }
+  .tone-3 { background: #efeeeb; color: #56534d; }
+  .tone-4 { background: #efe9fb; color: #5b3aa5; }
+  .tone-5 { background: #fce8ec; color: #9f1d3f; }
+
+  .repo .chips { margin: 8px 0 0; }
+
+  /* The database, outside the app. */
+  .database {
+    display: flex;
+    justify-content: center;
+    margin-top: 38px;
+  }
+
+  .db {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgb(26 26 24 / 0.05);
+  }
+
+  .db strong { display: block; font-size: 16px; font-weight: 620; }
+  .db span { font-size: 14px; color: var(--muted); }
+
+  /* The parts a project can replace. */
+  .swap {
+    margin-top: 26px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  .swap p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .parts {
+    display: flex;
+    gap: 8px;
+  }
+
+  .part {
+    font-size: 14px;
+    font-weight: 550;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 12px;
+  }
+
+  .part code {
+    font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 5px;
+  }
+
+  #arrows {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+</style>
+</head>
+<body>
+<div id="diagram">
+  <div class="clients">
+    <div class="client" id="browser">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#63635e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M3 9h18"/><path d="M6 6.8h.01M8.6 6.8h.01"/>
+      </svg>
+      <strong>Browser</strong><span>pages</span>
+    </div>
+    <div class="client" id="script">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#63635e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7.5 10 2.5 2-2.5 2M12 14.5h4.5"/>
+      </svg>
+      <strong>Script or service</strong><span>JSON, with a token</span>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="admin" id="admin">
+      <div class="admin-head">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+          <rect width="24" height="24" rx="7" fill="#3ecf8e"/>
+          <path d="M7.5 16.5 12 7.5l4.5 9M9.4 13.2h5.2" fill="none" stroke="#052417" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <strong>adminsite</strong>
+        <span>mounted at /admin: sign in, sessions, form tokens, language</span>
+      </div>
+
+      <div class="pair">
+        <div class="box" id="pages">
+          <h3>Pages</h3>
+          <p>Drawn on the server with Jinja. HTMX and Alpine.js swap in the parts that change.</p>
+        </div>
+        <div class="box" id="api">
+          <h3>JSON API</h3>
+          <p>The same views and the same permissions, for scripts and front ends of your own.</p>
+        </div>
+      </div>
+
+      <div class="box view" id="view">
+        <div class="view-head">
+          <h3>ModelView <small>one for each model</small></h3>
+          <span class="yours">your code lives here</span>
+        </div>
+        <div class="chips">
+          <span class="chip tone-1">fields</span>
+          <span class="chip tone-0">permissions</span>
+          <span class="chip tone-4">row scope</span>
+          <span class="chip tone-5">hooks</span>
+          <span class="chip tone-2">actions</span>
+        </div>
+        <p>Fields come from your models, every column and link. Every page and the API ask the view, so its rules hold everywhere.</p>
+      </div>
+
+      <div class="box repo" id="repo">
+        <h3>SQLAlchemy repository</h3>
+        <p>Builds each query, loading what a page shows along with it, never one query per row.</p>
+        <div class="chips">
+          <span class="chip tone-3">search</span>
+          <span class="chip tone-3">filters</span>
+          <span class="chip tone-3">sorting</span>
+          <span class="chip tone-3">pages</span>
+        </div>
+      </div>
+    </div>
+    <div class="app-label">Inside your FastAPI, Starlette or Litestar app</div>
+  </div>
+
+  <div class="database">
+    <div class="db" id="db">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0b7a53" stroke-width="1.7" stroke-linecap="round">
+        <ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/>
+        <path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/>
+        <path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/>
+      </svg>
+      <div>
+        <strong>Your database</strong>
+        <span>SQLite, PostgreSQL or MySQL, through an async or sync engine</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="swap">
+    <p>Each of these has a default, and can be swapped for your own:</p>
+    <div class="parts">
+      <span class="part">Sign in<code>AuthProvider</code></span>
+      <span class="part">Audit log<code>AuditStore</code></span>
+      <span class="part">File storage<code>Storage</code></span>
+      <span class="part">Saved views<code>SavedViews</code></span>
+    </div>
+  </div>
+
+  <svg id="arrows" aria-hidden="true">
+    <defs>
+      <marker id="head" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0 0 10 5 0 10z" fill="#8d8a83"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+
+<script>
+  // Arrows are drawn once the layout is known, from the bottom of one part
+  // straight down to the top edge of the next, at the x of the first.
+  function draw() {
+    const diagram = document.getElementById("diagram");
+    const svg = document.getElementById("arrows");
+    const frame = diagram.getBoundingClientRect();
+    svg.setAttribute("width", frame.width);
+    svg.setAttribute("height", frame.height);
+    const box = (id) => document.getElementById(id).getBoundingClientRect();
+    const links = [
+      ["browser", "admin"],
+      ["script", "admin"],
+      ["pages", "view"],
+      ["api", "view"],
+      ["view", "repo"],
+      ["repo", "db"],
+    ];
+    for (const [from, to] of links) {
+      const a = box(from);
+      const b = box(to);
+      const x = a.left + a.width / 2 - frame.left;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x);
+      line.setAttribute("y1", a.bottom - frame.top + 3);
+      line.setAttribute("x2", x);
+      line.setAttribute("y2", b.top - frame.top - 3);
+      line.setAttribute("stroke", "#8d8a83");
+      line.setAttribute("stroke-width", "1.8");
+      line.setAttribute("marker-end", "url(#head)");
+      svg.appendChild(line);
+    }
+    document.body.dataset.ready = "yes";
+  }
+  document.fonts.ready.then(draw);
+</script>
+</body>
+</html>
