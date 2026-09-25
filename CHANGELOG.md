@@ -1,6 +1,26 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a7
+
+What a large back office asks of its admin day to day. Actions can ask for another record, delete
+the chosen rows through each record's own hooks, and answer with a message that stays or holds a
+value to copy. A form can hold inputs that are not columns, such as a password. A computed value
+can come from one query for the whole page, a Postgres array is edited as a list, and every record
+and link has a readable name, never a memory address.
+
+Before upgrading:
+
+- Every view that allows deleting now has Delete in its selection bar. Set `bulk_delete = False` to
+  leave it out.
+- Records and links are named differently. A record whose model has no `__str__` reads "Order #12",
+  a linked record reads as the view showing its model names it, and a picker puts a link's own
+  `display_template` first. The export and new audit entries change with them.
+- An action input named just `key` is now written to the audit log. Give it `secret=True` if it
+  holds one.
+- The JSON API reads a Postgres `ARRAY` column from a list. A string is read as one value per line.
+- The inputs in an action's dialog have ids of the form `field-<action>-<name>`.
+
+What changed:
 
 - adminsite works with SQLAlchemy 2.1, which a fresh install now gets. It depends on
   `sqlalchemy[asyncio]`, since 2.1 no longer installs `greenlet` by itself and an earlier adminsite
