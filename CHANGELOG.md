@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a8
+
+A fix for record pages that 0.1.0a7 broke, and an audit log that is saved with the change it
+describes.
+
+Before upgrading:
+
+- With the audit log in your own database, a save now fails when the audit table is missing,
+  where the entry used to be lost after the change was saved. Add the table to your migrations,
+  or pass `create_table=True`, before you upgrade.
+
+What changed:
 
 - A record page answered 500 when a to-many link it shows held no records, or when a computed
   field on it needed a link the page also shows. Both broke in 0.1.0a7.

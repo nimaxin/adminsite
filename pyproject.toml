@@ -1,6 +1,6 @@
 [project]
 name = "adminsite"
-version = "0.1.0a7"
+version = "0.1.0a8"
 description = "An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and Litestar."
 readme = "README.md"
 requires-python = ">=3.11"
