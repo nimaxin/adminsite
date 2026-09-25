@@ -15,6 +15,10 @@ from adminsite.exceptions import AdminSiteError
 
 T = TypeVar("T")
 
+# Rows with any number of columns. SQLAlchemy 2.1 types a result column by
+# column, where Result[Any] now means a single column.
+Rows = Result[*tuple[Any, ...]]
+
 SessionSource = (
     Engine | AsyncEngine | sessionmaker[Session] | async_sessionmaker[AsyncSession]
 )
@@ -61,7 +65,7 @@ class SessionAdapter(ABC):
             await work()
 
     @abstractmethod
-    async def execute(self, statement: Executable) -> Result[Any]:
+    async def execute(self, statement: Executable) -> Rows:
         """Run a statement and return its result."""
 
     @abstractmethod
@@ -148,7 +152,7 @@ class AsyncSessionAdapter(SessionAdapter):
         super().__init__()
         self.session = session
 
-    async def execute(self, statement: Executable) -> Result[Any]:
+    async def execute(self, statement: Executable) -> Rows:
         """Run a statement and return its result."""
         return await self.session.execute(statement)
 
@@ -210,7 +214,7 @@ class SyncSessionAdapter(SessionAdapter):
             max_workers=1, thread_name_prefix="adminsite-db"
         )
 
-    async def execute(self, statement: Executable) -> Result[Any]:
+    async def execute(self, statement: Executable) -> Rows:
         """Run a statement and return its result."""
         return await self.run(lambda session: session.execute(statement))
 

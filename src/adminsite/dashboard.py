@@ -21,7 +21,7 @@ logger = logging.getLogger("adminsite")
 
 # Where a widget's numbers come from: a select, or a function given the
 # session that returns them.
-Source = Select[Any] | Callable[[SessionAdapter], Awaitable[Any]]
+Source = Select[*tuple[Any, ...]] | Callable[[SessionAdapter], Awaitable[Any]]
 
 
 class Widget:

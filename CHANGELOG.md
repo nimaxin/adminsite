@@ -25,7 +25,9 @@ What changed:
 - adminsite works with SQLAlchemy 2.1, which a fresh install now gets. It depends on
   `sqlalchemy[asyncio]`, since 2.1 no longer installs `greenlet` by itself and an earlier adminsite
   could not even be imported without it. A JSON column is still edited as a document, where 2.1's
-  new answer for its type turned it into a text box. The tests pass on SQLAlchemy 2.0 and 2.1.
+  new answer for its type turned it into a text box. `SessionAdapter.execute` and a chart's query
+  are typed for rows of any number of columns, as 2.1 types them column by column. The tests pass
+  on SQLAlchemy 2.0 and 2.1.
 - Pasting into a list's search box or a link picker's search box now searches. Both only reacted
   to keys being typed, so text pasted with the mouse found nothing until another key was pressed.
 - An action can ask for another record. A `RelationField` among its `inputs` offers the records
