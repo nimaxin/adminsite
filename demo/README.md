@@ -1,8 +1,9 @@
 # The online demo
 
-The example shop, served at https://adminsite.duckdns.org for anyone to try. Visitors sign in as
-admin / admin and may change anything. Every hour `app.py` puts the shop, its history and saved
-views back as they started, and empties the uploads.
+The example shop and the field gallery (`examples/fields.py`), served at
+https://adminsite.duckdns.org for anyone to try. Visitors sign in as admin / admin and may change
+anything. Every hour `app.py` puts the shop, the gallery, their history and saved views back as
+they started, and empties the uploads but for the gallery's sample files.
 
 Everyone signs in as the same admin, so the audit log keeps what visitors did but not their sign
 ins, IP addresses or browsers: each visitor would read the others' otherwise.

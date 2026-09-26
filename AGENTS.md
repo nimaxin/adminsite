@@ -16,8 +16,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 - `src/adminsite/static/adminsite.css` is built from `frontend/` and committed. HTMX and Alpine are
   vendored next to it.
 - `src/adminsite/locales/` holds the translation catalogs, one JSON file per language.
-- `docs/` is the MkDocs site; `examples/shop.py` is the demo.
-- `demo/` serves that shop at https://adminsite.duckdns.org, signed in as admin / admin and reset
+- `docs/` is the MkDocs site; `examples/shop.py` is the demo shop, and `examples/fields.py` a
+  gallery with every kind of field, each labelled by its class. Add a new field type to it.
+- `demo/` serves both at https://adminsite.duckdns.org, signed in as admin / admin and reset
   every hour. `.github/workflows/demo.yml` deploys it after CI passes on main; `demo/README.md`
   describes the server.
 - `tests/` runs every database test on SQLite async and sync, and on Postgres and MySQL when their
@@ -50,7 +51,8 @@ cd frontend && npx @tailwindcss/cli -i ./input.css -o ../src/adminsite/static/ad
 ```
 
 Run the demo with `uv run uvicorn examples.shop:app --reload`, then open
-http://127.0.0.1:8000/admin and sign in as nima / letmein.
+http://127.0.0.1:8000/admin and sign in as nima / letmein. To see every field after changing one,
+run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 
 ## Rules that are easy to break
 

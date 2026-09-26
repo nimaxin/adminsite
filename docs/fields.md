@@ -4,6 +4,10 @@ A field turns a value into text for the list, puts it into a form input, and rea
 the form is submitted. adminsite picks one for every column from its type, so you rarely write one
 yourself.
 
+To see them all, open the Field gallery on [the live demo](https://adminsite.duckdns.org): one
+model with every field on this page, each saying which class it is. The same gallery runs on
+your machine with `uv run uvicorn examples.fields:app --reload`.
+
 | Column | Field | Shown as | Edited with |
 |---|---|---|---|
 | `str` with a length up to 255 | `StringField` | the text | a text input |

@@ -22,8 +22,9 @@ That is a working admin. The columns, labels, filters, form controls and validat
 from your models.
 
 !!! tip "Try it"
-    [The live demo](https://adminsite.duckdns.org) runs the example shop. Sign in as admin with
-    the password admin and change anything you like. It goes back as it started every hour.
+    [The live demo](https://adminsite.duckdns.org) runs the example shop, and a Field gallery with
+    every kind of field. Sign in as admin with the password admin and change anything you like.
+    It goes back as it started every hour.
 
 !!! note "Alpha"
     adminsite is in alpha. It is tested and works, but names may still change before 0.1.0.

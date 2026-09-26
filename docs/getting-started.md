@@ -170,3 +170,10 @@ uv run uvicorn examples.shop:app --reload
 ```
 
 Open http://127.0.0.1:8000/admin and sign in as `nima` / `letmein`.
+
+A second example puts every kind of field on one model, each labelled with its class. It needs
+no sign in:
+
+```
+uv run uvicorn examples.fields:app --reload
+```
