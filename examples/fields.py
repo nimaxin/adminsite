@@ -47,6 +47,15 @@ EUROS = "€{:,.2f}"
 GROUP = "Field gallery"
 
 
+def outline(paths: str) -> str:
+    """A sidebar icon drawn the way the admin draws its own."""
+    return (
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
+        'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+        f'stroke-linejoin="round">{paths}</svg>'
+    )
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -286,6 +295,12 @@ uploads = LocalStorage("fields_uploads")
 class ShowcaseView(ModelView, model=Showcase):
     name = "fields"
     group = GROUP
+    # Three shapes, for every kind of field.
+    icon = outline(
+        '<path d="M12 3l4.5 7.5h-9z"/>'
+        '<rect x="3.5" y="14" width="7" height="7" rx="1.2"/>'
+        '<circle cx="17.5" cy="17.5" r="3.5"/>'
+    )
     display_template = "{name}"
     list_display = (
         "name",
@@ -393,12 +408,21 @@ class ShowcaseView(ModelView, model=Showcase):
 
 class CategoryView(ModelView, model=Category):
     group = GROUP
+    icon = outline(
+        '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5'
+        'a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>'
+    )
     display_template = "{name}"
     search_fields = ("name",)
 
 
 class SupplierView(ModelView, model=Supplier):
     group = GROUP
+    icon = outline(
+        '<path d="M14 17V6H3v11h2"/><path d="M14 9h4l3 4v4h-2"/>'
+        '<path d="M9 17h6"/><circle cx="7" cy="17.5" r="2"/>'
+        '<circle cx="17" cy="17.5" r="2"/>'
+    )
     display_template = "{name} ({country})"
     list_display = ("name", "country")
     search_fields = ("name", "country")
@@ -407,12 +431,18 @@ class SupplierView(ModelView, model=Supplier):
 
 class LabelView(ModelView, model=Label):
     group = GROUP
+    icon = outline('<path d="M6 3h12v18l-6-4-6 4z"/>')
     display_template = "{name}"
     search_fields = ("name",)
 
 
 class ServerView(ModelView, model=Server):
     group = GROUP
+    icon = outline(
+        '<rect x="3" y="3" width="18" height="7" rx="1.5"/>'
+        '<rect x="3" y="14" width="18" height="7" rx="1.5"/>'
+        '<path d="M7 6.5h.01M7 17.5h.01"/>'
+    )
     display_template = "{name}"
     search_fields = ("name",)
 
