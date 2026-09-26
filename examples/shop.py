@@ -12,7 +12,16 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import FastAPI
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, func, select
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    Table,
+    func,
+    select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from starlette.responses import Response
@@ -60,6 +69,26 @@ class Customer(Base):
         return self.name
 
 
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(40))
+
+    def __str__(self) -> str:
+        return self.name
+
+
+product_tags = Table(
+    "product_tags",
+    Base.metadata,
+    Column(
+        "product_id", ForeignKey("products.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -68,6 +97,8 @@ class Product(Base):
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     description: Mapped[str | None] = mapped_column(String(500), default=None)
     photo: Mapped[str | None] = mapped_column(String(255), default=None)
+
+    tags: Mapped[list[Tag]] = relationship(secondary=product_tags)
 
     def __str__(self) -> str:
         return self.name
@@ -211,13 +242,25 @@ class ProductView(ModelView, model=Product):
         '<path d="m3 7.5 9-4.5 9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5"/>'
         '<path d="M12 12v9"/>'
     )
-    list_display = ("name", "photo", "price", "description")
+    list_display = ("name", "photo", "price", "tags", "description")
+    form_fields = ("name", "price", "description", "photo", "tags")
     fields = (
         ImageField("photo", storage=LocalStorage("shop_uploads")),
         FieldOptions("price", format=EUROS),
     )
     search_fields = ("name", "description")
     list_filter = ("price",)
+
+
+class TagView(ModelView, model=Tag):
+    group = "Catalogue"
+    icon = outline(
+        '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/>'
+        '<circle cx="7.5" cy="7.5" r="1.5"/>'
+    )
+    display_template = "{name}"
+    search_fields = ("name",)
+    ordering = ("name",)
 
 
 engine = create_async_engine("sqlite+aiosqlite:///shop.db")
@@ -263,7 +306,7 @@ app = FastAPI(title="Acme shop", lifespan=lifespan)
 admin = Admin(
     engine,
     title="Acme shop",
-    views=[OrderView, CustomerView, ProductView],
+    views=[OrderView, CustomerView, ProductView, TagView],
     dashboard=dashboard,
     # Hash the password where you keep it, not here.
     auth=PasswordAuth({"nima": hash_password("letmein")}),
@@ -285,10 +328,34 @@ def build_sample_shop() -> list[Base]:
         Customer(name="Aisha Khan", email="aisha@khan.co.uk", region="UK"),
         Customer(name="Jonas Berg", email="jonas@berg.se", region="SE"),
     ]
+    tags = {
+        name: Tag(name=name)
+        for name in (
+            "New",
+            "Bestseller",
+            "Organic",
+            "Handmade",
+            "Gift idea",
+            "Sale",
+            "Limited",
+        )
+    }
     products = [
-        Product(name="Linen shirt", price=Decimal("59.00")),
-        Product(name="Canvas tote", price=Decimal("24.00")),
-        Product(name="Wool scarf", price=Decimal("38.50")),
+        Product(
+            name="Linen shirt",
+            price=Decimal("59.00"),
+            tags=[tags["New"], tags["Organic"]],
+        ),
+        Product(
+            name="Canvas tote",
+            price=Decimal("24.00"),
+            tags=[tags["Bestseller"], tags["Gift idea"]],
+        ),
+        Product(
+            name="Wool scarf",
+            price=Decimal("38.50"),
+            tags=[tags["Handmade"], tags["Limited"], tags["Gift idea"]],
+        ),
     ]
 
     now = datetime.now(UTC).replace(tzinfo=None, second=0, microsecond=0)
@@ -316,4 +383,4 @@ def build_sample_shop() -> list[Base]:
                 items=items,
             )
         )
-    return [*customers, *products, *orders]
+    return [*customers, *tags.values(), *products, *orders]

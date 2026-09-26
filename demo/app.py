@@ -41,6 +41,7 @@ from examples.shop import (
     CustomerView,
     OrderView,
     ProductView,
+    TagView,
     build_sample_shop,
     dashboard,
 )
@@ -187,7 +188,7 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         engine,
         title="Acme shop",
         banner=BANNER,
-        views=[OrderView, DemoCustomerView, DemoProductView],
+        views=[OrderView, DemoCustomerView, DemoProductView, TagView],
         dashboard=dashboard,
         auth=DemoAuth({"admin": hash_password("admin")}),
         secret_key=secret_key,

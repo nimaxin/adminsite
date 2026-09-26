@@ -134,6 +134,17 @@ class TestDemo:
         assert home.headers["location"] == "/admin/"
         assert health.text == "ok"
 
+    async def test_products_are_tagged_with_the_picker(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            await sign_in(client)
+            products = await client.get("/admin/products")
+            form = await client.get("/admin/products/3/edit")
+
+        assert "Handmade" in products.text
+        assert "recordPicker(" in form.text
+        assert '"label": "Gift idea"' in form.text
+
     def test_strangers_get_smaller_limits(self, tmp_path: Path) -> None:
         views = build_app(tmp_path, SECRET).state.admin.views
         photo = views.get("products").field_for("photo")
