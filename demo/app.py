@@ -1,4 +1,4 @@
-"""The public demo: the example shop, open to anyone and reset every hour.
+"""The public demo, open to anyone and reset every hour: the shop and gallery.
 
     uv run --group demo uvicorn demo.app:app
 
@@ -35,6 +35,7 @@ from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.fields import ImageField
 from adminsite.files import LocalStorage
 from adminsite.saved_views import saved_view_metadata
+from examples import fields as gallery
 from examples.shop import (
     EUROS,
     Base,
@@ -57,9 +58,12 @@ BANNER = (
 RESET_SECONDS = 3600
 MEGABYTE = 1024 * 1024
 
-# Everything a visitor can change: the shop, its history and saved views.
+# Everything a visitor can change: the shop, the gallery, their history and
+# saved views.
+METADATA = (Base.metadata, gallery.Base.metadata, audit_metadata, saved_view_metadata)
 TABLES = (
     *reversed(Base.metadata.sorted_tables),
+    *reversed(gallery.Base.metadata.sorted_tables),
     *audit_metadata.sorted_tables,
     *saved_view_metadata.sorted_tables,
 )
@@ -126,22 +130,25 @@ def seconds_until_reset(now: float) -> float:
 
 
 async def reset(engine: AsyncEngine, uploads: Path) -> None:
-    """Put the shop back as it started, with no history, views or uploads.
+    """Put the shop and the gallery back as they started, with no history.
 
-    It happens in one transaction, so a visitor never sees an empty shop.
+    Saved views and uploads go too, but for the gallery's own sample files.
+    The records change in one transaction, so a visitor never sees an empty
+    shop. The uploads go first, since the gallery writes its samples there.
     """
+    await asyncio.to_thread(shutil.rmtree, uploads, ignore_errors=True)
     async with engine.begin() as connection:
-        for metadata in (Base.metadata, audit_metadata, saved_view_metadata):
+        for metadata in METADATA:
             await connection.run_sync(metadata.create_all)
     async with AsyncSession(engine) as session, session.begin():
         for table in TABLES:
             await session.execute(delete(table))
         session.add_all(build_sample_shop())
-    await asyncio.to_thread(shutil.rmtree, uploads, ignore_errors=True)
+        session.add_all(await asyncio.to_thread(gallery.build_gallery, uploads))
 
 
 async def reset_every_hour(engine: AsyncEngine, uploads: Path) -> None:
-    """Reset the shop at the start of every hour, for as long as it runs."""
+    """Reset the demo at the start of every hour, for as long as it runs."""
     while True:
         await asyncio.sleep(seconds_until_reset(time.time()))
         try:
@@ -166,6 +173,11 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
             FieldOptions("price", format=EUROS),
         )
 
+    class DemoShowcaseView(gallery.ShowcaseView):
+        """The gallery, its files kept beside the data and as small as photos."""
+
+        fields = gallery.showcase_fields(LocalStorage(uploads), upload_limit=MEGABYTE)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         data.mkdir(parents=True, exist_ok=True)
@@ -188,7 +200,17 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         engine,
         title="Acme shop",
         banner=BANNER,
-        views=[OrderView, DemoCustomerView, DemoProductView, TagView],
+        views=[
+            OrderView,
+            DemoCustomerView,
+            DemoProductView,
+            TagView,
+            DemoShowcaseView,
+            gallery.CategoryView,
+            gallery.SupplierView,
+            gallery.LabelView,
+            gallery.ServerView,
+        ],
         dashboard=dashboard,
         auth=DemoAuth({"admin": hash_password("admin")}),
         secret_key=secret_key,

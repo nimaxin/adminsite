@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 
 import demo.app
 from adminsite.audit import AuditEvent, AuditQuery, audit_table
-from adminsite.fields import ImageField
+from adminsite.fields import FileField, ImageField
 from adminsite.saved_views import saved_view_table
 from demo.app import (
     MEGABYTE,
@@ -21,6 +21,7 @@ from demo.app import (
     reset_every_hour,
     seconds_until_reset,
 )
+from examples.fields import Showcase
 from examples.shop import Order
 
 SECRET = "a-secret-for-the-tests"
@@ -80,10 +81,27 @@ class TestReset:
             assert await count(app, Order) == 24
             assert await count(app, audit_table) == 0
             assert await count(app, saved_view_table) == 0
-            assert not (tmp_path / "uploads").exists()
+            assert not leftover.exists()
+            # Only the gallery's own sample files are back.
+            uploads = tmp_path / "uploads"
+            assert [path.name for path in uploads.iterdir()] == ["samples"]
+            assert (uploads / "samples" / "teal.png").exists()
             # The keys start again from one, so a shared link to a record
             # keeps working after the reset.
             assert (await client.get("/admin/orders/1")).status_code == 200
+
+    async def test_the_gallery_comes_back_too(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            token = await sign_in(client)
+            await client.post("/admin/fields/1/delete", data={"_csrf": token})
+            after_delete = await count(app, Showcase)
+
+            await reset(app.state.engine, app.state.uploads)
+
+            assert after_delete == 13
+            assert await count(app, Showcase) == 14
+            assert (await client.get("/admin/fields/1")).status_code == 200
 
     async def test_the_hourly_loop_carries_on_after_a_failure(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -145,13 +163,39 @@ class TestDemo:
         assert "recordPicker(" in form.text
         assert '"label": "Gift idea"' in form.text
 
+    async def test_the_gallery_sits_beside_the_shop(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            await sign_in(client)
+            home = await client.get("/admin/")
+            pages = [
+                await client.get(path)
+                for path in (
+                    "/admin/fields",
+                    "/admin/fields/1",
+                    "/admin/fields/1/edit",
+                    "/admin/suppliers",
+                )
+            ]
+            photo = await client.get("/admin/-/files/fields/photo/samples/teal.png")
+
+        assert "Field gallery" in home.text
+        assert [page.status_code for page in pages] == [200, 200, 200, 200]
+        assert "DecimalField, shown in euros." in pages[2].text
+        assert photo.status_code == 200
+        assert photo.headers["content-type"] == "image/png"
+
     def test_strangers_get_smaller_limits(self, tmp_path: Path) -> None:
         views = build_app(tmp_path, SECRET).state.admin.views
         photo = views.get("products").field_for("photo")
+        uploads = [views.get("fields").field_for(name) for name in ("photo", "manual")]
 
         assert views.get("customers").import_limit == 200
         assert isinstance(photo, ImageField)
         assert photo.max_size == MEGABYTE
+        for upload in uploads:
+            assert isinstance(upload, FileField)
+            assert upload.max_size == MEGABYTE
 
     async def test_the_log_keeps_what_was_done_but_not_who_signed_in(
         self, tmp_path: Path
