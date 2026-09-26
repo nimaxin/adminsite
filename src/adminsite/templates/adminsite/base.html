@@ -16,6 +16,8 @@
   const NOTHING_CHOSEN = {{ _("Nothing chosen")|tojson }};
   const HOW_MANY_CHOSEN = {{ _("{count} chosen")|tojson }};
   const REMOVE_CHOSEN = {{ _("Remove {name}")|tojson }};
+  const MOVE_UP = {{ _("Move {name} up")|tojson }};
+  const MOVE_DOWN = {{ _("Move {name} down")|tojson }};
   try {
     const saved = localStorage.getItem("adminsite-theme");
     if (saved) document.documentElement.dataset.theme = saved;
@@ -64,6 +66,19 @@
       },
       remove(value) {
         this.picked = this.picked.filter((item) => item.value !== value);
+      },
+      // For a link whose order means something: one place up or down, or
+      // dragged onto another's place.
+      dragged: null,
+      move(index, step) {
+        this.place(index, index + step);
+      },
+      place(from, to) {
+        if (from === null || to < 0 || to >= this.picked.length || from === to) return;
+        const order = [...this.picked];
+        const [item] = order.splice(from, 1);
+        order.splice(to, 0, item);
+        this.picked = order;
       },
       get summary() {
         if (!this.picked.length) return NOTHING_CHOSEN;

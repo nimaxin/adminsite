@@ -3,6 +3,7 @@
     which has to be searched. A link to one of a few is a plain select. -#}
 {% if row.searchable or row.field.collection %}
   {%- set picker_multiple = row.field.collection -%}
+  {%- set picker_ordered = row.field.ordered -%}
   {%- set picker_options = none if row.searchable else row.choices -%}
   {% include "adminsite/widgets/_picker.html" %}
 {% else %}

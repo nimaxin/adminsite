@@ -9,6 +9,10 @@
   narrows as you type; choosing a chosen one again lets it go. A choice of several options is the
   same picker. The record page names a link's records in the relationship's own order, where it
   went by their keys.
+- `ordered=True` on a link to many, such as servers tried in turn, shows its records as a
+  numbered list to put in order, by dragging or with buttons to move one up or down. When the
+  order changes, saving writes the link's rows again in the order shown, for a relationship read
+  in the order of its link table's serial id.
 - `AuthProvider.sign_in_values(request)` fills in the sign in form, for a public demo whose
   visitors all share one account. The live demo now opens with its details already in place.
 - After a failed sign in the form keeps the username that was typed, and the cursor waits in the

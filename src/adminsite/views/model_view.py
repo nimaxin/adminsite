@@ -1154,6 +1154,8 @@ class ModelView:
                     if auditing and not created
                     else {}
                 )
+                if not created:
+                    await self._clear_reordered(session, target, values)
                 async with session.no_autoflush():
                     await self.repository.apply_values(session, target, values)
                     await self._apply_inlines(
@@ -1181,6 +1183,41 @@ class ModelView:
             await self._discard_files(stored)
             raise
         return target
+
+    async def _clear_reordered(
+        self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
+    ) -> None:
+        """Empty each ordered link whose new order a plain save would lose.
+
+        Saving a link to many only adds and removes what changed, so the rows
+        kept stay where they were, and one added goes last. That loses a new
+        order, so such a link is emptied here, and written again whole, in
+        the order given, when the values are applied.
+        """
+        cleared = False
+        for path, value in values.items():
+            item = self.field_for(path)
+            if not isinstance(item, RelationField) or not item.ordered:
+                continue
+            target = SQLAlchemyRepository(item.target, self.inspector)
+
+            def key_of(one: Any, target: SQLAlchemyRepository = target) -> str:
+                return (
+                    target.identity_of(one)
+                    if isinstance(one, target.model)
+                    else str(one)
+                )
+
+            held = [key_of(one) for one in getattr(record, path) or ()]
+            wanted = [key_of(one) for one in value or ()]
+            # What adding and removing alone would leave: the rows kept, in
+            # their old order, then the new ones.
+            kept = [key for key in held if key in wanted]
+            if kept + [key for key in wanted if key not in held] != wanted:
+                setattr(record, path, [])
+                cleared = True
+        if cleared:
+            await session.flush()
 
     async def _store_files(
         self, session: SessionAdapter, values: Mapping[str, Any], record: Any

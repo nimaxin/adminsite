@@ -150,14 +150,16 @@ same way.
 
 ## Links to many records
 
-A relationship that holds many records, such as a customer's orders, shows the linked records'
-names in the list and a multiple select in the form.
+A relationship that holds many records, such as an article's tags, shows the linked records'
+names in the list and a picker in the form. The records it holds sit above it as chips, in the
+order they were picked, each with a button to take it off, and **Choose** opens a list with a
+search box. Picking a record adds it at the end, picking a held one again lets it go, and the box
+says how many are held.
 
-Above 100 records the select is no good, so the picker becomes a search box. It searches the other
-model's text columns through a lookup, and the records already linked sit above it as chips, each
-with a button to take it off. Picking a record adds one more, picking the same one twice changes
-nothing, and the box says how many are held. A link that holds a single record works the same way,
-except that picking replaces what is there.
+For a table of up to 100 records the whole list opens at once and narrows as you type. Above that
+the list is searched on the server, twenty records at a time. A link that holds a single record
+works the same way above 100 records, except that picking replaces what is there; below, it is a
+plain select. A `ChoiceField` with `multiple=True` gets the same picker, over its options.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
 whatever the lookup finds, twenty at a time. Give the other model's view a `display_template` so those
@@ -172,6 +174,43 @@ The search looks in the target view's `search_fields`. Where it names none, it l
 columns the records are named by, which the picker is already showing. So a column a view keeps off
 its pages cannot be read a letter at a time through a picker, and a target with neither
 `search_fields` nor a `display_template` cannot be narrowed at all.
+
+### When the order means something
+
+Some links are kept in order: servers tried in turn, a first choice and its fallbacks. Mark such a
+link `ordered`, and the form shows its records as a numbered list that can be put in order, with
+buttons to move one up or down or by dragging it:
+
+```python
+class ConfigView(ModelView, model=Config):
+    fields = (FieldOptions("proxies", ordered=True),)
+```
+
+The order has to live somewhere, so the relationship needs one of its own. A link table with a
+serial id, read in the order of that id, is the usual way:
+
+```python
+config_proxies = Table(
+    "config_proxies",
+    Base.metadata,
+    Column("id", Integer, primary_key=True),
+    Column("config_id", ForeignKey("configs.id"), nullable=False),
+    Column("proxy_id", ForeignKey("proxies.id"), nullable=False),
+)
+
+
+class Config(Base):
+    ...
+    proxies: Mapped[list[Proxy]] = relationship(
+        secondary=config_proxies, order_by=config_proxies.c.id
+    )
+```
+
+Saving a link only adds and removes what changed, so the rows kept stay where they were and new
+ones go last. When that would lose the order given, as after moving one up, adminsite deletes the
+link's rows and writes them again in the order shown, so their ids follow it. The record page, the
+form and the API all read the link in the relationship's order. A link that is not marked
+`ordered` keeps the order it has.
 
 ## JSON columns
 

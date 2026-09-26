@@ -257,9 +257,7 @@ def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
     ]
 
 
-def chosen_in_order(
-    choices: Sequence[Choice], selected: Sequence[str]
-) -> list[Choice]:
+def chosen_in_order(choices: Sequence[Choice], selected: Sequence[str]) -> list[Choice]:
     """The options held, each with its label, in the order they are held.
 
     One that is not on offer, such as a record this user may not see, is

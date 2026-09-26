@@ -16,8 +16,9 @@ TONES = 6
 class ChoiceField(Field):
     """A value picked from a fixed set, such as a status.
 
-    With `multiple=True` the select holds several options at once, which
-    suits a JSON column and an action that asks for a few categories.
+    With `multiple=True` it holds several options at once, in the order they
+    were picked, which suits a JSON column and an action that asks for a few
+    categories.
 
     `tones` says which colour each value's badge is, by name, so a failed
     status is rose wherever it sits among the choices. A value left out is

@@ -95,6 +95,8 @@
   "Main": "اصلی",
   "Missing, and a new record needs it.": "خالی است، ولی مورد تازه به آن نیاز دارد.",
   "More actions": "کارهای بیشتر",
+  "Move {name} down": "بردن {name} به پایین",
+  "Move {name} up": "بردن {name} به بالا",
   "Name": "نام",
   "New": "تازه",
   "New {thing}": "{thing} تازه",

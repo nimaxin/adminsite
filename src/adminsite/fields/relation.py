@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from typing import Any
 
+from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import Field
 from adminsite.schema import RelationSchema
 from adminsite.text import RecordValues
@@ -21,6 +22,7 @@ class RelationField(Field):
         collection: bool = False,
         display_template: str | None = None,
         view: str | None = None,
+        ordered: bool = False,
         **options: Any,
     ) -> None:
         super().__init__(name, **options)
@@ -30,6 +32,15 @@ class RelationField(Field):
         # The view the link opens and the picker lists from, by name, for a
         # model shown by more than one view. None takes the first one.
         self.view = view
+        # For a link to many whose order means something, such as servers
+        # tried in turn: the form can put its records in order, and saving
+        # writes the link again in that order when it changed.
+        if ordered and not collection:
+            raise AdminSiteError(
+                f"The field {name!r} links to one record, so it has no order: "
+                "ordered=True is for a link to many."
+            )
+        self.ordered = ordered
 
     @classmethod
     def from_relation(cls, schema: RelationSchema, **overrides: Any) -> "RelationField":

@@ -11,7 +11,29 @@
   <template x-for="item in picked" :key="item.value">
     <input type="hidden" name="{{ row.path }}" :value="item.value">
   </template>
-  {% if picker_multiple %}
+  {% if picker_ordered|default(false) %}
+    {#- In the order the link keeps them: numbered, each moved up or down by
+        its buttons, or dragged onto another's place. -#}
+    <ol class="mb-1 flex flex-col gap-1" x-show="picked.length" x-cloak>
+      <template x-for="(item, index) in picked" :key="item.value">
+        <li class="flex cursor-grab items-center gap-2 rounded-field border border-base-300 bg-base-100 py-1 ps-2 pe-1"
+            draggable="true" :class="{ 'opacity-50': dragged === index }"
+            @dragstart="dragged = index" @dragend="dragged = null"
+            @dragover.prevent @drop.prevent="place(dragged, index); dragged = null">
+          <span class="w-5 shrink-0 text-end tabular-nums text-muted" x-text="index + 1"></span>
+          <span class="grow" x-text="item.label"></span>
+          <button type="button" class="btn btn-ghost btn-xs btn-square" @click="move(index, -1)"
+                  :disabled="index === 0"
+                  :aria-label="MOVE_UP.replace('{name}', item.label)">{{ icons.icon("arrow-up", 14) }}</button>
+          <button type="button" class="btn btn-ghost btn-xs btn-square" @click="move(index, 1)"
+                  :disabled="index === picked.length - 1"
+                  :aria-label="MOVE_DOWN.replace('{name}', item.label)">{{ icons.icon("arrow-down", 14) }}</button>
+          <button type="button" class="btn btn-ghost btn-xs btn-square" @click="remove(item.value)"
+                  :aria-label="REMOVE_CHOSEN.replace('{name}', item.label)">{{ icons.icon("x", 14) }}</button>
+        </li>
+      </template>
+    </ol>
+  {% elif picker_multiple %}
     <div class="mb-1 flex flex-wrap gap-1" x-show="picked.length" x-cloak>
       <template x-for="item in picked" :key="item.value">
         <span class="badge badge-soft badge-primary h-auto min-h-6 gap-1 py-0.5 pe-1">
