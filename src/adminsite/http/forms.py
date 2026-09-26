@@ -155,6 +155,8 @@ async def build_rows(
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(current)
+            if item.multiple:
+                row.picked = chosen_in_order(row.choices, row.selected)
         elif isinstance(item, RelationField):
             await _fill_relation(admin, session, row, item, current, request)
         rows.append(row)
@@ -210,6 +212,8 @@ async def _fill_relation(
         Choice(picker.repository.identity_of(found), title_for(admin, item, found))
         for found in page.rows
     ]
+    if item.collection:
+        row.picked = chosen_in_order(row.choices, row.selected)
 
 
 async def _picked(
@@ -253,6 +257,18 @@ def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
     ]
 
 
+def chosen_in_order(
+    choices: Sequence[Choice], selected: Sequence[str]
+) -> list[Choice]:
+    """The options held, each with its label, in the order they are held.
+
+    One that is not on offer, such as a record this user may not see, is
+    left out, as the list would leave it out.
+    """
+    labels = {choice.value: choice.label for choice in choices}
+    return [Choice(value, labels[value]) for value in selected if value in labels]
+
+
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
     """Name a related record in a picker, as it is named everywhere else."""
     return name_linked(item, record, views=admin.views, inspector=admin.inspector)
@@ -275,6 +291,8 @@ def rows_for_inputs(fields: Sequence[Field], *, prefix: str = "") -> list[FormRo
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(item.default)
+            if item.multiple:
+                row.picked = chosen_in_order(row.choices, row.selected)
         rows.append(row)
     return rows
 

@@ -1,4 +1,6 @@
 import dataclasses
+import html
+import json
 import re
 from collections.abc import AsyncIterator
 from typing import Any
@@ -117,7 +119,9 @@ class TestHowTheDialogOpens:
         page = await client.get("/admin/orders")
 
         dialog = dialog_for(page, "download")
-        chosen = re.findall(r'<option value="([^"]+)" selected>', dialog)
+        found = re.search(r"picked: (\[.*?\])}\)'", dialog)
+        assert found is not None
+        chosen = [item["value"] for item in json.loads(html.unescape(found.group(1)))]
         assert chosen == ["paper", "film"]
 
     async def test_a_field_with_no_default_starts_empty(

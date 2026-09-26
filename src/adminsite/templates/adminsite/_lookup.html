@@ -1,8 +1,11 @@
+{% import "adminsite/_icons.html" as icons %}
 <ul class="menu menu-sm w-full p-0">
   {% for choice in choices %}
     <li>
       {#- Single quotes, because a record's name may hold a double quote. -#}
-      <button type="button" @click='choose({{ choice.value|tojson }}, {{ choice.label|tojson }})'>
+      <button type="button" @click='choose({{ choice.value|tojson }}, {{ choice.label|tojson }})'
+              :aria-pressed='holds({{ choice.value|tojson }}).toString()'>
+        <span class="inline-flex w-3.5 shrink-0 text-primary"><span class="inline-flex" x-show='holds({{ choice.value|tojson }})'>{{ icons.icon("check", 14) }}</span></span>
         {{ choice.label }}
       </button>
     </li>

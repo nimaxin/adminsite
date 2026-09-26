@@ -1,11 +1,17 @@
-{% set many = row.field.multiple|default(false) %}
-<select class="select w-full {% if row.error %}select-error{% endif %} {% if many %}h-auto py-2{% endif %}"
-        id="{{ row.input_id }}" name="{{ row.path }}"
-        {% if many %}multiple size="5"{% endif %} {{ field_attrs|default('') }}>
-  {% if not many and (not row.required or not row.browser_required) %}<option value="">{{ _('Not set') }}</option>{% endif %}
-  {% for choice in row.choices %}
-    <option value="{{ choice.value }}" {% if choice.value in row.selected %}selected{% endif %}>
-      {{ choice.label }}
-    </option>
-  {% endfor %}
-</select>
+{#- One option is a plain select. Several are a picker, their options as
+    chips in the order they were chosen. -#}
+{% if row.field.multiple|default(false) %}
+  {%- set picker_multiple = true -%}
+  {%- set picker_options = row.choices -%}
+  {% include "adminsite/widgets/_picker.html" %}
+{% else %}
+  <select class="select w-full {% if row.error %}select-error{% endif %}"
+          id="{{ row.input_id }}" name="{{ row.path }}" {{ field_attrs|default('') }}>
+    {% if not row.required or not row.browser_required %}<option value="">{{ _('Not set') }}</option>{% endif %}
+    {% for choice in row.choices %}
+      <option value="{{ choice.value }}" {% if choice.value in row.selected %}selected{% endif %}>
+        {{ choice.label }}
+      </option>
+    {% endfor %}
+  </select>
+{% endif %}

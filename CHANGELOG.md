@@ -4,6 +4,11 @@
 
 - In Chrome and Edge a select that holds several options, such as a link to many records of a
   small table, laid them out in a row, cut off and overlapping. It is a list again.
+- A link to many records is always a picker: its records as chips, in the order they were chosen,
+  and a list to search. For a table of a hundred records or fewer the whole list opens at once and
+  narrows as you type; choosing a chosen one again lets it go. A choice of several options is the
+  same picker. The record page names a link's records in the relationship's own order, where it
+  went by their keys.
 - `AuthProvider.sign_in_values(request)` fills in the sign in form, for a public demo whose
   visitors all share one account. The live demo now opens with its details already in place.
 - After a failed sign in the form keeps the username that was typed, and the cursor waits in the

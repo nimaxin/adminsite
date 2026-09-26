@@ -221,7 +221,7 @@ class TestSaving:
 
 
 class TestASmallTable:
-    async def test_it_is_still_listed(self, database: Database) -> None:
+    async def test_its_records_are_in_the_page(self, database: Database) -> None:
         admin = Admin(database, views=[CustomerView], secret_key="for-the-session")
         app = Starlette()
         app.mount("/admin", admin)
@@ -230,5 +230,10 @@ class TestASmallTable:
         ) as client:
             form = await client.get("/admin/customers/1/edit")
 
-        assert "x-data='recordPicker(" not in form.text
-        assert '<select class="select w-full' in form.text
+        # A link to many records is a picker whatever the size of the table,
+        # and a small table's records are listed in the page, not searched.
+        orders = form.text.split('name="orders"', 1)[0].rsplit("x-data=", 1)[1]
+        assert "recordPicker(" in orders
+        assert "/lookup/orders" not in form.text
+        assert 'choose("1", "Order #1")' in form.text
+        assert "multiple size" not in form.text

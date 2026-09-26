@@ -1,50 +1,14 @@
-{% if row.searchable %}
-  {#- Above a hundred records the picker searches instead of listing them.
-      It holds one record, or several where the link holds many. -#}
-  <div class="relative" @click.outside="open = false"
-       {#- Single quotes, because the records already held are written in as
-           JSON and their names hold double quotes. -#}
-       x-data='recordPicker({multiple: {{ "true" if row.field.collection else "false" }}, picked: {{ row.picked_pairs|tojson }}})'>
-    <template x-for="item in picked" :key="item.value">
-      <input type="hidden" name="{{ row.path }}" :value="item.value">
-    </template>
-    {% if row.field.collection %}
-      <div class="mb-1 flex flex-wrap gap-1" x-show="picked.length" x-cloak>
-        <template x-for="item in picked" :key="item.value">
-          <span class="badge badge-soft badge-primary gap-1 pe-1">
-            <span x-text="item.label"></span>
-            <button type="button" class="rounded px-1 hover:bg-primary/15"
-                    @click="remove(item.value)"
-                    :aria-label="REMOVE_CHOSEN.replace('{name}', item.label)">&times;</button>
-          </span>
-        </template>
-      </div>
-    {% endif %}
-
-    <div class="join w-full">
-      <span class="input join-item w-full" x-text="summary"></span>
-      <button class="btn join-item" type="button" @click="open = !open"
-              :aria-expanded="open.toString()" {{ field_attrs|default('') }}>{{ _('Choose') }}</button>
-    </div>
-
-    {#- Inside a dialog the list takes its place in the dialog, which grows,
-        since the dialog would cut off anything floating past its edge. -#}
-    <div class="absolute z-30 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg in-[.modal-box]:static"
-         x-show="open" x-cloak>
-      <label class="input input-sm mb-1 w-full">
-        <input type="search" name="q" class="grow" placeholder="{{ _('Search') }}"
-               hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
-               hx-target="#options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}"
-               hx-trigger="input changed delay:250ms, focus">
-      </label>
-      <div id="options-{{ (row.id_prefix ~ row.path)|replace('.', '-') }}" class="max-h-60 overflow-auto"></div>
-    </div>
-  </div>
+{#- A link to many records is always a picker: its records as chips, in the
+    order they were chosen. So is a link to one record among over a hundred,
+    which has to be searched. A link to one of a few is a plain select. -#}
+{% if row.searchable or row.field.collection %}
+  {%- set picker_multiple = row.field.collection -%}
+  {%- set picker_options = none if row.searchable else row.choices -%}
+  {% include "adminsite/widgets/_picker.html" %}
 {% else %}
-  <select class="select w-full {% if row.error %}select-error{% endif %} {% if row.field.collection %}h-auto py-2{% endif %}"
-          id="{{ row.input_id }}" name="{{ row.path }}"
-          {% if row.field.collection %}multiple size="5"{% endif %} {{ field_attrs|default('') }}>
-    {% if not row.field.collection %}<option value="">{{ _('Not set') }}</option>{% endif %}
+  <select class="select w-full {% if row.error %}select-error{% endif %}"
+          id="{{ row.input_id }}" name="{{ row.path }}" {{ field_attrs|default('') }}>
+    <option value="">{{ _('Not set') }}</option>
     {% for choice in row.choices %}
       <option value="{{ choice.value }}" {% if choice.value in row.selected %}selected{% endif %}>
         {{ choice.label }}

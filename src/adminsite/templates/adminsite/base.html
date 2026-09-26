@@ -29,22 +29,38 @@
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
 
-  // A link that searches instead of listing. It holds one record, or
-  // several where the relationship holds many.
+  // A picker: what is chosen as chips, in the order it was chosen. It holds
+  // one record or option, or several. Its list is in the page, filtered by
+  // `query`, or searched on the server.
   function recordPicker(config) {
     return {
       open: false,
+      query: "",
       multiple: config.multiple,
       picked: config.picked,
+      toggle() {
+        this.open = !this.open;
+        if (this.open) this.$nextTick(() => this.$refs.search?.focus());
+      },
+      holds(value) {
+        return this.picked.some((item) => item.value === value);
+      },
+      shows(label) {
+        const wanted = this.query.trim().toLowerCase();
+        return !wanted || label.toLowerCase().includes(wanted);
+      },
       choose(value, label) {
         if (!this.multiple) {
           this.picked = [{ value, label }];
           this.open = false;
           return;
         }
-        if (!this.picked.some((item) => item.value === value)) {
-          this.picked = [...this.picked, { value, label }];
+        // Choosing one that is held again lets it go.
+        if (this.holds(value)) {
+          this.remove(value);
+          return;
         }
+        this.picked = [...this.picked, { value, label }];
       },
       remove(value) {
         this.picked = this.picked.filter((item) => item.value !== value);

@@ -342,18 +342,36 @@ class SQLAlchemyRepository:
         Two small queries, however many records the link holds.
         """
         link = getattr(self.model, path)
-        target = link.property.mapper
-        condition = with_parent(record, link)
-        first = (
-            select(target.class_)
-            .where(condition)
-            .order_by(*target.primary_key)
-            .limit(limit)
-        )
+        relation = link.property
+        target = relation.mapper
+        if relation.secondary is None:
+            condition = with_parent(record, link)
+            first = select(target.class_).where(condition)
+            counting = select(func.count()).select_from(target.class_).where(condition)
+        else:
+            # Through the link table itself, not an alias of it, so the
+            # relationship's own order, such as the link rows' ids, can be
+            # read, as the form reads it.
+            parent = sqlalchemy_inspect(self.model)
+            condition = and_(
+                *(
+                    linked == getattr(record, parent.get_property_by_column(own).key)
+                    for own, linked in relation.synchronize_pairs
+                )
+            )
+            first = (
+                select(target.class_)
+                .join(relation.secondary, relation.secondaryjoin)
+                .where(condition)
+            )
+            counting = (
+                select(func.count()).select_from(relation.secondary).where(condition)
+            )
+        # The key after the relationship's own order keeps the rest steady.
+        ordering = relation.order_by or ()
+        first = first.order_by(*ordering, *target.primary_key).limit(limit)
         records = list((await session.scalars(first)).all())
-        total = await session.scalar(
-            select(func.count()).select_from(target.class_).where(condition)
-        )
+        total = await session.scalar(counting)
         return records, int(total or 0)
 
     async def create(self, session: SessionAdapter, values: Mapping[str, Any]) -> Any:

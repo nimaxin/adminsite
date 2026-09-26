@@ -3,7 +3,16 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Table,
+)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -126,3 +135,41 @@ class Setting(Base):
 
     def __str__(self) -> str:
         return self.name
+
+
+# An article's tags, in the order they were given: the link rows have a
+# serial id, and the relationship reads them by it.
+article_tags = Table(
+    "article_tags",
+    Base.metadata,
+    Column("id", Integer, primary_key=True),
+    Column("article_id", ForeignKey("articles.id", ondelete="CASCADE"), nullable=False),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), nullable=False),
+)
+
+
+class Tag(Base):
+    """A small table that a link to many records points at."""
+
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Article(Base):
+    """Links to many tags, kept in the order they were given."""
+
+    __tablename__ = "articles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    tags: Mapped[list[Tag]] = relationship(
+        secondary=article_tags, order_by=article_tags.c.id
+    )
+
+    def __str__(self) -> str:
+        return self.title
