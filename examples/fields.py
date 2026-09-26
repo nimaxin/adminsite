@@ -285,8 +285,6 @@ uploads = LocalStorage("fields_uploads")
 
 class ShowcaseView(ModelView, model=Showcase):
     name = "fields"
-    label = "Every field"
-    label_plural = "Every field"
     group = GROUP
     display_template = "{name}"
     list_display = (
