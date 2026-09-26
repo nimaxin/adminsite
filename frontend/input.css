@@ -282,6 +282,14 @@
   transition: none;
 }
 
+/* daisyUI turns on Chrome's base-select mode for every select, and in it a
+   select that holds several options lays them out in a row, cut off and
+   overlapping. That one stays the browser's own list, without the arrow. */
+.select[multiple] {
+  appearance: auto;
+  background-image: none;
+}
+
 @layer base {
   /* Alpine hides these until it has started, so nothing flashes open. */
   [x-cloak] {
