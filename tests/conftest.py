@@ -1,11 +1,11 @@
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any
 
 import pytest
 from jinja2 import BytecodeCache, Environment
 from jinja2.bccache import Bucket
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Connection, Engine, Table, create_engine, event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -157,13 +157,50 @@ def async_session_factory(
     return async_sessionmaker(async_engine, expire_on_commit=False)
 
 
-@pytest.fixture
-def postgres_sync_engine() -> Iterator[Engine]:
-    engine = create_engine(postgres_url("psycopg"))
-    # Dropping and creating again resets the sequences, so every test
-    # sees the same keys as it would on SQLite.
+def fresh_tables(url: str) -> list[Table]:
+    """Make the tables on a database server, once per run."""
+    engine = create_engine(url)
+    # Dropping them first picks up any change to the models since last time.
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    engine.dispose()
+    return list(Base.metadata.sorted_tables)
+
+
+def empty(connection: Connection, tables: Sequence[Table]) -> None:
+    """Empty the tables and start their keys at 1 again.
+
+    Much quicker than dropping and making them again, above all on MySQL,
+    and every test still sees the same keys as it would on SQLite.
+    """
+    quote = connection.dialect.identifier_preparer.format_table
+    if connection.dialect.name == "postgresql":
+        names = ", ".join(quote(table) for table in tables)
+        connection.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+        return
+    # MySQL's TRUNCATE drops the table and makes it again, which is no
+    # quicker. Deleting the rows, children first, and resetting the counter is.
+    for table in reversed(tables):
+        connection.execute(table.delete())
+        if table.autoincrement_column is not None:
+            connection.execute(text(f"ALTER TABLE {quote(table)} AUTO_INCREMENT = 1"))
+
+
+@pytest.fixture(scope="session")
+def postgres_tables() -> list[Table]:
+    return fresh_tables(postgres_url("psycopg"))
+
+
+@pytest.fixture(scope="session")
+def mysql_tables() -> list[Table]:
+    return fresh_tables(mysql_url("pymysql"))
+
+
+@pytest.fixture
+def postgres_sync_engine(postgres_tables: list[Table]) -> Iterator[Engine]:
+    engine = create_engine(postgres_url("psycopg"))
+    with engine.begin() as connection:
+        empty(connection, postgres_tables)
     with Session(engine) as session:
         session.add_all(build_sample_data())
         session.commit()
@@ -172,11 +209,12 @@ def postgres_sync_engine() -> Iterator[Engine]:
 
 
 @pytest.fixture
-async def postgres_async_engine() -> AsyncIterator[AsyncEngine]:
+async def postgres_async_engine(
+    postgres_tables: list[Table],
+) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(postgres_url("asyncpg"))
     async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
-        await connection.run_sync(Base.metadata.create_all)
+        await connection.run_sync(empty, postgres_tables)
     async with AsyncSession(engine) as session:
         session.add_all(build_sample_data())
         await session.commit()
@@ -185,10 +223,10 @@ async def postgres_async_engine() -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-def mysql_sync_engine() -> Iterator[Engine]:
+def mysql_sync_engine(mysql_tables: list[Table]) -> Iterator[Engine]:
     engine = create_engine(mysql_url("pymysql"))
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        empty(connection, mysql_tables)
     with Session(engine) as session:
         session.add_all(build_sample_data())
         session.commit()
@@ -197,11 +235,10 @@ def mysql_sync_engine() -> Iterator[Engine]:
 
 
 @pytest.fixture
-async def mysql_async_engine() -> AsyncIterator[AsyncEngine]:
+async def mysql_async_engine(mysql_tables: list[Table]) -> AsyncIterator[AsyncEngine]:
     engine = create_async_engine(mysql_url("aiomysql"))
     async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
-        await connection.run_sync(Base.metadata.create_all)
+        await connection.run_sync(empty, mysql_tables)
     async with AsyncSession(engine) as session:
         session.add_all(build_sample_data())
         await session.commit()
