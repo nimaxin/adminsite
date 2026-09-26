@@ -1,7 +1,10 @@
 import os
 from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
 import pytest
+from jinja2 import BytecodeCache, Environment
+from jinja2.bccache import Bucket
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -13,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from adminsite.backends.sqlalchemy import Database
+from adminsite.http import templating
 from tests.factories import build_sample_data
 from tests.models import Base
 from tests.support import Backend
@@ -58,6 +62,44 @@ def postgres_url(driver: str) -> str:
 def mysql_url(driver: str) -> str:
     """The MySQL address with the driver SQLAlchemy should use."""
     return MYSQL_URL.replace("mysql://", f"mysql+{driver}://", 1)
+
+
+class CompiledTemplates(BytecodeCache):
+    """Each compiled template, kept in memory for every admin the tests build."""
+
+    def __init__(self) -> None:
+        self.compiled: dict[str, bytes] = {}
+
+    def load_bytecode(self, bucket: Bucket) -> None:
+        code = self.compiled.get(bucket.key)
+        if code is not None:
+            bucket.bytecode_from_string(code)
+
+    def dump_bytecode(self, bucket: Bucket) -> None:
+        self.compiled[bucket.key] = bucket.bytecode_to_string()
+
+
+COMPILED_TEMPLATES = CompiledTemplates()
+
+
+class SharedEnvironment(Environment):
+    """The admin's template environment, with the templates compiled once."""
+
+    def __init__(self, **options: Any) -> None:
+        super().__init__(bytecode_cache=COMPILED_TEMPLATES, **options)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def templates_compiled_once() -> Iterator[None]:
+    """Compile each template once per run, not once per test.
+
+    Every test builds its own admin, and each one compiled every template
+    again, which took most of a test's time. A template whose source
+    changes is compiled again, since Jinja checks it against the cache.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(templating, "Environment", SharedEnvironment)
+        yield
 
 
 @pytest.fixture
