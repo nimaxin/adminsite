@@ -18,6 +18,9 @@
   chosen records sit in the box as chips; the arrow keys, Enter, Escape and Backspace work as in
   any search field. A search on the server says when more records match than it shows. An ordered
   link adds from a box under its list, which leaves out what the list holds.
+- In an inline row, a link to a table of over a hundred records showed its record as the model's
+  bare text, such as `<Supplier object at 0x…>`, and in a row added with **Add a row** its search
+  found nothing. It names the record as the form does, and searches in every row.
 - `AuthProvider.sign_in_values(request)` fills in the sign in form, for a public demo whose
   visitors all share one account. The live demo now opens with its details already in place.
 - After a failed sign in the form keeps the username that was typed, and the cursor waits in the

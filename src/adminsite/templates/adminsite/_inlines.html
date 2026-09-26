@@ -66,6 +66,8 @@
               @click="
                 const blank = $refs.blank.innerHTML.replaceAll('{{ table.name }}-__index__-', '{{ table.name }}-' + count + '-');
                 $refs.body.insertAdjacentHTML('beforeend', blank);
+                // So a search in the new row's picker reaches the server.
+                htmx.process($refs.body.lastElementChild);
                 count++;
               ">
         {{ icons.icon("plus", 14) }}{{ _('Add a row') }}

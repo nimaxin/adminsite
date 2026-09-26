@@ -73,6 +73,10 @@ class _CellMaker:
             lookup_path=f"{self.inline.name}.{path}",
             browser_required=False,
         )
+        if isinstance(item, RelationField) and raw is None and current is not None:
+            # A linked record is named as the form names it, not by its bare
+            # text, which for a model is only its class and address.
+            row.display = title_for(self.admin, item, current)
         if isinstance(item, ChoiceField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = (row.value,) if row.value else ()
@@ -83,7 +87,7 @@ class _CellMaker:
             if raw is None and current is not None:
                 repository = SQLAlchemyRepository(item.target, self.admin.inspector)
                 row.value = repository.identity_of(current)
-                row.picked_label = item.display(current)
+                row.picked_label = row.display
                 row.picked = (Choice(row.value, row.picked_label),)
             row.selected = (row.value,) if row.value else ()
         return row

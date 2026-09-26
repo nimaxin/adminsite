@@ -8,7 +8,8 @@ from starlette.applications import Starlette
 from adminsite import Admin, Inline, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
-from tests.models import Order, OrderItem
+from adminsite.http.picker import PICKER_LIMIT
+from tests.models import Order, OrderItem, Product
 
 
 class OrderView(ModelView, model=Order):
@@ -281,6 +282,39 @@ class TestPages:
         assert 'name="items-0-quantity"' in response.text
         assert "Linen shirt" in response.text
         assert "Add a row" in response.text
+
+    async def test_a_searched_line_names_its_record_as_the_form_does(
+        self, database: Database
+    ) -> None:
+        # Over a hundred products, so a line's product is searched, not listed.
+        async with database.session() as session:
+            for number in range(PICKER_LIMIT):
+                await session.add(
+                    Product(name=f"Spare part {number}", price=Decimal("1.00"))
+                )
+            await session.commit()
+
+        class ProductView(ModelView, model=Product):
+            display_template = "{name} at {price}"
+
+        site = Admin(database, views=[OrderView, ProductView])
+        app = Starlette()
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.get("/admin/orders/1/edit")
+
+        assert '"label": "Linen shirt at 59.00"' in response.text
+
+    async def test_a_line_added_in_the_page_can_search(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        # A row pasted in from the blank one is new to htmx, which has to be
+        # told of it, or the search in its picker never reaches the server.
+        response = await client.get("/admin/orders/1/edit")
+
+        assert "htmx.process($refs.body.lastElementChild)" in response.text
 
     async def test_the_new_page_offers_a_blank_line(
         self, client: httpx.AsyncClient
