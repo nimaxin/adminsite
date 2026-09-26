@@ -27,6 +27,7 @@ shop.db
 adminsite_audit.db
 adminsite_views.db
 shop_uploads/
+fields_uploads/
 demo-data/
 
 # Built docs
