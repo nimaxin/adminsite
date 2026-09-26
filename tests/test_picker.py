@@ -156,6 +156,79 @@ class TestALinkThatSearches:
         assert found.text.count("choose(") == 1
 
 
+class TestTheBox:
+    async def test_it_is_typed_in_and_opens_a_list(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        form = await client.get("/admin/customers/1/edit")
+
+        assert re.search(
+            r'<input type="text" id="field-orders" x-ref="search" role="combobox"',
+            form.text,
+        )
+        assert 'aria-controls="options-orders"' in form.text
+        assert 'id="options-orders" x-ref="list" role="listbox"' in form.text
+        assert 'aria-multiselectable="true"' in form.text
+        assert ">Choose<" not in form.text
+
+    async def test_it_says_what_to_type_for(self, client: httpx.AsyncClient) -> None:
+        many = await client.get("/admin/customers/1/edit")
+        one = await client.get("/admin/order_items/new")
+
+        assert 'hint: "Search orders"' in many.text
+        assert 'hint: "Choose order"' in one.text
+
+    async def test_a_link_to_one_can_be_cleared_unless_it_must_be_set(
+        self, client: httpx.AsyncClient, big_database: Database
+    ) -> None:
+        class RequiredItemView(ModelView, model=OrderItem):
+            name = "required_items"
+            form_fields = ("order", "quantity")
+            fields = (
+                RelationField(
+                    "order", target=Order, display_template="Order #{id}", required=True
+                ),
+            )
+
+        admin = Admin(big_database, views=[RequiredItemView], secret_key="s")
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as strict:
+            required = await strict.get("/admin/required_items/1/edit")
+        optional = await client.get("/admin/order_items/1/edit")
+
+        assert 'aria-label="Clear Order"' in optional.text
+        assert "Clear Order" not in required.text
+
+    async def test_a_search_with_more_to_find_says_so(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        found = await client.get("/admin/customers/lookup/orders")
+
+        assert found.text.count("choose(") == RESULT_LIMIT
+        assert "<template data-more></template>" in found.text
+
+    async def test_a_search_that_found_everything_does_not(
+        self, big_database: Database
+    ) -> None:
+        class OrderView(ModelView, model=Order):
+            display_template = "Order #{id}"
+            search_fields = ("note",)
+
+        admin = Admin(big_database, views=[CustomerView, OrderView])
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            found = await client.get("/admin/customers/lookup/orders?q=rush")
+
+        assert found.text.count("choose(") == 1
+        assert "data-more" not in found.text
+
+
 class TestSaving:
     async def test_every_record_picked_is_kept(
         self, client: httpx.AsyncClient, big_database: Database

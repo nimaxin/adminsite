@@ -1,20 +1,27 @@
-{#- A picker: what is chosen as chips, in the order it was chosen, and a
-    list to choose from. With `picker_options` the whole list is in the page
-    and is filtered as you type; without, it is searched on the server, as a
-    link to over a hundred records is. `picker_multiple` holds several. -#}
+{#- A picker: one box to type in. The records it holds sit in it as chips, in
+    the order they were chosen, and a list opens under it as soon as it is
+    clicked or typed in. With `picker_options` the whole list is in the page
+    and narrows as you type; without, it is searched on the server, as a
+    link to over a hundred records is. `picker_multiple` holds several, and
+    `picker_ordered` shows them as numbered rows to put in order, with the
+    box under them for adding one. `picker_hint` is the box's placeholder,
+    and `picker_search` the one a link to one record shows while searching. -#}
 {% import "adminsite/_icons.html" as icons %}
 {%- set list_id = "options-" ~ (row.id_prefix ~ row.path)|replace(".", "-") -%}
+{%- set ordered = picker_ordered|default(false) -%}
+{%- set local = picker_options is not none -%}
 {#- Single quotes, because the chosen records are written in as JSON and
     their names hold double quotes. -#}
-<div class="relative" @click.outside="open = false" @keydown.escape.stop="open = false"
-     x-data='recordPicker({multiple: {{ "true" if picker_multiple else "false" }}, picked: {{ row.picked_pairs|tojson }}})'>
+<div class="relative" @htmx:after-swap="refresh()"
+     x-data='recordPicker({multiple: {{ "true" if picker_multiple else "false" }}, ordered: {{ "true" if ordered else "false" }}, local: {{ "true" if local else "false" }}, list: {{ list_id|tojson }}, hint: {{ picker_hint|default("")|tojson }}, search: {{ picker_search|default("")|tojson }}, picked: {{ row.picked_pairs|tojson }}})'>
   <template x-for="item in picked" :key="item.value">
     <input type="hidden" name="{{ row.path }}" :value="item.value">
   </template>
-  {% if picker_ordered|default(false) %}
+
+  {% if ordered %}
     {#- In the order the link keeps them: numbered, each moved up or down by
         its buttons, or dragged onto another's place. -#}
-    <ol class="mb-1 flex flex-col gap-1" x-show="picked.length" x-cloak>
+    <ol class="mb-1.5 flex flex-col gap-1" x-show="picked.length" x-cloak>
       <template x-for="(item, index) in picked" :key="item.value">
         <li class="flex cursor-grab items-center gap-2 rounded-field border border-base-300 bg-base-100 py-1 ps-2 pe-1"
             draggable="true" :class="{ 'opacity-50': dragged === index }"
@@ -33,58 +40,64 @@
         </li>
       </template>
     </ol>
-  {% elif picker_multiple %}
-    <div class="mb-1 flex flex-wrap gap-1" x-show="picked.length" x-cloak>
-      <template x-for="item in picked" :key="item.value">
-        <span class="badge badge-soft badge-primary h-auto min-h-6 gap-1 py-0.5 pe-1">
-          <span x-text="item.label"></span>
-          <button type="button" class="rounded px-1 hover:bg-primary/15"
-                  @click="remove(item.value)"
-                  :aria-label="REMOVE_CHOSEN.replace('{name}', item.label)">&times;</button>
-        </span>
-      </template>
-    </div>
   {% endif %}
 
-  <div class="join w-full">
-    <span class="input join-item w-full {% if row.error %}input-error{% endif %}" x-text="summary"></span>
-    <button class="btn join-item" type="button" @click="toggle()"
-            :aria-expanded="open.toString()" aria-controls="{{ list_id }}"
-            {{ field_attrs|default('') }}>{{ _('Choose') }}</button>
+  {#- A press anywhere in the box goes to the text in it, as in any input. -#}
+  <div class="input h-auto min-h-10 w-full cursor-text flex-wrap gap-1.5 py-1 {% if row.error %}input-error{% endif %}"
+       @mousedown="press($event)">
+    {% if ordered %}
+      <span class="text-muted">{{ icons.icon("plus", 16) }}</span>
+    {% elif picker_multiple %}
+      <template x-for="item in picked" :key="item.value">
+        <span class="badge badge-soft badge-primary h-7 gap-0.5 ps-2 pe-0.5 text-[13px] font-medium">
+          <span x-text="item.label"></span>
+          <button type="button" class="inline-flex size-6 items-center justify-center rounded hover:bg-primary/15"
+                  @mousedown.prevent.stop @click="remove(item.value)"
+                  :aria-label="REMOVE_CHOSEN.replace('{name}', item.label)">{{ icons.icon("x", 12) }}</button>
+        </span>
+      </template>
+    {% endif %}
+    <input type="text" id="{{ row.input_id }}" x-ref="search" role="combobox"
+           class="h-7 min-w-24 flex-1" autocomplete="off" spellcheck="false"
+           aria-autocomplete="list" aria-controls="{{ list_id }}"
+           :aria-expanded="open.toString()" :aria-activedescendant="activeId || null"
+           x-model="query" :placeholder="placeholder"
+           @focus="enter()" @click="enter()" @blur="close()" @input="typed()" @keydown="key($event)"
+           {% if not local %}
+             name="q"
+             hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
+             hx-target="#{{ list_id }}"
+             hx-trigger="input changed delay:250ms, picker-search"
+           {% endif %}
+           {{ field_attrs|default('') }}>
+    {% if not picker_multiple %}
+      {% if not row.required %}
+        <button type="button" class="btn btn-ghost btn-xs btn-square" x-show="picked.length" x-cloak
+                @mousedown.prevent.stop @click="clear()"
+                aria-label="{{ _('Clear {name}', name=row.label) }}">{{ icons.icon("x", 14) }}</button>
+      {% endif %}
+      <span class="text-muted">{{ icons.icon("chevron-down", 16) }}</span>
+    {% endif %}
   </div>
 
-  {#- Inside a dialog the list takes its place in the dialog, which grows,
-      since the dialog would cut off anything floating past its edge. -#}
-  <div class="absolute z-30 mt-1 w-full rounded-box border border-base-300 bg-base-100 p-2 shadow-lg in-[.modal-box]:static"
-       x-show="open" x-cloak>
-    <label class="input input-sm mb-1 w-full">
-      {% if picker_options is not none %}
-        <input type="search" class="grow" placeholder="{{ _('Search') }}" aria-label="{{ _('Search') }}"
-               x-ref="search" x-model="query">
-      {% else %}
-        <input type="search" name="q" class="grow" placeholder="{{ _('Search') }}" aria-label="{{ _('Search') }}"
-               x-ref="search"
-               hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
-               hx-target="#{{ list_id }}"
-               hx-trigger="input changed delay:250ms, focus">
+  {#- Inside a dialog, or an inline table that scrolls sideways, the list
+      takes its place and the dialog or row grows, since either would cut
+      off anything floating past its edge. A press on it keeps the typing
+      in the box. -#}
+  <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg in-[.modal-box]:static in-[table]:static"
+       x-show="open" x-cloak @mousedown.prevent>
+    <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ row.label }}"
+        {% if picker_multiple %}aria-multiselectable="true"{% endif %}
+        class="max-h-64 overflow-auto p-1">
+      {% if local %}
+        {% for choice in picker_options %}
+          {% include "adminsite/widgets/_option.html" %}
+        {% endfor %}
       {% endif %}
-    </label>
-    <div id="{{ list_id }}" class="max-h-60 overflow-auto">
-      {% if picker_options is not none %}
-        <ul class="menu menu-sm w-full p-0">
-          {% for choice in picker_options %}
-            <li x-show='shows({{ choice.label|tojson }})'>
-              <button type="button" @click='choose({{ choice.value|tojson }}, {{ choice.label|tojson }})'
-                      :aria-pressed='holds({{ choice.value|tojson }}).toString()'>
-                <span class="inline-flex w-3.5 shrink-0 text-primary"><span class="inline-flex" x-show='holds({{ choice.value|tojson }})'>{{ icons.icon("check", 14) }}</span></span>
-                {{ choice.label }}
-              </button>
-            </li>
-          {% else %}
-            <li class="menu-disabled"><span>{{ _('Nothing found.') }}</span></li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
+    </ul>
+    <p class="px-3.5 py-2.5 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
+    {% if not local %}
+      <p class="border-t border-base-300 px-3.5 py-2 text-[12.5px] text-muted" x-show="more" x-cloak>{{ _('More records match. Type to narrow.') }}</p>
+    {% endif %}
   </div>
 </div>

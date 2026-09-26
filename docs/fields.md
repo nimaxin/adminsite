@@ -151,15 +151,18 @@ same way.
 ## Links to many records
 
 A relationship that holds many records, such as an article's tags, shows the linked records'
-names in the list and a picker in the form. The records it holds sit above it as chips, in the
-order they were picked, each with a button to take it off, and **Choose** opens a list with a
-search box. Picking a record adds it at the end, picking a held one again lets it go, and the box
-says how many are held.
+names in the list and a picker in the form. The picker is one box: the records it holds sit in it
+as chips, in the order they were picked, each with a button to take it off, and a list opens under
+it as soon as it is clicked or typed in. Picking a record adds it at the end and leaves the list
+open for the next, a held one carries a check mark, and picking it again lets it go. The arrow
+keys move through the list, Enter picks, Escape closes it, and Backspace in an empty box takes off
+the last chip.
 
-For a table of up to 100 records the whole list opens at once and narrows as you type. Above that
-the list is searched on the server, twenty records at a time. A link that holds a single record
-works the same way above 100 records, except that picking replaces what is there; below, it is a
-plain select. A `ChoiceField` with `multiple=True` gets the same picker, over its options.
+For a table of up to 100 records the whole list is in the page and narrows as you type. Above that
+the list is searched on the server, twenty records at a time, and says so when more match. A link
+that holds a single record works the same way above 100 records: the box shows the record's name,
+typing searches for another, and picking replaces it. Below 100 it is a plain select. A
+`ChoiceField` with `multiple=True` gets the same picker, over its options.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
 whatever the lookup finds, twenty at a time. Give the other model's view a `display_template` so those
@@ -179,7 +182,8 @@ its pages cannot be read a letter at a time through a picker, and a target with 
 
 Some links are kept in order: servers tried in turn, a first choice and its fallbacks. Mark such a
 link `ordered`, and the form shows its records as a numbered list that can be put in order, with
-buttons to move one up or down or by dragging it:
+buttons to move one up or down or by dragging it. The box under the list adds one at the end, and
+offers only the records the list does not hold yet:
 
 ```python
 class ConfigView(ModelView, model=Config):

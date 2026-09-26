@@ -13,6 +13,11 @@
   numbered list to put in order, by dragging or with buttons to move one up or down. When the
   order changes, saving writes the link's rows again in the order shown, for a relationship read
   in the order of its link table's serial id.
+- The picker is one box to type in, where it was a box that said "3 chosen" and a Choose button
+  that opened a second search box. Clicking the box or typing in it opens the list under it; the
+  chosen records sit in the box as chips; the arrow keys, Enter, Escape and Backspace work as in
+  any search field. A search on the server says when more records match than it shows. An ordered
+  link adds from a box under its list, which leaves out what the list holds.
 - `AuthProvider.sign_in_values(request)` fills in the sign in form, for a public demo whose
   visitors all share one account. The live demo now opens with its details already in place.
 - After a failed sign in the form keeps the username that was typed, and the cursor waits in the

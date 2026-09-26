@@ -2,9 +2,22 @@
     order they were chosen. So is a link to one record among over a hundred,
     which has to be searched. A link to one of a few is a plain select. -#}
 {% if row.searchable or row.field.collection %}
+  {#- The box's placeholder names what it holds, as the other model's view
+      calls it, or as the field does where that model has no view. -#}
+  {%- set target = admin.views.for_relation(row.field) -%}
+  {%- set thing = (target.label if target else row.label)|lower -%}
+  {%- set things = (target.label_plural if target else row.label)|lower -%}
   {%- set picker_multiple = row.field.collection -%}
   {%- set picker_ordered = row.field.ordered -%}
   {%- set picker_options = none if row.searchable else row.choices -%}
+  {%- if picker_ordered -%}
+    {%- set picker_hint = _("Add {thing}", thing=thing) -%}
+  {%- elif picker_multiple -%}
+    {%- set picker_hint = _("Search {things}", things=things) -%}
+  {%- else -%}
+    {%- set picker_hint = _("Choose {thing}", thing=thing) -%}
+  {%- endif -%}
+  {%- set picker_search = _("Search {things}", things=things) -%}
   {% include "adminsite/widgets/_picker.html" %}
 {% else %}
   <select class="select w-full {% if row.error %}select-error{% endif %}"

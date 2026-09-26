@@ -83,7 +83,7 @@ class TestTheScopeOfTheTargetView:
         found = await client.get("/admin/orders/lookup/customer?q=Marco")
 
         assert "Marco" not in found.text
-        assert "Nothing found." in found.text
+        assert 'role="option"' not in found.text
 
     async def test_the_select_on_a_form_follows_it_too(
         self, client: httpx.AsyncClient

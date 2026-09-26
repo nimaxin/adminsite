@@ -100,6 +100,7 @@ class TestASmallTable:
 
         assert "multiple size" not in page.text
         assert "/lookup/tags" not in page.text
+        assert 'hint: "Search tags"' in page.text
         for name in TAGS:
             assert f'"{name}")' in page.text
 
@@ -254,6 +255,9 @@ class TestAnOrderedLink:
         assert 'draggable="true"' in form.text
         assert "MOVE_UP.replace" in form.text
         assert "MOVE_DOWN.replace" in form.text
+        # The box under the rows adds one, and leaves out what they hold.
+        assert 'hint: "Add tag"' in form.text
+        assert "ordered: true" in form.text
 
     async def test_the_api_writes_the_order_too(
         self, ordered: httpx.AsyncClient, database: Database, keys: dict[str, str]

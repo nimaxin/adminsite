@@ -288,10 +288,14 @@ class TestLookup:
         assert "Marco Rossi" in response.text
         assert "Lena Fischer" not in response.text
 
-    async def test_nothing_found_says_so(self, client: httpx.AsyncClient) -> None:
+    async def test_nothing_found_offers_nothing(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        # The picker says "Nothing found." itself, when no option comes back.
         response = await client.get("/admin/orders/lookup/customer?q=zzzz")
 
-        assert "Nothing found." in response.text
+        assert response.status_code == 200
+        assert 'role="option"' not in response.text
 
     async def test_a_field_that_is_not_a_link_is_not_found(
         self, client: httpx.AsyncClient

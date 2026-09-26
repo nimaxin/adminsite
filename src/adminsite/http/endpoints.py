@@ -720,8 +720,12 @@ async def looked_up(
             for record in page.rows
         ]
 
+    # The page reads one record past the limit, so it already knows whether
+    # more match, without counting them.
     return await admin.render(
-        "_lookup.html", request, {"view": view, "choices": choices}
+        "_lookup.html",
+        request,
+        {"view": view, "choices": choices, "more": page.has_next},
     )
 
 
