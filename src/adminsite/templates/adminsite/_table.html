@@ -26,10 +26,15 @@
                        ">
               </th>
             {% endif %}
+            {#- The row's menu comes first, where it is in reach however many
+                columns the table has. -#}
+            <th class="sticky top-0 z-10 h-10 w-10 border-y border-base-300 bg-subtle px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
+              <span class="sr-only">{{ _('Actions') }}</span>
+            </th>
             {% for path in columns %}
               {% set state = sort_state(request, path) %}
               {% set numeric = view.field_for(path).widget == 'number' %}
-              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.first and not actions %}ps-4 lg:ps-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
+              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 {% if view.sortable(path) %}
                   <a class="inline-flex items-center gap-1 hover:text-base-content"
@@ -45,9 +50,9 @@
                 {% endif %}
               </th>
             {% endfor %}
-            <th class="sticky top-0 z-10 h-10 w-14 border-y border-base-300 bg-subtle pe-4 lg:pe-5">
-              <span class="sr-only">{{ _('Actions') }}</span>
-            </th>
+            {#- Takes the width left over, so the columns sit together from the
+                start instead of spreading across a wide screen. -#}
+            <td class="sticky top-0 z-10 h-10 w-full border-y border-base-300 bg-subtle" aria-hidden="true"></td>
           </tr>
         </thead>
         <tbody>
@@ -64,11 +69,19 @@
                          ">
                 </td>
               {% endif %}
+              <td class="h-12 border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
+                {% with allowed = row_actions.get(key, []) if row_actions else [],
+                        title = view.title_of(row),
+                        edit_url = urls.edit(view, key) if can_edit else "",
+                        upward = loop.revindex <= 3 and loop.length > 5 %}
+                  {% include "adminsite/_row_actions.html" %}
+                {% endwith %}
+              </td>
               {% for path in columns %}
                 {% set item = view.field_for(path) %}
                 {% set widget = item.widget %}
                 {% set text = view.display(row, path) %}
-                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if widget == 'number' %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.first and not actions %}ps-4 lg:ps-7{% endif %}">
+                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if widget == 'number' %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %}">
                   {% if loop.first %}
                     {#- The first cell opens the record, or the form where a view
                         has no record page, or is plain text where it has neither. -#}
@@ -95,20 +108,11 @@
                   {% endif %}
                 </td>
               {% endfor %}
-              <td class="h-12 border-b border-line pe-4 lg:pe-5">
-                <div class="flex justify-end">
-                  {% with allowed = row_actions.get(key, []) if row_actions else [],
-                          title = view.title_of(row),
-                          edit_url = urls.edit(view, key) if can_edit else "",
-                          upward = loop.revindex <= 3 and loop.length > 5 %}
-                    {% include "adminsite/_row_actions.html" %}
-                  {% endwith %}
-                </div>
-              </td>
+              <td class="border-b border-line" aria-hidden="true"></td>
             </tr>
           {% else %}
             <tr>
-              <td class="py-20 text-center text-muted" colspan="{{ columns|length + 2 }}">
+              <td class="py-20 text-center text-muted" colspan="{{ columns|length + (3 if actions else 2) }}">
                 {{ _("No {things} to show.", things=view.label_plural|lower) }}
               </td>
             </tr>

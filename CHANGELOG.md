@@ -21,6 +21,9 @@
 - In an inline row, a link to a table of over a hundred records showed its record as the model's
   bare text, such as `<Supplier object at 0x…>`, and in a row added with **Add a row** its search
   found nothing. It names the record as the form does, and searches in every row.
+- A list's columns sit together from the start of the row, where a few of them spread across a
+  wide screen, and a number could land in the middle of the page. Each row's menu comes right
+  after its checkbox, in reach however many columns follow, where it was at the far end.
 - A second example, `examples/fields.py`, puts every kind of field on one model, each saying which
   class it is. The live demo shows it as a Field gallery beside the shop, whose products now have
   tags.

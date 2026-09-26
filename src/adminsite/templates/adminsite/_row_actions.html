@@ -1,9 +1,10 @@
 {#- A row's menu: the record's own actions and its form. Each action posts the
     one form it owns, after setting which record it is for, so a list of 25
-    rows carries one form per action, not 25. -#}
+    rows carries one form per action, not 25. It sits at the start of the row
+    and opens towards the page. -#}
 {% import "adminsite/_icons.html" as icons %}
 {% if allowed or edit_url %}
-  <div class="dropdown dropdown-end {% if upward|default(false) %}dropdown-top{% endif %}">
+  <div class="dropdown dropdown-start {% if upward|default(false) %}dropdown-top{% endif %}">
     <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-ghost btn-sm btn-square text-muted"
          aria-label="{{ _('Actions for {name}', name=title) }}">{{ icons.icon("more") }}</div>
     <ul tabindex="0" class="dropdown-content menu menu-sm z-30 my-1 w-52 rounded-box border border-base-300 bg-base-100 p-1 text-start shadow-float">

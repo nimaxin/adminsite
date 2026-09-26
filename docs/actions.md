@@ -207,7 +207,7 @@ to fit in memory.
 | `on` | Where it appears | The method gets |
 |---|---|---|
 | `"selection"`, the default | above the list, once rows are ticked | a `Selection` |
-| `"record"` | on each row, and on the record's page | `(record, session)` |
+| `"record"` | in each row's menu, and on the record's page | `(record, session)` |
 | `"view"` | above the list, with nothing ticked | `(session)` |
 
 ### On one record

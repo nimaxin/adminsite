@@ -193,3 +193,30 @@ class TestExportLink:
 
         assert "/admin/orders/export?" in response.text
         assert "status=PAID" in response.text
+
+
+class TestColumns:
+    async def test_a_row_opens_with_its_menu_after_the_checkbox(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/customers")
+        row = response.text.split("<tbody>", 1)[1].split("</tr>", 1)[0]
+
+        # In reach at the start of the row, however many columns follow.
+        checkbox = row.index('name="keys"')
+        menu = row.index("Actions for")
+        record = row.index('class="font-medium text-link')
+        assert checkbox < menu < record
+
+    async def test_the_columns_sit_together_from_the_start(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/customers")
+        head = response.text.split("<thead>", 1)[1].split("</thead>", 1)[0]
+
+        # The last cell is empty and takes the width the columns leave, so a
+        # few columns do not spread across a wide screen.
+        assert re.search(
+            r'<td class="[^"]*\bw-full\b[^"]*" aria-hidden="true"></td>\s*</tr>\s*$',
+            head,
+        )
