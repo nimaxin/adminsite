@@ -16,6 +16,33 @@
   const REMOVE_CHOSEN = {{ _("Remove {name}")|tojson }};
   const MOVE_UP = {{ _("Move {name} up")|tojson }};
   const MOVE_DOWN = {{ _("Move {name} down")|tojson }};
+  // What a JSON box says about the document in it.
+  const JSON_WORDS = {{ {
+    "where": _("Line {line}, column {column}: {problem}."),
+    "valid": _("Valid JSON"),
+    "empty": _("Empty: saved as no value."),
+    "key": _("{count} key"),
+    "keys": _("{count} keys"),
+    "item": _("{count} item"),
+    "items": _("{count} items"),
+    "comma_object": _("a comma or } is missing"),
+    "comma_list": _("a comma or ] is missing"),
+    "trailing_object": _("take out the comma before }"),
+    "trailing_list": _("take out the comma before ]"),
+    "name": _("a name in double quotes is expected"),
+    "colon": _("a colon is missing after the name"),
+    "quote": _("this text is missing its closing quote"),
+    "backslash": _("a backslash inside text has to be doubled"),
+    "tab": _("text cannot hold a tab"),
+    "number": _("this number is not written right"),
+    "single": _("use double quotes, not single ones"),
+    "small": _("write {word} in small letters"),
+    "bare": _("text needs double quotes around it"),
+    "value": _("a value is expected here"),
+    "short": _("the document ends too soon"),
+    "extra": _("there is more after the end of the document"),
+    "invalid": _("this is not valid JSON"),
+  }|tojson }};
   try {
     const saved = localStorage.getItem("adminsite-theme");
     if (saved) document.documentElement.dataset.theme = saved;
@@ -204,6 +231,319 @@
         const [item] = order.splice(from, 1);
         order.splice(to, 0, item);
         this.picked = order;
+      },
+    };
+  }
+
+  // Where a document stops being JSON: the place, and the name of what is
+  // wrong there in JSON_WORDS. A document with nothing wrong gives ok.
+  function checkJSON(text) {
+    let at = 0;
+    let comma = 0;
+    const fail = (word, where = at, name = "") => {
+      throw { at: where, word, name };
+    };
+    const space = () => {
+      while (at < text.length && " \t\n\r".includes(text[at])) at += 1;
+    };
+    const string = () => {
+      const opening = at;
+      at += 1;
+      while (at < text.length) {
+        const letter = text[at];
+        if (letter === "\\") {
+          const next = text[at + 1] || "";
+          if (!'"\\/bfnrtu'.includes(next)) fail("backslash");
+          if (next === "u" && !/^[0-9a-fA-F]{4}$/.test(text.slice(at + 2, at + 6))) fail("backslash");
+          at += next === "u" ? 6 : 2;
+          continue;
+        }
+        if (letter === '"') {
+          at += 1;
+          return;
+        }
+        if (letter === "\n") break;
+        if (letter === "\t") fail("tab");
+        at += 1;
+      }
+      fail("quote", opening);
+    };
+    const number = () => {
+      const found = text.slice(at).match(/^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/);
+      if (!found) fail("number");
+      at += found[0].length;
+    };
+    const value = () => {
+      space();
+      const next = text[at];
+      if (next === "{") return object();
+      if (next === "[") return list();
+      if (next === '"') return string();
+      if (next === "-" || (next >= "0" && next <= "9")) return number();
+      for (const word of ["true", "false", "null"]) {
+        if (text.startsWith(word, at)) {
+          at += word.length;
+          return;
+        }
+      }
+      if (next === undefined) fail("short");
+      if (next === "'") fail("single");
+      const word = (text.slice(at).match(/^[A-Za-z_]+/) || [""])[0];
+      if (["true", "false", "null"].includes(word.toLowerCase())) {
+        fail("small", at, word.toLowerCase());
+      }
+      fail(word ? "bare" : "value");
+    };
+    const object = () => {
+      at += 1;
+      space();
+      if (text[at] === "}") {
+        at += 1;
+        return;
+      }
+      for (;;) {
+        space();
+        if (text[at] === "}") fail("trailing_object", comma);
+        if (text[at] === "'") fail("single");
+        if (text[at] !== '"') fail(text[at] === undefined ? "short" : "name");
+        string();
+        space();
+        if (text[at] !== ":") fail("colon");
+        at += 1;
+        value();
+        // A missing comma belongs where the value ends, not where the next begins.
+        const end = at;
+        space();
+        if (text[at] === ",") {
+          comma = at;
+          at += 1;
+          continue;
+        }
+        if (text[at] === "}") {
+          at += 1;
+          return;
+        }
+        fail(text[at] === undefined ? "short" : "comma_object", end);
+      }
+    };
+    const list = () => {
+      at += 1;
+      space();
+      if (text[at] === "]") {
+        at += 1;
+        return;
+      }
+      for (;;) {
+        space();
+        if (text[at] === "]") fail("trailing_list", comma);
+        value();
+        const end = at;
+        space();
+        if (text[at] === ",") {
+          comma = at;
+          at += 1;
+          continue;
+        }
+        if (text[at] === "]") {
+          at += 1;
+          return;
+        }
+        fail(text[at] === undefined ? "short" : "comma_list", end);
+      }
+    };
+    try {
+      space();
+      if (at >= text.length) return { empty: true };
+      value();
+      space();
+      if (at < text.length) fail("extra");
+      JSON.parse(text);
+      return { ok: true };
+    } catch (problem) {
+      // What the check above lets through, JSON.parse still refuses.
+      const found = problem && problem.word ? problem : { at: 0, word: "invalid", name: "" };
+      const before = text.slice(0, found.at);
+      return {
+        at: found.at,
+        line: before.split("\n").length,
+        column: found.at - before.lastIndexOf("\n"),
+        word: found.word,
+        name: found.name,
+      };
+    }
+  }
+
+  // One line of JSON as HTML, each part in its colour.
+  function colourJSON(line) {
+    const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const parts = /("(?:[^"\\]|\\.)*"?)(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(true|false|null)|([{}[\],:])|(\s+)|([^\s"{}[\],:]+)/g;
+    let html = "";
+    for (const [, text, colon, number, word, mark, gap, other] of line.matchAll(parts)) {
+      if (text !== undefined) {
+        html += `<span class="${colon ? "text-code-key" : "text-code-text"}">${escape(text)}</span>`;
+        if (colon) html += `<span class="text-muted">${escape(colon)}</span>`;
+      } else if (number !== undefined) {
+        html += `<span class="text-code-number">${number}</span>`;
+      } else if (word !== undefined) {
+        html += `<span class="text-code-word">${word}</span>`;
+      } else if (mark !== undefined) {
+        html += `<span class="text-muted">${mark}</span>`;
+      } else if (gap !== undefined) {
+        html += gap;
+      } else {
+        html += `<span class="text-error">${escape(other)}</span>`;
+      }
+    }
+    return html;
+  }
+
+  // A JSON box: the textarea holds the text, and a layer behind it draws the
+  // same text in colour, with line numbers beside it. Tab indents, Enter keeps
+  // the indent, and brackets and quotes close themselves. A check as it is
+  // typed says where the document stops being JSON.
+  function jsonEditor() {
+    return {
+      ready: false,
+      focused: false,
+      // Esc and then Tab leaves the box, so the keyboard is never stuck in it.
+      escaped: false,
+      problem: null,
+      empty: false,
+      summary: "",
+      colours: "",
+      numbers: "",
+      width: "",
+      height: "",
+      init() {
+        this.redraw();
+        this.ready = true;
+      },
+      redraw() {
+        const text = this.$refs.area.value;
+        const lines = text.split("\n");
+        const found = checkJSON(text);
+        this.empty = Boolean(found.empty);
+        this.problem = null;
+        if (found.word) {
+          const problem = JSON_WORDS[found.word].replace("{word}", found.name);
+          this.problem = {
+            at: found.at,
+            line: found.line,
+            text: JSON_WORDS.where
+              .replace("{line}", found.line)
+              .replace("{column}", found.column)
+              .replace("{problem}", problem),
+          };
+        }
+        this.summary = found.empty ? JSON_WORDS.empty : found.ok ? this.describe(text) : "";
+        const wrong = this.problem ? this.problem.line : 0;
+        this.colours = lines
+          .map((line, index) => {
+            const marked = index + 1 === wrong ? " -mx-3 bg-error/10 px-3" : "";
+            return `<div class="h-5 whitespace-pre${marked}">${colourJSON(line)}</div>`;
+          })
+          .join("");
+        this.numbers = lines
+          .map((line, index) => {
+            const marked = index + 1 === wrong ? " font-semibold text-error" : "";
+            return `<div class="h-5${marked}">${index + 1}</div>`;
+          })
+          .join("");
+        const longest = lines.reduce((most, line) => Math.max(most, line.length), 0);
+        this.width = `calc(${longest}ch + 1.5rem)`;
+        this.height = `${lines.length * 1.25 + 1.25}rem`;
+      },
+      describe(text) {
+        const value = JSON.parse(text);
+        const count = (one, many, size) =>
+          (size === 1 ? JSON_WORDS[one] : JSON_WORDS[many]).replace("{count}", size);
+        if (Array.isArray(value)) {
+          return `${JSON_WORDS.valid} · ${count("item", "items", value.length)}`;
+        }
+        if (value && typeof value === "object") {
+          return `${JSON_WORDS.valid} · ${count("key", "keys", Object.keys(value).length)}`;
+        }
+        return JSON_WORDS.valid;
+      },
+      typed() {
+        this.redraw();
+      },
+      // Put text in at the caret, where the browser can still undo it.
+      insert(text, caret) {
+        const area = this.$refs.area;
+        const start = area.selectionStart;
+        if (!document.execCommand("insertText", false, text)) {
+          area.setRangeText(text, start, area.selectionEnd, "end");
+        }
+        if (caret !== undefined) {
+          area.selectionStart = start + caret;
+          area.selectionEnd = start + caret;
+        }
+        this.redraw();
+      },
+      key(event) {
+        if (event.isComposing) return;
+        const area = this.$refs.area;
+        const start = area.selectionStart;
+        const end = area.selectionEnd;
+        const text = area.value;
+        if (event.key === "Escape") {
+          this.escaped = true;
+          return;
+        }
+        if (event.key === "Tab" && !event.shiftKey) {
+          if (this.escaped) {
+            this.escaped = false;
+            return;
+          }
+          event.preventDefault();
+          this.insert("  ");
+          return;
+        }
+        this.escaped = false;
+        if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          const indent = text.slice(text.lastIndexOf("\n", start - 1) + 1).match(/^ */)[0];
+          const before = text[start - 1];
+          const after = text[end];
+          if ((before === "{" && after === "}") || (before === "[" && after === "]")) {
+            const inside = `\n${indent}  `;
+            this.insert(`${inside}\n${indent}`, inside.length);
+          } else {
+            this.insert(`\n${indent}${before === "{" || before === "[" ? "  " : ""}`);
+          }
+          return;
+        }
+        if (start === end && ["}", "]", '"'].includes(event.key) && text[start] === event.key) {
+          // Typing a closing mark that is already there steps over it.
+          event.preventDefault();
+          area.selectionStart = start + 1;
+          area.selectionEnd = start + 1;
+          return;
+        }
+        const pairs = { "{": "}", "[": "]", '"': '"' };
+        if (start === end && pairs[event.key]) {
+          event.preventDefault();
+          this.insert(event.key + pairs[event.key], 1);
+        }
+      },
+      format() {
+        const area = this.$refs.area;
+        const found = checkJSON(area.value);
+        if (!found.ok) {
+          if (found.word) this.jump();
+          return;
+        }
+        area.focus();
+        area.select();
+        this.insert(JSON.stringify(JSON.parse(area.value), null, 2));
+      },
+      jump() {
+        if (!this.problem) return;
+        const area = this.$refs.area;
+        area.focus();
+        area.selectionStart = this.problem.at;
+        area.selectionEnd = this.problem.at;
       },
     };
   }

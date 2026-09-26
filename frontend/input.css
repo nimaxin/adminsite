@@ -205,6 +205,11 @@
   --shadow-quiet: var(--shadow-quiet);
   --shadow-panel: var(--shadow-panel);
   --shadow-float: var(--shadow-float);
+  /* A JSON document's parts, in the badge tones, so dark mode comes too. */
+  --color-code-key: var(--tone-1-fg);
+  --color-code-text: var(--tone-2-fg);
+  --color-code-number: var(--tone-0-fg);
+  --color-code-word: var(--tone-4-fg);
 }
 
 /* Geist ships inside the package, so nothing is fetched from anywhere else. */
@@ -288,6 +293,25 @@
 .select[multiple] {
   appearance: auto;
   background-image: none;
+}
+
+/* A JSON document on a record page folds with <details>. Its own arrow turns
+   as a part opens and stands in for the browser's marker, and a folded part
+   shows how much it holds only while it is folded. */
+.json-view summary {
+  list-style: none;
+}
+
+.json-view summary::-webkit-details-marker {
+  display: none;
+}
+
+.json-view details:not([open]) > summary .json-arrow {
+  transform: rotate(-90deg);
+}
+
+.json-view details[open] > summary .json-folded {
+  display: none;
 }
 
 @layer base {

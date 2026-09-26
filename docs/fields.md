@@ -223,9 +223,23 @@ form and the API all read the link in the relationship's order. A link that is n
 ## JSON columns
 
 A `JSON` or `JSONB` column gets a `JSONField` by itself. The list shows the document on one line,
-cut short where it is long, and the form edits it in a box, laid out over several lines. A document
-that does not parse comes back as an error on that field, with the text exactly as it was written,
-so nothing is lost and nothing malformed is stored.
+cut short where it is long.
+
+The form edits it in a code box, laid out over several lines, with line numbers and each part in
+its colour: names, text, numbers, and `true`, `false` and `null`. Tab indents, Enter keeps the
+indent, and a bracket or a quote closes itself. **Format** lays out a document that was pasted in
+on one line. As you type, the box checks the document and says what is wrong and where, such as
+"Line 4, column 20: a comma or } is missing."; clicking that puts the cursor on the mistake. Tab
+stays in the box, so press Esc and then Tab to move on from the keyboard.
+
+A document that does not parse when the form is saved comes back as an error on that field, naming
+its line and column, with the text exactly as it was written, so nothing is lost and nothing
+malformed is stored.
+
+The record page shows the whole document, laid out and coloured the same way. Each object and list
+folds on its first line and, folded, says how much it holds, such as `{ … } 3 keys`. A long
+document opens with everything below its first level folded. **Fold all** and **Copy** sit above
+it.
 
 The [JSON API](api.md) reads and writes these columns as JSON, so `{"options": {"free_over": 10}}`
 is stored as an object, not as a string.

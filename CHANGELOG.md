@@ -21,6 +21,11 @@
 - In an inline row, a link to a table of over a hundred records showed its record as the model's
   bare text, such as `<Supplier object at 0x…>`, and in a row added with **Add a row** its search
   found nothing. It names the record as the form does, and searches in every row.
+- A JSON field is edited in a code box: line numbers, colours, Tab and Enter that indent, brackets
+  and quotes that close themselves, a Format button, and a check as you type that says what is
+  wrong and where. The record page shows the whole document, laid out and coloured, each object
+  and list folding on its line, with Fold all and Copy; it used to cut a document short at 120
+  characters.
 - A list's columns sit together from the start of the row, where a few of them spread across a
   wide screen, and a number could land in the middle of the page. Each row's menu comes right
   after its checkbox, in reach however many columns follow, where it was at the far end.

@@ -111,6 +111,11 @@
                       {{ values.badge(item, view.value_at(record, path), value) }}
                     {% elif item.widget == "number" and value %}
                       <span class="text-[15px] font-semibold tabular-nums">{{ value }}</span>
+                    {% elif item.widget == "json" and view.value_at(record, path) is not none %}
+                      {% set document = view.value_at(record, path) %}
+                      {% with outline = item.outline(document), pretty = item.laid_out(document) %}
+                        {% include "adminsite/_json.html" %}
+                      {% endwith %}
                     {% elif value %}
                       {{ value }}
                     {% else %}

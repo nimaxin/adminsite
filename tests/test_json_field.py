@@ -85,7 +85,10 @@ class TestTheField:
     def test_a_missing_brace_is_a_field_error(self) -> None:
         field = JSONField("options")
 
-        with pytest.raises(FieldValidationError, match="Write valid JSON"):
+        with pytest.raises(
+            FieldValidationError,
+            match=r"Line 1, column 8: this is not valid JSON\.",
+        ):
             field.parse('{"a": 1')
 
     def test_text_is_kept_as_written(self) -> None:
@@ -116,7 +119,18 @@ class TestTheForm:
         form = await client.get("/admin/settings/1/edit")
 
         assert "&#34;carriers&#34;: [" in form.text
-        assert 'class="textarea h-40 w-full font-mono' in form.text
+        assert 'x-data="jsonEditor()"' in form.text
+        assert re.search(r'<textarea id="field-options" name="options"', form.text)
+
+    async def test_the_box_checks_as_it_is_typed_in_words(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        form = await client.get("/admin/settings/1/edit")
+
+        # The script says what is wrong and where, in the page's language.
+        assert "const JSON_WORDS = " in form.text
+        assert "a comma or } is missing" in form.text
+        assert "Esc, then Tab, to leave the box" in form.text
 
     async def test_a_malformed_document_comes_back_with_the_text(
         self, client: httpx.AsyncClient, database: Database
@@ -133,7 +147,7 @@ class TestTheForm:
         )
 
         assert answer.status_code == 422
-        assert "Write valid JSON" in answer.text
+        assert "Line 1, column 20: this is not valid JSON." in answer.text
         assert "[&#34;dhl&#34;" in answer.text
         assert await options_of(database) == {
             "carriers": ["dhl", "ups"],
@@ -167,6 +181,74 @@ class TestTheForm:
             setting = await session.get(Setting, 1)
             assert setting is not None
             assert setting.notes is None
+
+
+class TestTheRecordPage:
+    async def test_the_whole_document_is_laid_out(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/1")
+        shown = html.unescape(page.text)
+
+        assert 'class="json-view' in page.text
+        assert '<span class="whitespace-pre text-code-key">"carriers"</span>' in shown
+        assert '<span class="whitespace-pre text-code-number">50</span>' in shown
+        assert "Fold all" in page.text
+        assert "Copy" in page.text
+
+    async def test_a_list_folds_and_says_how_much_it_holds(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/1")
+
+        assert "<details open>" in page.text
+        assert "2 items" in page.text
+
+
+class TestTheOutline:
+    def test_a_short_document_starts_open(self) -> None:
+        outline = JSONField("options").outline({"a": {"b": 1}, "c": [1, 2]})
+
+        assert outline.kind == "object"
+        assert [part.folded for part in outline.children] == [False, False]
+        assert [part.count for part in outline.children] == ["1 key", "2 items"]
+
+    def test_a_long_document_starts_folded_below_its_first_level(self) -> None:
+        document = {f"part{number}": {"x": 1, "y": 2} for number in range(20)}
+
+        outline = JSONField("options").outline(document)
+
+        assert not outline.folded
+        assert all(part.folded for part in outline.children)
+
+    def test_each_value_keeps_its_kind_and_its_json(self) -> None:
+        outline = JSONField("options").outline(
+            {"name": "Renée", "size": 2.5, "on": True, "gone": None, "none": []}
+        )
+
+        assert [(part.name, part.kind, part.text) for part in outline.children] == [
+            ('"name"', "text", '"Renée"'),
+            ('"size"', "number", "2.5"),
+            ('"on"', "word", "true"),
+            ('"gone"', "word", "null"),
+            ('"none"', "list", "[]"),
+        ]
+        assert [part.last for part in outline.children] == [
+            False,
+            False,
+            False,
+            False,
+            True,
+        ]
+
+    def test_a_single_value_stands_alone(self) -> None:
+        outline = JSONField("options").outline("hello")
+
+        assert (outline.kind, outline.text, outline.children) == (
+            "text",
+            '"hello"',
+            [],
+        )
 
 
 class TestTheApi:

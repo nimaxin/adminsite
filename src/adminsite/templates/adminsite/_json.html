@@ -1,0 +1,73 @@
+{#- A JSON document on a record page, laid out as it reads. An object or a
+    list folds on its first line and, folded, says how much it holds. The
+    folding is plain HTML, so it works without a script; the buttons above
+    only fold everything at once or copy the document.
+
+    Takes `outline`, from JSONField.outline, and `pretty`, the document laid
+    out as text for copying. -#}
+{% import "adminsite/_icons.html" as icons %}
+
+{%- macro name(piece) -%}
+  {%- if piece.name -%}
+    <span class="whitespace-pre text-code-key">{{ piece.name }}</span><span class="text-muted">:&nbsp;</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro part(piece, depth) -%}
+  {%- set comma = "" if piece.last else "," -%}
+  {%- set opening = "{" if piece.kind == "object" else "[" -%}
+  {%- set closing = "}" if piece.kind == "object" else "]" -%}
+  {#- Each level steps in by the width of the arrow a folding part has. -#}
+  {%- set indent = depth * 1.25 -%}
+  {%- if piece.children and depth == 0 -%}
+    <div class="ps-5 text-muted">{{ opening }}</div>
+    {%- for child in piece.children %}{{ part(child, 1) }}{% endfor -%}
+    <div class="ps-5 text-muted">{{ closing }}{{ comma }}</div>
+  {%- elif piece.children -%}
+    <details {% if not piece.folded %}open{% endif %}>
+      <summary class="flex cursor-pointer items-center whitespace-nowrap rounded hover:bg-base-200" style="padding-inline-start: {{ indent }}rem">
+        <span class="json-arrow inline-flex w-5 shrink-0 justify-center text-muted transition-transform">{{ icons.icon("chevron-down", 12) }}</span>
+        {{- name(piece) -}}
+        <span class="text-muted">{{ opening }}</span>
+        {{- "" -}}
+        <span class="json-folded"><span class="text-muted">&nbsp;…&nbsp;{{ closing }}{{ comma }}</span><span class="ms-3 italic text-muted">{{ piece.count }}</span></span>
+      </summary>
+      {%- for child in piece.children %}{{ part(child, depth + 1) }}{% endfor -%}
+      <div class="text-muted" style="padding-inline-start: {{ indent + 1.25 }}rem">{{ closing }}{{ comma }}</div>
+    </details>
+  {%- else -%}
+    <div class="whitespace-nowrap" style="padding-inline-start: {{ indent + 1.25 }}rem">
+      {{- name(piece) -}}
+      <span class="whitespace-pre {{ {'text': 'text-code-text', 'number': 'text-code-number', 'word': 'text-code-word'}.get(piece.kind, 'text-muted') }}">{{ piece.text }}</span>
+      {{- "" -}}
+      <span class="text-muted">{{ comma }}</span>
+    </div>
+  {%- endif -%}
+{%- endmacro -%}
+
+<div class="flex flex-col gap-2"
+     x-data='{ folded: {{ "true" if outline.children|selectattr("folded")|list else "false" }}, copied: false, text: {{ pretty|tojson }} }'>
+  {% if outline.children %}
+    <div class="flex items-center justify-end gap-1">
+      <button type="button" class="btn btn-ghost btn-xs text-link"
+              @click="folded = !folded; $refs.code.querySelectorAll('details').forEach((part) => { part.open = !folded; })">
+        <span x-show="!folded">{{ _('Fold all') }}</span>
+        <span x-show="folded" x-cloak>{{ _('Unfold all') }}</span>
+      </button>
+      <button type="button" class="btn btn-plain btn-xs"
+              @click="navigator.clipboard?.writeText(text).then(() => { copied = true; setTimeout(() => { copied = false; }, 1500); })">
+        {{ icons.icon("copy", 13) }}
+        <span x-show="!copied">{{ _('Copy') }}</span>
+        <span x-show="copied" x-cloak>{{ _('Copied') }}</span>
+      </button>
+    </div>
+  {% endif %}
+  <div x-ref="code" dir="ltr"
+       class="json-view max-h-128 overflow-auto rounded-field border border-line bg-subtle py-2.5 pe-3 font-mono text-[13px] leading-5">
+    {%- if outline.children -%}
+      {{ part(outline, 0) }}
+    {%- else -%}
+      {{ part(outline, -1) }}
+    {%- endif -%}
+  </div>
+</div>
