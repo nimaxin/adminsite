@@ -3,7 +3,7 @@
 ## Install
 
 ```
-pip install adminsite==0.1.0a8
+pip install adminsite==0.1.0a9
 ```
 
 adminsite does not pull in a database driver. Add the one you use, for example `asyncpg` or

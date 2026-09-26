@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a9
+
+A picker you type in, links kept in the order you give them, a code box for JSON, and a list that
+keeps its columns and each row's menu together. The live demo gains a gallery of every field.
+
+Before upgrading:
+
+- A project that overrides `base.html`, `_table.html`, `_row_actions.html`, `detail.html`,
+  `_inlines.html`, or the widgets `_picker.html`, `relation.html`, `select.html` or `json.html`
+  should start its copy again from the new one: the picker, the JSON box and the list's row menu
+  work differently now, and a search answers with list options.
+
+What changed:
 
 - In Chrome and Edge a select that holds several options, such as a link to many records of a
   small table, laid them out in a row, cut off and overlapping. It is a list again.

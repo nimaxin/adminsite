@@ -28,7 +28,7 @@ from your models.
 
 !!! note "Alpha"
     adminsite is in alpha. It is tested and works, but names may still change before 0.1.0.
-    Install it with the exact version: `pip install adminsite==0.1.0a8`.
+    Install it with the exact version: `pip install adminsite==0.1.0a9`.
 
 ## What you get
 
