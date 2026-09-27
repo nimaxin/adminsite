@@ -38,10 +38,12 @@ from adminsite.fields import (
     Field,
     FieldOptions,
     FieldRegistry,
+    JSONField,
     RelationField,
     default_registry,
 )
 from adminsite.fields.computed import LOADED
+from adminsite.fields.documents import DocumentError
 from adminsite.fields.files import UNCHANGED, FileField, NewFile
 from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
@@ -1056,10 +1058,16 @@ class ModelView:
                     )
                     if choice is not UNCHANGED:
                         result.values[path] = choice
+                elif isinstance(item, JSONField) and item.schema is not None:
+                    # Drawn from its schema, the document has an input for
+                    # each of its parts.
+                    result.values[path] = item.read_form(data, path, record=record)
                 elif _holds_many(item):
                     result.values[path] = item.parse_many(_as_list(raw))
                 else:
                     result.values[path] = item.parse(_as_text(raw))
+            except DocumentError as error:
+                result.errors.update(error.errors)
             except FieldValidationError as error:
                 result.errors[path] = error.message
 

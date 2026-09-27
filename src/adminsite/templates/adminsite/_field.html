@@ -9,13 +9,24 @@
   {%- if row.error %} aria-invalid="true"{% endif %}
 {%- endset -%}
 {%- set wide = row.widget in ("textarea", "json", "file", "image") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
-<fieldset class="flex min-w-0 flex-col gap-1.5 {% if wide %}sm:col-span-2{% endif %}">
-  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium" id="{{ field_id }}-label">
+{#- A document drawn as a form switches between the form and its JSON. -#}
+{%- set document = row.document if row.document is defined else none -%}
+<fieldset class="flex min-w-0 flex-col gap-1.5 {% if wide %}sm:col-span-2{% endif %}"
+          {% if document is not none %}x-data="{ view: 'form' }"{% endif %}>
+  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium {% if document is not none %}w-full{% endif %}" id="{{ field_id }}-label">
     {{ row.label }}
     {% if row.readonly %}
       <span class="inline-flex items-center gap-1 text-xs font-normal text-muted">{{ icons.icon("lock", 12) }}{{ _('read only') }}</span>
     {% elif row.required %}
       <span class="text-xs font-normal text-muted">{{ _('required') }}</span>
+    {% endif %}
+    {% if document is not none %}
+      <span class="ms-auto">
+        {%- with switch_views = [("form", _("Form")), ("json", "JSON")], switch_label = row.label,
+                 switch_json_url = urls.document(view, row.path, key|default("")), switch_json_target = "json-" ~ row.path -%}
+          {% include "adminsite/_document_switch.html" %}
+        {%- endwith -%}
+      </span>
     {% endif %}
   </legend>
 

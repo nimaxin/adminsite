@@ -1,0 +1,503 @@
+import html
+import re
+from collections.abc import AsyncIterator
+from typing import Annotated, Any, Literal, TypedDict
+
+import httpx
+import pytest
+from pydantic import BaseModel, Field, field_validator
+from starlette.applications import Starlette
+
+from adminsite import Admin, ModelView
+from adminsite.backends.sqlalchemy import Database
+from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.fields import JSONField
+from adminsite.fields.documents import (
+    Document,
+    DocumentChoice,
+    DocumentCode,
+    DocumentError,
+    DocumentInteger,
+    DocumentNumber,
+    DocumentSwitch,
+    Fixed,
+    Group,
+    Pairs,
+    Rows,
+    Value,
+)
+from tests.models import Setting
+from tests.test_accessibility import Controls
+
+
+class Zone(TypedDict):
+    name: str
+    days: Annotated[int, Field(ge=1)]
+
+
+class Delivery(BaseModel):
+    carriers: list[Literal["dhl", "ups", "post"]] = []
+    free_over: Annotated[
+        float, Field(ge=0, description="Orders above this ship free.")
+    ] = 0
+    express: bool = False
+    zones: list[Zone] = []
+    fees: dict[Literal["small", "large"], Annotated[float, Field(gt=0)]] = {}
+
+    @field_validator("free_over")
+    @classmethod
+    def not_seven(cls, value: float) -> float:
+        if value == 7:
+            raise ValueError("Seven is an unlucky threshold.")
+        return value
+
+
+class SettingView(ModelView, model=Setting):
+    list_display = ("name", "options")
+    form_fields = ("name", "options", "notes")
+    fields = (JSONField("options", schema=Delivery),)
+
+
+def token_in(page: httpx.Response) -> str:
+    found = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+    assert found is not None
+    return found.group(1)
+
+
+def serve(view: type[ModelView], database: Database) -> httpx.AsyncClient:
+    admin = Admin(database, views=[view], secret_key="for-the-session", api=True)
+    app = Starlette()
+    app.mount("/admin", admin)
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
+
+
+@pytest.fixture
+async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    async with serve(SettingView, database) as client:
+        yield client
+
+
+async def options_of(database: Database, key: int = 1) -> Any:
+    async with database.session() as session:
+        setting = await session.get(Setting, key)
+        assert setting is not None
+        return setting.options
+
+
+def filled(**options: Any) -> dict[str, Any]:
+    """A delivery form, as the browser sends it, with some inputs changed."""
+    form = {
+        "name": "delivery",
+        "options~form": "1",
+        "options.carriers": ["ups", "dhl"],
+        "options.free_over": "40",
+        "options.express": "true",
+        "options.zones.0": "",
+        "options.zones.0.name": "North",
+        "options.zones.0.days": "2",
+        "options.fees.0": "",
+        "options.fees.0.key": "small",
+        "options.fees.0.value": "4.5",
+        "notes": "",
+    }
+    form.update(options)
+    return {key: value for key, value in form.items() if value is not None}
+
+
+async def save(
+    client: httpx.AsyncClient, form: dict[str, Any], key: int = 1
+) -> httpx.Response:
+    page = await client.get(f"/admin/settings/{key}/edit")
+    return await client.post(
+        f"/admin/settings/{key}/edit", data={"_csrf": token_in(page), **form}
+    )
+
+
+class TestTheShapes:
+    def test_each_part_gets_the_shape_its_type_calls_for(self) -> None:
+        shape = Document(Delivery).shape
+
+        assert isinstance(shape, Group)
+        kinds = {part.key: part.shape for part in shape.properties}
+        assert isinstance(kinds["carriers"], Value)
+        assert isinstance(kinds["carriers"].field, DocumentChoice)
+        assert kinds["carriers"].field.multiple
+        assert isinstance(kinds["free_over"], Value)
+        assert isinstance(kinds["free_over"].field, DocumentNumber)
+        assert isinstance(kinds["express"], Value)
+        assert isinstance(kinds["express"].field, DocumentSwitch)
+        assert isinstance(kinds["zones"], Rows)
+        assert isinstance(kinds["fees"], Pairs)
+        assert kinds["fees"].keys == ("small", "large")
+
+    def test_labels_read_as_sentences_and_a_title_of_its_own_is_kept(self) -> None:
+        class Shop(BaseModel):
+            free_shipping_over: float = 0
+            vat: float = Field(0, title="VAT rate")
+
+        shape = Document(Shop).shape
+
+        assert isinstance(shape, Group)
+        assert [part.label for part in shape.properties] == [
+            "Free shipping over",
+            "VAT rate",
+        ]
+
+    def test_the_description_and_the_limits_are_the_note(self) -> None:
+        shape = Document(Delivery).shape
+        assert isinstance(shape, Group)
+        free_over = shape.properties[1].shape
+
+        assert isinstance(free_over, Value)
+        assert free_over.field.hint() == "Orders above this ship free. 0 or more."
+
+    def test_a_choice_between_shapes_is_written_as_json(self) -> None:
+        class Percent(BaseModel):
+            percent: int
+
+        class Amount(BaseModel):
+            amount: float
+
+        class Promotion(BaseModel):
+            kind: Literal["promotion"] = "promotion"
+            off: Percent | Amount
+
+        shape = Document(Promotion).shape
+
+        assert isinstance(shape, Group)
+        kind, off = shape.properties
+        assert isinstance(kind.shape, Fixed)
+        assert isinstance(off.shape, Value)
+        assert isinstance(off.shape.field, DocumentCode)
+
+    def test_a_model_that_holds_itself_does_not_read_for_ever(self) -> None:
+        class Folder(BaseModel):
+            name: str
+            children: list["Folder"] = []
+
+        shape = Document(Folder).shape
+
+        assert isinstance(shape, Group)
+        assert isinstance(shape.properties[1].shape, Value)
+
+    def test_a_json_schema_dict_works_too(self) -> None:
+        shape = Document(
+            {
+                "type": "object",
+                "properties": {
+                    "retries": {"type": "integer", "minimum": 0, "maximum": 5},
+                    "mode": {"enum": ["fast", "safe"]},
+                },
+                "required": ["mode"],
+            }
+        ).shape
+
+        assert isinstance(shape, Group)
+        retries, mode = shape.properties
+        assert isinstance(retries.shape, Value)
+        assert isinstance(retries.shape.field, DocumentInteger)
+        assert retries.shape.field.hint() == "0 to 5."
+        assert isinstance(mode.shape, Value)
+        assert mode.shape.field.required
+
+    def test_a_schema_adminsite_cannot_read_stops_the_start(self) -> None:
+        with pytest.raises(AdminSiteError, match="cannot read"):
+            JSONField("options", schema=object())
+
+    def test_partial_needs_an_object(self) -> None:
+        with pytest.raises(AdminSiteError, match="partial"):
+            JSONField("options", schema=list[int], partial=True)
+
+
+class TestReadingAForm:
+    def test_the_inputs_read_back_into_the_document(self) -> None:
+        document = Document(Delivery, name="options")
+
+        read = document.read(filled(), "options")
+
+        assert read == {
+            "carriers": ["ups", "dhl"],
+            "free_over": 40.0,
+            "express": True,
+            "zones": [{"name": "North", "days": 2}],
+            "fees": {"small": 4.5},
+        }
+
+    def test_a_document_goes_to_inputs_and_back(self) -> None:
+        document = Document(Delivery, name="options")
+        stored = {
+            "carriers": ["post"],
+            "free_over": 12.5,
+            "express": False,
+            "zones": [{"name": "South", "days": 4}],
+            "fees": {"large": 9.0},
+        }
+
+        values = document.form_values(stored, "options")
+
+        assert document.read({**values, "options~form": "1"}, "options") == stored
+
+    def test_a_row_left_empty_is_not_a_row(self) -> None:
+        document = Document(Delivery, name="options")
+
+        read = document.read(
+            filled(**{"options.zones.1": "", "options.zones.1.name": ""}), "options"
+        )
+
+        assert read["zones"] == [{"name": "North", "days": 2}]
+
+    def test_a_problem_found_by_pydantic_lands_on_its_row(self) -> None:
+        document = Document(Delivery, name="options")
+        form = filled(
+            **{
+                "options.zones.4": "",
+                "options.zones.4.name": "West",
+                "options.zones.4.days": "0",
+            }
+        )
+
+        with pytest.raises(DocumentError) as raised:
+            document.read(form, "options")
+
+        assert raised.value.errors == {"options.zones.4.days": "Enter 1 or more."}
+
+    def test_a_key_given_twice_is_refused(self) -> None:
+        document = Document(Delivery, name="options")
+        form = filled(
+            **{
+                "options.fees.1": "",
+                "options.fees.1.key": "small",
+                "options.fees.1.value": "2",
+            }
+        )
+
+        with pytest.raises(DocumentError) as raised:
+            document.read(form, "options")
+
+        assert raised.value.errors == {"options.fees.1.key": "This key is given twice."}
+
+    def test_the_applications_own_validator_speaks(self) -> None:
+        document = Document(Delivery, name="options")
+
+        with pytest.raises(DocumentError) as raised:
+            document.read(filled(**{"options.free_over": "7"}), "options")
+
+        assert raised.value.errors == {
+            "options.free_over": "Seven is an unlucky threshold."
+        }
+
+    def test_keys_the_schema_does_not_name_are_kept(self) -> None:
+        document = Document(
+            {"type": "object", "properties": {"mode": {"type": "string"}}},
+            name="options",
+        )
+
+        read = document.read(
+            {"options~form": "1", "options.mode": "fast"},
+            "options",
+            stored={"mode": "safe", "legacy": 1},
+        )
+
+        assert read == {"mode": "fast", "legacy": 1}
+
+    def test_a_key_with_a_dot_has_an_input_of_its_own(self) -> None:
+        document = Document(
+            {"type": "object", "properties": {"a.b": {"type": "string"}}},
+            name="options",
+        )
+
+        values = document.form_values({"a.b": "x"}, "options")
+
+        assert values == {"options.a%2Eb": "x"}
+
+
+class TestTheForm:
+    async def test_it_is_drawn_from_the_schema(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/settings/1/edit")
+
+        assert 'name="options~form"' in page.text
+        assert re.search(r'name="options\.free_over"[^>]*value="50"', page.text)
+        assert 'name="options.express"' in page.text
+        assert "Orders above this ship free. 0 or more." in page.text
+        assert re.search(r'name="options\.fees\.__index__\.key"', page.text)
+        assert 'hx-post="/admin/settings/1/document/options"' in page.text
+
+    async def test_every_input_has_a_name(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/settings/1/edit")
+        controls = Controls()
+        controls.feed(page.text)
+
+        assert controls.unnamed() == []
+
+    async def test_a_new_record_starts_from_the_defaults(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/new")
+
+        assert re.search(r'name="options\.free_over"[^>]*value="0"', page.text)
+
+    async def test_saving_writes_the_document(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        answer = await save(client, filled())
+
+        assert answer.status_code == 303
+        assert await options_of(database) == {
+            "carriers": ["ups", "dhl"],
+            "free_over": 40.0,
+            "express": True,
+            "zones": [{"name": "North", "days": 2}],
+            "fees": {"small": 4.5},
+        }
+
+    async def test_a_problem_shows_beside_its_input_and_nothing_is_saved(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        answer = await save(
+            client,
+            filled(**{"options.free_over": "-5", "options.zones.0.name": ""}),
+        )
+        shown = html.unescape(answer.text)
+
+        assert answer.status_code == 422
+        assert re.search(r'name="options\.free_over"[^>]*value="-5"', answer.text)
+        assert "Enter 0 or more." in shown
+        assert "Options, Free over" in shown
+        assert "Options, Zones, row 1, Name" in shown
+        assert await options_of(database) == {
+            "carriers": ["dhl", "ups"],
+            "free_over": 50,
+        }
+
+    async def test_a_value_that_does_not_fit_is_edited_as_json(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        async with database.session() as session:
+            setting = await session.get(Setting, 2)
+            assert setting is not None
+            setting.options = ["not", "an", "object"]  # type: ignore[assignment]
+            await session.commit()
+
+        page = await client.get("/admin/settings/2/edit")
+
+        assert 'name="options~form"' not in page.text
+        assert 'x-data="jsonEditor()"' in page.text
+
+
+class TestTheJSONView:
+    async def test_it_shows_what_save_would_write(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/1/edit")
+
+        answer = await client.post(
+            "/admin/settings/1/document/options",
+            data={"_csrf": token_in(page), **filled()},
+        )
+        shown = html.unescape(answer.text)
+
+        assert answer.status_code == 200
+        assert '"free_over"' in shown
+        assert "40.0" in shown
+
+    async def test_it_says_what_needs_another_look(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/new")
+
+        answer = await client.post(
+            "/admin/settings/document/options",
+            data={"_csrf": token_in(page), **filled(**{"options.free_over": "x"})},
+        )
+
+        assert "Correct these in the form first:" in answer.text
+        assert "Free over: Enter a number." in answer.text
+
+    async def test_it_needs_the_forms_token(self, client: httpx.AsyncClient) -> None:
+        answer = await client.post("/admin/settings/1/document/options", data=filled())
+
+        assert answer.status_code == 403
+
+    async def test_a_field_without_a_schema_has_none(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/1/edit")
+
+        answer = await client.post(
+            "/admin/settings/1/document/notes", data={"_csrf": token_in(page)}
+        )
+
+        assert answer.status_code == 404
+
+
+class TestTheRecordPage:
+    async def test_each_value_is_named_by_its_title(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        await save(client, filled())
+
+        page = await client.get("/admin/settings/1")
+        shown = html.unescape(page.text)
+
+        assert "Free over</dt>" in shown
+        assert "Ups, Dhl</dd>" in shown
+        assert re.search(r"<td[^>]*>North</td>", shown)
+        assert re.search(r"<td[^>]*>Small</td>", shown)
+        assert "Values</button>" in shown
+        assert 'class="json-view' in page.text
+
+    async def test_a_value_the_document_lacks_reads_not_set(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/settings/1")
+
+        assert "Not set" in page.text
+
+
+class TestTheApi:
+    async def test_a_document_is_checked_part_by_part(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        page = await client.get("/admin/settings")
+
+        answer = await client.patch(
+            "/admin/-/api/settings/1",
+            json={"options": {"free_over": -1, "zones": [{"name": "North"}]}},
+            headers={"X-CSRF-Token": token_in(page)},
+        )
+
+        assert answer.status_code == 422
+        assert answer.json()["errors"] == {
+            "options.free_over": "Enter 0 or more.",
+            "options.zones.0.days": "This field is required.",
+        }
+
+    async def test_a_document_is_saved_as_the_schema_writes_it(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        page = await client.get("/admin/settings")
+
+        answer = await client.patch(
+            "/admin/-/api/settings/1",
+            json={"options": {"free_over": 10}},
+            headers={"X-CSRF-Token": token_in(page)},
+        )
+
+        assert answer.status_code == 200
+        assert await options_of(database) == {
+            "carriers": [],
+            "free_over": 10.0,
+            "express": False,
+            "zones": [],
+            "fees": {},
+        }
+
+
+class TestTheCodeBox:
+    def test_text_is_checked_against_the_schema_in_one_message(self) -> None:
+        field = JSONField("options", schema=Delivery)
+
+        with pytest.raises(FieldValidationError, match=r"Free over: Enter 0 or more\."):
+            field.parse('{"free_over": -1}')

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `JSONField("settings", schema=ShopSettings)` edits a JSON column as a form built from a Pydantic
+  type or a JSON Schema: a switch for a yes or no, a number input that keeps to its limits, the
+  picker for a few fixed values, tables for lists of objects and for maps. Saving checks the
+  document with Pydantic and shows each problem beside its input; the record page names each value
+  by its title, and the API checks documents against the same schema.
+
 ## 0.1.0a9
 
 A picker you type in, links kept in the order you give them, a code box for JSON, and a list that

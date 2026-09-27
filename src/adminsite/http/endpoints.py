@@ -16,11 +16,13 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import (
     AdminSiteError,
+    FieldValidationError,
     PermissionDeniedError,
     RefusedError,
     SignInRefused,
 )
-from adminsite.fields import FileField, RelationField
+from adminsite.fields import FileField, JSONField, RelationField
+from adminsite.fields.documents import DocumentError
 from adminsite.http import importing
 from adminsite.http.activity import (
     ACTIVITY_PAGE,
@@ -28,14 +30,9 @@ from adminsite.http.activity import (
     position_of,
     read_filters,
 )
+from adminsite.http.documents import document_form
 from adminsite.http.export import stream_csv
-from adminsite.http.forms import (
-    Choice,
-    FormRow,
-    build_rows,
-    rows_for_actions,
-    title_for,
-)
+from adminsite.http.forms import build_rows, rows_for_actions, title_for
 from adminsite.http.history import describe
 from adminsite.http.inlines import build_inline_tables, child_tables
 from adminsite.http.listing import (
@@ -46,6 +43,7 @@ from adminsite.http.listing import (
     wants_partial,
 )
 from adminsite.http.picker import RESULT_LIMIT, Picker
+from adminsite.http.rows import Choice, FormRow
 from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
@@ -677,6 +675,44 @@ async def lookup(admin: "Admin", request: Request) -> Response:
             status_code=404, detail=_("{path} is not a link.", path=repr(path))
         )
     return await looked_up(admin, request, view, item)
+
+
+async def document(admin: "Admin", request: Request) -> Response:
+    """The document a JSON column's form stands for, for the form's JSON view.
+
+    The form is read as Save reads it, so this shows what Save would write,
+    or what needs another look first. It needs what saving the form needs.
+    """
+    view = find_view(admin, request)
+    path = request.path_params["path"]
+    item = field_or_404(view, path)
+    if not isinstance(item, JSONField) or item.schema is None:
+        raise HTTPException(
+            status_code=404, detail=_("{path} has no schema.", path=repr(path))
+        )
+    submitted = await read_form(request)
+    record = None
+    if "key" in request.path_params:
+        record = await load_or_404(admin, view, request)
+        await view.ensure(Permission.EDIT, request=request, record=record)
+    else:
+        await view.ensure(Permission.CREATE, request=request)
+
+    document = item.document_for(record)
+    context: dict[str, Any] = {"problems": []}
+    try:
+        value = item.read_form(submitted, path, record=record)
+    except DocumentError as error:
+        if document is None:
+            raise
+        entry = document_form(document, submitted, error.errors, path)
+        context["problems"] = entry.problems([])
+    except FieldValidationError as error:
+        context["problems"] = [("", item.label, error.message)]
+    else:
+        context["outline"] = item.outline(value)
+        context["pretty"] = item.laid_out(value)
+    return await admin.render("_document_json.html", request, context)
 
 
 async def action_lookup(admin: "Admin", request: Request) -> Response:

@@ -97,8 +97,21 @@
               {% for path, label, value in rows %}
                 {% set item = view.field_for(path) %}
                 {% set wide = item.widget in ("textarea", "json", "image") or (value|string|length > 60) %}
-                <div class="flex min-w-0 flex-col gap-1 {% if wide %}sm:col-span-2{% endif %}">
-                  <dt class="text-[12.5px] text-muted">{{ label }}</dt>
+                {#- A JSON document with a schema it fits reads as labelled values. -#}
+                {% set stored = view.value_at(record, path) if item.widget == "json" else none %}
+                {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
+                <div class="flex min-w-0 flex-col gap-1 {% if wide %}sm:col-span-2{% endif %}"
+                     {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
+                  <dt class="text-[12.5px] text-muted{% if reading is not none %} flex items-center gap-2{% endif %}">
+                    {{- label -}}
+                    {%- if reading is not none -%}
+                      <span class="ms-auto">
+                        {%- with switch_views = [("values", _("Values")), ("json", "JSON")], switch_label = label -%}
+                          {% include "adminsite/_document_switch.html" %}
+                        {%- endwith -%}
+                      </span>
+                    {%- endif -%}
+                  </dt>
                   <dd class="break-words">
                     {% if item.widget in ("file", "image") and value %}
                       {% set address = urls.file(view, path, view.value_at(record, path)) %}
@@ -111,10 +124,13 @@
                       {{ values.badge(item, view.value_at(record, path), value) }}
                     {% elif item.widget == "number" and value %}
                       <span class="text-[15px] font-semibold tabular-nums">{{ value }}</span>
-                    {% elif item.widget == "json" and view.value_at(record, path) is not none %}
-                      {% set document = view.value_at(record, path) %}
-                      {% with outline = item.outline(document), pretty = item.laid_out(document) %}
-                        {% include "adminsite/_json.html" %}
+                    {% elif item.widget == "json" and stored is not none %}
+                      {% with outline = item.outline(stored), pretty = item.laid_out(stored) %}
+                        {% if reading is not none %}
+                          {% with shown = reading.shown(stored) %}{% include "adminsite/_document_view.html" %}{% endwith %}
+                        {% else %}
+                          {% include "adminsite/_json.html" %}
+                        {% endif %}
                       {% endwith %}
                     {% elif value %}
                       {{ value }}

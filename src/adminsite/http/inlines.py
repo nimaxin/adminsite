@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import ChoiceField, RelationField
-from adminsite.http.forms import Choice, FormRow, title_for
+from adminsite.http.forms import title_for
 from adminsite.http.picker import PICKER_LIMIT, Picker
+from adminsite.http.rows import Choice, FormRow
 from adminsite.views import Inline, ModelView
 
 if TYPE_CHECKING:

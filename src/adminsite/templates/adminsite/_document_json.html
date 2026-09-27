@@ -1,0 +1,18 @@
+{#- The document a form stands for, as Save would write it, for the form's
+    JSON view: laid out and folding, or what needs another look first. -#}
+{% import "adminsite/_icons.html" as icons %}
+{% if problems %}
+  <div role="alert" class="flex gap-2.5 rounded-field border border-error/30 bg-error/5 px-3.5 py-3 text-[13px]">
+    <span class="mt-px text-error">{{ icons.icon("alert", 16) }}</span>
+    <div class="flex min-w-0 flex-col gap-1">
+      <p class="font-medium">{{ _('Correct these in the form first:') }}</p>
+      <ul class="list-disc space-y-0.5 ps-4">
+        {% for anchor, label, error in problems %}
+          <li>{{ label }}: {{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% else %}
+  {% include "adminsite/_json.html" %}
+{% endif %}

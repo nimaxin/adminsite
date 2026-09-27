@@ -1,7 +1,13 @@
 {#- A JSON document in a code box: line numbers, colours, keys that indent,
     and a check as you type that says where the document stops being JSON.
     The text itself stays a plain textarea that the form sends as it is; a
-    layer behind it draws the same text in colour. -#}
+    layer behind it draws the same text in colour.
+
+    A field with a schema is drawn as a form instead, from the parts its
+    row holds. -#}
+{% if row.document is not none %}
+{% include "adminsite/_document_form.html" %}
+{% else %}
 {% import "adminsite/_icons.html" as icons %}
 {%- set lines = row.value.count("\n") + 1 -%}
 <div class="flex min-w-0 flex-col gap-1.5" x-data="jsonEditor()">
@@ -39,3 +45,4 @@
     <span class="ms-auto text-muted" x-show="focused">{{ _('Esc, then Tab, to leave the box') }}</span>
   </div>
 </div>
+{% endif %}

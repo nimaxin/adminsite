@@ -1,0 +1,178 @@
+{#- A JSON column drawn as a form from its schema. `row.document` holds the
+    parts: a single value is drawn like any other field, an object's
+    properties sit under its title, and a list of objects or a map is a table
+    whose rows can be added and removed. Form and JSON switch between the form
+    and the document it stands for, as Save would write it.
+
+    Every input's name says where its value sits in the document, so the form
+    is sent like any other: settings.free_shipping_over,
+    settings.channels.0.id. -#}
+{% import "adminsite/_icons.html" as icons %}
+{%- set document = row.document -%}
+{%- set json_id = "json-" ~ row.path -%}
+
+{%- macro value_part(entry) -%}
+  {%- set row = entry.row -%}
+  {% include "adminsite/_field.html" %}
+{%- endmacro -%}
+
+{#- One line of a table: a cell for each value, then its remove button. The
+    first cell carries the row's marker, so a row whose inputs are all empty
+    is still sent, and read as a row left unused. -#}
+{%- macro table_row(item, counted) -%}
+  <tr class="border-t border-line align-top">
+    {% for cell in item.cells %}
+      <td class="{{ 'min-w-48' if cell.widget == 'select' or cell.field.multiple|default(false) else 'min-w-28' }} px-2 py-2">
+        {% if loop.first %}<input type="hidden" name="{{ item.marker }}" value="">{% endif %}
+        {%- set row = cell -%}
+        {%- set note_id = cell.input_id ~ "-note" -%}
+        {%- set field_attrs -%}aria-label="{{ cell.label }}"{% if cell.error %} aria-invalid="true" aria-describedby="{{ note_id }}"{% endif %}{%- endset -%}
+        {% include ["adminsite/widgets/" ~ cell.widget ~ ".html", "adminsite/widgets/input.html"] %}
+        {% if cell.error %}
+          <p class="flex items-start gap-1.5 pt-1.5 text-[12.5px] leading-snug text-error" id="{{ note_id }}">
+            <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ cell.error }}
+          </p>
+        {% endif %}
+      </td>
+    {% endfor %}
+    <td class="w-11 py-2 pe-1.5">
+      <button type="button" class="btn btn-ghost btn-square btn-sm text-muted" aria-label="{{ _('Remove this row') }}"
+              @click="$el.closest('tr').remove(){% if counted %}; count--{% endif %}">{{ icons.icon("trash", 16) }}</button>
+    </td>
+  </tr>
+{%- endmacro -%}
+
+{#- A list of objects, or a map: a table, with a button that copies the blank
+    row in under the next free number. -#}
+{%- macro table_part(entry) -%}
+  {%- set pairs = entry.kind == "pairs" -%}
+  <div class="flex min-w-0 flex-col gap-1.5 sm:col-span-2" role="group" id="{{ entry.anchor }}"
+       aria-labelledby="{{ entry.anchor }}-label"
+       {% if entry.error or entry.note %}aria-describedby="{{ entry.anchor }}-note"{% endif %}
+       x-data="{ next: {{ entry.next_number }}, count: {{ entry.rows|length }} }">
+    {% if entry.label %}
+      <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
+    {% endif %}
+    <div class="overflow-x-auto rounded-field border border-base-300 bg-base-100">
+      <table class="w-full">
+        <thead class="bg-subtle">
+          <tr>
+            {% if pairs %}
+              <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">{{ _('Key') }}</th>
+              <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">{{ _('Value') }}</th>
+            {% else %}
+              {% for column in entry.columns %}
+                <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">
+                  {{ column.label }}{% if not column.field.required and column.widget != "checkbox" %} <span class="font-normal">{{ _('(optional)') }}</span>{% endif %}
+                </th>
+              {% endfor %}
+            {% endif %}
+            <th class="w-11"><span class="sr-only">{{ _('Remove') }}</span></th>
+          </tr>
+        </thead>
+        <tbody x-ref="body">
+          {% for item in entry.rows %}{{ table_row(item, pairs) }}{% endfor %}
+        </tbody>
+      </table>
+      <div class="flex items-center gap-2 border-t border-line px-1.5 py-1">
+        <button type="button" class="btn btn-ghost btn-sm font-medium text-link"
+                {% if pairs and entry.key_count %}:disabled="count >= {{ entry.key_count }}"{% endif %}
+                @click="
+                  const blank = $refs.blank.innerHTML.replaceAll('__index__', next);
+                  $refs.body.insertAdjacentHTML('beforeend', blank);
+                  // So a search in the new row's picker reaches the server.
+                  htmx.process($refs.body.lastElementChild);
+                  next++;
+                  count++;
+                ">
+          {{ icons.icon("plus", 14) }}{{ _('Add a row') }}
+        </button>
+        {% if pairs and entry.key_count %}
+          <span class="text-[12.5px] text-muted" x-show="count >= {{ entry.key_count }}" x-cloak>{{ _('Each key has a row.') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {#- The row "add" copies. Inside a template its inputs are never sent. -#}
+    <template x-ref="blank">{{ table_row(entry.blank, pairs) }}</template>
+    {% if entry.error %}
+      <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ entry.anchor }}-note">
+        <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ entry.error }}
+      </p>
+    {% elif entry.note %}
+      <p class="text-[12.5px] leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
+    {% endif %}
+  </div>
+{%- endmacro -%}
+
+{#- An object inside the document: its properties under its title. -#}
+{%- macro group_part(entry) -%}
+  <div class="flex min-w-0 flex-col gap-3 rounded-box border border-line p-4 sm:col-span-2" role="group" id="{{ entry.anchor }}"
+       aria-labelledby="{{ entry.anchor }}-label"
+       {% if entry.error or entry.note %}aria-describedby="{{ entry.anchor }}-note"{% endif %}>
+    <div class="flex flex-col gap-0.5">
+      <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
+      {% if entry.error %}
+        <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ entry.anchor }}-note">
+          <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ entry.error }}
+        </p>
+      {% elif entry.note %}
+        <p class="text-[12.5px] leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
+      {% endif %}
+    </div>
+    {{ parts(entry.entries) }}
+  </div>
+{%- endmacro -%}
+
+{%- macro part(entry) -%}
+  {%- if entry.kind == "group" -%}{{ group_part(entry) }}
+  {%- elif entry.kind in ("rows", "pairs") -%}{{ table_part(entry) }}
+  {%- elif entry.row is not none -%}{{ value_part(entry) }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A property that may be left out of the document. Unset, its inputs sit in
+    a disabled fieldset, so none of them is sent, and it reads Not set. -#}
+{%- macro settable_part(entry) -%}
+  <div class="flex min-w-0 items-start gap-3 sm:col-span-2" x-data="{ set: {{ 'true' if entry.is_set else 'false' }} }">
+    <div class="min-w-0 grow">
+      <fieldset class="min-w-0" :disabled="!set" x-show="set" {% if not entry.is_set %}disabled x-cloak{% endif %}>
+        <input type="hidden" name="{{ entry.name }}~set" value="1">
+        <div class="grid gap-5 sm:grid-cols-2">{{ part(entry) }}</div>
+      </fieldset>
+      <div class="flex flex-col gap-1.5" x-show="!set" {% if entry.is_set %}x-cloak{% endif %}>
+        <span class="text-[13px] font-medium text-muted">{{ entry.label }}</span>
+        <span class="flex h-10 items-center rounded-field border border-dashed border-line-strong px-3 text-muted">{{ _('Not set') }}</span>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm mt-5 shrink-0" @click="set = !set"
+            :class="set ? 'text-muted' : 'text-link'"
+            :aria-label='set ? {{ _("Clear {thing}", thing=entry.label)|tojson }} : {{ _("Set {thing}", thing=entry.label)|tojson }}'>
+      <span x-show="set" {% if not entry.is_set %}x-cloak{% endif %}>{{ _('Clear') }}</span>
+      <span x-show="!set" {% if entry.is_set %}x-cloak{% endif %}>{{ _('Set') }}</span>
+    </button>
+  </div>
+{%- endmacro -%}
+
+{%- macro parts(entries) -%}
+  <div class="grid gap-x-5 gap-y-5 sm:grid-cols-2">
+    {% for entry in entries %}
+      {% if entry.settable %}{{ settable_part(entry) }}{% else %}{{ part(entry) }}{% endif %}
+    {% endfor %}
+  </div>
+{%- endmacro -%}
+
+{#- The Form and JSON switch sits in the field's own title line. -#}
+<input type="hidden" name="{{ row.path }}~form" value="1">
+<div x-show="view === 'form'">
+  {%- if document.kind == "group" -%}
+    <div class="rounded-box border border-line bg-subtle p-4">{{ parts(document.entries) }}</div>
+  {%- else -%}
+    <div class="grid sm:grid-cols-2">{{ part(document) }}</div>
+  {%- endif -%}
+</div>
+<div class="flex flex-col gap-1.5" x-show="view === 'json'" x-cloak>
+  <div id="{{ json_id }}" aria-live="polite">
+    <p class="flex h-10 items-center text-muted">{{ _('Reading the form…') }}</p>
+  </div>
+  <p class="text-[12.5px] text-muted">{{ _('What Save writes. Switch back to Form to change it.') }}</p>
+</div>

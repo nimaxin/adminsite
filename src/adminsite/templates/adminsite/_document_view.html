@@ -1,0 +1,88 @@
+{#- A JSON document on the record page, read through its schema: each value
+    under its title, lists of objects and maps as small tables, and a part
+    the form writes as JSON as JSON. JSON shows the document itself, laid
+    out and folding.
+
+    Takes `shown`, from Document.shown, and `outline` and `pretty` for the
+    JSON view. -#}
+{% import "adminsite/_values.html" as values %}
+
+{%- macro value_text(part) -%}
+  {%- if part.kind == "code" -%}
+    {%- if part.empty -%}<span class="text-muted">{{ _('Not set') }}</span>
+    {%- else -%}<code dir="ltr" class="break-all font-mono text-[13px]">{{ part.code }}</code>{%- endif -%}
+  {%- elif part.kind == "key" -%}
+    {{ part.text }}
+  {%- elif part.empty -%}
+    <span class="text-muted">{{ _('Not set') }}</span>
+  {%- elif part.field.widget in ("select", "checkbox") and not part.field.multiple|default(false) -%}
+    {{ values.badge(part.field, part.value, part.text) }}
+  {%- elif part.field.widget == "number" -%}
+    <span class="tabular-nums">{{ part.text }}</span>
+  {%- else -%}
+    {{ part.text }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro table(part, headers) -%}
+  {%- if part.rows -%}
+    <div class="overflow-x-auto rounded-field border border-base-300 bg-base-100">
+      <table class="w-full text-[13.5px]">
+        <thead class="bg-subtle">
+          <tr>
+            {% for header in headers %}
+              <th scope="col" class="h-8 px-3 text-start text-xs font-medium text-muted">{{ header }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for cells in part.rows %}
+            <tr class="border-t border-line align-top">
+              {% for cell in cells %}<td class="px-3 py-2">{{ value_text(cell) }}</td>{% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {%- else -%}
+    <span class="text-muted">{{ _('None') }}</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro entries(part) -%}
+  <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+    {% for entry in part.entries %}
+      <div class="flex min-w-0 flex-col gap-1 {% if entry.kind in ('group', 'rows', 'pairs', 'code') %}sm:col-span-2{% endif %}">
+        <dt class="text-[12.5px] text-muted">{{ entry.label }}</dt>
+        <dd class="break-words">
+          {%- if entry.kind == "group" -%}
+            <div class="rounded-field border border-line p-3.5">{{ entries(entry) }}</div>
+          {%- elif entry.kind == "rows" -%}
+            {{ table(entry, entry.columns) }}
+          {%- elif entry.kind == "pairs" -%}
+            {{ table(entry, [_("Key"), _("Value")]) }}
+          {%- else -%}
+            {{ value_text(entry) }}
+          {%- endif -%}
+        </dd>
+      </div>
+    {% endfor %}
+  </dl>
+{%- endmacro -%}
+
+{#- Values and JSON switch in the line above, beside the label, from the
+    record page's own markup. -#}
+<div x-show="view === 'values'" class="rounded-box border border-line bg-subtle p-4">
+  {%- if shown.kind == "group" -%}
+    {{ entries(shown) }}
+  {%- elif shown.kind == "rows" -%}
+    {{ table(shown, shown.columns) }}
+  {%- elif shown.kind == "pairs" -%}
+    {{ table(shown, [_("Key"), _("Value")]) }}
+  {%- else -%}
+    {{ value_text(shown) }}
+  {%- endif -%}
+</div>
+<div x-show="view === 'json'" x-cloak>
+  {% include "adminsite/_json.html" %}
+</div>

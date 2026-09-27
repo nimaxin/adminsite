@@ -244,6 +244,83 @@ it.
 The [JSON API](api.md) reads and writes these columns as JSON, so `{"options": {"free_over": 10}}`
 is stored as an object, not as a string.
 
+### A form built from a schema
+
+Settings kept as JSON are usually described already, by a Pydantic model or a TypedDict. Give that
+to the field as its `schema`, and the form asks for each part with the control its type calls for,
+instead of a code box:
+
+```python
+from typing import Annotated, Literal, NotRequired, TypedDict
+
+from pydantic import BaseModel, Field
+
+from adminsite.fields import JSONField
+
+
+class Channel(TypedDict):
+    id: int
+    url: str
+    title: NotRequired[str]
+
+
+class ShopSettings(BaseModel):
+    open: bool = True
+    free_shipping_over: Annotated[
+        float, Field(ge=0, description="Orders above this amount ship free.")
+    ] = 50
+    payment_methods: list[Literal["card", "cash", "transfer"]] = ["card"]
+    exchange_rates: dict[Literal["USD", "EUR"], Annotated[float, Field(gt=0)]] = {}
+    announcement_channels: list[Channel] = []
+
+
+class ShopView(ModelView, model=Shop):
+    fields = (JSONField("settings", schema=ShopSettings),)
+```
+
+Each part is drawn by one of the ordinary fields, so it looks and reads like the rest of the form:
+
+| In the schema | In the form |
+| --- | --- |
+| `bool` | A switch. |
+| `int`, `float`, `Decimal` | A number input; its limits, such as `ge=0`, are checked and named under it. |
+| `str`, and `EmailStr`, `HttpUrl`, `date`, `datetime`, `time` | An input of that kind; `max_length`, `min_length` and `pattern` are checked. |
+| `Literal[...]` or an `Enum` | A select. |
+| A list of those | The picker, holding several. |
+| A list of plain values | A box with one value per line. |
+| A model or a TypedDict inside | Its properties under its title. |
+| A list of models or TypedDicts | A table whose rows can be added and removed. |
+| A `dict` | A table of keys and values, the keys chosen from a fixed set where they are a `Literal`. |
+| A `Literal` with one value | Nothing to ask: the value is written as it is. |
+| Anything else, such as a choice between two models | A code box for that part. |
+
+Labels come from the property names, written as sentences, "Free shipping over", unless a property
+has a title of its own. A property's `description` is the note under it.
+
+When the form is saved the document is checked by Pydantic, so your model's own validators run.
+Each problem appears beside the input it concerns, and in the list at the top of the form, such as
+"Settings, Announcement channels, row 2, Id: This field is required."; nothing is saved, and every
+input keeps what was typed. What is saved is the document as Pydantic writes it, with its defaults
+filled in. A new record opens with the schema's defaults.
+
+**JSON**, beside the field's label, shows the document the form stands for, exactly as Save would
+write it, or what needs another look first.
+
+The record page names each value by its title, lists and maps as small tables, and **JSON** there
+shows the document itself, laid out and folding as above.
+
+A few things to know:
+
+- A JSON Schema written as a dict works as well as a Pydantic type. There is no Pydantic to run
+  then, so the checks are those of each part's own field: types, limits, lengths and choices.
+- Keys a stored document holds that the schema does not name are kept, unless the schema refuses
+  them. A Pydantic model drops them unless its `model_config` allows extra keys.
+- A stored value the schema cannot hold, such as a list where it asks for an object, is edited in
+  the code box instead, so none of it is lost.
+- The [JSON API](api.md) checks a document against the same schema, and names each problem by where
+  it is: `{"settings.free_shipping_over": "Enter 0 or more."}`.
+- Titles and descriptions come from your schema, so adminsite does not translate them.
+
 ## Lists
 
 A Postgres `ARRAY` column, such as tags or country codes, gets a `ListField` by itself. The form

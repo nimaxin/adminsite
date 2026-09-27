@@ -16,8 +16,9 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal, NotRequired, TypedDict
 
+import pydantic
 from fastapi import FastAPI
 from sqlalchemy import JSON, Column, ForeignKey, Integer, Numeric, String, Table, Text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -35,6 +36,7 @@ from adminsite.fields import (
     FileField,
     ImageField,
     IntegerField,
+    JSONField,
     ListField,
     PasswordField,
     RelationField,
@@ -129,6 +131,49 @@ class Server(Base):
     name: Mapped[str] = mapped_column(String(40))
 
 
+class Channel(TypedDict):
+    """Where a shop posts its announcements."""
+
+    id: int
+    url: str
+    title: NotRequired[str]
+
+
+class PercentOff(pydantic.BaseModel):
+    """A promotion that takes a share off."""
+
+    kind: Literal["percent"] = "percent"
+    percent: Annotated[int, pydantic.Field(gt=0, le=100)]
+
+
+class AmountOff(pydantic.BaseModel):
+    """A promotion that takes an amount off."""
+
+    kind: Literal["amount"] = "amount"
+    amount: Annotated[float, pydantic.Field(gt=0)]
+
+
+class ShopSettings(pydantic.BaseModel):
+    """What the settings column holds, and so what its form asks for."""
+
+    open: bool = pydantic.Field(
+        True, description="Customers can place orders while this is on."
+    )
+    free_shipping_over: Annotated[
+        float, pydantic.Field(ge=0, description="Orders above this amount ship free.")
+    ] = 50
+    payment_methods: list[Literal["card", "cash", "transfer"]] = ["card"]
+    exchange_rates: dict[
+        Literal["USD", "EUR"], Annotated[float, pydantic.Field(gt=0)]
+    ] = {}
+    announcement_channels: list[Channel] = pydantic.Field(
+        [], description="Channels that get each new announcement."
+    )
+    promotion: PercentOff | AmountOff | None = pydantic.Field(
+        None, description="A share or an amount off, written as JSON."
+    )
+
+
 class Showcase(Base):
     """One column, or one link, for each kind of field."""
 
@@ -151,6 +196,7 @@ class Showcase(Base):
     size: Mapped[str | None] = mapped_column(String(2))
     colours: Mapped[list[str]] = mapped_column(JSON, default=list)
     specs: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    settings: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     scores: Mapped[list[int]] = mapped_column(JSON, default=list)
     manual: Mapped[str | None] = mapped_column(String(255))
     photo: Mapped[str | None] = mapped_column(String(255))
@@ -246,6 +292,11 @@ def showcase_fields(
             help_text="ChoiceField with multiple=True, on a JSON column.",
         ),
         FieldOptions("specs", help_text="JSONField."),
+        JSONField(
+            "settings",
+            schema=ShopSettings,
+            help_text="JSONField with a schema: a form built from a Pydantic model.",
+        ),
         ListField(
             "scores",
             item=IntegerField("scores"),
@@ -325,6 +376,7 @@ class ShowcaseView(ModelView, model=Showcase):
         "size",
         "colours",
         "specs",
+        "settings",
         "scores",
         "manual",
         "supplier",
@@ -364,6 +416,7 @@ class ShowcaseView(ModelView, model=Showcase):
         "size",
         "colours",
         "specs",
+        "settings",
         "scores",
         "manual",
         "photo",
@@ -542,6 +595,17 @@ def build_gallery(uploads: Path) -> list[Base]:
         size="M",
         colours=["red", "black"],
         specs={"battery": "4000 mAh", "ports": ["USB-C", "HDMI"], "waterproof": True},
+        settings={
+            "open": True,
+            "free_shipping_over": 75,
+            "payment_methods": ["card", "cash"],
+            "exchange_rates": {"USD": 1.08},
+            "announcement_channels": [
+                {"id": 1024, "url": "https://t.me/acme_news", "title": "News"},
+                {"id": 2048, "url": "https://t.me/acme_deals"},
+            ],
+            "promotion": {"kind": "percent", "percent": 10},
+        },
         scores=[7, 9, 10],
         manual=manual,
         photo=photos["teal"],

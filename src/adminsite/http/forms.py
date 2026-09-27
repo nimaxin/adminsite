@@ -1,97 +1,20 @@
-import dataclasses
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from adminsite.actions.action import Action
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.fields import ChoiceField, Field, FileField, RelationField
+from adminsite.fields import ChoiceField, Field, FileField, JSONField, RelationField
+from adminsite.fields.documents import DRAWN
+from adminsite.http.documents import document_form
 from adminsite.http.picker import PICKER_LIMIT, Picker
+from adminsite.http.rows import Choice, FormRow, chosen_in_order
 from adminsite.http.urls import Urls
-from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
 from adminsite.views.naming import name_linked
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
-
-
-@dataclass
-class Choice:
-    """One option in a select or a relation picker."""
-
-    value: str
-    label: str
-
-
-@dataclass
-class FormRow:
-    """One field as the form template needs it."""
-
-    path: str
-    field: Field
-    value: str = ""
-    display: str = ""
-    error: str = ""
-    readonly: bool = False
-    choices: Sequence[Choice] = dataclasses.field(default_factory=tuple)
-    selected: Sequence[str] = dataclasses.field(default_factory=tuple)
-    searchable: bool = False
-    picked_label: str = ""
-    # The records a searchable link already holds, each with its name, so a
-    # relationship holding many of them can be edited one chip at a time.
-    picked: Sequence[Choice] = dataclasses.field(default_factory=tuple)
-    # The path the lookup searches by, when it differs from the input name,
-    # as it does for a link inside an inline row.
-    lookup_path: str = ""
-    # False where an empty value is allowed in the browser even for a
-    # required field, as in a blank inline row that may be left unused.
-    browser_required: bool = True
-    # True where leaving it empty keeps what the record has, as for a
-    # password: then it is never required, and the form says so.
-    keeps_when_blank: bool = False
-    # Put before the path in the input's id, so two dialogs on one page that
-    # both ask for a "product" do not share one.
-    id_prefix: str = ""
-    # Where a searchable link looks records up, when it is not the form's
-    # own lookup, as for a link an action asks for.
-    lookup_url: str = ""
-
-    @property
-    def input_id(self) -> str:
-        """The id of the input itself."""
-        return f"field-{self.id_prefix}{self.path}"
-
-    @property
-    def picked_pairs(self) -> list[dict[str, str]]:
-        """The records already held, as the picker's script reads them."""
-        return [{"value": one.value, "label": one.label} for one in self.picked]
-
-    @property
-    def widget(self) -> str:
-        """Which template renders this field."""
-        return self.field.widget
-
-    @property
-    def label(self) -> str:
-        """The text above the input."""
-        return self.field.label
-
-    @property
-    def required(self) -> bool:
-        """Whether a value has to be given."""
-        return self.field.required and not self.keeps_when_blank
-
-    @property
-    def note(self) -> str:
-        """The help under the input: the field's own, or how to fill it in."""
-        if self.field.help_text:
-            return self.field.help_text
-        if self.keeps_when_blank:
-            return _("Leave it empty to keep the current one.")
-        # How to fill it in means nothing where it cannot be changed.
-        return "" if self.readonly else self.field.hint()
 
 
 async def build_rows(
@@ -159,8 +82,30 @@ async def build_rows(
                 row.picked = chosen_in_order(row.choices, row.selected)
         elif isinstance(item, RelationField):
             await _fill_relation(admin, session, row, item, current, request)
+        elif isinstance(item, JSONField) and path not in readonly:
+            _fill_document(row, item, record, current, typed, errors)
         rows.append(row)
     return rows
+
+
+def _fill_document(
+    row: FormRow,
+    item: JSONField,
+    record: Any,
+    current: Any,
+    typed: Mapping[str, Any],
+    errors: Mapping[str, str],
+) -> None:
+    """Draw a JSON column as a form, where it has a schema its value fits."""
+    if row.path + DRAWN in typed:
+        # Shown again after a failed save: each input as it was sent.
+        document = item.document_for(record)
+        values: Mapping[str, Any] = typed
+    else:
+        document = item.form_document(record, current)
+        values = document.form_values(current, row.path) if document else {}
+    if document is not None and document.drawn:
+        row.document = document_form(document, values, errors, row.path)
 
 
 def written_again(
@@ -255,16 +200,6 @@ def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
         else str(item)
         for item in items
     ]
-
-
-def chosen_in_order(choices: Sequence[Choice], selected: Sequence[str]) -> list[Choice]:
-    """The options held, each with its label, in the order they are held.
-
-    One that is not on offer, such as a record this user may not see, is
-    left out, as the list would leave it out.
-    """
-    labels = {choice.value: choice.label for choice in choices}
-    return [Choice(value, labels[value]) for value in selected if value in labels]
 
 
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:

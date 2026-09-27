@@ -68,6 +68,12 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def document(self, view: ModelView, path: str, key: str = "") -> str:
+        """Where a JSON column's form is read into the document it stands for."""
+        if key:
+            return f"{self.base}/{view.name}/{key}/document/{path}"
+        return f"{self.base}/{view.name}/document/{path}"
+
     def action_lookup(self, view: ModelView, action: str, name: str) -> str:
         """Where a link an action asks for searches for records."""
         return f"{self.base}/{view.name}/action/{action}/lookup/{name}"

@@ -20,6 +20,7 @@ from adminsite.fields import (
     ListField,
     RelationField,
 )
+from adminsite.fields.documents import DocumentError
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
@@ -159,9 +160,11 @@ def read_values(
             errors[path] = _("Files are uploaded through the form, not the API.")
             continue
         try:
-            if isinstance(item, JSONField) and not isinstance(raw, str):
-                # Sent as JSON already, so it needs no reading from text.
-                values[path] = raw
+            if isinstance(item, JSONField):
+                # Sent as JSON, or as text to read, and checked against the
+                # field's schema where it has one.
+                document = item.parse(raw) if isinstance(raw, str) else raw
+                values[path] = item.check(document, record)
             elif isinstance(item, ListField) and isinstance(raw, list):
                 values[path] = item.parse_values(
                     ["" if one is None else str(one) for one in raw]
@@ -176,6 +179,8 @@ def read_values(
                 values[path] = item.parse_many([str(one) for one in raw])
             else:
                 values[path] = item.parse(as_text(raw))
+        except DocumentError as error:
+            errors.update(error.errors)
         except FieldValidationError as error:
             errors[path] = error.message
     if record is None:

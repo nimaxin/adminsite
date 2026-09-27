@@ -433,6 +433,18 @@ class Admin:
                 name="lookup",
             ),
             Route(
+                "/{view}/document/{path}",
+                self._handler(endpoints.document),
+                methods=["POST"],
+                name="document",
+            ),
+            Route(
+                "/{view}/{key}/document/{path}",
+                self._handler(endpoints.document),
+                methods=["POST"],
+                name="record_document",
+            ),
+            Route(
                 "/{view}/{key}",
                 self._handler(endpoints.detail),
                 name="detail",

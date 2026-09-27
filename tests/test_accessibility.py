@@ -55,6 +55,9 @@ class Controls(HTMLParser):
             self.label_depth += 1
             if found.get("for"):
                 self.label_for.add(str(found["for"]))
+        if self.button is not None and "x-text" in found:
+            # Text the page's script writes in, as a message it shows.
+            self.button["_written"] = "yes"
         if tag in ("input", "select", "textarea"):
             if found.get("type") in ("hidden", "radio") or "hidden" in found:
                 return
@@ -87,6 +90,8 @@ class Controls(HTMLParser):
             for control in self.controls
             if not (
                 control.get("aria-label")
+                or control.get(":aria-label")
+                or control.get("_written")
                 or control.get("aria-labelledby")
                 or control.get("_wrapped")
                 or control.get("_text")
