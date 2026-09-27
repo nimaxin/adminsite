@@ -501,3 +501,97 @@ class TestTheCodeBox:
 
         with pytest.raises(FieldValidationError, match=r"Free over: Enter 0 or more\."):
             field.parse('{"free_over": -1}')
+
+
+class Shop(BaseModel):
+    currency: Literal["EUR", "USD"] = "EUR"
+    vat: Annotated[float, Field(ge=0, le=100)] = 21
+
+
+def schema_for(setting: Setting) -> Any:
+    """Each setting's value has the shape its name gives it."""
+    return {"delivery": Delivery, "shop": Shop}.get(setting.name)
+
+
+class PerNameView(ModelView, model=Setting):
+    form_fields = ("name", "options")
+    fields = (JSONField("options", schema=schema_for),)
+
+
+@pytest.fixture
+async def per_name(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    async with serve(PerNameView, database) as client:
+        yield client
+
+
+class TestASchemaFromTheRecord:
+    async def test_two_records_open_as_two_forms(
+        self, per_name: httpx.AsyncClient
+    ) -> None:
+        delivery = await per_name.get("/admin/settings/1/edit")
+        shop = await per_name.get("/admin/settings/2/edit")
+
+        assert 'name="options.free_over"' in delivery.text
+        assert 'name="options.currency"' not in delivery.text
+        assert 'name="options.currency"' in shop.text
+        assert 'name="options.vat"' in shop.text
+
+    async def test_a_new_record_waits_for_the_rest_of_the_form(
+        self, per_name: httpx.AsyncClient
+    ) -> None:
+        page = await per_name.get("/admin/settings/new")
+
+        assert 'name="options~form"' not in page.text
+        assert 'hx-post="/admin/settings/document/options?show=form"' in page.text
+        assert "from:closest form" in page.text
+
+    async def test_it_is_drawn_again_for_what_the_form_holds(
+        self, per_name: httpx.AsyncClient
+    ) -> None:
+        page = await per_name.get("/admin/settings/new")
+
+        drawn = await per_name.post(
+            "/admin/settings/document/options?show=form",
+            data={"_csrf": token_in(page), "name": "shop", "options": ""},
+        )
+
+        assert drawn.status_code == 200
+        assert drawn.text.lstrip().startswith("<fieldset")
+        assert 'name="options.currency"' in drawn.text
+        assert 'hx-post="/admin/settings/document/options?show=form"' in drawn.text
+
+    async def test_a_new_record_is_checked_against_its_own_schema(
+        self, per_name: httpx.AsyncClient, database: Database
+    ) -> None:
+        page = await per_name.get("/admin/settings/new")
+        form = {
+            "_csrf": token_in(page),
+            "name": "shop",
+            "options~form": "1",
+            "options.currency": "USD",
+            "options.vat": "200",
+        }
+
+        refused = await per_name.post("/admin/settings/new", data=form)
+        created = await per_name.post(
+            "/admin/settings/new", data={**form, "options.vat": "9"}
+        )
+
+        assert refused.status_code == 422
+        assert "Enter 100 or less." in refused.text
+        assert created.status_code == 303
+        assert await options_of(database, 3) == {"currency": "USD", "vat": 9.0}
+
+    async def test_a_record_without_a_schema_keeps_the_code_box(
+        self, per_name: httpx.AsyncClient, database: Database
+    ) -> None:
+        async with database.session() as session:
+            setting = await session.get(Setting, 2)
+            assert setting is not None
+            setting.name = "anything"
+            await session.commit()
+
+        page = await per_name.get("/admin/settings/2/edit")
+
+        assert 'name="options~form"' not in page.text
+        assert 'x-data="jsonEditor()"' in page.text

@@ -11,8 +11,12 @@
 {%- set wide = row.widget in ("textarea", "json", "file", "image") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
 {#- A document drawn as a form switches between the form and its JSON. -#}
 {%- set document = row.document if row.document is defined else none -%}
+{#- A new record's document whose schema follows the rest of the form is
+    drawn again when something outside it changes. -#}
 <fieldset class="flex min-w-0 flex-col gap-1.5 {% if wide %}sm:col-span-2{% endif %}"
-          {% if document is not none %}x-data="{ view: 'form' }"{% endif %}>
+          {% if document is not none %}x-data="{ view: 'form' }"{% endif %}
+          {% if row.redraw_url|default("") %}id="{{ field_id }}-part" hx-post="{{ row.redraw_url }}" hx-swap="outerHTML"
+            hx-trigger="change[!target.closest('#{{ field_id }}-part')] from:closest form"{% endif %}>
   <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium {% if document is not none %}w-full{% endif %}" id="{{ field_id }}-label">
     {{ row.label }}
     {% if row.readonly %}

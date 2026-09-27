@@ -231,6 +231,51 @@ class Variant(Base):
     supplier: Mapped[Supplier | None] = relationship()
 
 
+class Setting(Base):
+    """One of the shop's settings, whose value has the shape its key gives it."""
+
+    __tablename__ = "settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(40))
+    value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+
+class Delivery(pydantic.BaseModel):
+    """The value of the delivery setting."""
+
+    carriers: list[Literal["dhl", "ups", "post"]] = ["post"]
+    free_over: Annotated[float, pydantic.Field(ge=0)] = 50
+
+
+class Maintenance(pydantic.BaseModel):
+    """The value of the maintenance setting."""
+
+    on: bool = pydantic.Field(
+        False, description="Closes checkout and shows the message."
+    )
+    message: str = pydantic.Field("", json_schema_extra={"format": "textarea"})
+
+
+class Returns(pydantic.BaseModel):
+    """The value of the returns setting."""
+
+    days: Annotated[int, pydantic.Field(ge=1, le=60)] = 30
+    free: bool = True
+
+
+SETTINGS: dict[str, type[pydantic.BaseModel]] = {
+    "delivery": Delivery,
+    "maintenance": Maintenance,
+    "returns": Returns,
+}
+
+
+def setting_schema(setting: Setting) -> type[pydantic.BaseModel] | None:
+    """The shape of a setting's value, by its key."""
+    return SETTINGS.get(setting.key)
+
+
 SIZES = (("S", "Small"), ("M", "Medium"), ("L", "Large"), ("XL", "Extra large"))
 COLOURS = (
     ("black", "Black"),
@@ -459,6 +504,32 @@ class ShowcaseView(ModelView, model=Showcase):
         return f"{await selection.count()} offered to {names}."
 
 
+class SettingView(ModelView, model=Setting):
+    group = GROUP
+    # Sliders, for settings.
+    icon = outline(
+        '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/>'
+        '<circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/>'
+        '<circle cx="17" cy="18" r="2"/>'
+    )
+    display_template = "{key}"
+    list_display = ("key", "value")
+    form_fields = ("key", "value")
+    fields = (
+        ChoiceField(
+            "key",
+            choices=[(key, key.capitalize()) for key in SETTINGS],
+            required=True,
+            help_text="ChoiceField. The value's form follows the key chosen here.",
+        ),
+        JSONField(
+            "value",
+            schema=setting_schema,
+            help_text="JSONField whose schema comes from the record: one for each key.",
+        ),
+    )
+
+
 class CategoryView(ModelView, model=Category):
     group = GROUP
     icon = outline(
@@ -502,6 +573,7 @@ class ServerView(ModelView, model=Server):
 
 VIEWS: list[type[ModelView]] = [
     ShowcaseView,
+    SettingView,
     CategoryView,
     SupplierView,
     LabelView,
@@ -662,11 +734,16 @@ def build_gallery(uploads: Path) -> list[Base]:
         )
         for index in range(1, 12)
     ]
+    settings = [
+        Setting(key="delivery", value={"carriers": ["dhl", "ups"], "free_over": 75}),
+        Setting(key="maintenance", value={"on": False, "message": "Back at 18:00."}),
+    ]
     return [
         *categories,
         *suppliers,
         *labels,
         *servers,
+        *settings,
         everything,
         required_only,
         long_name,

@@ -44,6 +44,7 @@ async def build_rows(
         )
 
     starting = await view.form_values(session, record, request=request)
+    draft: Any = None
 
     rows = []
     for path in view.get_form_fields(request, record):
@@ -83,12 +84,20 @@ async def build_rows(
         elif isinstance(item, RelationField):
             await _fill_relation(admin, session, row, item, current, request)
         elif isinstance(item, JSONField) and path not in readonly:
-            _fill_document(row, item, record, current, typed, errors)
+            owner = record
+            if record is None and item.schema_from_record:
+                # A new record's schema may follow what the form holds, as
+                # a setting's key decides the shape of its value.
+                if draft is None:
+                    draft = view.draft_record(typed, request)
+                owner = draft
+                row.redraw_url = f"{Urls(request).document(view, path)}?show=form"
+            fill_document(row, item, owner, current, typed, errors)
         rows.append(row)
     return rows
 
 
-def _fill_document(
+def fill_document(
     row: FormRow,
     item: JSONField,
     record: Any,

@@ -512,6 +512,35 @@ class ModelView:
             value = getattr(value, part, None)
         return value
 
+    def draft_record(self, data: FormData, request: Any = None) -> Any:
+        """An unsaved record holding the plain values a form holds so far.
+
+        A JSON field whose schema comes from the record is given this while
+        the record is new, so the schema can follow what is chosen in the
+        form, such as a setting's key. Only the record's own columns are
+        set, from the values that can be read; it is never added to a
+        session.
+        """
+        # Made without the model's own __init__, which may ask for values.
+        draft = sqlalchemy_inspect(self.model).class_manager.new_instance()
+        for path in self.get_form_fields(request):
+            item = self.field_for(path)
+            if "." in path or not item.stored:
+                continue
+            if isinstance(item, RelationField | FileField | JSONField):
+                continue
+            raw = data.get(path)
+            try:
+                if _holds_many(item):
+                    value = item.parse_many(_as_list(raw))
+                else:
+                    value = item.parse(_as_text(raw))
+            except FieldValidationError:
+                continue
+            if value is not None:
+                setattr(draft, path, value)
+        return draft
+
     async def load_values(
         self,
         session: SessionAdapter,
@@ -1038,6 +1067,7 @@ class ModelView:
         """Read a submitted form into values, collecting any messages."""
         result = FormResult()
         readonly = set(self.get_readonly_fields(request, record))
+        draft: Any = None
 
         for path in self.get_form_fields(request, record):
             item = self.field_for(path)
@@ -1060,8 +1090,14 @@ class ModelView:
                         result.values[path] = choice
                 elif isinstance(item, JSONField) and item.schema is not None:
                     # Drawn from its schema, the document has an input for
-                    # each of its parts.
-                    result.values[path] = item.read_form(data, path, record=record)
+                    # each of its parts. A new record's schema may follow
+                    # what the rest of the form holds.
+                    owner = record
+                    if owner is None and item.schema_from_record:
+                        if draft is None:
+                            draft = self.draft_record(data, request)
+                        owner = draft
+                    result.values[path] = item.read_form(data, path, record=owner)
                 elif _holds_many(item):
                     result.values[path] = item.parse_many(_as_list(raw))
                 else:

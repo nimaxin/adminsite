@@ -52,6 +52,9 @@ class FormRow:
     # A JSON column drawn as a form from its schema: the parts of that form,
     # a DocumentEntry.
     document: Any = None
+    # Where the field is drawn again when the rest of the form changes, for
+    # a new record whose schema follows what the form holds.
+    redraw_url: str = ""
 
     @property
     def input_id(self) -> str:

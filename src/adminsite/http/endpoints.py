@@ -32,7 +32,12 @@ from adminsite.http.activity import (
 )
 from adminsite.http.documents import document_form
 from adminsite.http.export import stream_csv
-from adminsite.http.forms import build_rows, rows_for_actions, title_for
+from adminsite.http.forms import (
+    build_rows,
+    fill_document,
+    rows_for_actions,
+    title_for,
+)
 from adminsite.http.history import describe
 from adminsite.http.inlines import build_inline_tables, child_tables
 from adminsite.http.listing import (
@@ -681,7 +686,9 @@ async def document(admin: "Admin", request: Request) -> Response:
     """The document a JSON column's form stands for, for the form's JSON view.
 
     The form is read as Save reads it, so this shows what Save would write,
-    or what needs another look first. It needs what saving the form needs.
+    or what needs another look first. With `?show=form` it is the field
+    drawn again instead, for a new record whose schema follows what the
+    rest of the form holds. It needs what saving the form needs.
     """
     view = find_view(admin, request)
     path = request.path_params["path"]
@@ -697,6 +704,18 @@ async def document(admin: "Admin", request: Request) -> Response:
         await view.ensure(Permission.EDIT, request=request, record=record)
     else:
         await view.ensure(Permission.CREATE, request=request)
+        if item.schema_from_record:
+            record = view.draft_record(submitted, request)
+
+    if request.query_params.get("show") == "form":
+        row = FormRow(path=path, field=item)
+        raw = submitted.get(path)
+        row.value = raw if isinstance(raw, str) else ""
+        fill_document(row, item, record, None, submitted, {})
+        if "key" not in request.path_params:
+            row.redraw_url = f"{Urls(request).document(view, path)}?show=form"
+        drawn = {"row": row, "view": view, "key": ""}
+        return await admin.render("_field.html", request, drawn)
 
     document = item.document_for(record)
     context: dict[str, Any] = {"problems": []}

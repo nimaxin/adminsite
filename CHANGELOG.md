@@ -7,6 +7,9 @@
   picker for a few fixed values, tables for lists of objects and for maps. Saving checks the
   document with Pydantic and shows each problem beside its input; the record page names each value
   by its title, and the API checks documents against the same schema.
+- A JSON field's schema can come from a function given the record, for a table whose rows hold
+  documents of different shapes. On a new record the form draws the document again as the rest of
+  the form changes, such as when a setting's key is chosen.
 
 ## 0.1.0a9
 

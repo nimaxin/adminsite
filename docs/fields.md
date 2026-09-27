@@ -321,6 +321,30 @@ A few things to know:
   it is: `{"settings.free_shipping_over": "Enter 0 or more."}`.
 - Titles and descriptions come from your schema, so adminsite does not translate them.
 
+### A schema for each record
+
+Where the rows of one table hold documents of different shapes, such as a settings table with a
+row per setting, give a function instead. It is given the record and returns its schema, or None
+for a record that has none, whose value is then edited in the code box:
+
+```python
+SCHEMAS = {"delivery": Delivery, "maintenance": Maintenance}
+
+
+def schema_for(setting: Setting) -> type[BaseModel] | None:
+    return SCHEMAS.get(setting.key)
+
+
+class SettingView(ModelView, model=Setting):
+    fields = (JSONField("value", schema=schema_for),)
+```
+
+Two settings then open as two different forms. A new record has no row yet, so the function is
+given an unsaved one that holds what the rest of the form holds so far: its own columns, read as
+they are typed, without its links. When something outside the document changes, such as the key
+chosen, the document's part of the form is drawn again for the new schema. The record is never
+saved from there, and the function should only read it.
+
 ## Lists
 
 A Postgres `ARRAY` column, such as tags or country codes, gets a `ListField` by itself. The form
