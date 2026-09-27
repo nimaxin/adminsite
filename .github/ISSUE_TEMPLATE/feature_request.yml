@@ -1,0 +1,23 @@
+name: Feature request
+description: Something adminsite does not do yet.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing
+      description: What you want to do and cannot, and how you work around it today.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: Who needs it and how often, such as the kind of project and the people who use its pages.
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: What it could look like
+      description: The code you would like to write, or what the page would do.

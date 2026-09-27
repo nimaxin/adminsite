@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in adminsite does not work the way its docs say it does.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A small example that shows the problem is the fastest way to a fix. The
+        [field gallery](https://github.com/nimaxin/adminsite/blob/main/examples/fields.py) and the
+        [shop](https://github.com/nimaxin/adminsite/blob/main/examples/shop.py) are good places to
+        start one from.
+  - type: input
+    id: version
+    attributes:
+      label: adminsite version
+      placeholder: 0.1.0a9
+    validations:
+      required: true
+  - type: textarea
+    id: happens
+    attributes:
+      label: What happens
+      description: What you did and what you saw. Paste any error with its traceback.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The smallest models and view that show it.
+      render: python
+  - type: input
+    id: setup
+    attributes:
+      label: Where it runs
+      description: >-
+        Python, SQLAlchemy, the database and its driver, the framework, and the browser if the
+        problem is on a page.
+      placeholder: Python 3.13, SQLAlchemy 2.0.44, Postgres 17 with asyncpg, FastAPI, Chrome 153

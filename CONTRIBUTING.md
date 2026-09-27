@@ -1,7 +1,8 @@
 # Contributing to adminsite
 
 Issues and pull requests are both welcome. For anything bigger than a fix, open an issue first, so
-we can agree on the shape of it before you write it.
+we can agree on the shape of it before you write it. Everyone who takes part keeps to the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 ## Setting up
 

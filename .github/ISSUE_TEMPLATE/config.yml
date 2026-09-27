@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://nimaxin.github.io/adminsite/
+    about: How to install adminsite, and every option it has.
+  - name: Live demo
+    url: https://adminsite.duckdns.org
+    about: Try adminsite in the browser. Sign in as admin with the password admin.
