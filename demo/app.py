@@ -207,6 +207,7 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
             TagView,
             DemoShowcaseView,
             gallery.SettingView,
+            gallery.CustomerGroupView,
             gallery.CategoryView,
             gallery.SupplierView,
             gallery.LabelView,

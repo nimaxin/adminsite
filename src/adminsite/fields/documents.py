@@ -865,9 +865,9 @@ class Document:
                     one = given[found.key]
                     if top and self.partial:
                         values[child + SET] = ""
-                elif top and self.partial:
-                    continue
                 else:
+                    # A property left unset still starts at its default, for
+                    # when it is set.
                     one = found.default
                 self._flatten(found.shape, one, child, values)
             return
@@ -1219,6 +1219,11 @@ class Shown:
     code: str = ""
 
     @property
+    def missing(self) -> bool:
+        """Whether the document has no value here at all, not even an empty one."""
+        return self.value is MISSING
+
+    @property
     def empty(self) -> bool:
         """Whether the document holds nothing here."""
         if self.kind == "value":
@@ -1250,6 +1255,7 @@ def _shown(shape: Shape, value: Any, label: str) -> Shown:
         return Shown(
             "rows",
             label,
+            value=value,
             columns=[one.label for one in columns],
             rows=[
                 [
@@ -1265,6 +1271,7 @@ def _shown(shape: Shape, value: Any, label: str) -> Shown:
         return Shown(
             "pairs",
             label,
+            value=value,
             rows=[
                 [
                     Shown("key", text=shape.key.display(key), value=key),

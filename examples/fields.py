@@ -241,6 +241,16 @@ class Setting(Base):
     value: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
 
+class CustomerGroup(Base):
+    """Customers who get some of the shop's settings changed for them."""
+
+    __tablename__ = "customer_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    overrides: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+
 class Delivery(pydantic.BaseModel):
     """The value of the delivery setting."""
 
@@ -530,6 +540,27 @@ class SettingView(ModelView, model=Setting):
     )
 
 
+class CustomerGroupView(ModelView, model=CustomerGroup):
+    group = GROUP
+    # Two people, for a group of customers.
+    icon = outline(
+        '<circle cx="9" cy="8" r="3.2"/>'
+        '<path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5"/>'
+        '<path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.6.7 2.7 2.4 3 5.2"/>'
+    )
+    display_template = "{name}"
+    list_display = ("name", "overrides")
+    form_fields = ("name", "overrides")
+    fields = (
+        JSONField(
+            "overrides",
+            schema=ShopSettings,
+            partial=True,
+            help_text="JSONField with partial=True: only what is set here is saved.",
+        ),
+    )
+
+
 class CategoryView(ModelView, model=Category):
     group = GROUP
     icon = outline(
@@ -574,6 +605,7 @@ class ServerView(ModelView, model=Server):
 VIEWS: list[type[ModelView]] = [
     ShowcaseView,
     SettingView,
+    CustomerGroupView,
     CategoryView,
     SupplierView,
     LabelView,
@@ -738,12 +770,19 @@ def build_gallery(uploads: Path) -> list[Base]:
         Setting(key="delivery", value={"carriers": ["dhl", "ups"], "free_over": 75}),
         Setting(key="maintenance", value={"on": False, "message": "Back at 18:00."}),
     ]
+    groups = [
+        CustomerGroup(
+            name="Wholesale buyers",
+            overrides={"free_shipping_over": 0, "payment_methods": ["transfer"]},
+        ),
+    ]
     return [
         *categories,
         *suppliers,
         *labels,
         *servers,
         *settings,
+        *groups,
         everything,
         required_only,
         long_name,

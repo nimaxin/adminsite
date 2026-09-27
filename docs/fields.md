@@ -345,6 +345,23 @@ they are typed, without its links. When something outside the document changes, 
 chosen, the document's part of the form is drawn again for the new schema. The record is never
 saved from there, and the function should only read it.
 
+### Overrides: properties left unset
+
+An override stores only what it changes and inherits the rest, as a customer group that pays by
+transfer and gets free shipping, whatever the shop's own settings say. With `partial=True` each
+property of the document may be set or left unset:
+
+```python
+class CustomerGroupView(ModelView, model=CustomerGroup):
+    fields = (JSONField("overrides", schema=ShopSettings, partial=True),)
+```
+
+Each property has **Set** or **Clear** beside it. One left unset reads "Not set", sends nothing, and
+is left out of the document, so a group that sets two of five settings saves those two keys only.
+A property that is set starts at its default and is checked as usual; with a Pydantic model its
+validators run for each property that is set. Other Pydantic types, and JSON Schema dicts, are
+checked by each part's own field. The record page reads "Not set" for what is left unset.
+
 ## Lists
 
 A Postgres `ARRAY` column, such as tags or country codes, gets a `ListField` by itself. The form

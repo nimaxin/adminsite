@@ -10,6 +10,8 @@
 - A JSON field's schema can come from a function given the record, for a table whose rows hold
   documents of different shapes. On a new record the form draws the document again as the rest of
   the form changes, such as when a setting's key is chosen.
+- `partial=True` on a JSON field with a schema lets each property be left unset, with Set and Clear
+  beside it, and saves only the properties set, as an override keeps what it changes.
 
 ## 0.1.0a9
 

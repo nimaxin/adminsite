@@ -595,3 +595,96 @@ class TestASchemaFromTheRecord:
 
         assert 'name="options~form"' not in page.text
         assert 'x-data="jsonEditor()"' in page.text
+
+
+class OverrideView(ModelView, model=Setting):
+    form_fields = ("name", "options")
+    fields = (JSONField("options", schema=Delivery, partial=True),)
+
+
+@pytest.fixture
+async def overrides(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    async with serve(OverrideView, database) as client:
+        yield client
+
+
+class TestAPartialDocument:
+    def test_only_what_is_set_is_read(self) -> None:
+        document = Document(Delivery, name="options", partial=True)
+        values = document.form_values({"express": True}, "options")
+
+        read = document.read({**values, "options~form": "1"}, "options")
+
+        assert "options.express~set" in values
+        assert "options.free_over~set" not in values
+        assert values["options.free_over"] == "0"
+        assert read == {"express": True}
+
+    def test_a_property_set_is_still_checked(self) -> None:
+        document = Document(Delivery, name="options", partial=True)
+
+        with pytest.raises(DocumentError) as raised:
+            document.read(
+                {
+                    "options~form": "1",
+                    "options.free_over~set": "1",
+                    "options.free_over": "7",
+                },
+                "options",
+            )
+
+        assert raised.value.errors == {
+            "options.free_over": "Seven is an unlucky threshold."
+        }
+
+    async def test_two_of_five_open_set_and_the_rest_unset(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+
+        assert 'name="options.carriers~set"' in page.text
+        assert 'name="options.free_over~set"' in page.text
+        assert 'name="options.express~set"' in page.text
+        assert page.text.count('x-data="{ set: true }"') == 2
+        assert page.text.count('x-data="{ set: false }"') == 3
+
+    async def test_it_saves_back_as_the_keys_set(
+        self, overrides: httpx.AsyncClient, database: Database
+    ) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+
+        answer = await overrides.post(
+            "/admin/settings/1/edit",
+            data={
+                "_csrf": token_in(page),
+                "name": "delivery",
+                "options~form": "1",
+                "options.carriers~set": "1",
+                "options.carriers": ["post"],
+                "options.express~set": "1",
+            },
+        )
+
+        assert answer.status_code == 303
+        assert await options_of(database) == {"carriers": ["post"], "express": False}
+
+    async def test_the_record_page_says_what_is_not_set(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/1")
+
+        assert page.text.count("Not set") == 3
+
+    async def test_the_api_keeps_a_partial_document_partial(
+        self, overrides: httpx.AsyncClient, database: Database
+    ) -> None:
+        page = await overrides.get("/admin/settings")
+
+        answer = await overrides.patch(
+            "/admin/-/api/settings/1",
+            json={"options": {"express": True}},
+            headers={"X-CSRF-Token": token_in(page)},
+        )
+
+        assert answer.status_code == 200
+        assert await options_of(database) == {"express": True}
