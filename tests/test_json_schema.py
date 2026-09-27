@@ -688,3 +688,23 @@ class TestAPartialDocument:
 
         assert answer.status_code == 200
         assert await options_of(database) == {"express": True}
+
+
+class ReadOnlyView(ModelView, model=Setting):
+    form_fields = ("name", "options")
+    readonly_fields = ("options",)
+    fields = (JSONField("options", schema=Delivery),)
+
+
+async def test_a_field_the_user_cannot_edit_is_never_read_back(
+    database: Database,
+) -> None:
+    async with serve(ReadOnlyView, database) as client:
+        page = await client.get("/admin/settings/1/edit")
+        answer = await client.post(
+            "/admin/settings/1/document/options",
+            data={"_csrf": token_in(page), **filled()},
+        )
+
+    assert 'name="options~form"' not in page.text
+    assert answer.status_code == 404

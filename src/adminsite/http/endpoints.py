@@ -704,8 +704,16 @@ async def document(admin: "Admin", request: Request) -> Response:
         await view.ensure(Permission.EDIT, request=request, record=record)
     else:
         await view.ensure(Permission.CREATE, request=request)
-        if item.schema_from_record:
-            record = view.draft_record(submitted, request)
+    # Only a field this user edits on this form, so no other is read back.
+    editable = set(view.get_form_fields(request, record)) - set(
+        view.get_readonly_fields(request, record)
+    )
+    if path not in editable:
+        raise HTTPException(
+            status_code=404, detail=_("No field at {path}.", path=repr(path))
+        )
+    if record is None and item.schema_from_record:
+        record = view.draft_record(submitted, request)
 
     if request.query_params.get("show") == "form":
         row = FormRow(path=path, field=item)
