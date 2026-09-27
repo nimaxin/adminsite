@@ -208,15 +208,25 @@ class TestColumns:
         record = row.index('class="font-medium text-link')
         assert checkbox < menu < record
 
-    async def test_the_columns_sit_together_from_the_start(
-        self, client: httpx.AsyncClient
-    ) -> None:
+    async def test_the_columns_share_the_width(self, client: httpx.AsyncClient) -> None:
         response = await client.get("/admin/customers")
         head = response.text.split("<thead>", 1)[1].split("</thead>", 1)[0]
 
-        # The last cell is empty and takes the width the columns leave, so a
-        # few columns do not spread across a wide screen.
-        assert re.search(
-            r'<td class="[^"]*\bw-full\b[^"]*" aria-hidden="true"></td>\s*</tr>\s*$',
-            head,
-        )
+        # No empty cell takes the width: the columns fill it, as in any table,
+        # and the last one keeps its distance from the edge.
+        assert 'aria-hidden="true"></td>' not in head
+        last = head.rsplit("<th ", 1)[1]
+        assert re.search(r'class="[^"]*\bpe-4\b', last)
+
+    async def test_a_key_reads_like_text_and_an_amount_lines_up(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+        head = response.text.split("<thead>", 1)[1].split("</thead>", 1)[0]
+        cells = re.findall(r'<th class="([^"]*)"[^>]*>\s*<a[^>]*>\s*(\w+)', head)
+        at_the_end = {label: "text-end" in classes for classes, label in cells}
+
+        # The key names its record, so it starts where text starts; the total
+        # is an amount, so it lines up on the right.
+        assert at_the_end["Id"] is False
+        assert at_the_end["Total"] is True

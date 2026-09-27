@@ -12,6 +12,10 @@
   the form changes, such as when a setting's key is chosen.
 - `partial=True` on a JSON field with a schema lets each property be left unset, with Set and Clear
   beside it, and saves only the properties set, as an override keeps what it changes.
+- A list's columns fill the table's width again, as they did before 0.1.0a9. A key, such as an
+  order's number, now reads from the start like text rather than lining up on the right like an
+  amount, so on a list of one or two columns it no longer lands in the middle of the page. Each
+  row's menu stays right after its checkbox.
 
 ## 0.1.0a9
 

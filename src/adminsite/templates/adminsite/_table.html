@@ -33,8 +33,10 @@
             </th>
             {% for path in columns %}
               {% set state = sort_state(request, path) %}
-              {% set numeric = view.field_for(path).widget == 'number' %}
-              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
+              {#- An amount lines up on the right; a key is a name for its
+                  record, not an amount, so it reads from the start like text. -#}
+              {% set numeric = view.field_for(path).widget == 'number' and path not in view.schema.primary_key %}
+              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 {% if view.sortable(path) %}
                   <a class="inline-flex items-center gap-1 hover:text-base-content"
@@ -50,9 +52,6 @@
                 {% endif %}
               </th>
             {% endfor %}
-            {#- Takes the width left over, so the columns sit together from the
-                start instead of spreading across a wide screen. -#}
-            <td class="sticky top-0 z-10 h-10 w-full border-y border-base-300 bg-subtle" aria-hidden="true"></td>
           </tr>
         </thead>
         <tbody>
@@ -81,7 +80,8 @@
                 {% set item = view.field_for(path) %}
                 {% set widget = item.widget %}
                 {% set text = view.display(row, path) %}
-                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if widget == 'number' %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %}">
+                {% set amount = widget == 'number' and path not in view.schema.primary_key %}
+                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if amount %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %}">
                   {% if loop.first %}
                     {#- The first cell opens the record, or the form where a view
                         has no record page, or is plain text where it has neither. -#}
@@ -108,11 +108,10 @@
                   {% endif %}
                 </td>
               {% endfor %}
-              <td class="border-b border-line" aria-hidden="true"></td>
             </tr>
           {% else %}
             <tr>
-              <td class="py-20 text-center text-muted" colspan="{{ columns|length + (3 if actions else 2) }}">
+              <td class="py-20 text-center text-muted" colspan="{{ columns|length + (2 if actions else 1) }}">
                 {{ _("No {things} to show.", things=view.label_plural|lower) }}
               </td>
             </tr>
