@@ -251,9 +251,10 @@ to the field as its `schema`, and the form asks for each part with the control i
 instead of a code box:
 
 ```python
-from typing import Annotated, Literal, NotRequired, TypedDict
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+from typing_extensions import NotRequired, TypedDict  # typing's own on 3.12 and later
 
 from adminsite.fields import JSONField
 

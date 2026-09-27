@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Annotated, Any, Literal, NotRequired, TypedDict
+from typing import Annotated, Any, Literal, NotRequired
 
 import pydantic
 from fastapi import FastAPI
@@ -24,6 +24,7 @@ from sqlalchemy import JSON, Column, ForeignKey, Integer, Numeric, String, Table
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import StaticPool
+from typing_extensions import TypedDict
 
 from adminsite import Admin, Computed, FieldOptions, Inline, ModelView
 from adminsite.actions import Selection, action

@@ -1,12 +1,13 @@
 import html
 import re
 from collections.abc import AsyncIterator
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Annotated, Any, Literal
 
 import httpx
 import pytest
 from pydantic import BaseModel, Field, field_validator
 from starlette.applications import Starlette
+from typing_extensions import TypedDict
 
 from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
