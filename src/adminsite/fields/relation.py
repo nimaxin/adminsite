@@ -1,58 +1,77 @@
 from collections.abc import Iterable
-from typing import Any
+from dataclasses import KW_ONLY, dataclass
+from typing import TYPE_CHECKING, Any, Self
 
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import Field
 from adminsite.schema import RelationSchema
 from adminsite.text import RecordValues
 
+if TYPE_CHECKING:
+    from adminsite.views.model_view import ModelView
 
-class RelationField(Field):
-    """A link to one or many other records."""
+
+@dataclass(eq=False, repr=False)
+class RelationField(Field[Any]):
+    """A link to one or many other records: `RelationField(Order.customer)`.
+
+    The relationship says which model it links to and whether it holds many
+    records. `view` names the view its links open and its picker lists
+    from, for a model shown by more than one view; left out, the first view
+    of that model.
+    """
+
+    _: KW_ONLY
+    # The model of the linked records. Left out, the relationship's.
+    target: type[Any] | None = None
+    collection: bool = False
+    display_template: str | None = None
+    view: "type[ModelView[Any]] | str | None" = None
+    # For a link to many whose order means something, such as servers tried
+    # in turn: the form can put its records in order, and saving writes the
+    # link again in that order when it changed.
+    ordered: bool = False
 
     widget = "relation"
     python_type = str
     error_message = "Choose a record."
 
-    def __init__(
-        self,
-        name: str,
-        *,
-        target: type[Any],
-        collection: bool = False,
-        display_template: str | None = None,
-        view: str | None = None,
-        ordered: bool = False,
-        **options: Any,
-    ) -> None:
-        super().__init__(name, **options)
-        self.target = target
-        self.collection = collection
-        self.display_template = display_template
-        # The view the link opens and the picker lists from, by name, for a
-        # model shown by more than one view. None takes the first one.
-        self.view = view
-        # For a link to many whose order means something, such as servers
-        # tried in turn: the form can put its records in order, and saving
-        # writes the link again in that order when it changed.
-        if ordered and not collection:
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # A field waiting for its relationship does not know yet whether it
+        # links to many; the check runs again once the view fills it in.
+        if self.ordered and self.target is not None and not self.collection:
             raise AdminSiteError(
-                f"The field {name!r} links to one record, so it has no order: "
+                f"The field {self.name!r} links to one record, so it has no order: "
                 "ordered=True is for a link to many."
             )
-        self.ordered = ordered
 
     @classmethod
-    def from_relation(cls, schema: RelationSchema, **overrides: Any) -> "RelationField":
-        """Build the field from an inspected relationship."""
+    def from_relation(cls, schema: RelationSchema, **overrides: Any) -> Self:
+        """Build the field for an inspected relationship."""
+        return cls(schema.name, **overrides).filled_from_relation(schema)
+
+    def filled_from_relation(self, schema: RelationSchema) -> Self:
+        """A copy with what the relationship says wherever no option was given."""
         options: dict[str, Any] = {
-            "label": schema.label,
             "target": schema.target,
             "collection": schema.collection,
-            "required": not schema.nullable and not schema.collection,
         }
-        options.update(overrides)
-        return cls(schema.name, **options)
+        if not self.labelled:
+            options["label"] = schema.label
+        if self.required is None:
+            options["required"] = not schema.nullable and not schema.collection
+        return self._filled(options)
+
+    @property
+    def related_model(self) -> type[Any]:
+        """The model of the linked records."""
+        if self.target is None:
+            raise AdminSiteError(
+                f"The field {self.name!r} does not know the model it links to. "
+                "Put it in a view's fields, or give it target=."
+            )
+        return self.target
 
     def label_for(self, record: Any) -> str:
         """Name a single related record, using the display template if set."""

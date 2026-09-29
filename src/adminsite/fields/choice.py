@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from enum import Enum
 from typing import Any
 
@@ -13,8 +14,17 @@ from adminsite.text import humanize
 TONES = 6
 
 
-class ChoiceField(Field):
+@dataclass(eq=False, repr=False)
+class EnumField(Field[Any]):
     """A value picked from a fixed set, such as a status.
+
+    The set comes from the column, an Enum or a string column with its
+    values listed, or from `enum` or `choices` given here:
+
+    ```python
+    EnumField(Order.status, tones={Status.PAID: "green", Status.FAILED: "rose"})
+    EnumField(Product.size, choices=[("S", "Small"), ("L", "Large")])
+    ```
 
     With `multiple=True` it holds several options at once, in the order they
     were picked, which suits a JSON column and an action that asks for a few
@@ -26,47 +36,32 @@ class ChoiceField(Field):
     every value alike. Without it, a value takes the tone of its place.
     """
 
+    _: KW_ONLY
+    enum: type[Enum] | None = None
+    choices: Sequence[tuple[str, str]] = ()
+    multiple: bool = False
+    tones: Tones | None = None
+
     widget = "select"
     python_type = str
     error_message = "Choose one of the listed options."
 
-    def __init__(
-        self,
-        name: str,
-        *,
-        choices: Sequence[tuple[str, str]] = (),
-        enum_class: type[Enum] | None = None,
-        multiple: bool = False,
-        tones: Tones | None = None,
-        **options: Any,
-    ) -> None:
-        super().__init__(name, **options)
-        self.enum_class = enum_class
-        self.multiple = multiple
-        self.choices = tuple(choices) or self._choices_from_enum(enum_class)
-        self.tones = tones
-        self._tones = self._read_tones(tones)
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.choices = tuple(self.choices) or self._choices_from_enum(self.enum)
+        self._tones = self._read_tones(self.tones)
 
-    @classmethod
-    def from_schema(cls, schema: FieldSchema, **overrides: Any) -> "ChoiceField":
-        """Build the field from a column that has a fixed set of values."""
-        enum_class = (
-            schema.python_type
-            if isinstance(schema.python_type, type)
-            and issubclass(schema.python_type, Enum)
-            else None
-        )
-        options: dict[str, Any] = {
-            "label": schema.label,
-            "required": schema.required,
-            "readonly": schema.primary_key,
-            "enum_class": enum_class,
-            "choices": tuple(
+    def column_options(self, schema: FieldSchema) -> dict[str, Any]:
+        """The set of values as well, where neither `enum` nor `choices` is given."""
+        options = super().column_options(schema)
+        if self.enum is None and not self.choices:
+            python_type = schema.python_type
+            if isinstance(python_type, type) and issubclass(python_type, Enum):
+                options["enum"] = python_type
+            options["choices"] = tuple(
                 (value, humanize(value)) for value in schema.enum_values or ()
-            ),
-        }
-        options.update(overrides)
-        return cls(schema.name, **options)
+            )
+        return options
 
     def display(self, value: Any) -> str:
         """Show the label of the chosen option, or of each of them."""
@@ -166,16 +161,16 @@ class ChoiceField(Field):
             if match is None:
                 raise FieldValidationError(self.name, _(self.error_message))
             text = match
-        if self.enum_class is None:
+        if self.enum is None:
             return text
-        return self.enum_class[text]
+        return self.enum[text]
 
     def _choices_from_enum(
-        self, enum_class: type[Enum] | None
+        self, enum: type[Enum] | None
     ) -> tuple[tuple[str, str], ...]:
-        if enum_class is None:
+        if enum is None:
             return ()
-        return tuple((member.name, humanize(member.name)) for member in enum_class)
+        return tuple((member.name, humanize(member.name)) for member in enum)
 
     def _stored_value(self, value: Any) -> str:
         return value.name if isinstance(value, Enum) else str(value)
@@ -186,3 +181,7 @@ class ChoiceField(Field):
             if option.lower() == lowered:
                 return option
         return None
+
+
+# The name EnumField had until 0.1.0a10, which refuses it.
+ChoiceField = EnumField

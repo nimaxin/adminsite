@@ -1,11 +1,11 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from adminsite.fields.base import Field
-from adminsite.fields.choice import ChoiceField
+from adminsite.fields.choice import EnumField
 from adminsite.fields.json_field import JSONField
 from adminsite.fields.list_field import ListField
 from adminsite.fields.scalars import (
@@ -14,7 +14,7 @@ from adminsite.fields.scalars import (
     FloatField,
     IntegerField,
     StringField,
-    TextField,
+    TextAreaField,
     UUIDField,
 )
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
@@ -23,27 +23,29 @@ from adminsite.schema import FieldSchema
 # Above this length a string is edited in a box instead of on one line.
 TEXTAREA_LENGTH = 255
 
+F = TypeVar("F", bound=Field[Any])
+
 
 class FieldRegistry:
     """Decides which field type to use for a column."""
 
     def __init__(self) -> None:
-        self._by_type: dict[type[Any], type[Field]] = {}
+        self._by_type: dict[type[Any], type[Field[Any]]] = {}
 
-    def register(self, python_type: type[Any], field_class: type[Field]) -> None:
+    def register(self, python_type: type[Any], field_class: type[Field[Any]]) -> None:
         """Use this field type for columns holding this Python type."""
         self._by_type[python_type] = field_class
 
-    def field_class_for(self, schema: FieldSchema) -> type[Field]:
+    def field_class_for(self, schema: FieldSchema) -> type[Field[Any]]:
         """Return the field type that fits the column."""
         if schema.item is not None:
             return ListField
         if schema.enum_values:
-            return ChoiceField
+            return EnumField
 
         python_type = schema.python_type
         if isinstance(python_type, type) and issubclass(python_type, Enum):
-            return ChoiceField
+            return EnumField
 
         exact = self._by_type.get(python_type)
         if exact is not None:
@@ -55,17 +57,23 @@ class FieldRegistry:
 
         return StringField
 
-    def build(self, schema: FieldSchema, **overrides: Any) -> Field:
+    def build(self, schema: FieldSchema, **overrides: Any) -> Field[Any]:
         """Build the field for a column, ready to display and to parse."""
-        field_class = self.field_class_for(schema)
-        if schema.item is not None and issubclass(field_class, ListField):
-            # Each value is read by the field its own type calls for.
-            overrides.setdefault("item", self.build(schema.item))
-        return field_class.from_schema(schema, **overrides)
+        return self.fill(self.field_class_for(schema)(schema.name, **overrides), schema)
 
-    def _narrow(self, field_class: type[Field], schema: FieldSchema) -> type[Field]:
+    def fill(self, field: F, schema: FieldSchema) -> F:
+        """A copy of a field with what its column says, for the options left out."""
+        filled = field.filled_from(schema)
+        if isinstance(filled, ListField) and filled.item is None and schema.item:
+            # Each value is read by the field its own type calls for.
+            filled.item = self.build(schema.item)
+        return filled
+
+    def _narrow(
+        self, field_class: type[Field[Any]], schema: FieldSchema
+    ) -> type[Field[Any]]:
         if field_class is StringField and self._wants_a_box(schema):
-            return TextField
+            return TextAreaField
         return field_class
 
     def _wants_a_box(self, schema: FieldSchema) -> bool:

@@ -56,7 +56,7 @@ An action can ask for values before it runs. They appear in a dialog, are checke
 and reach the method by name:
 
 ```python
-from adminsite.fields import ChoiceField, StringField
+from adminsite.fields import EnumField, StringField
 
 CARRIERS = (("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL"))
 
@@ -66,7 +66,7 @@ class OrderView(ModelView[Order]):
         "Mark as shipped",
         confirm="Mark the chosen orders as shipped?",
         inputs=[
-            ChoiceField("carrier", choices=CARRIERS, required=True),
+            EnumField("carrier", choices=CARRIERS, required=True),
             StringField("tracking", label="Tracking number", max_length=40),
         ],
     )
@@ -85,7 +85,7 @@ A missing or invalid value stops the action and tells the user which field and w
 ### Where the dialog starts
 
 `default` says what an input holds when the dialog opens, so switches that are usually on open on
-and nobody has to set them every time. `multiple=True` on a `ChoiceField` lets one input hold
+and nobody has to set them every time. `multiple=True` on a `EnumField` lets one input hold
 several options, and the method receives a list:
 
 ```python
@@ -93,7 +93,7 @@ class OrderView(ModelView[Order]):
     @action(
         "Download",
         inputs=[
-            ChoiceField("kinds", choices=KINDS, multiple=True, default=("paper",)),
+            EnumField("kinds", choices=KINDS, multiple=True, default=("paper",)),
             BooleanField("with_totals", label="With totals", default=True),
         ],
     )
@@ -146,15 +146,13 @@ import dataclasses
 
 
 class OrderView(ModelView[Order]):
-    @action("Move", inputs=[ChoiceField("warehouse", choices=())])
+    @action("Move", inputs=[EnumField("warehouse", choices=())])
     async def move(self, selection: Selection, warehouse: str) -> str: ...
 
     def get_actions(self, request=None):
         choices = warehouses_for(request.user)
         return tuple(
-            dataclasses.replace(
-                item, inputs=(ChoiceField("warehouse", choices=choices),)
-            )
+            dataclasses.replace(item, inputs=(EnumField("warehouse", choices=choices),))
             if item.name == "move"
             else item
             for item in super().get_actions(request)

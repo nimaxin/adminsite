@@ -7,7 +7,7 @@ from adminsite.security import Permission
 from adminsite.text import humanize
 
 if TYPE_CHECKING:
-    from adminsite.fields import Field
+    from adminsite.fields import BaseField
 
 MARKER = "__adminsite_action__"
 
@@ -33,7 +33,7 @@ class Action:
     confirm: str = ""
     permission: str = Permission.EDIT
     dangerous: bool = False
-    inputs: tuple["Field", ...] = ()
+    inputs: tuple["BaseField", ...] = ()
     on: str = ON_SELECTION
     # Whether the audit log keeps what the action answered. Switch it off
     # for an answer that holds a secret shown once, such as a new API key.
@@ -75,7 +75,7 @@ def action(
     confirm: str = "",
     permission: str = Permission.EDIT,
     dangerous: bool = False,
-    inputs: Sequence["Field"] = (),
+    inputs: Sequence["BaseField"] = (),
     on: str = ON_SELECTION,
     audit_answer: bool = True,
 ) -> Callable[[Handler], Handler]:
@@ -85,7 +85,7 @@ def action(
     @action(
         "Mark as shipped",
         confirm="Mark the chosen orders as shipped?",
-        inputs=[ChoiceField("carrier", choices=CARRIERS, required=True)],
+        inputs=[EnumField("carrier", choices=CARRIERS, required=True)],
     )
     async def ship(self, selection: Selection, carrier: str) -> str:
         changed = await selection.update(status="shipped", carrier=carrier)

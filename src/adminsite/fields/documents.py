@@ -35,7 +35,7 @@ from pydantic_core import ErrorDetails, to_jsonable_python
 
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
-from adminsite.fields.choice import ChoiceField
+from adminsite.fields.choice import EnumField
 from adminsite.fields.list_field import ListField
 from adminsite.fields.scalars import (
     BooleanField,
@@ -93,7 +93,7 @@ class Shape:
 class Value(Shape):
     """A single value, drawn and read by an ordinary field."""
 
-    field: Field
+    field: Field[Any]
 
 
 @dataclass
@@ -143,8 +143,8 @@ class Rows(Shape):
 class Pairs(Shape):
     """An object used as a map, edited as rows of a key and a value."""
 
-    key: Field
-    value: Field
+    key: Field[Any]
+    value: Field[Any]
     # The keys the map may hold, where the schema fixes them.
     keys: tuple[Any, ...] = ()
 
@@ -161,7 +161,7 @@ def _number_text(number: Any) -> str:
     return str(number)
 
 
-class _Described(Field):
+class _Described(Field[Any]):
     """A field whose note starts with its property's description."""
 
     description = ""
@@ -357,7 +357,7 @@ class DocumentList(_Described, ListField):
     """A list of plain values inside a document, one per line."""
 
 
-class DocumentCode(_Described, Field):
+class DocumentCode(_Described, Field[Any]):
     """A part of a document the form cannot draw, written as JSON."""
 
     widget = "json"
@@ -398,7 +398,7 @@ def _choice_label(value: Any) -> str:
     return _choice_text(value)
 
 
-class DocumentChoice(_Described, ChoiceField):
+class DocumentChoice(_Described, EnumField):
     """One of a fixed set of values inside a document, or several of them.
 
     The values may be numbers as well as text, and each is stored as the
@@ -570,7 +570,7 @@ class _SchemaReader:
             named, _nullable, _walked = self.resolve(names, seen)
             if named is not None and isinstance(named.get("enum"), list):
                 keys = tuple(named["enum"])
-        key_field: Field = (
+        key_field: Field[Any] = (
             DocumentChoice("key", options=keys, label="Key", required=True)
             if keys
             else DocumentText("key", label="Key", required=True)
@@ -644,7 +644,7 @@ class _SchemaReader:
 
     def value_field(
         self, node: Mapping[str, Any], key: str, settings: dict[str, Any]
-    ) -> Field | None:
+    ) -> Field[Any] | None:
         """The ordinary field that draws one plain value, if one fits."""
         if isinstance(node.get("enum"), list):
             return DocumentChoice(key, options=node["enum"], **settings)
@@ -685,7 +685,7 @@ class _SchemaReader:
         return text
 
 
-def _describe(item: Field, description: str) -> Field:
+def _describe(item: Field[Any], description: str) -> Field[Any]:
     """Give a field its property's description, as the note under it."""
     if isinstance(item, _Described):
         item.description = description
@@ -756,10 +756,10 @@ class _Reading:
     keys: dict[str, dict[str, str]] = dataclasses.field(default_factory=dict)
 
 
-def _read_value(item: Field, raw: Any, name: str, reading: _Reading) -> Any:
+def _read_value(item: Field[Any], raw: Any, name: str, reading: _Reading) -> Any:
     """Read one input: its value, None when empty, or MISSING when wrong."""
     try:
-        if isinstance(item, ChoiceField) and item.multiple:
+        if isinstance(item, EnumField) and item.multiple:
             return item.parse_many(_as_list(raw))
         return item.parse(_as_text(raw))
     except FieldValidationError as error:
@@ -852,7 +852,7 @@ class Document:
             if value is MISSING or value is None:
                 return
             item = shape.field
-            if isinstance(item, ChoiceField) and item.multiple:
+            if isinstance(item, EnumField) and item.multiple:
                 values[name] = list(item.values_of(value))
             else:
                 values[name] = item.serialize(_python_value(item, value))
@@ -1176,12 +1176,12 @@ def message_for(error: ErrorDetails) -> str:
     return _("Enter a valid value.")
 
 
-def _python_value(item: Field, value: Any) -> Any:
+def _python_value(item: Field[Any], value: Any) -> Any:
     """A stored JSON value as the field that shows it expects it.
 
     A date is stored as text, 2026-09-18, and a date field formats a date.
     """
-    wanted: dict[type[Field], type] = {
+    wanted: dict[type[Field[Any]], type] = {
         DocumentDate: date,
         DocumentDateTime: datetime,
         DocumentTime: time,
@@ -1193,7 +1193,7 @@ def _python_value(item: Field, value: Any) -> Any:
             except PydanticValidationError:
                 return value
     if isinstance(item, DocumentList) and isinstance(value, list):
-        return [_python_value(item.item, one) for one in value]
+        return [_python_value(item.reader, one) for one in value]
     return value
 
 
@@ -1211,7 +1211,7 @@ class Shown:
     kind: str
     label: str = ""
     text: str = ""
-    field: Field | None = None
+    field: Field[Any] | None = None
     value: Any = None
     entries: list["Shown"] = dataclasses.field(default_factory=list)
     columns: list[str] = dataclasses.field(default_factory=list)

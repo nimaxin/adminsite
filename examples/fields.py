@@ -26,13 +26,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import StaticPool
 from typing_extensions import TypedDict
 
-from adminsite import Admin, Computed, FieldOptions, Inline, ModelView
+from adminsite import Admin, Inline, ModelView
 from adminsite.actions import Selection, action
 from adminsite.auth import hash_password
 from adminsite.backends.sqlalchemy import SessionAdapter
 from adminsite.fields import (
-    ChoiceField,
+    BooleanField,
+    ComputedField,
     EmailField,
+    EnumField,
     Field,
     FileField,
     ImageField,
@@ -298,101 +300,109 @@ COLOURS = (
 )
 
 
+def stock_value(showcase: Showcase) -> Decimal:
+    return showcase.price * showcase.quantity
+
+
 def showcase_fields(
     storage: FileStorage, *, upload_limit: int = 5 * MEGABYTE
-) -> tuple[Field | FieldOptions, ...]:
+) -> list[Field[Any] | ComputedField[Showcase, Any]]:
     """The showcase's fields, each saying which class it is.
 
     Its files are kept in `storage`, each no larger than `upload_limit`.
     """
-    return (
-        FieldOptions("name", help_text="StringField, required: one line of text."),
-        FieldOptions("summary", help_text="TextField: a Text column gets a box."),
-        EmailField("email", help_text="EmailField, chosen in the view."),
+    return [
+        Field(Showcase.name, help_text="StringField, required: one line of text."),
+        Field(Showcase.summary, help_text="TextAreaField: a Text column gets a box."),
+        EmailField(Showcase.email, help_text="EmailField, chosen in the view."),
         PasswordField(
             "password",
             help_text="PasswordField: never shown. Leave it empty to keep the one set.",
         ),
-        FieldOptions("quantity", help_text="IntegerField."),
-        FieldOptions("weight", help_text="FloatField."),
-        FieldOptions("price", format=EUROS, help_text="DecimalField, shown in euros."),
-        FieldOptions("in_stock", help_text="BooleanField."),
-        FieldOptions(
-            "flagged",
+        Field(Showcase.quantity, help_text="IntegerField."),
+        Field(Showcase.weight, help_text="FloatField."),
+        Field(Showcase.price, format=EUROS, help_text="DecimalField, shown in euros."),
+        Field(Showcase.in_stock, help_text="BooleanField."),
+        BooleanField(
+            Showcase.flagged,
             tones={True: "rose", False: None},
             help_text="BooleanField that may be left empty, rose when it is set.",
         ),
-        FieldOptions("released_on", help_text="DateField."),
-        FieldOptions("updated_at", help_text="DateTimeField."),
-        FieldOptions("opens_at", help_text="TimeField."),
-        FieldOptions("serial", help_text="UUIDField."),
-        FieldOptions(
-            "status",
+        Field(Showcase.released_on, help_text="DateField."),
+        Field(Showcase.updated_at, help_text="DateTimeField."),
+        Field(Showcase.opens_at, help_text="TimeField."),
+        Field(Showcase.serial, help_text="UUIDField."),
+        EnumField(
+            Showcase.status,
             tones={
                 Status.DRAFT: "grey",
                 Status.ACTIVE: "green",
                 Status.PAUSED: "amber",
                 Status.RETIRED: "rose",
             },
-            help_text="ChoiceField from an Enum column, a colour for each value.",
+            help_text="EnumField from an Enum column, a colour for each value.",
         ),
-        ChoiceField(
-            "size",
+        EnumField(
+            Showcase.size,
             choices=SIZES,
-            help_text="ChoiceField with its own choices, on a String column.",
+            help_text="EnumField with its own choices, on a String column.",
         ),
-        ChoiceField(
-            "colours",
+        EnumField(
+            Showcase.colours,
             choices=COLOURS,
             multiple=True,
-            help_text="ChoiceField with multiple=True, on a JSON column.",
+            help_text="EnumField with multiple=True, on a JSON column.",
         ),
-        FieldOptions("specs", help_text="JSONField."),
+        Field(Showcase.specs, help_text="JSONField."),
         JSONField(
-            "settings",
+            Showcase.settings,
             schema=ShopSettings,
             help_text="JSONField with a schema: a form built from a Pydantic model.",
         ),
         ListField(
-            "scores",
+            Showcase.scores,
             item=IntegerField("scores"),
             help_text="ListField of whole numbers, one on each line.",
         ),
         FileField(
-            "manual",
+            Showcase.manual,
             storage=storage,
             accept=".pdf,.txt",
             max_size=upload_limit,
             help_text="FileField: a PDF or a text file.",
         ),
         ImageField(
-            "photo", storage=storage, max_size=upload_limit, help_text="ImageField."
+            Showcase.photo,
+            storage=storage,
+            max_size=upload_limit,
+            help_text="ImageField.",
         ),
-        FieldOptions(
-            "category", help_text="RelationField to one of five: a plain select."
+        Field(
+            Showcase.category, help_text="RelationField to one of five: a plain select."
         ),
-        FieldOptions(
-            "supplier", help_text="RelationField to one of 150: searched as you type."
+        Field(
+            Showcase.supplier,
+            help_text="RelationField to one of 150: searched as you type.",
         ),
-        FieldOptions("labels", help_text="RelationField to many of twelve: chips."),
-        FieldOptions(
-            "stockists",
+        Field(Showcase.labels, help_text="RelationField to many of twelve: chips."),
+        Field(
+            Showcase.stockists,
             help_text="RelationField to many of 150: chips, searched as you type.",
         ),
-        FieldOptions(
-            "servers",
+        RelationField(
+            Showcase.servers,
             ordered=True,
             help_text="RelationField with ordered=True: tried in this order.",
         ),
-        FieldOptions("created_at", help_text="DateTimeField, read only."),
-        Computed(
+        Field(Showcase.created_at, help_text="DateTimeField, read only."),
+        ComputedField(
             "stock_value",
-            lambda showcase: showcase.price * showcase.quantity,
+            stock_value,
             label="Stock value",
             format=EUROS,
-            help_text="Computed: the price times the quantity.",
+            help_text="ComputedField: the price times the quantity.",
         ),
-    )
+    ]
 
 
 # Where uploads go, and where the sample photos are written for the records.
@@ -527,11 +537,11 @@ class SettingView(ModelView[Setting]):
     list_display = ("key", "value")
     form_fields = ("key", "value")
     fields = (
-        ChoiceField(
-            "key",
+        EnumField(
+            Setting.key,
             choices=[(key, key.capitalize()) for key in SETTINGS],
             required=True,
-            help_text="ChoiceField. The value's form follows the key chosen here.",
+            help_text="EnumField. The value's form follows the key chosen here.",
         ),
         JSONField(
             "value",

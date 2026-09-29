@@ -11,7 +11,7 @@ your machine with `uv run uvicorn examples.fields:app --reload`.
 | Column | Field | Shown as | Edited with |
 |---|---|---|---|
 | `str` with a length up to 255 | `StringField` | the text | a text input |
-| `str` without a length, or longer | `TextField` | the text | a text box |
+| `str` without a length, or longer | `TextAreaField` | the text | a text box |
 | `int` | `IntegerField` | `42` | a number input |
 | `float` | `FloatField` | `4.2` | a number input |
 | `Decimal` | `DecimalField` | `1,234.50` | a number input |
@@ -19,7 +19,7 @@ your machine with `uv run uvicorn examples.fields:app --reload`.
 | `date` | `DateField` | `Sep 8, 2026` | a date picker |
 | `datetime` | `DateTimeField` | `Sep 8, 2026 14:05` | a date and time picker |
 | `time` | `TimeField` | `14:05` | a time picker |
-| an enum | `ChoiceField` | `Shipped` | a select |
+| an enum | `EnumField` | `Shipped` | a select |
 | a relationship | `RelationField` | the linked record's name | a picker, or a search box on big tables |
 
 Labels come from the column name: `created_at` reads "Created at", and `customer_id` reads
@@ -36,86 +36,75 @@ everything else still filled in:
 | `IntegerField` | Enter a whole number. |
 | `DecimalField` | Enter an amount, for example 12.50. |
 | a string longer than its column | Keep this to 120 characters or fewer. |
-| `ChoiceField` | Choose one of the listed options. |
+| `EnumField` | Choose one of the listed options. |
 
-## Replacing a field
+## Choosing a field
 
-Give the view a field object with the same name as the path, and it replaces the one adminsite
-would have built:
-
-```python
-from adminsite.fields import EmailField, RelationField, TextField
-
-
-class CustomerView(ModelView[Customer]):
-    fields = (
-        EmailField("email", required=True),
-        TextField("notes", label="Internal notes", help_text="Only staff see this."),
-    )
-
-
-class OrderView(ModelView[Order]):
-    fields = (
-        RelationField(
-            "customer",
-            target=Customer,
-            required=True,
-            display_template="{name} ({email})",
-        ),
-    )
-```
-
-Every field takes `label`, `required`, `readonly`, `help_text`, `max_length`, `default`, `format`,
-`secret` and `form_only`. `default` is what a new record's form starts with, and what an action's
-dialog opens with. `secret` says whether the [audit log](audit.md#secrets) keeps `***` instead of
-the value, in what a save changed and in what an action was run with; left out, a name such as
-`password_hash` or `api_key` decides. `form_only` is for
-[an input that is not a column](#inputs-that-are-not-columns). `format` is how a value is written
-wherever it is shown, as `str.format` takes it, the same way a dashboard's `Stat` and `Chart` take
-it:
+A view's `fields` holds its columns, and a field wherever a column needs options. `Field` on its
+own is the field adminsite picks for the column, with your options:
 
 ```python
-from adminsite import FieldOptions
-
-
-class OrderView(ModelView[Order]):
-    fields = (FieldOptions("total", format="€{:,.2f}"),)
-```
-
-The list, the record page, the export and the overview's cards then read `€1,234.50`. The form's
-input keeps the plain number, since that is what it reads back.
-
-## Changing one thing about a field
-
-Most of the time the field adminsite worked out is the right one and only its label or a line of
-help is wrong. `FieldOptions` changes those without naming the type, the target or anything else
-again:
-
-```python
-from adminsite import FieldOptions
+from adminsite import Field
 
 
 class ProductView(ModelView[Product]):
-    fields = (
-        FieldOptions("name", label="Product name"),
-        FieldOptions("description", help_text="Shown on the shop page."),
-    )
+    fields = [
+        Field(Product.name, label="Product name"),
+        Field(Product.description, help_text="Shown on the shop page."),
+        Field(Product.price, format="€{:,.2f}", read_only=True),
+    ]
+```
+
+A kind such as `EmailField` or `TextAreaField` chooses the field itself:
+
+```python
+from adminsite.fields import EmailField, RelationField, TextAreaField
+
+
+class CustomerView(ModelView[Customer]):
+    fields = [
+        Customer.name,
+        EmailField(Customer.email),
+        TextAreaField(Customer.notes, label="Internal notes"),
+    ]
 
 
 class OrderView(ModelView[Order]):
-    fields = (FieldOptions("customer", display_template="{name} ({email})"),)
+    fields = [
+        Order.id,
+        RelationField(Order.customer, display_template="{name} ({email})"),
+    ]
 ```
 
-It takes whatever the field takes, so `label`, `required`, `readonly`, `help_text` and
-`max_length` work on any field, and `display_template` works on a link. An option the field does
-not take is an error as soon as the view is created, naming the path, rather than a setting that
-quietly does nothing.
+Either way the field starts from its column. What the options leave out comes from there: the
+label, the length of a `String(80)`, whether the value may be empty, an enum's choices, and the
+model a relationship links to. So choosing a kind never means saying those again, and an option you
+give wins over the column.
 
-`FieldOptions` sits in the same `fields` tuple as whole fields. Where both name the same path the
-whole field wins, since it already says everything.
+The column is named by its attribute, by a [`Link`](views.md#naming-columns) for a column of a
+related model, or by its name as a string. Options are keywords, each with its type, so a type
+checker refuses `Field(Order.note, lable="Note")`, `Field(Order.note, "Note")` and
+`TextAreaField(Order.total)` on a `Decimal` column, and Python refuses a misspelt option when the
+module is imported.
 
-A label given this way is used as it stands. Without one, a path through a link names the link as
-well, so `customer.name` reads Customer name.
+Every field takes `label`, `help_text`, `required`, `read_only`, `max_length`, `default`, `format`,
+`secret` and `form_only`, and the flags that leave it off a page, as under
+[Fields](views.md#fields). `read_only` shows the value in the form and never reads it back.
+`default` is what a new record's form starts with, and what an action's dialog opens with. `secret`
+says whether the [audit log](audit.md#secrets) keeps `***` instead of the value, in what a save
+changed and in what an action was run with; left out, a name such as `password_hash` or `api_key`
+decides. `form_only` is for [an input that is not a column](#inputs-that-are-not-columns).
+
+`format` is how a value is written wherever it is shown, as `str.format` takes it, the same way a
+dashboard's `Stat` and `Chart` take it. With `format="€{:,.2f}"` the list, the record page, the
+export and the overview's cards read `€1,234.50`. The form's input keeps the plain number, since
+that is what it reads back.
+
+A label you give is used as it stands. Without one, a column of a related model names the relation
+as well, so `Link(Order.customer, Customer.name)` reads Customer name.
+
+`FieldOptions("name", label="Product name")`, the way to write these before, still works, and
+0.1.0a10 will refuse it.
 
 ## Badge colours
 
@@ -124,22 +113,22 @@ takes the colour of its place in the list: the first is amber, then blue, green,
 rose. A yes is green and a no grey. Give the field `tones` to say which colour means what:
 
 ```python
-from adminsite import FieldOptions
+from adminsite.fields import BooleanField, EnumField
 
 
 class OrderView(ModelView[Order]):
-    fields = (
-        FieldOptions(
-            "status",
+    fields = [
+        EnumField(
+            Order.status,
             tones={
                 OrderStatus.PENDING: "amber",
                 OrderStatus.SHIPPED: "green",
                 OrderStatus.FAILED: "rose",
             },
         ),
-        FieldOptions("country", tones="grey"),
-        FieldOptions("high_risk", tones={True: "rose", False: None}),
-    )
+        EnumField(Order.country, tones="grey"),
+        BooleanField(Order.high_risk, tones={True: "rose", False: None}),
+    ]
 ```
 
 The six tones are `amber`, `blue`, `green`, `grey`, `violet` and `rose`. A value left out is
@@ -166,7 +155,7 @@ For a table of up to 100 records the whole list is in the page and narrows as yo
 the list is searched on the server, twenty records at a time, and says so when more match. A link
 that holds a single record works the same way above 100 records: the box shows the record's name,
 typing searches for another, and picking replaces it. Below 100 it is a plain select. A
-`ChoiceField` with `multiple=True` gets the same picker, over its options.
+`EnumField` with `multiple=True` gets the same picker, over its options.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
 whatever the lookup finds, twenty at a time. Give the other model's view a `display_template` so those
@@ -191,7 +180,7 @@ offers only the records the list does not hold yet:
 
 ```python
 class ConfigView(ModelView[Config]):
-    fields = (FieldOptions("proxies", ordered=True),)
+    fields = [Config.name, RelationField(Config.proxies, ordered=True)]
 ```
 
 The order has to live somewhere, so the relationship needs one of its own. A link table with a
@@ -276,7 +265,7 @@ class ShopSettings(BaseModel):
 
 
 class ShopView(ModelView[Shop]):
-    fields = (JSONField("settings", schema=ShopSettings),)
+    fields = [Shop.name, JSONField(Shop.settings, schema=ShopSettings)]
 ```
 
 Each part is drawn by one of the ordinary fields, so it looks and reads like the rest of the form:
@@ -337,7 +326,7 @@ def schema_for(setting: Setting) -> type[BaseModel] | None:
 
 
 class SettingView(ModelView[Setting]):
-    fields = (JSONField("value", schema=schema_for),)
+    fields = [Setting.key, JSONField(Setting.value, schema=schema_for)]
 ```
 
 Two settings then open as two different forms. A new record has no row yet, so the function is
@@ -354,7 +343,10 @@ property of the document may be set or left unset:
 
 ```python
 class CustomerGroupView(ModelView[CustomerGroup]):
-    fields = (JSONField("overrides", schema=ShopSettings, partial=True),)
+    fields = [
+        CustomerGroup.name,
+        JSONField(CustomerGroup.overrides, schema=ShopSettings, partial=True),
+    ]
 ```
 
 Each property has **Set** or **Clear** beside it. One left unset reads "Not set", sends nothing, and
@@ -382,35 +374,37 @@ from adminsite.fields import IntegerField, ListField
 
 
 class ProductView(ModelView[Product]):
-    fields = (
-        ListField("tags"),
-        ListField("sizes", item=IntegerField("sizes")),
-    )
+    fields = [
+        Product.name,
+        ListField(Product.tags),
+        ListField(Product.sizes, item=IntegerField("sizes")),
+    ]
 ```
 
 ## A value the view works out
 
-Not every column on a page is a column. `Computed` shows something the view works out from the
-record, in the list, on the record page and in the export:
+Not every column on a page is a column. `ComputedField` shows something the view works out from
+the record, in the list, on the record page and in the export:
 
 ```python
-from adminsite import Computed
+from adminsite.fields import ComputedField
+
+
+def capacity(product: Product) -> str:
+    return f"{len(product.slots)}/{product.limit}"
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("name", "price", "capacity")
-    fields = (
-        Computed(
-            "capacity",
-            lambda product: f"{len(product.slots)}/{product.limit}",
-            label="Capacity",
-            needs=("slots",),
-        ),
-    )
+    fields = [
+        Product.name,
+        Product.price,
+        ComputedField("capacity", capacity, needs=[Product.slots]),
+    ]
 ```
 
-`needs` names the paths the function reads, so they are loaded with the page. Without it a list of
-25 records would ask the database 25 times.
+`needs` names what the function reads, so it is loaded with the page. Without it a list of 25
+records would ask the database 25 times. The function takes the view's model, so a type checker
+refuses one written for another model.
 
 ### A value that takes a query
 
@@ -433,8 +427,7 @@ async def member_counts(session, groups):
 
 
 class GroupView(ModelView[Group]):
-    list_display = ("name", "members")
-    fields = (Computed("members", load=member_counts, default=0),)
+    fields = [Group.name, ComputedField("members", load=member_counts, default=0)]
 ```
 
 A record the answer leaves out gets `default`, here 0 for a group with no members. The value shows
@@ -463,9 +456,8 @@ from adminsite.fields import PasswordField
 from adminsite.views.writing import SaveContext
 
 
-class AccountView(ModelView[Account]):
-    form_fields = ("email", "password")
-    fields = (PasswordField("password", required=True),)
+class UserView(ModelView[User]):
+    fields = [User.email, PasswordField("password", required=True)]
 
     async def before_save(self, context: SaveContext) -> None:
         password = context.values.get("password")
@@ -498,8 +490,7 @@ from adminsite.fields import JSONField
 
 
 class GroupView(ModelView[Group]):
-    form_fields = ("name", "settings")
-    fields = (JSONField("settings", form_only=True),)
+    fields = [Group.name, JSONField("settings", form_only=True)]
 
     async def form_values(self, session, record, *, request=None):
         if record is None:
@@ -534,9 +525,7 @@ currency, and a status reads differently when a second column says the check was
 Override `text_for` instead, which gets the record:
 
 ```python
-class Money(Field):
-    widget = "number"
-
+class Money(DecimalField):
     def text_for(self, record, value):
         if value is None:
             return ""
@@ -552,20 +541,20 @@ Cells are escaped text, so a name holding `<script>` shows as it was written and
 Return `Html` where the cell is meant to be markup, such as a link to a file or to another system:
 
 ```python
-from adminsite import Computed, Html
+from adminsite import Html, Link
+from adminsite.fields import ComputedField
+
+
+def tracking(order: Order) -> Html:
+    return Html('<a class="link" href="{}">Track</a>').format(order.tracking_url)
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "tracking")
-    fields = (
-        Computed(
-            "tracking",
-            lambda order: Html('<a class="link" href="{}">Track</a>').format(
-                order.tracking_url
-            ),
-            needs=("tracking_url",),
-        ),
-    )
+    fields = [
+        Order.id,
+        Link(Order.customer, Customer.name),
+        ComputedField("tracking", tracking, needs=[Order.tracking_url]),
+    ]
 ```
 
 `Html` writes its own text into the page as markup. Everything put in with `format` or `%` is
@@ -589,12 +578,16 @@ uploads = LocalStorage("uploads")
 
 
 class ProductView(ModelView[Product]):
-    fields = (
-        ImageField("photo", storage=uploads),
+    fields = [
+        Product.name,
+        ImageField(Product.photo, storage=uploads),
         FileField(
-            "datasheet", storage=uploads, accept=".pdf", max_size=20 * 1024 * 1024
+            Product.datasheet,
+            storage=uploads,
+            accept=".pdf",
+            max_size=20 * 1024 * 1024,
         ),
-    )
+    ]
 ```
 
 The form gets a file input with the current file, a thumbnail for pictures and a box to remove
@@ -634,14 +627,14 @@ File fields are not available inside [inlines](views.md#related-records-in-the-s
 
 ## Your own field type
 
-Subclass `Field` and say how to show and read the value:
+Subclass `Field`, with the type of value its column holds, and say how to show and read the value:
 
 ```python
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import Field
 
 
-class PercentField(Field):
+class PercentField(Field[float | None]):
     widget = "number"
     python_type = float
     error_message = "Enter a percentage, for example 12.5."
@@ -656,7 +649,9 @@ class PercentField(Field):
         return number
 ```
 
-To use it for every column of a type, register it:
+Fields are dataclasses. A field with options of its own declares them as the built-in kinds do,
+keyword-only, after `_: KW_ONLY`, under `@dataclass(eq=False, repr=False)`. To use it for every
+column of a type, register it:
 
 ```python
 from adminsite.fields import default_registry

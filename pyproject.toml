@@ -121,9 +121,11 @@ docstring-code-format = true
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
-# The reference views are written in the typed API before it exists; they join
-# the check once the library provides it.
-exclude = ["^tests/reference/"]
+# The reference views are written in the typed API before it exists; each file
+# joins the check once the library provides what it uses.
+exclude = [
+    '^tests/reference/(gallery|mistakes|orders|products|startup_mistakes)\.py$',
+]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

@@ -33,7 +33,7 @@ def name_linked(
         return target.title_of(record)
     if names_itself(record):
         return str(record)
-    schema = inspector.inspect(item.target)
+    schema = inspector.inspect(item.related_model)
     key = ",".join(str(getattr(record, name)) for name in schema.primary_key)
     return _("{thing} #{key}", thing=schema.label, key=key)
 

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Any
 
@@ -29,7 +30,8 @@ def format_time(value: time) -> str:
     return f"{value.hour:02d}:{value.minute:02d}"
 
 
-class DateField(Field):
+@dataclass(eq=False, repr=False)
+class DateField(Field[date | None]):
     """A calendar date."""
 
     widget = "date"
@@ -50,7 +52,8 @@ class DateField(Field):
         return day.isoformat()
 
 
-class DateTimeField(Field):
+@dataclass(eq=False, repr=False)
+class DateTimeField(Field[datetime | None]):
     """A date together with a time."""
 
     widget = "datetime"
@@ -71,7 +74,8 @@ class DateTimeField(Field):
         return moment.strftime("%Y-%m-%dT%H:%M")
 
 
-class TimeField(Field):
+@dataclass(eq=False, repr=False)
+class TimeField(Field[time | None]):
     """A time of day."""
 
     widget = "time"

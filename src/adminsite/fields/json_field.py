@@ -1,6 +1,6 @@
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Any
 
 from adminsite.exceptions import FieldValidationError
@@ -41,7 +41,8 @@ class Part:
     count: str = ""
 
 
-class JSONField(Field):
+@dataclass(eq=False, repr=False)
+class JSONField(Field[Any]):
     """A JSON column: an object, a list, or any other JSON document.
 
     Chosen for JSON columns by itself. The form edits the document in a code
@@ -56,7 +57,7 @@ class JSONField(Field):
     names each value by its title.
 
     ```python
-    JSONField("settings", schema=ShopSettings)
+    JSONField(Shop.settings, schema=ShopSettings)
     ```
 
     The schema can come from a function given the record, for a table whose
@@ -66,23 +67,20 @@ class JSONField(Field):
     saved, as an override that changes a few settings keeps them.
     """
 
+    _: KW_ONLY
+    # A Pydantic type, a JSON Schema dict, or a function given the record
+    # that answers with either. Any, since each of those is its own type.
+    schema: Any = None
+    partial: bool = False
+
     widget = "json"
     python_type = dict
     error_message = 'Write valid JSON, such as {"key": "value"}.'
 
-    def __init__(
-        self,
-        name: str,
-        *,
-        schema: Any = None,
-        partial: bool = False,
-        **options: Any,
-    ) -> None:
-        super().__init__(name, **options)
-        self.schema = schema
-        self.partial = partial
+    def __post_init__(self) -> None:
+        super().__post_init__()
         self._documents: dict[int, Document] = {}
-        if schema is not None and not is_schema_function(schema):
+        if self.schema is not None and not is_schema_function(self.schema):
             # Read now, so a schema adminsite cannot read stops the admin
             # starting rather than the page that shows it.
             self.document_for(None)

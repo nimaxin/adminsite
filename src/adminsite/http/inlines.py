@@ -86,7 +86,9 @@ class _CellMaker:
             row.choices = found.choices
             row.searchable = found.searchable
             if raw is None and current is not None:
-                repository = SQLAlchemyRepository(item.target, self.admin.inspector)
+                repository = SQLAlchemyRepository(
+                    item.related_model, self.admin.inspector
+                )
                 row.value = repository.identity_of(current)
                 row.picked_label = row.display
                 row.picked = (Choice(row.value, row.picked_label),)

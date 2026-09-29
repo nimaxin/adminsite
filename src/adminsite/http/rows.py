@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from adminsite.fields import Field
+from adminsite.fields import BaseField
 from adminsite.i18n import gettext as _
 
 
@@ -22,7 +22,7 @@ class FormRow:
     """One field as the form template needs it."""
 
     path: str
-    field: Field
+    field: BaseField
     value: str = ""
     display: str = ""
     error: str = ""
@@ -91,7 +91,7 @@ class FormRow:
     @property
     def required(self) -> bool:
         """Whether a value has to be given."""
-        return self.field.required and not self.keeps_when_blank
+        return bool(self.field.required) and not self.keeps_when_blank
 
     @property
     def note(self) -> str:

@@ -78,11 +78,11 @@ class Html(Markup):
     A field that returns it can put a link, a badge or an icon in a cell:
 
     ```python
-    Computed(
-        "tracking",
-        lambda order: Html('<a href="{}">Track</a>').format(order.tracking_url),
-        needs=("tracking_url",),
-    )
+    def tracking(order: Order) -> Html:
+        return Html('<a href="{}">Track</a>').format(order.tracking_url)
+
+
+    ComputedField("tracking", tracking, needs=[Order.tracking_url])
     ```
 
     Everything interpolated with `format` or `%` is escaped, so a value from

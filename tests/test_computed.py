@@ -13,7 +13,7 @@ from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
 
 
-class Money(Field):
+class Money(Field[Any]):
     """An amount that reads with the region of the customer beside it."""
 
     widget = "number"

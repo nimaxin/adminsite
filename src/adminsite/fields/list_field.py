@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import Any
 
 from adminsite.exceptions import FieldValidationError
@@ -8,7 +9,8 @@ from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 
 
-class ListField(Field):
+@dataclass(eq=False, repr=False)
+class ListField(Field[Sequence[Any] | None]):
     """A list of values, such as a Postgres ARRAY column: one value per line.
 
     Chosen for an array column by itself, with each value read by the field
@@ -16,26 +18,33 @@ class ListField(Field):
     `ARRAY(String(2))` two letters at most. Give `item` to choose it:
 
     ```python
-    ListField("scores", item=IntegerField("scores"))
+    ListField(Player.scores, item=IntegerField("scores"))
     ```
     """
+
+    _: KW_ONLY
+    # The field that reads each value. Left out, the one the column's type
+    # of value calls for, or plain text.
+    item: Field[Any] | None = None
 
     widget = "list"
     python_type = list
 
-    def __init__(self, name: str, *, item: Field | None = None, **options: Any) -> None:
-        super().__init__(name, **options)
-        self.item = item if item is not None else StringField(name)
+    def column_options(self, schema: FieldSchema) -> dict[str, Any]:
+        """The column's options, except that a list is never required by it.
 
-    @classmethod
-    def from_schema(cls, schema: FieldSchema, **overrides: Any) -> "Field":
-        """Build the field from an array column.
-
-        It is never required by the column alone: an empty list is a value,
-        so a column that cannot be null still takes one.
+        An empty list is a value, so a column that cannot be null still
+        takes one.
         """
-        overrides.setdefault("required", False)
-        return super().from_schema(schema, **overrides)
+        options = super().column_options(schema)
+        if self.required is None:
+            options["required"] = False
+        return options
+
+    @property
+    def reader(self) -> Field[Any]:
+        """The field each value is read and shown by."""
+        return self.item if self.item is not None else StringField(self.name)
 
     def hint(self) -> str:
         """How to fill the input in."""
@@ -45,13 +54,13 @@ class ListField(Field):
         """The values on one line, each shown the way its field shows it."""
         if value is None:
             return ""
-        return ", ".join(self.item.display(one) for one in value)
+        return ", ".join(self.reader.display(one) for one in value)
 
     def serialize(self, value: Any) -> str:
         """The values for the box, one per line."""
         if value is None:
             return ""
-        return "\n".join(self.item.serialize(one) for one in value)
+        return "\n".join(self.reader.serialize(one) for one in value)
 
     def parse(self, raw: str | None) -> Any:
         """Read one value from each line. Empty lines are skipped."""
@@ -64,7 +73,7 @@ class ListField(Field):
             if not text.strip():
                 continue
             try:
-                values.append(self.item.parse(text))
+                values.append(self.reader.parse(text))
             except FieldValidationError as error:
                 raise FieldValidationError(
                     self.name,

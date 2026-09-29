@@ -31,7 +31,7 @@ Your views' labels, groups and field labels are yours, so write them in the lang
 class OrderView(ModelView[Order]):
     label = "سفارش"
     label_plural = "سفارش‌ها"
-    fields = (ChoiceField("status", label="وضعیت", choices=STATUSES),)
+    fields = [Order.id, EnumField(Order.status, label="وضعیت", choices=STATUSES)]
 ```
 
 To change one of adminsite's own texts, or to add a language adminsite does not ship, pass

@@ -55,6 +55,19 @@ def describe(reference: object) -> str:
     return repr(reference)
 
 
+def written_path(reference: ColumnReference) -> str:
+    """The dotted path a reference names, before it is checked against a model.
+
+    A field knows its name this way from the moment it is made; the view it
+    joins checks that the path belongs to its model.
+    """
+    if isinstance(reference, str):
+        return reference
+    if isinstance(reference, Link):
+        return f"{reference.relation.key}.{written_path(reference.column)}"
+    return reference.key
+
+
 def path_of(reference: ColumnReference, model: type[Any]) -> str:
     """The dotted path a column reference names, starting from the model.
 

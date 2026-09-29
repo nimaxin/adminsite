@@ -485,7 +485,7 @@ async def view_that_opens(
     candidates = (
         [admin.views.for_relation(item)]
         if item.view is not None
-        else admin.views.all_for_model(item.target)
+        else admin.views.all_for_model(item.related_model)
     )
     allowed = [
         candidate

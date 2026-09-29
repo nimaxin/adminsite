@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from adminsite.fields import ChoiceField, Field
+from adminsite.fields import EnumField, Field
 from adminsite.fields.documents import (
     SET,
     Document,
@@ -185,7 +185,7 @@ class _Builder:
             )
         return DocumentEntry("value", name, label=label)
 
-    def value_row(self, item: Field, name: str) -> FormRow:
+    def value_row(self, item: Field[Any], name: str) -> FormRow:
         """A single value, as any field on a form is drawn."""
         raw = self.values.get(name)
         row = FormRow(
@@ -194,7 +194,7 @@ class _Builder:
             value=_text(raw),
             error=self.errors.get(name, ""),
         )
-        if isinstance(item, ChoiceField):
+        if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             chosen = raw if isinstance(raw, list) else ([raw] if raw else [])
             row.selected = tuple(str(one) for one in chosen)
@@ -202,7 +202,7 @@ class _Builder:
                 row.picked = chosen_in_order(row.choices, row.selected)
         return row
 
-    def cell(self, item: Field, name: str) -> FormRow:
+    def cell(self, item: Field[Any], name: str) -> FormRow:
         """A value in one row of a table, which may be left empty until used."""
         row = self.value_row(item, name)
         row.browser_required = False

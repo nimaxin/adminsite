@@ -33,6 +33,21 @@
 - A key people type, such as a code or the two columns of a composite key, is now in the form of a
   view that names no form fields, so such records can be created there. A key the database numbers
   stays out.
+- Fields take the column they show and typed options, all keywords: `Field(Order.created_at,
+  label="Placed")` is the field adminsite picks for the column, with your options, and a kind such
+  as `DecimalField(Order.total, read_only=True)` chooses it. Whatever the options leave out comes
+  from the column, so a field you write keeps its column's length, whether it may be empty, an
+  enum's choices and a relationship's model. A type checker refuses a text field on a number
+  column, a misspelt option, an option by position, a tone that does not exist, and a
+  `ComputedField` written for another model.
+- A field written in a view without `required` now takes it from its column, as the field adminsite
+  picks does, where it used to mean not required. Give `required=False` to keep a field optional.
+- `TextField`, `ChoiceField` and `Computed` are now `TextAreaField`, `EnumField` and
+  `ComputedField`, with starlette-admin's names, and `FieldOptions` is replaced by `Field`. The old
+  names still work until 0.1.0a10. `readonly=` on a field is `read_only=`, `enum_class=` is
+  `enum=`, `ComputedField`'s `needs` takes attributes, and `RelationField(Order.customer,
+  view=CustomerView)` names its view by class as well as by name.
+- A computed field's `format` is used; it was left out before.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

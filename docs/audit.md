@@ -22,11 +22,11 @@ never what it holds. The name decides: one made of a word such as `password`, `s
 or `secret=False` to keep one whose name only looks secret:
 
 ```python
-from adminsite import FieldOptions
+from adminsite import Field
 
 
 class WalletView(ModelView[Wallet]):
-    fields = (FieldOptions("seed_ciphertext", secret=True),)
+    fields = [Wallet.name, Field(Wallet.seed_ciphertext, secret=True)]
 ```
 
 The same goes for the values an [action](#actions) is run with.

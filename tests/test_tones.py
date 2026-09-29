@@ -116,7 +116,7 @@ class TestTheField:
     def test_a_value_is_found_by_its_member_or_its_stored_value(self) -> None:
         field = ChoiceField(
             "status",
-            enum_class=OrderStatus,
+            enum=OrderStatus,
             tones={OrderStatus.PAID: "blue", "Refunded": "rose"},
         )
 
@@ -155,7 +155,9 @@ class TestAMistake:
 
     def test_a_yes_or_no_takes_true_and_false(self) -> None:
         with pytest.raises(AdminSiteError, match="takes True and False"):
-            BooleanField("paid", tones={"yes": "green"})
+            # A type error as well; this is the check for a caller the type
+            # checker does not see.
+            BooleanField("paid", tones={"yes": "green"})  # type: ignore[dict-item]
 
     def test_it_stops_the_view_from_being_created(self) -> None:
         class Wrong(ModelView[Order]):

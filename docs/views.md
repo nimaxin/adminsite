@@ -5,8 +5,8 @@ A `ModelView` says how one model appears in the admin, and names the model as it
 answer depends on who is asking.
 
 ```python
-from adminsite import Descending, FieldOptions, Link, ModelView
-from adminsite.fields import TextField
+from adminsite import Descending, Field, Link, ModelView
+from adminsite.fields import TextAreaField
 
 
 class OrderView(ModelView[Order]):
@@ -18,10 +18,10 @@ class OrderView(ModelView[Order]):
         Order.customer,
         Link(Order.customer, Customer.email),
         Order.status,
-        Order.total,
-        TextField("note", exclude_from_list=True),
-        FieldOptions(
-            "created_at",
+        Field(Order.total, read_only=True),
+        TextAreaField(Order.note, exclude_from_list=True),
+        Field(
+            Order.created_at,
             hidden_in_list=True,
             exclude_from_create=True,
             exclude_from_edit=True,
@@ -31,7 +31,6 @@ class OrderView(ModelView[Order]):
     sortable_fields = [Order.created_at, Order.total]
     fields_default_sort = [Descending(Order.created_at)]
     list_filter = [Order.status, Order.total, Order.created_at]
-    readonly_fields = [Order.total]
     page_size = 50
 ```
 
@@ -54,10 +53,12 @@ message that names the view and the setting.
 ## Fields
 
 `fields` lists every field of the view once, in order, and each page shows them in that order. An
-entry is a column, named as above, or a field: `FieldOptions("created_at", label="Placed")` changes
-the one adminsite works out, and a field class such as `TextField("note")` replaces it. See
-[Fields](fields.md). With `fields` empty, the view shows every column the model has, and a foreign
-key such as `customer_id` appears as its relationship, `customer`.
+entry is a column, named as above, or a field. `Field(Order.created_at, label="Placed")` is the
+field adminsite picks for the column, with your options, and a kind such as
+`TextAreaField(Order.note)` chooses the field itself. Either way, whatever the options leave out
+comes from the column: its label, its length, whether it may be empty. See [Fields](fields.md).
+With `fields` empty, the view shows every column the model has, and a foreign key such as
+`customer_id` appears as its relationship, `customer`.
 
 A relationship does two jobs: `Order.customer` shows the customer's name in the list and a picker
 in the form. A column of a related model, such as `Link(Order.customer, Customer.email)`, is shown
@@ -85,9 +86,10 @@ class ProductView(ModelView[Product]):
 [Columns menu](#choosing-columns).
 
 `list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude`, `search_fields` and
-`ordering` still work, and 0.1.0a10 will refuse them, naming what replaces each. A view that still
-sets `list_display`, `form_fields` or `detail_fields` reads `fields` as before: it changes the
-fields those settings name, and places none.
+`ordering` still work, as do `FieldOptions`, `TextField`, `ChoiceField` and `Computed`, and 0.1.0a10
+will refuse them, naming what replaces each. A view that still sets `list_display`, `form_fields`
+or `detail_fields` reads `fields` as before: it changes the fields those settings name, and places
+none.
 
 ## Naming
 
@@ -166,8 +168,8 @@ class OrderView(ModelView[Order]):
         Order.customer,
         Order.status,
         Order.total,
-        FieldOptions("note", hidden_in_list=True),
-        FieldOptions("created_at", hidden_in_list=True),
+        Field(Order.note, hidden_in_list=True),
+        Field(Order.created_at, hidden_in_list=True),
     ]
 ```
 
@@ -280,7 +282,7 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | Setting | What it does |
 |---|---|
 | `fields` | The fields, in order, as under [Fields](#fields). A relationship, such as `Order.customer`, gives a picker. |
-| `readonly_fields` | Shown, but never read back from what was submitted. |
+| `readonly_fields` | Shown, but never read back from what was submitted. `read_only=True` on a field does the same. |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
 | `can_detail`, `can_export` | Switch off the record page and the CSV export. |
 
@@ -434,11 +436,11 @@ name the view the link belongs to:
 
 ```python
 class WalletView(ModelView[Wallet]):
-    fields = (FieldOptions("owner", view="buyers"),)
+    fields = [Wallet.id, RelationField(Wallet.owner, view=BuyerView), Wallet.balance]
 ```
 
-The owner's card then opens the `buyers` view, and the picker lists buyers. `RelationField` takes
-`view=` the same way.
+The owner's card then opens `BuyerView`, and the picker lists buyers. `view` also takes the name in
+a view's URL, such as `"buyers"`.
 
 Without `view`, a card for a record the first view's scope leaves out opens the first view that
 does hold it, rather than a page that answers 404.

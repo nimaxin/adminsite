@@ -59,20 +59,33 @@ class ViewRegistry:
         The one the field names with `view`, or else the first registered
         for its model.
         """
+        target = item.related_model
         if item.view is None:
-            return self.for_model(item.target)
-        chosen = self._by_name.get(item.view)
+            return self.for_model(target)
+        if isinstance(item.view, str):
+            chosen = self._by_name.get(item.view)
+            named = repr(item.view)
+        else:
+            chosen = self._of_class(item.view)
+            named = item.view.__name__
         if chosen is None:
             raise AdminSiteError(
-                f"The field {item.name!r} names the view {item.view!r}, "
-                "and no view is called that."
+                f"The field {item.name!r} names the view {named}, which is not "
+                "registered with this admin."
             )
-        if chosen.model is not item.target:
+        if chosen.model is not target:
             raise AdminSiteError(
-                f"The field {item.name!r} names the view {item.view!r}, which "
-                f"shows {chosen.model.__name__}, not {item.target.__name__}."
+                f"The field {item.name!r} names the view {named}, which "
+                f"shows {chosen.model.__name__}, not {target.__name__}."
             )
         return chosen
+
+    def _of_class(self, wanted: type[ModelView[Any]]) -> ModelView[Any] | None:
+        """The view registered as this class, if there is one."""
+        for view in self._views:
+            if type(view) is wanted:
+                return view
+        return None
 
     def grouped(
         self, only: Sequence[ModelView[Any]] | None = None

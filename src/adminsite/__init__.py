@@ -12,7 +12,7 @@ from adminsite.exceptions import (
     RefusedError,
     UnknownFieldError,
 )
-from adminsite.fields import Computed, FieldOptions
+from adminsite.fields import BaseField, Computed, Field, FieldOptions
 from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
@@ -36,11 +36,13 @@ __all__ = [
     "Admin",
     "AdminPage",
     "AdminSiteError",
+    "BaseField",
     "Chart",
     "ColumnReference",
     "Computed",
     "CountMode",
     "Descending",
+    "Field",
     "FieldOptions",
     "FieldPath",
     "FieldSchema",

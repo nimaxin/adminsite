@@ -42,7 +42,7 @@ class Picker:
     @property
     def repository(self) -> SQLAlchemyRepository:
         """The target model's repository, for naming and keys."""
-        return SQLAlchemyRepository(self.item.target, self.admin.inspector)
+        return SQLAlchemyRepository(self.item.related_model, self.admin.inspector)
 
     def search_paths(self) -> tuple[str, ...]:
         """Where a search looks: what the target view says, or the names.
@@ -69,7 +69,7 @@ class Picker:
         )
         if not template:
             return ()
-        fields = self.admin.inspector.inspect(self.item.target).fields
+        fields = self.admin.inspector.inspect(self.item.related_model).fields
         return tuple(
             name
             for _text, name, _spec, _conversion in Formatter().parse(template)

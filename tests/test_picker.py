@@ -34,7 +34,12 @@ class OrderItemView(ModelView[OrderItem]):
     """A line holds one order, picked from the same large table."""
 
     form_fields = ("order", "quantity")
-    fields = (RelationField("order", target=Order, display_template="Order #{id}"),)
+    # Not required, though its column is, so the box can be cleared.
+    fields = (
+        RelationField(
+            "order", target=Order, display_template="Order #{id}", required=False
+        ),
+    )
 
 
 @pytest.fixture

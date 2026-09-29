@@ -4,7 +4,13 @@ from typing import TYPE_CHECKING, Any
 from adminsite.actions.action import Action
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.fields import ChoiceField, Field, FileField, JSONField, RelationField
+from adminsite.fields import (
+    BaseField,
+    EnumField,
+    FileField,
+    JSONField,
+    RelationField,
+)
 from adminsite.fields.documents import DRAWN
 from adminsite.http.documents import document_form
 from adminsite.http.picker import PICKER_LIMIT, Picker
@@ -76,7 +82,7 @@ async def build_rows(
             readonly=path in readonly,
             keeps_when_blank=item.blank_keeps and record is not None,
         )
-        if isinstance(item, ChoiceField):
+        if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(current)
             if item.multiple:
@@ -118,7 +124,7 @@ def fill_document(
 
 
 def written_again(
-    item: Field,
+    item: BaseField,
     path: str,
     current: Any,
     errors: Mapping[str, str],
@@ -216,7 +222,7 @@ def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
     return name_linked(item, record, views=admin.views, inspector=admin.inspector)
 
 
-def rows_for_inputs(fields: Sequence[Field], *, prefix: str = "") -> list[FormRow]:
+def rows_for_inputs(fields: Sequence[BaseField], *, prefix: str = "") -> list[FormRow]:
     """Build the form rows for the values an action asks for.
 
     Each starts at the field's default, so a dialog of five switches that
@@ -230,7 +236,7 @@ def rows_for_inputs(fields: Sequence[Field], *, prefix: str = "") -> list[FormRo
             value=item.serialize(item.default),
             id_prefix=prefix,
         )
-        if isinstance(item, ChoiceField):
+        if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(item.default)
             if item.multiple:

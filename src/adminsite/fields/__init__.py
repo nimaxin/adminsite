@@ -1,6 +1,6 @@
-from adminsite.fields.base import Field
-from adminsite.fields.choice import ChoiceField
-from adminsite.fields.computed import Computed
+from adminsite.fields.base import BaseField, Field
+from adminsite.fields.choice import ChoiceField, EnumField
+from adminsite.fields.computed import Computed, ComputedField
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
 from adminsite.fields.list_field import ListField
@@ -19,19 +19,23 @@ from adminsite.fields.scalars import (
     FloatField,
     IntegerField,
     StringField,
+    TextAreaField,
     TextField,
     UUIDField,
 )
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 
 __all__ = [
+    "BaseField",
     "BooleanField",
     "ChoiceField",
     "Computed",
+    "ComputedField",
     "DateField",
     "DateTimeField",
     "DecimalField",
     "EmailField",
+    "EnumField",
     "Field",
     "FieldOptions",
     "FieldRegistry",
@@ -44,6 +48,7 @@ __all__ = [
     "PasswordField",
     "RelationField",
     "StringField",
+    "TextAreaField",
     "TextField",
     "TimeField",
     "UUIDField",

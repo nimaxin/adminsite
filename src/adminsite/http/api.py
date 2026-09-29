@@ -99,7 +99,7 @@ def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
         return plain(item.text_for(record, None))
     value = view.value_at(record, path)
     if isinstance(item, RelationField):
-        target = SQLAlchemyRepository(item.target, view.inspector)
+        target = SQLAlchemyRepository(item.related_model, view.inspector)
         if value is None:
             return None
         if isinstance(value, list | tuple | set):
@@ -209,7 +209,7 @@ async def index(admin: "Admin", request: Request) -> Response:
                         "path": path,
                         "label": view.label_for(path),
                         "widget": view.field_for(path).widget,
-                        "required": view.field_for(path).required,
+                        "required": bool(view.field_for(path).required),
                     }
                     for path in api_paths(view, request)
                 ],

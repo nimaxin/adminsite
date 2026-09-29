@@ -94,7 +94,7 @@ class TestParsing:
 
 class TestRoundTrip:
     def test_values_survive_being_edited(self) -> None:
-        cases: list[tuple[Field, Any]] = [
+        cases: list[tuple[Field[Any], Any]] = [
             (StringField("name"), "Lena"),
             (IntegerField("quantity"), 3),
             (DecimalField("total"), Decimal("59.00")),
@@ -109,7 +109,7 @@ class TestRoundTrip:
 class TestChoices:
     def test_options_come_from_the_enum(self, inspector: SQLAlchemyInspector) -> None:
         schema = inspector.inspect(Order).field_named("status")
-        field = ChoiceField.from_schema(schema)
+        field = ChoiceField("status").filled_from(schema)
 
         assert field.choices == (
             ("PENDING", "Pending"),
@@ -121,14 +121,18 @@ class TestChoices:
     def test_the_label_is_shown_not_the_stored_value(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField.from_schema(inspector.inspect(Order).field_named("status"))
+        field = ChoiceField("status").filled_from(
+            inspector.inspect(Order).field_named("status")
+        )
 
         assert field.display(OrderStatus.SHIPPED) == "Shipped"
 
     def test_parsing_gives_back_the_enum_member(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField.from_schema(inspector.inspect(Order).field_named("status"))
+        field = ChoiceField("status").filled_from(
+            inspector.inspect(Order).field_named("status")
+        )
 
         assert field.parse("PAID") is OrderStatus.PAID
         assert field.parse("paid") is OrderStatus.PAID
@@ -136,7 +140,9 @@ class TestChoices:
     def test_a_value_outside_the_list_is_refused(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField.from_schema(inspector.inspect(Order).field_named("status"))
+        field = ChoiceField("status").filled_from(
+            inspector.inspect(Order).field_named("status")
+        )
 
         with pytest.raises(FieldValidationError, match="listed options"):
             field.parse("lost")
@@ -227,7 +233,9 @@ class TestRegistry:
         assert created_at.label == "Created at"
         assert created_at.required is True
         assert note.required is False
-        assert identifier.readonly is True
+        # A key is not read-only by itself: a form that names one means to
+        # set it.
+        assert identifier.read_only is False
 
 
 class TestChoiceTones:
@@ -242,7 +250,7 @@ class TestChoiceTones:
     def test_an_enum_member_finds_its_value(self) -> None:
         field = ChoiceField(
             "status",
-            enum_class=OrderStatus,
+            enum=OrderStatus,
             choices=tuple((member.value, member.name) for member in OrderStatus),
         )
 

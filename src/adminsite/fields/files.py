@@ -1,5 +1,5 @@
 import mimetypes
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any
 
 from starlette.datastructures import UploadFile
@@ -42,29 +42,23 @@ class NewFile:
     upload: UploadFile
 
 
-class FileField(Field):
+@dataclass(eq=False, repr=False)
+class FileField(Field[str | None]):
     """An uploaded file, kept in a storage, its key kept in a string column.
 
     ```python
-    FileField("invoice", storage=LocalStorage("uploads"), accept=".pdf")
+    FileField(Order.invoice, storage=LocalStorage("uploads"), accept=".pdf")
     ```
     """
 
-    widget = "file"
+    _: KW_ONLY
+    storage: FileStorage
+    # The types a browser offers to pick, as its accept attribute takes them.
+    accept: str = ""
+    # The largest file taken, in bytes.
+    max_size: int = 10 * MEGABYTE
 
-    def __init__(
-        self,
-        name: str,
-        *,
-        storage: FileStorage,
-        accept: str = "",
-        max_size: int = 10 * MEGABYTE,
-        **options: Any,
-    ) -> None:
-        super().__init__(name, **options)
-        self.storage = storage
-        self.accept = accept
-        self.max_size = max_size
+    widget = "file"
 
     def display(self, value: Any) -> str:
         """The file's original name."""
@@ -118,6 +112,7 @@ class FileField(Field):
         return False
 
 
+@dataclass(eq=False, repr=False)
 class ImageField(FileField):
     """An uploaded picture, shown as a thumbnail in the list and the form.
 
@@ -125,20 +120,11 @@ class ImageField(FileField):
     just its name. SVG is left out on purpose: it can carry script.
     """
 
-    widget = "image"
+    _: KW_ONLY
+    accept: str = "image/png,image/jpeg,image/gif,image/webp"
+    max_size: int = 5 * MEGABYTE
 
-    def __init__(
-        self,
-        name: str,
-        *,
-        storage: FileStorage,
-        accept: str = "image/png,image/jpeg,image/gif,image/webp",
-        max_size: int = 5 * MEGABYTE,
-        **options: Any,
-    ) -> None:
-        super().__init__(
-            name, storage=storage, accept=accept, max_size=max_size, **options
-        )
+    widget = "image"
 
     def check(self, upload: UploadFile) -> None:
         """Refuse anything that is not really one of the image types."""

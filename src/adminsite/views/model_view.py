@@ -54,8 +54,9 @@ from adminsite.exceptions import (
     UnknownFieldError,
 )
 from adminsite.fields import (
-    ChoiceField,
-    Computed,
+    BaseField,
+    ComputedField,
+    EnumField,
     Field,
     FieldOptions,
     FieldRegistry,
@@ -122,8 +123,11 @@ class ModelView(Generic[M]):
     # Every field of the view, in order, for every page. Columns are named by
     # attribute, Order.total, by Link for a column of a related model, or by
     # name as a string, "total" or "customer.email"; a field sets options.
-    # Left empty, the view shows every column the model has.
-    fields: Sequence[ColumnReference | Field | FieldOptions] = ()
+    # Left empty, the view shows every column the model has. A field's value
+    # type differs from one to the next, hence Field[Any].
+    fields: Sequence[
+        ColumnReference | Field[Any] | ComputedField[M, Any] | FieldOptions
+    ] = ()
     # Fields left off one page, as the exclude_from_ flags on a field do.
     exclude_fields_from_list: Sequence[ColumnReference] = ()
     exclude_fields_from_detail: Sequence[ColumnReference] = ()
@@ -240,7 +244,7 @@ class ModelView(Generic[M]):
         self.label_plural = self.label_plural or self.schema.label_plural
 
         # The settings as the paths the rest of adminsite works with.
-        self._overrides: dict[str, Field] = {}
+        self._overrides: dict[str, BaseField] = {}
         self._changes: dict[str, dict[str, Any]] = {}
         self._placed = self._read_fields()
         self._excluded: dict[PageName, tuple[str, ...]] = {
@@ -294,7 +298,7 @@ class ModelView(Generic[M]):
         }
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
-        self._fields: dict[str, Field] = {}
+        self._fields: dict[str, BaseField] = {}
         # Built now, so a mistake such as a column that does not exist, or a
         # tone that does not exist, stops the admin starting rather than the
         # page that shows it.
@@ -439,7 +443,7 @@ class ModelView(Generic[M]):
         return named + tuple(
             path
             for path in self.get_form_fields(request, record)
-            if path not in named and path not in keys and self.field_for(path).readonly
+            if path not in named and path not in keys and self.field_for(path).read_only
         )
 
     def get_inlines(
@@ -486,10 +490,16 @@ class ModelView(Generic[M]):
             if item.stored:
                 wanted.append(path)
                 continue
-            for needed in getattr(item, "needs", ()):
+            for needed in self._needs_of(item):
                 if needed not in wanted:
                     wanted.append(needed)
         return wanted
+
+    def _needs_of(self, item: BaseField) -> list[str]:
+        """The paths a computed field reads, checked when the view is built."""
+        if not isinstance(item, ComputedField):
+            return list(getattr(item, "needs", ()))
+        return [path_of(needed, self.model) for needed in item.needs]
 
     def sortable(self, path: str) -> bool:
         """Whether a list can be sorted by this column."""
@@ -659,17 +669,23 @@ class ModelView(Generic[M]):
     def _read_fields(self) -> tuple[str, ...]:
         """The paths `fields` places, in order, keeping the fields it sets.
 
-        A field given in full is used as it is; `FieldOptions` changes the
-        one adminsite works out. A path placed twice keeps its first place.
+        A field is completed from its column when it is first asked for;
+        `FieldOptions` changes the one adminsite works out. A path placed
+        twice keeps its first place.
         """
         placed: dict[str, None] = {}
-        for entry in self._entries("fields", self.fields):
-            if isinstance(entry, Field):
-                path = entry.name
-                self._overrides[path] = entry
-            elif isinstance(entry, FieldOptions):
+        for index, entry in enumerate(self._entries("fields", self.fields)):
+            if isinstance(entry, FieldOptions):
                 path = entry.name
                 self._changes[path] = entry.changes
+            elif isinstance(entry, Field):
+                path = self._converted("fields", entry.column, path_of)
+                self._overrides[path] = entry
+            elif isinstance(entry, BaseField):
+                path = entry.name
+                self._overrides[path] = entry
+                if isinstance(entry, ComputedField):
+                    self._paths(f"fields[{index}].needs", entry.needs)
             else:
                 path = self._converted("fields", entry, path_of)
             placed.setdefault(path)
@@ -677,23 +693,50 @@ class ModelView(Generic[M]):
 
     # Turning paths into fields and values.
 
-    def field_for(self, path: str) -> Field:
+    def field_for(self, path: str) -> BaseField:
         """The field used to show and edit whatever the path points at."""
         known = self._fields.get(path)
         if known is not None:
             return known
+        given = self._overrides.get(path)
+        built = self._built_field(path) if given is None else self._completed(given)
+        self._fields[path] = built
+        return built
 
-        override = self._overrides.get(path)
-        if override is not None:
-            self._fields[path] = override
-            return override
+    def _completed(self, given: BaseField) -> BaseField:
+        """A field from `fields`, with what its column says for options left out.
 
+        A computed or form-only field has no column, so it is used as it is.
+        `Field(...)` on its own becomes the field adminsite picks for the
+        column, with the options it was given.
+        """
+        if not isinstance(given, Field) or given.form_only:
+            return given
+        path = path_of(given.column, self.model)
+        resolved = self.inspector.resolve(self.model, path)
+        if type(given) is Field:
+            if resolved.field is not None:
+                return self.registry.build(resolved.field, **given.given_options())
+            return RelationField.from_relation(
+                resolved.relations[-1], **given.given_options()
+            )
+        if resolved.field is not None:
+            return self.registry.fill(given, resolved.field)
+        if isinstance(given, RelationField):
+            return given.filled_from_relation(resolved.relations[-1])
+        raise AdminSiteError(
+            f"{type(self).__name__}.fields: {type(given).__name__}({path!r}) names "
+            "a relationship. Show it with RelationField, or name it in fields "
+            "without a field."
+        )
+
+    def _built_field(self, path: str) -> BaseField:
+        """The field adminsite works out for a path, with FieldOptions' changes."""
         resolved = self.inspector.resolve(self.model, path)
         changes = self._changes.get(path, {})
         try:
             if resolved.field is not None:
-                options: dict[str, Any] = {"label": resolved.label, **changes}
-                built: Field = self.registry.build(resolved.field, **options)
+                built: BaseField = self.registry.build(resolved.field, **changes)
             else:
                 built = RelationField.from_relation(resolved.relations[-1], **changes)
         except TypeError as error:
@@ -707,7 +750,6 @@ class ModelView(Generic[M]):
             raise AdminSiteError(
                 f"FieldOptions({path!r}) in {type(self).__name__}.fields: {error}"
             ) from error
-        self._fields[path] = built
         return built
 
     async def form_values(
@@ -756,9 +798,9 @@ class ModelView(Generic[M]):
         A path through a link names the link as well, so `customer.name`
         reads Customer name rather than a bare Name.
         """
-        label = self.field_for(path).label
-        named = "label" in self._changes.get(path, {})
-        if named or path in self._overrides or "." not in path:
+        item = self.field_for(path)
+        label = item.label
+        if item.labelled or "." not in path:
             return label
         resolved = self.inspector.resolve(self.model, path)
         if resolved.field is None:
@@ -828,7 +870,7 @@ class ModelView(Generic[M]):
                 item = self.field_for(path)
             except AdminSiteError:
                 continue
-            if not isinstance(item, Computed) or item.load is None:
+            if not isinstance(item, ComputedField) or item.load is None:
                 continue
             found = await item.load(session, records)
             for record in records:
@@ -1163,7 +1205,7 @@ class ModelView(Generic[M]):
         self, item: RelationField, session: SessionAdapter, key: Any
     ) -> Any | None:
         """A linked record by its key, for a model no view shows."""
-        repository = SQLAlchemyRepository(item.target, self.inspector)
+        repository = SQLAlchemyRepository(item.related_model, self.inspector)
         wanted = key
         if isinstance(key, str) and len(repository.schema.primary_key) > 1:
             wanted = tuple(key.split(","))
@@ -1508,7 +1550,7 @@ class ModelView(Generic[M]):
             item = self.field_for(path)
             if not isinstance(item, RelationField) or not item.ordered:
                 continue
-            target = SQLAlchemyRepository(item.target, self.inspector)
+            target = SQLAlchemyRepository(item.related_model, self.inspector)
 
             def key_of(one: Any, target: SQLAlchemyRepository = target) -> str:
                 return (
@@ -1725,7 +1767,7 @@ class ModelView(Generic[M]):
             found = []
             for key in keys:
                 record = key
-                if not isinstance(record, item.target):
+                if not isinstance(record, item.related_model):
                     record = await self._linked_through(target, session, key, request)
                 if record is None:
                     raise RefusedError(_("Choose a record."), field=path)
@@ -1906,11 +1948,11 @@ def _is_blank(raw: str | Sequence[str] | None) -> bool:
     return not (_as_text(raw) or "").strip()
 
 
-def _holds_many(item: Field) -> TypeGuard[RelationField | ChoiceField]:
+def _holds_many(item: BaseField) -> TypeGuard[RelationField | EnumField]:
     """Whether the input sends several values rather than one."""
     if isinstance(item, RelationField):
         return item.collection
-    return isinstance(item, ChoiceField) and item.multiple
+    return isinstance(item, EnumField) and item.multiple
 
 
 def _as_list(raw: str | Sequence[str] | None) -> list[str]:

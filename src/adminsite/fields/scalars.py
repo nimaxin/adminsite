@@ -1,16 +1,19 @@
+from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import Field
-from adminsite.fields.tones import NEUTRAL, TONE_NAMES, Tones, tone_number
+from adminsite.fields.tones import NEUTRAL, TONE_NAMES, Tone, tone_number
 from adminsite.i18n import gettext as _
 
 TRUE_VALUES = frozenset({"1", "true", "on", "yes"})
 
 
-class StringField(Field):
+@dataclass(eq=False, repr=False)
+class StringField(Field[str | None]):
     """A short piece of text, edited on one line."""
 
     widget = "text"
@@ -18,19 +21,26 @@ class StringField(Field):
     error_message = "Enter some text."
 
 
-class TextField(StringField):
+@dataclass(eq=False, repr=False)
+class TextAreaField(StringField):
     """A longer piece of text, edited in a box."""
 
     widget = "textarea"
 
 
+# The name TextAreaField had until 0.1.0a10, which refuses it.
+TextField = TextAreaField
+
+
+@dataclass(eq=False, repr=False)
 class EmailField(StringField):
     """Text holding an email address."""
 
     widget = "email"
 
 
-class IntegerField(Field):
+@dataclass(eq=False, repr=False)
+class IntegerField(Field[int | None]):
     """A whole number."""
 
     widget = "number"
@@ -38,7 +48,8 @@ class IntegerField(Field):
     error_message = "Enter a whole number."
 
 
-class FloatField(Field):
+@dataclass(eq=False, repr=False)
+class FloatField(Field[float | None]):
     """A number that can have a fractional part."""
 
     widget = "number"
@@ -46,7 +57,8 @@ class FloatField(Field):
     error_message = "Enter a number."
 
 
-class DecimalField(Field):
+@dataclass(eq=False, repr=False)
+class DecimalField(Field[Decimal | None]):
     """A number kept exact, such as a price."""
 
     widget = "number"
@@ -66,7 +78,8 @@ class DecimalField(Field):
         return f"{Decimal(value):f}"
 
 
-class BooleanField(Field):
+@dataclass(eq=False, repr=False)
+class BooleanField(Field[bool | None]):
     """A yes or no value.
 
     Its badge is green for yes and grey for no, unless `tones` says: for a
@@ -74,22 +87,24 @@ class BooleanField(Field):
     rose badge when it is set and nothing when it is not.
     """
 
+    _: KW_ONLY
+    tones: Tone | Mapping[bool, Tone | None] | None = None
+
     widget = "checkbox"
     python_type = bool
     error_message = "Choose yes or no."
 
-    def __init__(
-        self, name: str, *, tones: Tones | None = None, **options: Any
-    ) -> None:
-        super().__init__(name, **options)
-        self.tones = tones
-        self._tones = self._read_tones(tones)
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self._tones = self._read_tones(self.tones)
 
     def tone_of(self, value: Any) -> int | None:
         """Which of the six badge tones a value is drawn in, or None for no badge."""
         return self._tones.get(bool(value), NEUTRAL)
 
-    def _read_tones(self, tones: Tones | None) -> dict[bool, int | None]:
+    def _read_tones(
+        self, tones: Tone | Mapping[bool, Tone | None] | None
+    ) -> dict[bool, int | None]:
         if tones is None:
             return {True: TONE_NAMES.index("green"), False: NEUTRAL}
         if isinstance(tones, str):
@@ -122,7 +137,8 @@ class BooleanField(Field):
         return "true" if value else ""
 
 
-class UUIDField(Field):
+@dataclass(eq=False, repr=False)
+class UUIDField(Field[UUID | None]):
     """An identifier in UUID form."""
 
     widget = "text"
