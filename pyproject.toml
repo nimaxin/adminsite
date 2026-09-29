@@ -108,7 +108,9 @@ convention = "google"
 known-first-party = ["demo", "examples"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D"]
+# A view's settings are lists in a class body; adminsite copies them when the
+# view is built, so RUF012's warning about shared mutable defaults does not apply.
+"tests/*" = ["D", "RUF012"]
 "examples/*" = ["D"]
 
 [tool.ruff.format]
@@ -118,6 +120,9 @@ docstring-code-format = true
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
+# The reference views are written in the typed API before it exists; they join
+# the check once the library provides it.
+exclude = ["^tests/reference/"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
