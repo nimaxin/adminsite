@@ -16,7 +16,7 @@ def shop_link(product: Product) -> Html:
     )
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name", "shop", "warning")
     detail_fields = ("name", "shop")
     fields = (
@@ -26,7 +26,7 @@ class ProductView(ModelView, model=Product):
     )
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     list_display = ("id", "name", "mail")
     fields = (
         Computed(

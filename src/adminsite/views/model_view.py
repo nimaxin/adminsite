@@ -1,13 +1,24 @@
-from collections.abc import Mapping, Sequence
+import types
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from string import Formatter
-from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    TypeGuard,
+    TypeVar,
+    get_args,
+    get_origin,
+)
 from uuid import uuid4
 
 from markupsafe import Markup
 from sqlalchemy import ColumnElement, Select
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import class_mapper
 from starlette.responses import Response
 
 if TYPE_CHECKING:
@@ -24,6 +35,13 @@ from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.columns import (
+    ColumnReference,
+    Descending,
+    is_column,
+    path_of,
+    sort_of,
+)
 from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
@@ -67,15 +85,26 @@ DELETE_ACTION = "delete_selected"
 # hooks inside a single transaction.
 BULK_DELETE_LIMIT = 1000
 
+# The model a view shows. Not bound to DeclarativeBase: a SQLModel model is
+# mapped without it. The admin refuses a class that is not mapped.
+M = TypeVar("M")
 
-class ModelView:
-    """How one model appears in the admin.
+T = TypeVar("T")
+
+
+class ModelView(Generic[M]):
+    """How one model appears in the admin: `class OrderView(ModelView[Order])`.
 
     Set the class attributes to describe the list and the form. Override
-    the `get_` methods when the answer depends on who is asking.
+    the `get_` methods when the answer depends on who is asking. A view
+    with no settings needs no class: register `ModelView[Tag]`.
     """
 
-    model: ClassVar[type[Any]]
+    model: type[M]
+    # The type parameter that stands for the model in a view that is generic
+    # itself, such as class ShopView(ModelView[M]), so a class written as
+    # ShopView[Order] can find its model.
+    _model_parameter: ClassVar[object] = None
 
     name: str = ""
     label: str = ""
@@ -84,12 +113,15 @@ class ModelView:
     icon: str = ""
     display_template: str = ""
 
-    list_display: Sequence[str] = ()
+    # Columns are named by attribute, Order.total, by Link for a column of a
+    # related model, or by name as a string, "total" or "customer.email".
+    list_display: Sequence[ColumnReference] = ()
     # More columns people may add to the list from the column picker.
-    list_columns: Sequence[str] = ()
-    search_fields: Sequence[str] = ()
-    list_filter: Sequence[str | Filter] = ()
-    ordering: Sequence[str] = ()
+    list_columns: Sequence[ColumnReference] = ()
+    search_fields: Sequence[ColumnReference] = ()
+    list_filter: Sequence[ColumnReference | Filter] = ()
+    # Descending(Order.created_at), or "-created_at", sorts newest first.
+    ordering: Sequence[ColumnReference | Descending] = ()
     page_size: int = 25
     # The sizes people may switch between. Empty leaves the size fixed.
     page_sizes: Sequence[int] = ()
@@ -98,15 +130,15 @@ class ModelView:
     global_search: bool = True
     pagination: Pagination = Pagination.OFFSET
 
-    form_fields: Sequence[str] = ()
+    form_fields: Sequence[ColumnReference] = ()
     # What the record page shows, when that differs from the form.
-    detail_fields: Sequence[str] = ()
-    readonly_fields: Sequence[str] = ()
-    exclude: Sequence[str] = ()
+    detail_fields: Sequence[ColumnReference] = ()
+    readonly_fields: Sequence[ColumnReference] = ()
+    exclude: Sequence[ColumnReference] = ()
 
     # Columns the list does not read, such as a large JSON payload, left out
     # of its query. The record page and the form load them as usual.
-    deferred_fields: Sequence[str] = ()
+    deferred_fields: Sequence[ColumnReference] = ()
 
     # Fields that replace the ones worked out from the columns, and
     # `FieldOptions` that only change one. Each is matched by its name.
@@ -142,10 +174,33 @@ class ModelView:
     # change and its entries are saved in one transaction.
     audit_with_changes: bool = False
 
-    def __init_subclass__(cls, model: type[Any] | None = None, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        model = kwargs.pop("model", None)
         if model is not None:
-            cls.model = model
+            named = getattr(model, "__name__", "YourModel")
+            raise AdminSiteError(
+                f"Name the model of {cls.__name__} as its type argument: "
+                f"class {cls.__name__}(ModelView[{named}])."
+            )
+        super().__init_subclass__(**kwargs)
+        # The model is the type argument of the ModelView this class is built
+        # on, or of a view that is generic itself, such as ShopView[Order].
+        for base in cls.__dict__.get("__orig_bases__", ()):
+            origin = get_origin(base)
+            if not (isinstance(origin, type) and issubclass(origin, ModelView)):
+                continue
+            parameters: tuple[object, ...] = getattr(origin, "__parameters__", ())
+            if origin is ModelView:
+                position = 0
+            elif origin._model_parameter in parameters:
+                position = parameters.index(origin._model_parameter)
+            else:
+                continue
+            argument = get_args(base)[position]
+            if isinstance(argument, TypeVar):
+                cls._model_parameter = argument
+            elif isinstance(argument, type) and argument is not Any:
+                cls.model = argument
 
     def __init__(
         self,
@@ -155,7 +210,7 @@ class ModelView:
         if not hasattr(self, "model"):
             raise AdminSiteError(
                 f"{type(self).__name__} needs a model: "
-                f"class {type(self).__name__}(ModelView, model=YourModel)."
+                f"class {type(self).__name__}(ModelView[YourModel])."
             )
         self.inspector = inspector or SQLAlchemyInspector()
         self.registry = registry or default_registry
@@ -164,6 +219,20 @@ class ModelView:
         self.name = self.name or pluralize(snake_case(self.model.__name__))
         self.label = self.label or self.schema.label
         self.label_plural = self.label_plural or self.schema.label_plural
+
+        # The settings as the paths the rest of adminsite works with.
+        self._list_display = self._paths("list_display", self.list_display)
+        self._list_columns = self._paths("list_columns", self.list_columns)
+        self._search_fields = self._paths("search_fields", self.search_fields)
+        self._form_fields = self._paths("form_fields", self.form_fields)
+        self._detail_fields = self._paths("detail_fields", self.detail_fields)
+        self._readonly_fields = self._paths("readonly_fields", self.readonly_fields)
+        self._exclude = self._paths("exclude", self.exclude)
+        self._deferred_fields = self._paths("deferred_fields", self.deferred_fields)
+        self._ordering = tuple(
+            self._converted("ordering", item, sort_of)
+            for item in self._entries("ordering", self.ordering)
+        )
 
         self._overrides = {
             item.name: item for item in self.fields if isinstance(item, Field)
@@ -190,9 +259,9 @@ class ModelView:
 
     def get_list_display(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list shows."""
-        if self.list_display:
-            return tuple(self.list_display)
-        return self._default_paths(skip=set(self.exclude))
+        if self._list_display:
+            return self._list_display
+        return self._default_paths(skip=set(self._exclude))
 
     def get_page_sizes(self, request: Any = None) -> tuple[int, ...]:
         """The page sizes on offer, the view's own size among them."""
@@ -214,7 +283,7 @@ class ModelView:
     def get_column_choices(self, request: Any = None) -> tuple[str, ...]:
         """The columns the picker offers: the list's own, then the extras."""
         shown = self.get_list_display(request)
-        return shown + tuple(path for path in self.list_columns if path not in shown)
+        return shown + tuple(path for path in self._list_columns if path not in shown)
 
     def pick_columns(
         self, picked: Sequence[str], request: Any = None
@@ -232,7 +301,7 @@ class ModelView:
 
     def get_search_fields(self, request: Any = None) -> tuple[str, ...]:
         """The paths the search box looks in."""
-        return tuple(self.search_fields)
+        return self._search_fields
 
     def search_condition(
         self, term: str, *, request: Any = None
@@ -253,16 +322,16 @@ class ModelView:
 
     def get_ordering(self, request: Any = None) -> tuple[Sort, ...]:
         """The order the list starts in."""
-        return tuple(Sort.parse(item) for item in self.ordering)
+        return self._ordering
 
     def get_form_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
         """The fields the form shows, in order."""
-        if self.form_fields:
-            return tuple(self.form_fields)
+        if self._form_fields:
+            return self._form_fields
         return self._default_paths(
-            skip=set(self.exclude) | set(self.schema.primary_key)
+            skip=set(self._exclude) | set(self.schema.primary_key)
         )
 
     def get_detail_fields(
@@ -272,8 +341,8 @@ class ModelView:
 
         A form-only field, such as a password to set, has nothing to show.
         """
-        if self.detail_fields:
-            return tuple(self.detail_fields)
+        if self._detail_fields:
+            return self._detail_fields
         return tuple(
             path
             for path in self.get_form_fields(request, record)
@@ -282,7 +351,7 @@ class ModelView:
 
     def get_deferred_fields(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list leaves out of its query."""
-        return tuple(self.deferred_fields)
+        return self._deferred_fields
 
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
@@ -292,7 +361,7 @@ class ModelView:
         A primary key is readonly by its nature, but a form that names one
         means to set it, so a key stays editable unless it is named here.
         """
-        named = tuple(self.readonly_fields)
+        named = self._readonly_fields
         keys = set(self.schema.primary_key)
         return named + tuple(
             path
@@ -306,7 +375,7 @@ class ModelView:
         """The child records edited inside the form."""
         return tuple(self.inlines)
 
-    def inline_view(self, name: str) -> "ModelView":
+    def inline_view(self, name: str) -> "ModelView[Any]":
         """The view that reads and writes one inline's children."""
         try:
             return self._inline_views[name]
@@ -361,7 +430,7 @@ class ModelView:
                 paths.append(path)
         return tuple(paths)
 
-    def _build_inline_view(self, inline: Inline) -> "ModelView":
+    def _build_inline_view(self, inline: Inline) -> "ModelView[Any]":
         relation = self.schema.relation_named(inline.name)
         if not relation.collection:
             raise AdminSiteError(
@@ -384,8 +453,8 @@ class ModelView:
             "exclude": back_links,
             "display_template": inline.display_template,
         }
-        view_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
-        built: ModelView = view_class(self.inspector, self.registry)
+        child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
+        built: ModelView[Any] = child_class(self.inspector, self.registry)
         return built
 
     def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
@@ -409,6 +478,42 @@ class ModelView:
             if path not in paths and path not in skip:
                 paths.append(path)
         return tuple(paths)
+
+    # Turning settings into paths.
+
+    def _entries(self, setting: str, entries: Sequence[T]) -> Sequence[T]:
+        """A setting's entries, refusing one string where a list belongs.
+
+        A string is a sequence of letters, so `search_fields = "note"`
+        would otherwise search the columns n, o, t and e.
+        """
+        if isinstance(entries, str):
+            raise AdminSiteError(
+                f"{type(self).__name__}.{setting} is the string {entries!r}. "
+                f"Make it a list: {setting} = [{entries!r}]."
+            )
+        return entries
+
+    def _converted(
+        self,
+        setting: str,
+        entry: Any,
+        convert: Callable[[Any, type[Any]], T],
+    ) -> T:
+        """One entry of a setting converted, naming the setting if it fails."""
+        try:
+            return convert(entry, self.model)
+        except AdminSiteError as error:
+            raise AdminSiteError(f"{type(self).__name__}.{setting}: {error}") from None
+
+    def _paths(
+        self, setting: str, entries: Sequence[ColumnReference]
+    ) -> tuple[str, ...]:
+        """The paths a setting names, such as `customer.email`."""
+        return tuple(
+            self._converted(setting, entry, path_of)
+            for entry in self._entries(setting, entries)
+        )
 
     # Turning paths into fields and values.
 
@@ -522,7 +627,7 @@ class ModelView:
         session.
         """
         # Made without the model's own __init__, which may ask for values.
-        draft = sqlalchemy_inspect(self.model).class_manager.new_instance()
+        draft = class_mapper(self.model).class_manager.new_instance()
         for path in self.get_form_fields(request):
             item = self.field_for(path)
             if "." in path or not item.stored:
@@ -1435,7 +1540,7 @@ class ModelView:
         values: Mapping[str, Any],
         request: Any,
         *,
-        fields_of: "ModelView | None" = None,
+        fields_of: "ModelView[Any] | None" = None,
     ) -> dict[str, Any]:
         """Turn the keys sent for links into records, through their own view.
 
@@ -1469,7 +1574,7 @@ class ModelView:
         return resolved
 
     async def _linked_through(
-        self, target: "ModelView", session: SessionAdapter, key: Any, request: Any
+        self, target: "ModelView[Any]", session: SessionAdapter, key: Any, request: Any
     ) -> Any | None:
         """One linked record, if the target's view lets this user see it."""
         wanted = key
@@ -1594,20 +1699,37 @@ class ModelView:
     def _build_filters(self) -> tuple[SQLFilter, ...]:
         repository = SQLAlchemyRepository(self.model, self.inspector)
         built: list[SQLFilter] = []
-        for item in self.list_filter:
-            if isinstance(item, str):
-                built.append(filter_for(repository, item))
-            elif isinstance(item, SQLFilter):
+        for item in self._entries("list_filter", self.list_filter):
+            if isinstance(item, SQLFilter):
                 built.append(item)
+            elif is_column(item):
+                path = self._converted("list_filter", item, path_of)
+                built.append(filter_for(repository, path))
             else:
                 raise AdminSiteError(
-                    f"{type(self).__name__}.list_filter takes paths or "
+                    f"{type(self).__name__}.list_filter takes columns or "
                     f"SQLFilter instances, not {type(item).__name__}."
                 )
         return tuple(built)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(model={self.model.__name__})"
+
+
+def view_class(view: type[ModelView[Any]]) -> type[ModelView[Any]]:
+    """The class a view is built from.
+
+    `ModelView[Tag]` is an alias rather than a class, so it gets a class of
+    its own, `TagView`, as if one had been written with no settings.
+    """
+    if isinstance(view, type):
+        return view
+    arguments = get_args(view)
+    named = getattr(arguments[0], "__name__", "Model") if arguments else "Model"
+    module = getattr(view, "__module__", __name__)
+    return types.new_class(
+        f"{named}View", (view,), exec_body=lambda body: body.update(__module__=module)
+    )
 
 
 def _as_text(raw: str | Sequence[str] | None) -> str | None:

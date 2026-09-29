@@ -11,18 +11,18 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     """The page shows the customer and when it was made; the form does not."""
 
     form_fields = ("status", "note")
     detail_fields = ("customer", "status", "total", "created_at")
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email")
 
 
-class PerUserView(ModelView, model=Order):
+class PerUserView(ModelView[Order]):
     name = "audited"
     form_fields = ("status",)
 

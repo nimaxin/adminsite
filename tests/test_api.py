@@ -15,7 +15,7 @@ from adminsite.fields import ChoiceField
 from tests.models import Customer, Order, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
     list_filter = ("status",)
     search_fields = ("customer.name",)
@@ -30,7 +30,7 @@ class OrderView(ModelView, model=Order):
         return f"{changed} orders noted."
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region")
 
     def scope_query(
@@ -39,7 +39,7 @@ class CustomerView(ModelView, model=Customer):
         return statement.where(Customer.region != "SE")
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     form_fields = ("name", "price")
 
     async def allows(

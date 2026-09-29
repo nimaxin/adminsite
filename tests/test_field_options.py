@@ -12,7 +12,7 @@ from adminsite.fields import RelationField, StringField
 from tests.models import Customer, Order, Product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     """Only the options change; the fields stay the ones that were worked out."""
 
     list_display = ("id", "name", "price")
@@ -24,7 +24,7 @@ class ProductView(ModelView, model=Product):
     )
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     """A path through a link keeps the name it was given."""
 
     list_display = ("id", "customer.name")
@@ -35,7 +35,7 @@ class OrderView(ModelView, model=Order):
     )
 
 
-class StatedView(ModelView, model=Product):
+class StatedView(ModelView[Product]):
     """A field given in full wins over options for the same name."""
 
     name = "stated_products"
@@ -93,7 +93,7 @@ class TestWhatTheyChange:
         assert OrderView().label_for("customer.name") == "Bought by"
 
     def test_a_path_nobody_named_still_names_the_link(self) -> None:
-        class Plain(ModelView, model=Order):
+        class Plain(ModelView[Order]):
             name = "plain_orders"
             list_display = ("id", "customer.name")
 
@@ -154,7 +154,7 @@ class TestOnThePage:
 
 class TestAnOptionThatDoesNotExist:
     def test_it_says_which_view_and_which_path(self) -> None:
-        class Wrong(ModelView, model=Product):
+        class Wrong(ModelView[Product]):
             name = "wrong_products"
             fields = (FieldOptions("name", colour="red"),)
 
@@ -166,7 +166,7 @@ class TestAnOptionThatDoesNotExist:
 
 class TestAFormat:
     def test_it_writes_the_value_wherever_it_is_shown(self) -> None:
-        class Priced(ModelView, model=Product):
+        class Priced(ModelView[Product]):
             name = "priced_products"
             fields = (FieldOptions("price", format="€{:,.2f}"),)
 
@@ -178,7 +178,7 @@ class TestAFormat:
         assert item.serialize(Decimal("1234.50")) == "1234.50"
 
     async def test_the_list_and_the_form_follow_it(self, database: Database) -> None:
-        class Priced(ModelView, model=Product):
+        class Priced(ModelView[Product]):
             name = "priced_products"
             list_display = ("name", "price")
             form_fields = ("name", "price")

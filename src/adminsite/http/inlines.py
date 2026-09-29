@@ -54,7 +54,7 @@ class _CellMaker:
 
     admin: "Admin"
     inline: Inline
-    child: ModelView
+    child: ModelView[Any]
     readonly: set[str]
     options: Mapping[str, _RelationOptions]
     errors: Mapping[str, str]
@@ -96,7 +96,7 @@ class _CellMaker:
 
 async def build_inline_tables(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     session: SessionAdapter,
     *,
     record: Any = None,
@@ -225,7 +225,7 @@ def _text(value: Any) -> str:
 
 
 def child_tables(
-    view: ModelView, record: Any, request: Any = None
+    view: ModelView[Any], record: Any, request: Any = None
 ) -> list[dict[str, Any]]:
     """The children of a record, read only, for its detail page."""
     tables = []

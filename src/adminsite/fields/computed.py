@@ -18,7 +18,7 @@ class Computed(Field):
     """A value the view works out from a record, rather than a column.
 
     ```python
-    class ProductView(ModelView, model=Product):
+    class ProductView(ModelView[Product]):
         list_display = ("name", "capacity")
         fields = (
             Computed(

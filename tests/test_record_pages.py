@@ -11,24 +11,24 @@ from tests.models import Customer, Order, Product
 from tests.support import spare_product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name", "price")
     form_fields = ("name", "price", "description")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
     form_fields = ("customer", "status", "total", "note", "created_at")
     readonly_fields = ("total",)
     display_template = "Order {id}"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     display_template = "{name} ({email})"
     form_fields = ("name", "email", "region", "is_active")
 
 
-class GuardedProducts(ModelView, model=Product):
+class GuardedProducts(ModelView[Product]):
     name = "guarded"
     form_fields = ("name", "price")
 

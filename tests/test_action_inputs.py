@@ -20,7 +20,7 @@ CATEGORIES = (("paper", "Paper"), ("card", "Card"), ("film", "Film"))
 seen: dict[str, Any] = {}
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status")
     ordering = ("id",)
 
@@ -43,7 +43,7 @@ class OrderView(ModelView, model=Order):
         return "Downloaded."
 
 
-class PerRequestView(ModelView, model=Order):
+class PerRequestView(ModelView[Order]):
     """The choices are worked out when the page is drawn."""
 
     name = "live_orders"

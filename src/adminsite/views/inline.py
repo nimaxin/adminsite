@@ -8,7 +8,7 @@ class Inline:
     """Child records edited inside their parent's form, such as order lines.
 
     ```python
-    class OrderView(ModelView, model=Order):
+    class OrderView(ModelView[Order]):
         inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
     ```
 

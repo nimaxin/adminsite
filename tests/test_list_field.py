@@ -47,7 +47,7 @@ class Region(ListBase):
         return self.name
 
 
-class RegionView(ModelView, model=Region):
+class RegionView(ModelView[Region]):
     list_display = ("name", "codes")
     form_fields = ("name", "codes", "scores")
 
@@ -230,7 +230,7 @@ class TestOnPostgres:
         assert (await region(postgres)).codes == ["DE"]
 
 
-class NotesView(ModelView, model=Setting):
+class NotesView(ModelView[Setting]):
     form_fields = ("name", "notes")
     fields = (ListField("notes"),)
 

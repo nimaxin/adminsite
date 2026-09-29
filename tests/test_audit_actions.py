@@ -26,7 +26,7 @@ from adminsite.fields import DecimalField, StringField
 from tests.models import Order, OrderStatus
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_filter = ("status",)
     form_fields = ("status", "note")

@@ -23,7 +23,7 @@ def hashed(password: str) -> str:
     return "sha256$" + hashlib.sha256(password.encode()).hexdigest()
 
 
-class AccountView(ModelView, model=Account):
+class AccountView(ModelView[Account]):
     list_display = ("email",)
     form_fields = ("email", "password")
     fields = (PasswordField("password", required=True),)
@@ -42,7 +42,7 @@ def kept_as(customer: Customer) -> str:
     return f"customer-{customer.id}"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "preferences")
     fields = (
         JSONField("preferences", form_only=True),

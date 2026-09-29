@@ -8,7 +8,7 @@ class FieldOptions:
     length changes and the field itself is already right:
 
     ```python
-    class ProductView(ModelView, model=Product):
+    class ProductView(ModelView[Product]):
         fields = (
             FieldOptions("name", label="Product name"),
             FieldOptions("description", help_text="Shown on the shop page."),

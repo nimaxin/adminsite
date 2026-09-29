@@ -11,7 +11,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     display_template = "{name} ({email})"
     search_fields = ("name", "email")
 
@@ -21,18 +21,18 @@ class CustomerView(ModelView, model=Customer):
         return statement.where(Customer.region != "SE")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
     search_fields = ("customer.name",)
     can_create = False
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     search_fields = ("name",)
     global_search = False
 
 
-class SecretView(ModelView, model=Product):
+class SecretView(ModelView[Product]):
     name = "secrets"
     search_fields = ("name",)
 

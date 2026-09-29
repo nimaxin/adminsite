@@ -10,15 +10,15 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status")
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     list_display = ("name", "email")
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("name", "price")
 
 

@@ -12,7 +12,7 @@ from tests.models import Customer, Order
 from tests.support import Backend, count_queries
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     display_template = "{name}"
     search_fields = ("name", "email")
 
@@ -30,7 +30,7 @@ class CustomerView(ModelView, model=Customer):
         return f"{await selection.count()} chosen"
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
     form_fields = ("customer", "status")
 

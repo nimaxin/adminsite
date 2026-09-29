@@ -21,7 +21,7 @@ REPORT = """{% extends "adminsite/base.html" %}
 """
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     pass
 
 
@@ -269,7 +269,7 @@ class TestTheSidebarOrder:
     async def test_views_and_pages_share_their_groups(
         self, database: Database, templates: Path
     ) -> None:
-        class CustomerView(ModelView, model=Customer):
+        class CustomerView(ModelView[Customer]):
             group = "Reports"
 
         admin = Admin(

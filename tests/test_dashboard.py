@@ -25,11 +25,11 @@ from adminsite.dashboard import ChartData, label_text, round_axis
 from tests.models import Customer, Order, OrderStatus
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> bool:

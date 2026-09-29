@@ -44,11 +44,11 @@ from tests.models import Order, OrderStatus, Product
 from tests.support import spare_product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     form_fields = ("name", "price", "description")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order {id}"
     list_display = ("id", "customer.name", "status", "total")
     list_filter = ("status",)
@@ -68,7 +68,7 @@ class OrderView(ModelView, model=Order):
         return f"{removed} removed."
 
 
-class RefusingProducts(ModelView, model=Product):
+class RefusingProducts(ModelView[Product]):
     name = "refusing"
     form_fields = ("name", "price")
 

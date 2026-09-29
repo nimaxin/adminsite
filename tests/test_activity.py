@@ -18,11 +18,11 @@ ITEM = re.compile(r'<li class="relative mb-6')
 MONDAY = datetime(2026, 9, 14)
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order {id}"
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     pass
 
 

@@ -59,7 +59,7 @@ class ListRequest:
     size: int = 0
 
 
-def read_list_request(request: Request, view: ModelView) -> ListRequest:
+def read_list_request(request: Request, view: ModelView[Any]) -> ListRequest:
     """Read the search, the sort, the page and the filters from the URL."""
     params = request.query_params
     grouped: dict[str, list[str]] = {}
@@ -78,7 +78,7 @@ def read_list_request(request: Request, view: ModelView) -> ListRequest:
     )
 
 
-def read_sort(raw: str, view: ModelView, request: Request) -> tuple[Sort, ...]:
+def read_sort(raw: str, view: ModelView[Any], request: Request) -> tuple[Sort, ...]:
     """The sort asked for in the URL, if it is one the user may ask for.
 
     Only a column this user can read somewhere on the view counts. Sorting
@@ -93,7 +93,7 @@ def read_sort(raw: str, view: ModelView, request: Request) -> tuple[Sort, ...]:
     return ()
 
 
-def read_page_size(request: Request, view: ModelView) -> int:
+def read_page_size(request: Request, view: ModelView[Any]) -> int:
     """The rows per page: the one picked in the URL, or from last time.
 
     A pick is remembered in the session, when there is one, so a list keeps
@@ -116,7 +116,7 @@ def read_page_size(request: Request, view: ModelView) -> int:
     return view.pick_page_size(picked, request)
 
 
-def read_columns(request: Request, view: ModelView) -> tuple[str, ...]:
+def read_columns(request: Request, view: ModelView[Any]) -> tuple[str, ...]:
     """The columns picked for this list, from the URL or from last time.
 
     A pick made in the URL is remembered in the session, when there is one,
@@ -158,7 +158,7 @@ def read_page(raw: str) -> int:
 
 
 async def build_panels(
-    view: ModelView,
+    view: ModelView[Any],
     session: SessionAdapter,
     spec: QuerySpec,
     request: Request,
@@ -229,7 +229,7 @@ def total_text(page: Any) -> str:
 
 
 def as_context(
-    view: ModelView,
+    view: ModelView[Any],
     request: Request,
     spec: QuerySpec,
     page: Any,

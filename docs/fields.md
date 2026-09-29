@@ -47,14 +47,14 @@ would have built:
 from adminsite.fields import EmailField, RelationField, TextField
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     fields = (
         EmailField("email", required=True),
         TextField("notes", label="Internal notes", help_text="Only staff see this."),
     )
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     fields = (
         RelationField(
             "customer",
@@ -78,7 +78,7 @@ it:
 from adminsite import FieldOptions
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     fields = (FieldOptions("total", format="€{:,.2f}"),)
 ```
 
@@ -95,14 +95,14 @@ again:
 from adminsite import FieldOptions
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     fields = (
         FieldOptions("name", label="Product name"),
         FieldOptions("description", help_text="Shown on the shop page."),
     )
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     fields = (FieldOptions("customer", display_template="{name} ({email})"),)
 ```
 
@@ -127,7 +127,7 @@ rose. A yes is green and a no grey. Give the field `tones` to say which colour m
 from adminsite import FieldOptions
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     fields = (
         FieldOptions(
             "status",
@@ -190,7 +190,7 @@ buttons to move one up or down or by dragging it. The box under the list adds on
 offers only the records the list does not hold yet:
 
 ```python
-class ConfigView(ModelView, model=Config):
+class ConfigView(ModelView[Config]):
     fields = (FieldOptions("proxies", ordered=True),)
 ```
 
@@ -275,7 +275,7 @@ class ShopSettings(BaseModel):
     announcement_channels: list[Channel] = []
 
 
-class ShopView(ModelView, model=Shop):
+class ShopView(ModelView[Shop]):
     fields = (JSONField("settings", schema=ShopSettings),)
 ```
 
@@ -336,7 +336,7 @@ def schema_for(setting: Setting) -> type[BaseModel] | None:
     return SCHEMAS.get(setting.key)
 
 
-class SettingView(ModelView, model=Setting):
+class SettingView(ModelView[Setting]):
     fields = (JSONField("value", schema=schema_for),)
 ```
 
@@ -353,7 +353,7 @@ transfer and gets free shipping, whatever the shop's own settings say. With `par
 property of the document may be set or left unset:
 
 ```python
-class CustomerGroupView(ModelView, model=CustomerGroup):
+class CustomerGroupView(ModelView[CustomerGroup]):
     fields = (JSONField("overrides", schema=ShopSettings, partial=True),)
 ```
 
@@ -381,7 +381,7 @@ A JSON column holding a list can be edited the same way, on any database:
 from adminsite.fields import IntegerField, ListField
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     fields = (
         ListField("tags"),
         ListField("sizes", item=IntegerField("sizes")),
@@ -397,7 +397,7 @@ record, in the list, on the record page and in the export:
 from adminsite import Computed
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("name", "price", "capacity")
     fields = (
         Computed(
@@ -432,7 +432,7 @@ async def member_counts(session, groups):
     return dict(rows.all())
 
 
-class GroupView(ModelView, model=Group):
+class GroupView(ModelView[Group]):
     list_display = ("name", "members")
     fields = (Computed("members", load=member_counts, default=0),)
 ```
@@ -463,7 +463,7 @@ from adminsite.fields import PasswordField
 from adminsite.views.writing import SaveContext
 
 
-class AccountView(ModelView, model=Account):
+class AccountView(ModelView[Account]):
     form_fields = ("email", "password")
     fields = (PasswordField("password", required=True),)
 
@@ -497,7 +497,7 @@ from sqlalchemy import delete, select
 from adminsite.fields import JSONField
 
 
-class GroupView(ModelView, model=Group):
+class GroupView(ModelView[Group]):
     form_fields = ("name", "settings")
     fields = (JSONField("settings", form_only=True),)
 
@@ -555,7 +555,7 @@ Return `Html` where the cell is meant to be markup, such as a link to a file or 
 from adminsite import Computed, Html
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "tracking")
     fields = (
         Computed(
@@ -588,7 +588,7 @@ from adminsite.files import LocalStorage
 uploads = LocalStorage("uploads")
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     fields = (
         ImageField("photo", storage=uploads),
         FileField(

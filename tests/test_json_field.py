@@ -15,7 +15,7 @@ from adminsite.schema import FieldSchema
 from tests.models import Setting
 
 
-class SettingView(ModelView, model=Setting):
+class SettingView(ModelView[Setting]):
     list_display = ("name", "options")
     form_fields = ("name", "options", "notes")
 

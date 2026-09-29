@@ -243,7 +243,7 @@ class TestEstimatedCounts:
             assert found is None or found >= 0
 
 
-class NewestOrders(ModelView, model=Order):
+class NewestOrders(ModelView[Order]):
     name = "orders"
     list_display = ("id", "status", "total")
     ordering = ("-created_at",)

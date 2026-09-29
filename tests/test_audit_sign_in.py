@@ -17,11 +17,11 @@ from tests.models import Order, Product
 PASSWORDS = {"nima": hash_password("letmein"), "clerk": hash_password("letmein")}
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     pass
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     """Orders, whose history the clerk may not read."""
 
     async def allows(

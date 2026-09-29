@@ -10,7 +10,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_filter = ("status",)
     search_fields = ("customer.name",)
@@ -19,7 +19,7 @@ class OrderView(ModelView, model=Order):
     page_sizes = (3, 5, 100)
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """A view with no sizes on offer keeps the one it was given."""
 
     page_size = 2

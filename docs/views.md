@@ -1,26 +1,48 @@
 # Views
 
-A `ModelView` says how one model appears in the admin. Class attributes describe the list and the
-form. Methods whose names start with `get_` answer the same questions per request, for when the
+A `ModelView` says how one model appears in the admin, and names the model as its type argument:
+`class OrderView(ModelView[Order])`. Class attributes describe the list and the form. Methods whose names start with `get_` answer the same questions per request, for when the
 answer depends on who is asking.
 
 ```python
-from adminsite import CountMode, ModelView
+from adminsite import Descending, Link, ModelView
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     group = "Sales"
     display_template = "Order #{id}"
 
-    list_display = ("id", "customer.name", "status", "total", "created_at")
-    search_fields = ("id", "customer.name", "customer.email")
-    list_filter = ("status", "total", "created_at")
-    ordering = ("-created_at",)
+    list_display = [
+        Order.id,
+        Link(Order.customer, Customer.name),
+        Order.status,
+        Order.total,
+        Order.created_at,
+    ]
+    search_fields = [Order.id, Link(Order.customer, Customer.email)]
+    list_filter = [Order.status, Order.total, Order.created_at]
+    ordering = [Descending(Order.created_at)]
     page_size = 50
 
-    form_fields = ("customer", "status", "note")
-    readonly_fields = ("total",)
+    form_fields = [Order.customer, Order.status, Order.note]
+    readonly_fields = [Order.total]
 ```
+
+A view with no settings needs no class of its own: `Admin(engine, views=[OrderView, ModelView[Tag]])`.
+
+## Naming columns
+
+A setting names a column by its attribute, `Order.total`, or by its name as a string, `"total"`.
+`Link(Order.customer, Customer.email)` is a column of a related model, which a string writes as
+`"customer.email"`. Links nest to go further: `Link(OrderItem.order, Link(Order.customer,
+Customer.name))`.
+
+A sort takes the same, and `Descending(Order.created_at)`, or the string `"-created_at"`, sorts from
+the highest value down, so newest first.
+
+An attribute of another model, a link whose relation does not lead to its column, or one string
+where a list belongs, such as `search_fields = "note"`, stops the admin when it starts, with a
+message that names the view and the setting.
 
 ## Naming
 
@@ -49,7 +71,7 @@ its record pages, in its export, in its audit log and in its pickers. A customer
 | `list_display` | The columns, in order. Dotted paths such as `customer.name` follow links. |
 | `search_fields` | The paths the search box looks in. Text matches anywhere in the value, numbers match exactly. |
 | `list_filter` | Paths, or filters you built yourself. See [Filters](filters.md). |
-| `ordering` | The starting order. `-created_at` means newest first. |
+| `ordering` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `page_sizes` | The sizes people may switch between. Empty leaves the size fixed. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
@@ -76,7 +98,7 @@ table. `search_condition` lets the view decide the condition instead:
 import re
 
 
-class ContactView(ModelView, model=Contact):
+class ContactView(ModelView[Contact]):
     search_fields = ("phone", "name")
 
     def search_condition(self, term, *, request=None):
@@ -97,7 +119,7 @@ The **Columns** menu above the list hides and shows columns. It offers the colum
 `list_display`, plus any in `list_columns`:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
     list_columns = ("customer.email", "note", "created_at")
 ```
@@ -113,7 +135,7 @@ offer different extras per user.
 `page_size` sets how many rows a page holds. Offer a few sizes and a menu appears above the list:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     page_size = 25
     page_sizes = (25, 100, 500)
 ```
@@ -168,7 +190,7 @@ pages, since the database walks every row before the page it returns. Both have 
 from adminsite import CountMode, ModelView, Pagination
 
 
-class EventView(ModelView, model=Event):
+class EventView(ModelView[Event]):
     ordering = ("-created_at",)
     count_mode = CountMode.ESTIMATED
     pagination = Pagination.KEYSET
@@ -192,7 +214,7 @@ with the same value never repeat or go missing between pages.
 columns and the list query leaves them out:
 
 ```python
-class EventView(ModelView, model=Event):
+class EventView(ModelView[Event]):
     list_display = ("id", "kind", "created_at")
     deferred_fields = ("payload",)
 ```
@@ -227,7 +249,7 @@ The record page shows the form's fields unless you name its own. That is how a p
 nobody should post back, and how a form keeps fields the page has no reason to repeat:
 
 ```python
-class UserView(ModelView, model=User):
+class UserView(ModelView[User]):
     form_fields = ("name", "email", "is_active")
     detail_fields = (
         "name",
@@ -256,7 +278,7 @@ An order and its lines belong together, so edit them on one page. Name the relat
 from adminsite import Inline
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
 ```
 
@@ -288,7 +310,7 @@ Pick a different set per request with `get_inlines(request, record)`.
 Some views are complete on the list, and some hold data nobody should carry out of the admin:
 
 ```python
-class SessionView(ModelView, model=Session):
+class SessionView(ModelView[Session]):
     can_detail = False
     can_export = False
 ```
@@ -303,7 +325,7 @@ per user like any other permission.
 `icon` takes inline SVG markup, or the address of a picture:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     icon = '<svg viewBox="0 0 16 16"><path d="M2 4h12v9H2z" fill="currentColor"/></svg>'
 ```
 
@@ -317,7 +339,7 @@ customer's sessions, an invoice's payments. `in_sidebar = False` leaves such a v
 sidebar, the command palette's list of pages and the overview's counts:
 
 ```python
-class SessionView(ModelView, model=Session):
+class SessionView(ModelView[Session]):
     in_sidebar = False
 ```
 
@@ -329,7 +351,7 @@ them, and the command palette still finds its records.
 Every `get_` method receives the request, so the answer can depend on the user:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
 
     def get_list_display(self, request=None):
@@ -351,7 +373,7 @@ The methods are `get_list_display`, `get_search_fields`, `get_filters`, `get_ord
 A model can have as many views as you like, as long as each has its own name:
 
 ```python
-class ShippedOrders(ModelView, model=Order):
+class ShippedOrders(ModelView[Order]):
     name = "shipped_orders"
     label_plural = "Shipped orders"
 
@@ -368,7 +390,7 @@ goes to the first view registered for `Customer`. When customers are split betwe
 name the view the link belongs to:
 
 ```python
-class WalletView(ModelView, model=Wallet):
+class WalletView(ModelView[Wallet]):
     fields = (FieldOptions("owner", view="buyers"),)
 ```
 

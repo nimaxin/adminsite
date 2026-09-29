@@ -11,7 +11,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, OrderItem, Product
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """Only German customers, and nobody may open the view itself."""
 
     display_template = "{name}"
@@ -23,12 +23,12 @@ class CustomerView(ModelView, model=Customer):
         return statement.where(Customer.region == "DE")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
     form_fields = ("customer", "status")
 
 
-class ClosedCustomers(ModelView, model=Customer):
+class ClosedCustomers(ModelView[Customer]):
     """A view nobody may see at all."""
 
     name = "closed_customers"
@@ -40,11 +40,11 @@ class ClosedCustomers(ModelView, model=Customer):
         return False
 
 
-class ItemView(ModelView, model=OrderItem):
+class ItemView(ModelView[OrderItem]):
     form_fields = ("product", "quantity")
 
 
-class ReadOnlyProducts(ModelView, model=Product):
+class ReadOnlyProducts(ModelView[Product]):
     display_template = "{name}"
     can_create = False
     can_edit = False
@@ -129,7 +129,7 @@ class TestTheSourceView:
     async def test_a_view_that_cannot_be_written_has_no_lookup(
         self, database: Database
     ) -> None:
-        class LockedOrders(ModelView, model=Order):
+        class LockedOrders(ModelView[Order]):
             name = "locked_orders"
             form_fields = ("customer",)
             can_create = False
@@ -149,7 +149,7 @@ class TestTheSourceView:
     async def test_a_view_that_can_only_create_still_has_one(
         self, database: Database
     ) -> None:
-        class NewOnly(ModelView, model=Order):
+        class NewOnly(ModelView[Order]):
             name = "new_orders"
             form_fields = ("customer",)
             can_edit = False
@@ -167,7 +167,7 @@ class TestTheSourceView:
 
 class TestAnInlineCell:
     async def test_it_follows_the_target_view_as_well(self, database: Database) -> None:
-        class ScopedProducts(ModelView, model=Product):
+        class ScopedProducts(ModelView[Product]):
             display_template = "{name}"
 
             def scope_query(
@@ -177,7 +177,7 @@ class TestAnInlineCell:
 
         from adminsite import Inline
 
-        class OrderWithItems(ModelView, model=Order):
+        class OrderWithItems(ModelView[Order]):
             name = "packed_orders"
             form_fields = ("status",)
             inlines = (Inline("items", fields=("product", "quantity")),)

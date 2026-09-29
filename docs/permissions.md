@@ -8,7 +8,7 @@ method on the view, so the answer can depend on the request and on the record.
 The simplest switches are attributes:
 
 ```python
-class AuditedPayments(ModelView, model=Payment):
+class AuditedPayments(ModelView[Payment]):
     can_create = False
     can_delete = False
 ```
@@ -19,7 +19,7 @@ For anything that depends on the user, override `allows`:
 from adminsite import Permission
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     async def allows(self, action, *, request=None, record=None):
         user = request.state.user
         if action == Permission.DELETE:
@@ -44,7 +44,7 @@ records, and its entries on the Activity page. The log keeps every field's old a
 refuse it where the values are sensitive:
 
 ```python
-class PayrollView(ModelView, model=Salary):
+class PayrollView(ModelView[Salary]):
     async def allows(self, action, *, request=None, record=None):
         if action == Permission.HISTORY:
             return request.state.user.is_hr
@@ -60,7 +60,7 @@ entries. A user with no such view does not see the Activity page at all.
 `scope_query` narrows every read the view makes:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     def scope_query(self, statement, *, request=None):
         return statement.where(Order.region == request.state.user.region)
 ```
@@ -88,7 +88,7 @@ the order of a value the user cannot see.
 Hide a column or lock a field for some users with the `get_` methods:
 
 ```python
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     list_display = ("name", "email", "credit_limit")
 
     def get_list_display(self, request=None):

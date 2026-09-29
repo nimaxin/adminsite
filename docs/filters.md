@@ -8,7 +8,7 @@ the URL, so a filtered list can be bookmarked or sent to someone.
 Name a path in `list_filter` and adminsite picks the filter that fits the column:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_filter = ("status", "total", "created_at", "customer", "customer.region")
 ```
 
@@ -33,7 +33,7 @@ but not the other filters, so they stay steady while you pick. On a big table, t
 from adminsite.backends.sqlalchemy import ChoiceFilter
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_filter = (
         ChoiceFilter(
             "status",
@@ -68,7 +68,7 @@ class DeliveryFilter(SQLFilter):
         return Order.due_at.between(func.now(), func.now() + timedelta(days=2))
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_filter = ("status", DeliveryFilter("delivery", label="Delivery"))
 ```
 

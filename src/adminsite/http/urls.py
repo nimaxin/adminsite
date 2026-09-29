@@ -28,53 +28,53 @@ class Urls:
         """A file that ships with the package."""
         return f"{self.base}/static/{path}"
 
-    def list(self, view: ModelView, **params: Any) -> str:
+    def list(self, view: ModelView[Any], **params: Any) -> str:
         """The list page of a view."""
         return self._with(f"{self.base}/{view.name}", params)
 
-    def create(self, view: ModelView) -> str:
+    def create(self, view: ModelView[Any]) -> str:
         """The page for adding a record."""
         return f"{self.base}/{view.name}/new"
 
-    def detail(self, view: ModelView, key: str) -> str:
+    def detail(self, view: ModelView[Any], key: str) -> str:
         """The page showing one record."""
         return f"{self.base}/{view.name}/{key}"
 
-    def edit(self, view: ModelView, key: str) -> str:
+    def edit(self, view: ModelView[Any], key: str) -> str:
         """The page for changing one record."""
         return f"{self.base}/{view.name}/{key}/edit"
 
-    def delete(self, view: ModelView, key: str) -> str:
+    def delete(self, view: ModelView[Any], key: str) -> str:
         """Where a delete is posted."""
         return f"{self.base}/{view.name}/{key}/delete"
 
-    def action(self, view: ModelView, name: str) -> str:
+    def action(self, view: ModelView[Any], name: str) -> str:
         """Where a bulk action is posted."""
         return f"{self.base}/{view.name}/action/{name}"
 
-    def export(self, view: ModelView, **params: Any) -> str:
+    def export(self, view: ModelView[Any], **params: Any) -> str:
         """Where the current list is exported."""
         return self._with(f"{self.base}/{view.name}/export", params)
 
-    def save_view(self, view: ModelView) -> str:
+    def save_view(self, view: ModelView[Any]) -> str:
         """Where the current list is saved under a name."""
         return f"{self.base}/{view.name}/saved-views"
 
-    def delete_view(self, view: ModelView, key: int | None) -> str:
+    def delete_view(self, view: ModelView[Any], key: int | None) -> str:
         """Where a saved view is removed."""
         return f"{self.base}/{view.name}/saved-views/{key}/delete"
 
-    def lookup(self, view: ModelView, path: str) -> str:
+    def lookup(self, view: ModelView[Any], path: str) -> str:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
-    def document(self, view: ModelView, path: str, key: str = "") -> str:
+    def document(self, view: ModelView[Any], path: str, key: str = "") -> str:
         """Where a JSON column's form is read into the document it stands for."""
         if key:
             return f"{self.base}/{view.name}/{key}/document/{path}"
         return f"{self.base}/{view.name}/document/{path}"
 
-    def action_lookup(self, view: ModelView, action: str, name: str) -> str:
+    def action_lookup(self, view: ModelView[Any], action: str, name: str) -> str:
         """Where a link an action asks for searches for records."""
         return f"{self.base}/{view.name}/action/{action}/lookup/{name}"
 
@@ -88,7 +88,7 @@ class Urls:
             return path
         return f"{self.base}/{path}"
 
-    def file(self, view: ModelView, path: str, key: str) -> str:
+    def file(self, view: ModelView[Any], path: str, key: str) -> str:
         """Where a stored file is fetched: its storage's address, or the admin."""
         item = view.field_for(path)
         public = getattr(getattr(item, "storage", None), "url", None)

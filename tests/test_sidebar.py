@@ -9,11 +9,11 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """Customers, only ever opened from their orders."""
 
     display_template = "{name}"

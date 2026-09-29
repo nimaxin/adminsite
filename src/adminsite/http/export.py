@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 BATCH_SIZE = 500
 
 
-def csv_rows(view: ModelView, records: Sequence[Any], paths: Sequence[str]) -> str:
+def csv_rows(view: ModelView[Any], records: Sequence[Any], paths: Sequence[str]) -> str:
     """Write records as CSV text, using what the list would show."""
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
@@ -49,7 +49,7 @@ def as_cell(text: str) -> str:
     return text
 
 
-def csv_header(view: ModelView, paths: Sequence[str]) -> str:
+def csv_header(view: ModelView[Any], paths: Sequence[str]) -> str:
     """Write the heading row."""
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="\n").writerow(
@@ -60,7 +60,7 @@ def csv_header(view: ModelView, paths: Sequence[str]) -> str:
 
 async def stream_csv(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     spec: QuerySpec,
     request: Request,
     columns: Sequence[str] = (),

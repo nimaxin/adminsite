@@ -7,7 +7,7 @@ class PasswordField(StringField):
     """A password to set: typed in, never shown, changed only when typed.
 
     ```python
-    class AccountView(ModelView, model=Account):
+    class AccountView(ModelView[Account]):
         form_fields = ("email", "password")
         fields = (PasswordField("password", required=True),)
 

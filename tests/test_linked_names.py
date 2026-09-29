@@ -12,22 +12,22 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     display_template = "{name} ({email})"
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     display_template = "{name} at {price}"
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer", "items")
     form_fields = ("customer", "status")
     detail_fields = ("customer", "items", "status")
     inlines = (Inline("items", fields=("product", "quantity")),)
 
 
-class EmailedOrderView(ModelView, model=Order):
+class EmailedOrderView(ModelView[Order]):
     name = "emailed_orders"
     list_display = ("id", "customer")
     form_fields = ("customer", "status")

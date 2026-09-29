@@ -53,7 +53,7 @@ class Delivery(BaseModel):
         return value
 
 
-class SettingView(ModelView, model=Setting):
+class SettingView(ModelView[Setting]):
     list_display = ("name", "options")
     form_fields = ("name", "options", "notes")
     fields = (JSONField("options", schema=Delivery),)
@@ -65,7 +65,7 @@ def token_in(page: httpx.Response) -> str:
     return found.group(1)
 
 
-def serve(view: type[ModelView], database: Database) -> httpx.AsyncClient:
+def serve(view: type[ModelView[Any]], database: Database) -> httpx.AsyncClient:
     admin = Admin(database, views=[view], secret_key="for-the-session", api=True)
     app = Starlette()
     app.mount("/admin", admin)
@@ -514,7 +514,7 @@ def schema_for(setting: Setting) -> Any:
     return {"delivery": Delivery, "shop": Shop}.get(setting.name)
 
 
-class PerNameView(ModelView, model=Setting):
+class PerNameView(ModelView[Setting]):
     form_fields = ("name", "options")
     fields = (JSONField("options", schema=schema_for),)
 
@@ -598,7 +598,7 @@ class TestASchemaFromTheRecord:
         assert 'x-data="jsonEditor()"' in page.text
 
 
-class OverrideView(ModelView, model=Setting):
+class OverrideView(ModelView[Setting]):
     form_fields = ("name", "options")
     fields = (JSONField("options", schema=Delivery, partial=True),)
 
@@ -691,7 +691,7 @@ class TestAPartialDocument:
         assert await options_of(database) == {"express": True}
 
 
-class ReadOnlyView(ModelView, model=Setting):
+class ReadOnlyView(ModelView[Setting]):
     form_fields = ("name", "options")
     readonly_fields = ("options",)
     fields = (JSONField("options", schema=Delivery),)

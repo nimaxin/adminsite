@@ -7,7 +7,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name")
 
 

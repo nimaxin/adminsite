@@ -16,7 +16,7 @@ from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """Every customer outside Sweden."""
 
     display_template = "{name}"
@@ -28,7 +28,7 @@ class CustomerView(ModelView, model=Customer):
         return statement.where(Customer.region != "SE")
 
 
-class NordicView(ModelView, model=Customer):
+class NordicView(ModelView[Customer]):
     """The Swedish customers, the ones the first view leaves out."""
 
     name = "nordic"
@@ -40,12 +40,12 @@ class NordicView(ModelView, model=Customer):
         return statement.where(Customer.region == "SE")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order #{id}"
     form_fields = ("customer", "status")
 
 
-class NordicOrderView(ModelView, model=Order):
+class NordicOrderView(ModelView[Order]):
     """Orders whose customer is picked from, and linked to, the Nordic view."""
 
     name = "nordic_orders"
@@ -176,14 +176,14 @@ class TestAToManyLinkOnTheRecordPage:
         assert all("limit" in item or "count(" in item for item in orders)
 
 
-class CustomerFormView(ModelView, model=Customer):
+class CustomerFormView(ModelView[Customer]):
     """A to-many link on the form, which the record page shows as well."""
 
     name = "customer_forms"
     form_fields = ("name", "orders")
 
 
-class CountedOrderView(ModelView, model=Order):
+class CountedOrderView(ModelView[Order]):
     """A computed field that reads the items the page also lists."""
 
     name = "counted_orders"

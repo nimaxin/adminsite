@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 async def build_rows(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     session: SessionAdapter,
     *,
     record: Any = None,
@@ -241,7 +241,7 @@ def rows_for_inputs(fields: Sequence[Field], *, prefix: str = "") -> list[FormRo
 
 async def rows_for_actions(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     actions: Sequence[Action],
     request: Any = None,
 ) -> dict[str, list[FormRow]]:

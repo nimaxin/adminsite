@@ -3,6 +3,7 @@
 import re
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -17,7 +18,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from tests.models import Shelf
 
 
-class ShelfView(ModelView, model=Shelf):
+class ShelfView(ModelView[Shelf]):
     name = "shelves"
     list_display = ("aisle", "slot", "label")
     ordering = ("aisle", "slot")
@@ -31,7 +32,7 @@ class ShelfView(ModelView, model=Shelf):
         return f"{await selection.delete()} cleared."
 
 
-def chosen(view: ModelView, session: SessionAdapter, *keys: str) -> Selection:
+def chosen(view: ModelView[Any], session: SessionAdapter, *keys: str) -> Selection:
     return Selection(view=view, session=session, spec=view.build_spec(), keys=keys)
 
 

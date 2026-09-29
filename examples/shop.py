@@ -149,7 +149,7 @@ def outline(paths: str) -> str:
     )
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     group = "Sales"
     icon = outline(
         '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>'
@@ -164,7 +164,7 @@ class CustomerView(ModelView, model=Customer):
     can_import = True
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     group = "Sales"
     icon = outline(
         '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'
@@ -236,7 +236,7 @@ class OrderView(ModelView, model=Order):
         return f"{changed} orders marked as shipped with {carrier.upper()}."
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     group = "Catalogue"
     icon = outline(
         '<path d="m3 7.5 9-4.5 9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5"/>'
@@ -252,7 +252,7 @@ class ProductView(ModelView, model=Product):
     list_filter = ("price",)
 
 
-class TagView(ModelView, model=Tag):
+class TagView(ModelView[Tag]):
     group = "Catalogue"
     icon = outline(
         '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/>'

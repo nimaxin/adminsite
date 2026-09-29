@@ -30,20 +30,20 @@ class Ticket(TicketBase):
         return f"Ticket(id={self.id!r}, secret={self.secret!r})"
 
 
-class ItemView(ModelView, model=OrderItem):
+class ItemView(ModelView[OrderItem]):
     list_display = ("id", "quantity")
     form_fields = ("quantity", "unit_price")
 
 
-class TicketView(ModelView, model=Ticket):
+class TicketView(ModelView[Ticket]):
     pass
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     pass
 
 
-class NamedItemView(ModelView, model=OrderItem):
+class NamedItemView(ModelView[OrderItem]):
     name = "named_items"
     display_template = "{quantity} pieces"
 

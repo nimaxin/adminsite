@@ -13,7 +13,7 @@ from adminsite.saved_views import clean_query
 from tests.models import Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_columns = ("note", "created_at")
     search_fields = ("customer.name",)

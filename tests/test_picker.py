@@ -16,7 +16,7 @@ from adminsite.http.picker import RESULT_LIMIT
 from tests.models import Customer, Order, OrderItem, OrderStatus
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """A customer holds many orders, picked from a table that grew."""
 
     form_fields = ("name", "email", "orders")
@@ -30,7 +30,7 @@ class CustomerView(ModelView, model=Customer):
     )
 
 
-class OrderItemView(ModelView, model=OrderItem):
+class OrderItemView(ModelView[OrderItem]):
     """A line holds one order, picked from the same large table."""
 
     form_fields = ("order", "quantity")
@@ -141,7 +141,7 @@ class TestALinkThatSearches:
     async def test_what_the_target_view_offers_is_searched(
         self, big_database: Database
     ) -> None:
-        class OrderView(ModelView, model=Order):
+        class OrderView(ModelView[Order]):
             display_template = "Order #{id}"
             search_fields = ("note",)
 
@@ -181,7 +181,7 @@ class TestTheBox:
     async def test_a_link_to_one_can_be_cleared_unless_it_must_be_set(
         self, client: httpx.AsyncClient, big_database: Database
     ) -> None:
-        class RequiredItemView(ModelView, model=OrderItem):
+        class RequiredItemView(ModelView[OrderItem]):
             name = "required_items"
             form_fields = ("order", "quantity")
             fields = (
@@ -213,7 +213,7 @@ class TestTheBox:
     async def test_a_search_that_found_everything_does_not(
         self, big_database: Database
     ) -> None:
-        class OrderView(ModelView, model=Order):
+        class OrderView(ModelView[Order]):
             display_template = "Order #{id}"
             search_fields = ("note",)
 

@@ -38,6 +38,7 @@ from adminsite.security import Permission
 from adminsite.security.csrf import TOKEN_HEADER, is_valid
 from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
+from adminsite.views.model_view import view_class
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -67,7 +68,7 @@ class Admin:
         *,
         title: str = "Admin",
         banner: str = "",
-        views: Sequence[ModelView | type[ModelView]] = (),
+        views: Sequence[ModelView[Any] | type[ModelView[Any]]] = (),
         inspector: SQLAlchemyInspector | None = None,
         fields: FieldRegistry | None = None,
         template_dirs: Sequence[str | Path] = (),
@@ -136,9 +137,13 @@ class Admin:
         for plugin in plugins:
             self.use(plugin)
 
-    def add_view(self, view: ModelView | type[ModelView]) -> ModelView:
-        """Register a model with the admin."""
-        built = view(self.inspector, self.fields) if isinstance(view, type) else view
+    def add_view(self, view: ModelView[Any] | type[ModelView[Any]]) -> ModelView[Any]:
+        """Register a view, given as its class, `ModelView[Tag]` or an instance."""
+        built = (
+            view
+            if isinstance(view, ModelView)
+            else view_class(view)(self.inspector, self.fields)
+        )
         if built.audit is None:
             built.audit = self.audit
         if built.audit is not None:
@@ -213,7 +218,7 @@ class Admin:
 
     async def views_allowing(
         self, request: Request, *permissions: Permission | str
-    ) -> list[ModelView]:
+    ) -> list[ModelView[Any]]:
         """The views where this user has every one of these permissions."""
         wanted = permissions or (Permission.VIEW,)
         found = []
@@ -225,7 +230,7 @@ class Admin:
                 found.append(view)
         return found
 
-    async def history_views(self, request: Request) -> list[ModelView]:
+    async def history_views(self, request: Request) -> list[ModelView[Any]]:
         """The views whose history this user may read, if auditing is on."""
         if self.audit is None:
             return []

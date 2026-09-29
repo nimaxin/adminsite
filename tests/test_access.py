@@ -12,11 +12,11 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status")
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     """Open to everyone, but its history is private."""
 
     list_display = ("name",)
@@ -29,7 +29,7 @@ class CustomerView(ModelView, model=Customer):
         return await super().allows(action, request=request, record=record)
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     """Hidden from this user altogether."""
 
     async def allows(

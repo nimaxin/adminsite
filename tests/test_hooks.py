@@ -13,7 +13,7 @@ from adminsite.views.writing import SaveContext
 from tests.models import Customer, Product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     """Names are slugged on the way in, and a price has to make sense."""
 
     form_fields = ("name", "price", "description")
@@ -27,7 +27,7 @@ class ProductView(ModelView, model=Product):
             raise RefusedError("A price cannot be below zero.", field="price")
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region", "is_active")
 
     async def before_save(self, context: SaveContext) -> None:

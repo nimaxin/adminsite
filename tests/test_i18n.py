@@ -104,12 +104,12 @@ class TestTheCatalog:
             ), english
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     search_fields = ("customer.name",)
 
 
-class LockedView(ModelView, model=Customer):
+class LockedView(ModelView[Customer]):
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> bool:

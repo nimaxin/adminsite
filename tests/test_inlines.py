@@ -12,7 +12,7 @@ from adminsite.http.picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     display_template = "Order {id}"
     form_fields = ("customer", "status", "note", "created_at")
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
@@ -63,7 +63,7 @@ async def items_of(database: Database, order_id: int) -> list[OrderItem]:
 
 class TestDeclaring:
     def test_an_inline_needs_a_relationship_holding_many(self) -> None:
-        class Wrong(ModelView, model=Order):
+        class Wrong(ModelView[Order]):
             name = "wrong"
             inlines = (Inline("customer"),)
 
@@ -71,7 +71,7 @@ class TestDeclaring:
             Wrong()
 
     def test_the_link_back_to_the_parent_is_not_an_input(self, view: OrderView) -> None:
-        class Everything(ModelView, model=Order):
+        class Everything(ModelView[Order]):
             name = "everything"
             inlines = (Inline("items"),)
 
@@ -294,7 +294,7 @@ class TestPages:
                 )
             await session.commit()
 
-        class ProductView(ModelView, model=Product):
+        class ProductView(ModelView[Product]):
             display_template = "{name} at {price}"
 
         site = Admin(database, views=[OrderView, ProductView])

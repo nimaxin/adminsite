@@ -372,7 +372,9 @@ async def detail(admin: "Admin", request: Request) -> Response:
 MANY_LINKS_SHOWN = 20
 
 
-def many_links(view: ModelView, paths: Sequence[str], request: Request) -> set[str]:
+def many_links(
+    view: ModelView[Any], paths: Sequence[str], request: Request
+) -> set[str]:
     """The paths that are to-many links of the record, shown as a list of names.
 
     A child table the view edits inline is left alone: it is shown whole.
@@ -388,7 +390,7 @@ def many_links(view: ModelView, paths: Sequence[str], request: Request) -> set[s
     return found
 
 
-def computed_needs(view: ModelView, paths: Sequence[str]) -> set[str]:
+def computed_needs(view: ModelView[Any], paths: Sequence[str]) -> set[str]:
     """What the computed fields among these paths read from the record."""
     return {
         needed
@@ -399,7 +401,7 @@ def computed_needs(view: ModelView, paths: Sequence[str]) -> set[str]:
 
 async def many_links_text(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     record: Any,
     paths: set[str],
     request: Request,
@@ -442,7 +444,7 @@ class LinkedRecord:
 
 async def linked_records(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     record: Any,
     paths: Sequence[str],
     request: Request,
@@ -472,7 +474,7 @@ async def linked_records(
 
 async def view_that_opens(
     admin: "Admin", item: RelationField, value: Any, request: Request
-) -> ModelView | None:
+) -> ModelView[Any] | None:
     """The view a link to this related record opens, if any will.
 
     The relation's own view when it names one. Otherwise the first view of
@@ -765,7 +767,7 @@ async def action_lookup(admin: "Admin", request: Request) -> Response:
 
 
 async def looked_up(
-    admin: "Admin", request: Request, view: ModelView, item: RelationField
+    admin: "Admin", request: Request, view: ModelView[Any], item: RelationField
 ) -> Response:
     """The records a link offers for what was typed, as a list to pick from."""
     picker = Picker(admin, item, request)
@@ -793,7 +795,7 @@ async def looked_up(
 
 
 def form_context(
-    view: ModelView,
+    view: ModelView[Any],
     rows: list[FormRow],
     request: Request,
     record: Any = None,
@@ -822,7 +824,7 @@ def form_context(
 
 async def form_again(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     session: SessionAdapter,
     request: Request,
     result: FormResult,
@@ -871,7 +873,7 @@ async def form_again(
 
 
 async def after_save(
-    admin: "Admin", view: ModelView, request: Request, key: str
+    admin: "Admin", view: ModelView[Any], request: Request, key: str
 ) -> str:
     """Where a save lands: the record's page, or the list without one."""
     urls = Urls(request)
@@ -882,7 +884,7 @@ async def after_save(
 
 async def load_or_404(
     admin: "Admin",
-    view: ModelView,
+    view: ModelView[Any],
     request: Request,
     *,
     paths: Sequence[str] | None = None,
@@ -900,7 +902,7 @@ async def load_or_404(
     return record
 
 
-def find_view(admin: "Admin", request: Request) -> ModelView:
+def find_view(admin: "Admin", request: Request) -> ModelView[Any]:
     """The view the URL names, or a 404."""
     name = request.path_params.get("view", "")
     view = admin.views.find(name)
@@ -911,7 +913,7 @@ def find_view(admin: "Admin", request: Request) -> ModelView:
     return view
 
 
-def field_or_404(view: ModelView, path: str) -> Any:
+def field_or_404(view: ModelView[Any], path: str) -> Any:
     """The field a path in the URL names, or a 404 when it names none."""
     try:
         return view.field_for(path)
@@ -1106,7 +1108,7 @@ async def run_action(admin: "Admin", request: Request) -> Response:
 async def perform(
     admin: "Admin",
     request: Request,
-    view: ModelView,
+    view: ModelView[Any],
     found: Any,
     session: SessionAdapter,
     submitted: Mapping[str, Any],
@@ -1154,7 +1156,7 @@ async def perform(
 def back_from_action(
     admin: "Admin",
     request: Request,
-    view: ModelView,
+    view: ModelView[Any],
     found: Any,
     submitted: Mapping[str, Any],
 ) -> RedirectResponse:
@@ -1214,7 +1216,7 @@ def list_query(query: str) -> dict[str, str | list[str]]:
     }
 
 
-def back_to_list(request: Request, view: ModelView) -> RedirectResponse:
+def back_to_list(request: Request, view: ModelView[Any]) -> RedirectResponse:
     """Return to the list the action was started from."""
     query = request.url.query
     target = Urls(request).list(view)

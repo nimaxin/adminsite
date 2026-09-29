@@ -8,7 +8,7 @@ from adminsite import RefusedError
 from adminsite.views.writing import DeleteContext, SaveContext
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     async def before_save(self, context: SaveContext) -> None:
         if context.created:
             stock = await context.session.get(Stock, context.record.product_id)
@@ -79,7 +79,7 @@ total = await context.session.run(count_lines)
 change them. Change `context.values`, or use `context.set`:
 
 ```python
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     async def before_save(self, context: SaveContext) -> None:
         name = context.values.get("name")
         if name:

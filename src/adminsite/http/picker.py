@@ -35,7 +35,7 @@ class Picker:
     request: Any = None
 
     @property
-    def view(self) -> ModelView | None:
+    def view(self) -> ModelView[Any] | None:
         """The view registered for the model this link points at."""
         return self.admin.views.for_relation(self.item)
 

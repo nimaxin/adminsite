@@ -32,7 +32,7 @@ async def order_counts(
 CELL = r"\s*<td[^>]*>\s*<span[^>]*>"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     display_template = "{name}"
     list_display = ("name", "orders_placed")
     form_fields = ("name", "email", "orders_placed")

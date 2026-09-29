@@ -19,7 +19,7 @@ from tests.models import Order, Product
 seen: dict[str, Any] = {}
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     search_fields = ("name",)
 
     def scope_query(
@@ -29,7 +29,7 @@ class ProductView(ModelView, model=Product):
         return statement.where(Product.name != "Wool scarf")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "note")
     ordering = ("id",)
 
@@ -62,7 +62,7 @@ class OrderView(ModelView, model=Order):
         return "Bundled."
 
 
-class ReadOnlyOrderView(ModelView, model=Order):
+class ReadOnlyOrderView(ModelView[Order]):
     """Everyone may look, nobody may change, so no action may run."""
 
     name = "archived_orders"

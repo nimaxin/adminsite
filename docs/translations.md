@@ -28,7 +28,7 @@ default for anyone whose browser asks for neither.
 Your views' labels, groups and field labels are yours, so write them in the language you want:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     label = "سفارش"
     label_plural = "سفارش‌ها"
     fields = (ChoiceField("status", label="وضعیت", choices=STATUSES),)

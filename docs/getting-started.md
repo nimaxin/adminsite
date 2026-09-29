@@ -54,12 +54,12 @@ from adminsite import Admin, ModelView
 engine = create_async_engine("postgresql+asyncpg://localhost/shop")
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     list_display = ("name", "email")
     search_fields = ("name", "email")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "note")
     search_fields = ("id", "customer.name")
 

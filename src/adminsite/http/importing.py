@@ -32,7 +32,7 @@ PREVIEW_PROBLEMS = 200
 
 
 async def show_form(
-    admin: "Admin", request: Request, view: ModelView, error: str = ""
+    admin: "Admin", request: Request, view: ModelView[Any], error: str = ""
 ) -> Response:
     """The page for choosing a file."""
     await view.ensure(Permission.IMPORT, request=request)
@@ -45,7 +45,7 @@ async def show_form(
     )
 
 
-def template_response(view: ModelView, request: Request) -> Response:
+def template_response(view: ModelView[Any], request: Request) -> Response:
     """A CSV with just the header row, to fill in."""
     return Response(
         template_csv(view, request),
@@ -55,7 +55,7 @@ def template_response(view: ModelView, request: Request) -> Response:
 
 
 async def preview(
-    admin: "Admin", request: Request, view: ModelView, form: dict[str, Any]
+    admin: "Admin", request: Request, view: ModelView[Any], form: dict[str, Any]
 ) -> Response:
     """Check an uploaded file and show what importing it would do."""
     await view.ensure(Permission.IMPORT, request=request)
@@ -100,7 +100,7 @@ def rows_to_show(plan: ImportPlan) -> list[Any]:
     return shown + problems[:PREVIEW_PROBLEMS]
 
 
-async def run(admin: "Admin", request: Request, view: ModelView) -> Response:
+async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Response:
     """Import the rows of a previewed file, each saved on its own."""
     await view.ensure(Permission.IMPORT, request=request)
     urls = Urls(request)
@@ -142,7 +142,7 @@ async def run(admin: "Admin", request: Request, view: ModelView) -> Response:
 
 
 def summary(
-    view: ModelView, created: int, changed: int, skipped: int, failed: list[str]
+    view: ModelView[Any], created: int, changed: int, skipped: int, failed: list[str]
 ) -> str:
     """One line saying what the import did."""
     things = view.label_plural.lower()

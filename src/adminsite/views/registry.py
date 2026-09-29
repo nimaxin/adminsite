@@ -2,7 +2,7 @@ from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from adminsite.exceptions import AdminSiteError
-from adminsite.views.model_view import ModelView
+from adminsite.views.model_view import ModelView, view_class
 
 if TYPE_CHECKING:
     from adminsite.fields import RelationField
@@ -12,12 +12,12 @@ class ViewRegistry:
     """Holds the views of one admin, in the order they were added."""
 
     def __init__(self) -> None:
-        self._views: list[ModelView] = []
-        self._by_name: dict[str, ModelView] = {}
+        self._views: list[ModelView[Any]] = []
+        self._by_name: dict[str, ModelView[Any]] = {}
 
-    def add(self, view: ModelView | type[ModelView]) -> ModelView:
-        """Register a view, given either the class or an instance."""
-        built = view() if isinstance(view, type) else view
+    def add(self, view: ModelView[Any] | type[ModelView[Any]]) -> ModelView[Any]:
+        """Register a view, given as its class, `ModelView[Tag]` or an instance."""
+        built = view if isinstance(view, ModelView) else view_class(view)()
         if built.name in self._by_name:
             raise AdminSiteError(
                 f"Two views are called {built.name!r}. "
@@ -31,29 +31,29 @@ class ViewRegistry:
         self._by_name[built.name] = built
         return built
 
-    def get(self, name: str) -> ModelView:
+    def get(self, name: str) -> ModelView[Any]:
         """Find a view by the name that appears in its URL."""
         try:
             return self._by_name[name]
         except KeyError:
             raise AdminSiteError(f"No view is called {name!r}.") from None
 
-    def find(self, name: str) -> ModelView | None:
+    def find(self, name: str) -> ModelView[Any] | None:
         """Find a view by name, or nothing if there is none."""
         return self._by_name.get(name)
 
-    def for_model(self, model: type[Any]) -> ModelView | None:
+    def for_model(self, model: type[Any]) -> ModelView[Any] | None:
         """The first view registered for a model, if there is one."""
         for view in self._views:
             if view.model is model:
                 return view
         return None
 
-    def all_for_model(self, model: type[Any]) -> list[ModelView]:
+    def all_for_model(self, model: type[Any]) -> list[ModelView[Any]]:
         """Every view registered for a model, in the order they were added."""
         return [view for view in self._views if view.model is model]
 
-    def for_relation(self, item: "RelationField") -> ModelView | None:
+    def for_relation(self, item: "RelationField") -> ModelView[Any] | None:
         """The view a relation's links and picker use.
 
         The one the field names with `view`, or else the first registered
@@ -75,20 +75,20 @@ class ViewRegistry:
         return chosen
 
     def grouped(
-        self, only: Sequence[ModelView] | None = None
-    ) -> list[tuple[str, list[ModelView]]]:
+        self, only: Sequence[ModelView[Any]] | None = None
+    ) -> list[tuple[str, list[ModelView[Any]]]]:
         """The views by sidebar group, keeping the order they were added."""
-        groups: dict[str, list[ModelView]] = {}
+        groups: dict[str, list[ModelView[Any]]] = {}
         for view in self._views if only is None else only:
             groups.setdefault(view.group, []).append(view)
         return list(groups.items())
 
     @property
-    def views(self) -> Sequence[ModelView]:
+    def views(self) -> Sequence[ModelView[Any]]:
         """Every registered view."""
         return tuple(self._views)
 
-    def __iter__(self) -> Iterator[ModelView]:
+    def __iter__(self) -> Iterator[ModelView[Any]]:
         return iter(self._views)
 
     def __len__(self) -> int:

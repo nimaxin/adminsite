@@ -14,7 +14,7 @@ from adminsite.views import ModelView
 from tests.models import Customer, Order, OrderStatus
 
 
-class GermanOrders(ModelView, model=Order):
+class GermanOrders(ModelView[Order]):
     """Only shows orders from customers in one region."""
 
     list_display = ("id", "customer.name", "status")
@@ -26,13 +26,13 @@ class GermanOrders(ModelView, model=Order):
         return statement.where(Order.customer.has(Customer.region == region))
 
 
-class ReadOnlyOrders(ModelView, model=Order):
+class ReadOnlyOrders(ModelView[Order]):
     can_create = False
     can_edit = False
     can_delete = False
 
 
-class ByRole(ModelView, model=Order):
+class ByRole(ModelView[Order]):
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None
     ) -> bool:
@@ -43,7 +43,7 @@ class ByRole(ModelView, model=Order):
         return True
 
 
-class HidesAColumn(ModelView, model=Customer):
+class HidesAColumn(ModelView[Customer]):
     list_display = ("name", "email", "region")
 
     def get_list_display(self, request: Any = None) -> tuple[str, ...]:
@@ -197,7 +197,7 @@ class TestButtonsFollowPermissions:
     async def test_actions_the_user_may_not_run_are_left_out(
         self, database: Database
     ) -> None:
-        class GuardedOrders(ModelView, model=Order):
+        class GuardedOrders(ModelView[Order]):
             name = "guarded"
 
             @action("Mark as shipped")
@@ -226,7 +226,7 @@ class TestButtonsFollowPermissions:
     async def test_the_delete_button_follows_the_record(
         self, database: Database
     ) -> None:
-        class NoDeletingShipped(ModelView, model=Order):
+        class NoDeletingShipped(ModelView[Order]):
             name = "careful"
 
             async def allows(
@@ -248,7 +248,7 @@ class TestButtonsFollowPermissions:
         assert 'id="confirm-delete"' in pending.text
 
 
-def client_for(database: Database, view: type[ModelView]) -> httpx.AsyncClient:
+def client_for(database: Database, view: type[ModelView[Any]]) -> httpx.AsyncClient:
     site = Admin(database, title="Shop")
     site.add_view(view)
     app = Starlette()

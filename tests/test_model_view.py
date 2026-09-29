@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -17,7 +18,7 @@ from adminsite.views import ModelView, ViewRegistry
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     group = "Sales"
     list_display = ("id", "customer.name", "status", "total", "created_at")
     search_fields = ("id", "customer.name", "customer.email")
@@ -30,14 +31,14 @@ class OrderView(ModelView, model=Order):
     )
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     group = "Sales"
     list_display = ("name", "email", "region")
     form_fields = ("name", "email", "region")
     readonly_fields = ("email",)
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     exclude = ("description",)
 
 
@@ -55,7 +56,7 @@ class TestNaming:
         assert view.label_plural == "Products"
 
     def test_a_two_word_model_reads_properly(self) -> None:
-        class ItemView(ModelView, model=OrderItem):
+        class ItemView(ModelView[OrderItem]):
             pass
 
         view = ItemView()
@@ -65,7 +66,7 @@ class TestNaming:
         assert view.label_plural == "Order items"
 
     def test_a_view_without_a_model_says_so(self) -> None:
-        class Broken(ModelView):
+        class Broken(ModelView[Any]):
             pass
 
         with pytest.raises(AdminSiteError, match="needs a model"):
@@ -118,7 +119,7 @@ class TestReadingValues:
         assert orders.value_at(Order(id=1), "customer.name") is None
 
     def test_many_records_read_as_a_list(self) -> None:
-        class ItemsView(ModelView, model=Order):
+        class ItemsView(ModelView[Order]):
             list_display = ("items.quantity",)
 
         order = Order(items=[OrderItem(quantity=2), OrderItem(quantity=3)])
@@ -147,16 +148,16 @@ class TestFilters:
     def test_a_ready_made_filter_is_kept_as_it_is(self) -> None:
         mine = ChoiceFilter("status", choices=(("PAID", "Paid"),))
 
-        class WithFilter(ModelView, model=Order):
+        class WithFilter(ModelView[Order]):
             list_filter = (mine,)
 
         assert WithFilter().get_filters() == (mine,)
 
     def test_anything_else_in_list_filter_is_refused(self) -> None:
-        class Wrong(ModelView, model=Order):
+        class Wrong(ModelView[Order]):
             list_filter = (42,)  # type: ignore[assignment]
 
-        with pytest.raises(AdminSiteError, match="takes paths or"):
+        with pytest.raises(AdminSiteError, match="takes columns or"):
             Wrong()
 
 
@@ -208,7 +209,7 @@ class TestForms:
         assert "id" not in ProductView().get_form_fields()
 
     def test_a_foreign_key_becomes_its_link_in_the_form(self) -> None:
-        class PlainOrders(ModelView, model=Order):
+        class PlainOrders(ModelView[Order]):
             pass
 
         fields = PlainOrders().get_form_fields()
@@ -217,7 +218,7 @@ class TestForms:
         assert "customer_id" not in fields
 
     def test_a_foreign_key_becomes_its_link_in_the_list(self) -> None:
-        class PlainOrders(ModelView, model=Order):
+        class PlainOrders(ModelView[Order]):
             pass
 
         columns = PlainOrders().get_list_display()
@@ -226,7 +227,7 @@ class TestForms:
         assert "customer_id" not in columns
 
     def test_the_link_gets_a_picker(self) -> None:
-        class PlainOrders(ModelView, model=Order):
+        class PlainOrders(ModelView[Order]):
             pass
 
         assert isinstance(PlainOrders().field_for("customer"), RelationField)
@@ -246,7 +247,7 @@ class TestForms:
 
 class TestOverriding:
     def test_columns_can_depend_on_who_is_asking(self) -> None:
-        class StaffView(ModelView, model=Customer):
+        class StaffView(ModelView[Customer]):
             list_display = ("name", "email", "region")
 
             def get_list_display(self, request: object = None) -> tuple[str, ...]:
@@ -284,7 +285,7 @@ class TestRegistry:
             registry.add(OrderView)
 
     def test_a_second_view_of_a_model_just_needs_a_name(self) -> None:
-        class ShippedOrders(ModelView, model=Order):
+        class ShippedOrders(ModelView[Order]):
             name = "shipped_orders"
             label_plural = "Shipped orders"
 

@@ -6,7 +6,7 @@ An action is a button that runs over the rows the user ticked. Mark a method wit
 from adminsite.actions import Selection, action
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
     async def ship(self, selection: Selection) -> str:
         changed = await selection.update(status=OrderStatus.SHIPPED)
@@ -61,7 +61,7 @@ from adminsite.fields import ChoiceField, StringField
 CARRIERS = (("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL"))
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     @action(
         "Mark as shipped",
         confirm="Mark the chosen orders as shipped?",
@@ -89,7 +89,7 @@ and nobody has to set them every time. `multiple=True` on a `ChoiceField` lets o
 several options, and the method receives a list:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     @action(
         "Download",
         inputs=[
@@ -120,7 +120,7 @@ The method receives the record itself:
 from adminsite.fields import RelationField
 
 
-class RunView(ModelView, model=Run):
+class RunView(ModelView[Run]):
     @action(
         "Assign to product",
         inputs=[RelationField("product", target=Product, required=True)],
@@ -145,7 +145,7 @@ user may pick:
 import dataclasses
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     @action("Move", inputs=[ChoiceField("warehouse", choices=())])
     async def move(self, selection: Selection, warehouse: str) -> str: ...
 
@@ -213,7 +213,7 @@ to fit in memory.
 ### On one record
 
 ```python
-class InvoiceView(ModelView, model=Invoice):
+class InvoiceView(ModelView[Invoice]):
     @action("Confirm", on="record", confirm="Confirm this invoice?")
     async def confirm(self, record: Invoice, session: SessionAdapter) -> str:
         record.status = "confirmed"
@@ -234,7 +234,7 @@ Some work is about the table, not about any row: fetching from another system, i
 API, sending a summary. Those need nothing ticked:
 
 ```python
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     @action("Sync from the provider", on="view", permission=Permission.VIEW)
     async def sync(self, session: SessionAdapter) -> str:
         return f"{await fetch_new_orders(session)} orders fetched."

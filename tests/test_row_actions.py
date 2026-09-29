@@ -19,7 +19,7 @@ from tests.models import Customer, Order, OrderStatus
 CARRIERS = (("dhl", "DHL"), ("ups", "UPS"))
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_filter = ("status",)
 
@@ -73,7 +73,7 @@ class OrderView(ModelView, model=Order):
         return await super().allows(action, request=request, record=record)
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     pass
 
 
@@ -137,7 +137,7 @@ class TestDeclaring:
     def test_anything_else_is_refused(self) -> None:
         with pytest.raises(AdminSiteError, match="'selection', 'record' or 'view'"):
 
-            class Broken(ModelView, model=Order):
+            class Broken(ModelView[Order]):
                 @action("Nope", on="everything")
                 async def nope(self, record: Order) -> str:
                     return ""

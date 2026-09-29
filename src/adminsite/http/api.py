@@ -54,7 +54,7 @@ class ApiError(Exception):
         return JSONResponse(body, status_code=self.status)
 
 
-def find(admin: "Admin", request: Request) -> ModelView:
+def find(admin: "Admin", request: Request) -> ModelView[Any]:
     """The view the URL names, or a 404."""
     view = admin.views.find(request.path_params.get("view", ""))
     if view is None:
@@ -62,7 +62,7 @@ def find(admin: "Admin", request: Request) -> ModelView:
     return view
 
 
-def api_paths(view: ModelView, request: Any = None) -> tuple[str, ...]:
+def api_paths(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The fields a record carries: the list's, the record page's, the form's."""
     paths: list[str] = []
     for path in (
@@ -76,7 +76,7 @@ def api_paths(view: ModelView, request: Any = None) -> tuple[str, ...]:
 
 
 def to_json(
-    view: ModelView, record: Any, paths: Sequence[str], urls: Urls
+    view: ModelView[Any], record: Any, paths: Sequence[str], urls: Urls
 ) -> dict[str, Any]:
     """One record as plain JSON values, keyed by path.
 
@@ -90,7 +90,7 @@ def to_json(
     return body
 
 
-def json_value(view: ModelView, path: str, record: Any, urls: Urls) -> Any:
+def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
     """A value as JSON: links as keys, files as a name and an address."""
     item = view.field_for(path)
     if not item.stored:
@@ -133,7 +133,11 @@ def as_text(value: Any) -> str | None:
 
 
 def read_values(
-    view: ModelView, body: dict[str, Any], *, record: Any = None, request: Any = None
+    view: ModelView[Any],
+    body: dict[str, Any],
+    *,
+    record: Any = None,
+    request: Any = None,
 ) -> dict[str, Any]:
     """Check the fields sent against the form's own fields.
 
@@ -261,7 +265,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
     )
 
 
-async def create(admin: "Admin", request: Request, view: ModelView) -> Response:
+async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Response:
     """Add a record from a JSON object."""
     await view.ensure(Permission.CREATE, request=request)
     values = read_values(view, await read_body(request), request=request)
@@ -316,7 +320,11 @@ async def item(admin: "Admin", request: Request) -> Response:
 
 
 async def save(
-    view: ModelView, session: Any, values: dict[str, Any], record: Any, request: Any
+    view: ModelView[Any],
+    session: Any,
+    values: dict[str, Any],
+    record: Any,
+    request: Any,
 ) -> Any:
     """Save through the view, turning refusals into API errors."""
     try:

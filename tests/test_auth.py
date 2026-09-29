@@ -20,7 +20,7 @@ from tests.models import Product
 SECRET = "a-secret-for-the-tests"
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name", "price")
     form_fields = ("name", "price")
 

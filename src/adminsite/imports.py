@@ -127,7 +127,7 @@ class ImportPlan:
         return [row for row in self.rows if not row.errors]
 
 
-def import_columns(view: ModelView, request: Any = None) -> tuple[str, ...]:
+def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The paths a file can fill: the key, then the form's own fields."""
     readonly = set(view.get_readonly_fields(request))
     fields = tuple(
@@ -142,13 +142,13 @@ def import_columns(view: ModelView, request: Any = None) -> tuple[str, ...]:
     return (key[0], *fields) if len(key) == 1 and key[0] not in fields else fields
 
 
-def _is_collection(view: ModelView, path: str) -> bool:
+def _is_collection(view: ModelView[Any], path: str) -> bool:
     item = view.field_for(path)
     return isinstance(item, RelationField) and item.collection
 
 
 def match_headers(
-    view: ModelView, headers: Sequence[str], request: Any = None
+    view: ModelView[Any], headers: Sequence[str], request: Any = None
 ) -> tuple[list[str | None], list[str]]:
     """Match each header to a path, by its name or its label, ignoring case."""
     known: dict[str, str] = {}
@@ -169,7 +169,7 @@ def match_headers(
 
 
 async def build_plan(
-    view: ModelView,
+    view: ModelView[Any],
     session: Any,
     table: Sequence[Sequence[str]],
     *,
@@ -201,7 +201,7 @@ async def build_plan(
 
 
 async def _existing(
-    view: ModelView,
+    view: ModelView[Any],
     session: Any,
     rows: Sequence[ImportRow],
     key_name: str,
@@ -230,7 +230,7 @@ async def _existing(
 
 
 def check_row(
-    view: ModelView,
+    view: ModelView[Any],
     row: ImportRow,
     key_name: str,
     existing: dict[str, Any],
@@ -285,7 +285,7 @@ def normalize(item: Any, text: str) -> str:
 
 
 def save_plan(
-    view: ModelView, owner: str | None, table: Sequence[Sequence[str]]
+    view: ModelView[Any], owner: str | None, table: Sequence[Sequence[str]]
 ) -> str:
     """Keep a checked file until the import is confirmed, and name it."""
     # The folder sits in the shared temporary directory, so it and the
@@ -302,7 +302,9 @@ def save_plan(
     return token
 
 
-def load_plan(token: str, view: ModelView, owner: str | None) -> list[list[str]] | None:
+def load_plan(
+    token: str, view: ModelView[Any], owner: str | None
+) -> list[list[str]] | None:
     """Take back a kept file, if it is still there and belongs to this person."""
     if not token.replace("-", "").replace("_", "").isalnum():
         return None
@@ -328,7 +330,7 @@ def _forget_old_plans() -> None:
             continue
 
 
-def template_csv(view: ModelView, request: Any = None) -> str:
+def template_csv(view: ModelView[Any], request: Any = None) -> str:
     """A header row naming every column a file can fill."""
     buffer = io.StringIO()
     csv.writer(buffer).writerow(import_columns(view, request))

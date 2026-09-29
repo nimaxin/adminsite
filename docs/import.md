@@ -6,7 +6,7 @@ a preview of every row: what will be added, what will change, and what is wrong.
 Importing is off until you switch it on for a view, since it writes many records at once:
 
 ```python
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region", "is_active")
     can_import = True
 ```

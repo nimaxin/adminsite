@@ -11,7 +11,7 @@ from tests.models import Setting
 from tests.support import Backend, count_queries
 
 
-class SettingView(ModelView, model=Setting):
+class SettingView(ModelView[Setting]):
     """The payload is heavy and the list never shows it."""
 
     display_template = "{name}"
@@ -19,7 +19,7 @@ class SettingView(ModelView, model=Setting):
     deferred_fields = ("options", "notes")
 
 
-class ShownView(ModelView, model=Setting):
+class ShownView(ModelView[Setting]):
     """A column on show is loaded, whatever the view asks for."""
 
     name = "shown_settings"
@@ -27,7 +27,7 @@ class ShownView(ModelView, model=Setting):
     deferred_fields = ("options",)
 
 
-class TitledView(ModelView, model=Setting):
+class TitledView(ModelView[Setting]):
     """A column the record's name is built from is loaded too."""
 
     name = "titled_settings"
@@ -64,7 +64,7 @@ class TestWhatTheQueryAsksFor:
         assert TitledView().build_spec().defer == ()
 
     def test_a_column_that_does_not_exist_says_so(self) -> None:
-        class Wrong(ModelView, model=Setting):
+        class Wrong(ModelView[Setting]):
             name = "wrong_settings"
             deferred_fields = ("payload",)
 

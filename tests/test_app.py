@@ -8,7 +8,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     group = "Sales"
     list_display = ("id", "customer.name", "status", "total", "created_at")
     ordering = ("-created_at",)
@@ -16,12 +16,12 @@ class OrderView(ModelView, model=Order):
     display_template = "Order {id}"
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     group = "Sales"
     list_display = ("name", "email", "region")
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     can_create = False
 
 

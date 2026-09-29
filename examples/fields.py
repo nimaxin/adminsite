@@ -399,7 +399,7 @@ def showcase_fields(
 uploads = LocalStorage("fields_uploads")
 
 
-class ShowcaseView(ModelView, model=Showcase):
+class ShowcaseView(ModelView[Showcase]):
     name = "fields"
     group = GROUP
     # Three shapes, for every kind of field.
@@ -515,7 +515,7 @@ class ShowcaseView(ModelView, model=Showcase):
         return f"{await selection.count()} offered to {names}."
 
 
-class SettingView(ModelView, model=Setting):
+class SettingView(ModelView[Setting]):
     group = GROUP
     # Sliders, for settings.
     icon = outline(
@@ -541,7 +541,7 @@ class SettingView(ModelView, model=Setting):
     )
 
 
-class CustomerGroupView(ModelView, model=CustomerGroup):
+class CustomerGroupView(ModelView[CustomerGroup]):
     group = GROUP
     # Two people, for a group of customers.
     icon = outline(
@@ -562,7 +562,7 @@ class CustomerGroupView(ModelView, model=CustomerGroup):
     )
 
 
-class CategoryView(ModelView, model=Category):
+class CategoryView(ModelView[Category]):
     group = GROUP
     icon = outline(
         '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5'
@@ -572,7 +572,7 @@ class CategoryView(ModelView, model=Category):
     search_fields = ("name",)
 
 
-class SupplierView(ModelView, model=Supplier):
+class SupplierView(ModelView[Supplier]):
     group = GROUP
     icon = outline(
         '<path d="M14 17V6H3v11h2"/><path d="M14 9h4l3 4v4h-2"/>'
@@ -585,14 +585,14 @@ class SupplierView(ModelView, model=Supplier):
     list_filter = ("country",)
 
 
-class LabelView(ModelView, model=Label):
+class LabelView(ModelView[Label]):
     group = GROUP
     icon = outline('<path d="M6 3h12v18l-6-4-6 4z"/>')
     display_template = "{name}"
     search_fields = ("name",)
 
 
-class ServerView(ModelView, model=Server):
+class ServerView(ModelView[Server]):
     group = GROUP
     icon = outline(
         '<rect x="3" y="3" width="18" height="7" rx="1.5"/>'
@@ -603,7 +603,7 @@ class ServerView(ModelView, model=Server):
     search_fields = ("name",)
 
 
-VIEWS: list[type[ModelView]] = [
+VIEWS: list[type[ModelView[Any]]] = [
     ShowcaseView,
     SettingView,
     CustomerGroupView,

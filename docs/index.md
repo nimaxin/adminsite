@@ -7,7 +7,7 @@ gets pages to search, filter, read and change your data.
 from adminsite import Admin, ModelView
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total", "created_at")
     search_fields = ("id", "customer.name", "customer.email")
     list_filter = ("status", "total", "created_at")

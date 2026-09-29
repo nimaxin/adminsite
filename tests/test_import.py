@@ -25,17 +25,17 @@ from adminsite.views.writing import SaveContext
 from tests.models import Customer, Order
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region", "is_active")
     can_import = True
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     form_fields = ("customer", "status", "total", "created_at")
     can_import = True
 
 
-class ClosedView(ModelView, model=Customer):
+class ClosedView(ModelView[Customer]):
     name = "closed"
 
 
@@ -106,7 +106,7 @@ class TestColumns:
         assert ignored == ["notes", "name"]
 
 
-async def plan_for(database: Database, view: ModelView, csv: str) -> Any:
+async def plan_for(database: Database, view: ModelView[Any], csv: str) -> Any:
     async with database.session() as session:
         return await build_plan(view, session, read_table("a.csv", csv.encode()))
 

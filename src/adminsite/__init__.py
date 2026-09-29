@@ -1,6 +1,7 @@
 from importlib.metadata import version
 
 from adminsite.admin import Admin
+from adminsite.columns import ColumnReference, Descending, Link
 from adminsite.dashboard import Chart, ModelCounts, RecentRecords, Stat, Widget
 from adminsite.exceptions import (
     AdminSiteError,
@@ -36,14 +37,17 @@ __all__ = [
     "AdminPage",
     "AdminSiteError",
     "Chart",
+    "ColumnReference",
     "Computed",
     "CountMode",
+    "Descending",
     "FieldOptions",
     "FieldPath",
     "FieldSchema",
     "Html",
     "Inline",
     "InvalidPathError",
+    "Link",
     "Message",
     "ModelCounts",
     "ModelInspector",

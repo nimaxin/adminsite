@@ -16,6 +16,13 @@
   order's number, now reads from the start like text rather than lining up on the right like an
   amount, so on a list of one or two columns it no longer lands in the middle of the page. Each
   row's menu stays right after its checkbox.
+- A view names its model as its type argument, `class OrderView(ModelView[Order])`, in place of
+  `class OrderView(ModelView, model=Order)`, which now stops with the new form. `ModelView[Tag]` can
+  be registered with no class of its own.
+- Settings name columns by attribute as well as by string: `list_display = [Order.id,
+  Link(Order.customer, Customer.name)]`, `ordering = [Descending(Order.created_at)]`. An attribute
+  of another model, a link that leads elsewhere, or one string where a list belongs stops the admin
+  with a message naming the setting.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

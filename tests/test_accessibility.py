@@ -13,7 +13,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
     list_filter = ("status", "total", "created_at")
     search_fields = ("customer.name",)
@@ -27,11 +27,11 @@ class OrderView(ModelView, model=Order):
         return f"{await selection.delete()} removed."
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     pass
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     pass
 
 

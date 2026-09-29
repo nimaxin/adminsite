@@ -15,7 +15,7 @@ from adminsite.security import Permission
 from tests.models import Order, OrderStatus, Product
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_filter = ("status",)
     search_fields = ("customer.name",)
@@ -57,7 +57,7 @@ class OrderView(ModelView, model=Order):
         return f"Note added to {changed} orders."
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name", "price")
 
 

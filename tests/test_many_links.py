@@ -29,11 +29,11 @@ TAGS = (
 )
 
 
-class ArticleView(ModelView, model=Article):
+class ArticleView(ModelView[Article]):
     form_fields = ("title", "tags")
 
 
-class TagView(ModelView, model=Tag):
+class TagView(ModelView[Tag]):
     display_template = "{name}"
 
 
@@ -159,7 +159,7 @@ class TestTheRecordPage:
         assert "Science and technology, Breaking news" in page.text
 
 
-class OrderedArticleView(ModelView, model=Article):
+class OrderedArticleView(ModelView[Article]):
     """The same link, where the order the tags are in means something."""
 
     name = "ordered_articles"

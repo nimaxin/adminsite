@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -26,7 +26,7 @@ def owner_of(admin: "Admin", request: Request) -> str | None:
 
 
 async def saved_for(
-    admin: "Admin", view: ModelView, request: Request
+    admin: "Admin", view: ModelView[Any], request: Request
 ) -> list[SavedView]:
     """The saved views this person sees on a list."""
     if admin.saved_views is None:
@@ -41,7 +41,7 @@ def _store_of(admin: "Admin") -> SavedViews:
 
 
 async def save_view(
-    admin: "Admin", request: Request, view: ModelView, form: dict[str, object]
+    admin: "Admin", request: Request, view: ModelView[Any], form: dict[str, object]
 ) -> Response:
     """Keep the list as it is now under a name."""
     store = _store_of(admin)
@@ -67,7 +67,9 @@ async def save_view(
     return RedirectResponse(f"{back}?{query}" if query else back, 303)
 
 
-async def delete_view(admin: "Admin", request: Request, view: ModelView) -> Response:
+async def delete_view(
+    admin: "Admin", request: Request, view: ModelView[Any]
+) -> Response:
     """Remove one of the person's own saved views."""
     store = _store_of(admin)
     try:

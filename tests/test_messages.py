@@ -13,7 +13,7 @@ from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from tests.models import Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status")
 
     @action("Rotate the key", on="record")

@@ -16,7 +16,7 @@ ROSE = TONE_NAMES.index("rose")
 GREEN = TONE_NAMES.index("green")
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status")
     ordering = ("id",)
     fields = (
@@ -27,13 +27,13 @@ class OrderView(ModelView, model=Order):
     )
 
 
-class PlainOrderView(ModelView, model=Order):
+class PlainOrderView(ModelView[Order]):
     name = "plain_orders"
     list_display = ("id", "status")
     fields = (FieldOptions("status", tones="grey"),)
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     list_display = ("name", "is_active")
     fields = (FieldOptions("is_active", tones={True: "rose", False: None}),)
 
@@ -158,7 +158,7 @@ class TestAMistake:
             BooleanField("paid", tones={"yes": "green"})
 
     def test_it_stops_the_view_from_being_created(self) -> None:
-        class Wrong(ModelView, model=Order):
+        class Wrong(ModelView[Order]):
             name = "wrong_orders"
             fields = (FieldOptions("status", tones={"lost": "rose"}),)
 

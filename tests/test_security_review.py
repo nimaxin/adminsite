@@ -42,7 +42,7 @@ def order_of_rows(page: httpx.Response) -> list[str]:
     return re.findall(r'href="/admin/orders/(\d+)"', body)
 
 
-class GermanCustomers(ModelView, model=Customer):
+class GermanCustomers(ModelView[Customer]):
     """Only German customers may be seen, and so only they may be linked."""
 
     display_template = "{name}"
@@ -53,7 +53,7 @@ class GermanCustomers(ModelView, model=Customer):
         return statement.where(Customer.region == "DE")
 
 
-class OneProduct(ModelView, model=Product):
+class OneProduct(ModelView[Product]):
     display_template = "{name}"
 
     def scope_query(
@@ -62,7 +62,7 @@ class OneProduct(ModelView, model=Product):
         return statement.where(Product.id == 1)
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status")
     # A default order, so an ignored sort falls back to something definite.
     ordering = ("id",)
@@ -204,7 +204,7 @@ class TestLinkingARecordOutOfScope:
 
 class TestAnActionLeftOut:
     async def test_it_cannot_be_run_by_name(self, database: Database) -> None:
-        class ShyOrders(ModelView, model=Order):
+        class ShyOrders(ModelView[Order]):
             name = "shy_orders"
             list_display = ("id",)
 
@@ -275,7 +275,7 @@ class TestAnAdminWithoutASession:
         assert answer.status_code == 303
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     form_fields = ("name", "price")
 
 
@@ -317,7 +317,7 @@ class TestTheExport:
             lena.name = '=HYPERLINK("http://evil.example","Lena")'
             await session.commit()
 
-        class CustomerView(ModelView, model=Customer):
+        class CustomerView(ModelView[Customer]):
             list_display = ("id", "name")
 
         admin = Admin(database, views=[CustomerView])
@@ -334,7 +334,7 @@ class TestTheExport:
             order.total = Decimal("-5.00")
             await session.commit()
 
-        class Orders(ModelView, model=Order):
+        class Orders(ModelView[Order]):
             list_display = ("id", "total")
 
         admin = Admin(database, views=[Orders])
@@ -354,7 +354,7 @@ class TestAPathThatNamesNoField:
 
 class TestRecordActionButtons:
     async def test_the_markup_survives_the_key(self, database: Database) -> None:
-        class Orders(ModelView, model=Order):
+        class Orders(ModelView[Order]):
             name = "acting_orders"
             list_display = ("id",)
 
@@ -371,7 +371,7 @@ class TestRecordActionButtons:
 
 class TestTheApiWritesAMultiSelect:
     async def test_a_list_of_options_is_stored(self, database: Database) -> None:
-        class SettingView(ModelView, model=Setting):
+        class SettingView(ModelView[Setting]):
             form_fields = ("name", "notes")
             fields = (
                 ChoiceField(

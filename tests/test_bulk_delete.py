@@ -19,7 +19,7 @@ from adminsite.views.writing import DeleteContext
 from tests.models import Product
 
 
-class ProductView(ModelView, model=Product):
+class ProductView(ModelView[Product]):
     list_display = ("id", "name")
     search_fields = ("name",)
 
@@ -28,7 +28,7 @@ class ProductView(ModelView, model=Product):
             raise RefusedError("This one stays in the catalogue.")
 
 
-class LockedProducts(ModelView, model=Product):
+class LockedProducts(ModelView[Product]):
     name = "locked"
 
     async def allows(
@@ -39,17 +39,17 @@ class LockedProducts(ModelView, model=Product):
         return await super().allows(action, request=request, record=record)
 
 
-class ReadOnlyProducts(ModelView, model=Product):
+class ReadOnlyProducts(ModelView[Product]):
     name = "read_only"
     can_delete = False
 
 
-class OneAtATime(ModelView, model=Product):
+class OneAtATime(ModelView[Product]):
     name = "one_at_a_time"
     bulk_delete = False
 
 
-class OwnDelete(ModelView, model=Product):
+class OwnDelete(ModelView[Product]):
     name = "own_delete"
 
     @action("Archive instead", name="delete_selected")

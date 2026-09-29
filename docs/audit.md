@@ -25,7 +25,7 @@ or `secret=False` to keep one whose name only looks secret:
 from adminsite import FieldOptions
 
 
-class WalletView(ModelView, model=Wallet):
+class WalletView(ModelView[Wallet]):
     fields = (FieldOptions("seed_ciphertext", secret=True),)
 ```
 

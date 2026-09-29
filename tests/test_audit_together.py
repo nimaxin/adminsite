@@ -25,7 +25,7 @@ from adminsite.backends.sqlalchemy import Database
 from tests.models import Order
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "note")
     form_fields = ("note",)
 

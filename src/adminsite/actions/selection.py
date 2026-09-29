@@ -24,7 +24,7 @@ class Selection:
     action over a large table stays one statement.
     """
 
-    view: "ModelView"
+    view: "ModelView[Any]"
     session: SessionAdapter
     spec: QuerySpec
     keys: Sequence[str] = ()

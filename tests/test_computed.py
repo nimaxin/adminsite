@@ -24,7 +24,7 @@ class Money(Field):
         return f"{value} ({record.customer.region})"
 
 
-class OrderView(ModelView, model=Order):
+class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total", "lines")
     detail_fields = ("id", "status", "total", "lines", "biggest")
     form_fields = ("status", "note")
@@ -45,7 +45,7 @@ class OrderView(ModelView, model=Order):
     )
 
 
-class StatusView(ModelView, model=Order):
+class StatusView(ModelView[Order]):
     name = "statuses"
     list_display = ("id", "state")
     fields = (
@@ -59,7 +59,7 @@ class StatusView(ModelView, model=Order):
     )
 
 
-class CustomerView(ModelView, model=Customer):
+class CustomerView(ModelView[Customer]):
     pass
 
 

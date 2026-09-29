@@ -1,6 +1,7 @@
 import io
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -150,8 +151,8 @@ class TestFileField:
         assert not field.accepts(upload("a.svg", b"<svg/>", "image/svg+xml"))
 
 
-def product_view(storage: LocalStorage) -> type[ModelView]:
-    class ProductView(ModelView, model=Product):
+def product_view(storage: LocalStorage) -> type[ModelView[Any]]:
+    class ProductView(ModelView[Product]):
         form_fields = ("name", "price", "description")
         list_display = ("name", "description")
         fields = (ImageField("description", label="Photo", storage=storage),)

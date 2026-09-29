@@ -358,7 +358,7 @@ class BigOrderFilter(SQLFilter):
         return Order.total > Decimal(value.first)
 
 
-class OrdersWithAFilterPerRequest(ModelView, model=Order):
+class OrdersWithAFilterPerRequest(ModelView[Order]):
     """Adds a filter for this request only; list_filter does not name it."""
 
     name = "orders"
