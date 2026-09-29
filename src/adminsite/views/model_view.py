@@ -7,6 +7,8 @@ from typing import (
     Any,
     ClassVar,
     Generic,
+    Literal,
+    TypeAlias,
     TypeGuard,
     TypeVar,
     get_args,
@@ -49,6 +51,7 @@ from adminsite.exceptions import (
     PermissionDeniedError,
     RecordNotFoundError,
     RefusedError,
+    UnknownFieldError,
 )
 from adminsite.fields import (
     ChoiceField,
@@ -91,6 +94,9 @@ M = TypeVar("M")
 
 T = TypeVar("T")
 
+# The pages a field can be left off.
+PageName: TypeAlias = Literal["list", "detail", "create", "edit", "export"]
+
 
 class ModelView(Generic[M]):
     """How one model appears in the admin: `class OrderView(ModelView[Order])`.
@@ -113,15 +119,36 @@ class ModelView(Generic[M]):
     icon: str = ""
     display_template: str = ""
 
-    # Columns are named by attribute, Order.total, by Link for a column of a
-    # related model, or by name as a string, "total" or "customer.email".
+    # Every field of the view, in order, for every page. Columns are named by
+    # attribute, Order.total, by Link for a column of a related model, or by
+    # name as a string, "total" or "customer.email"; a field sets options.
+    # Left empty, the view shows every column the model has.
+    fields: Sequence[ColumnReference | Field | FieldOptions] = ()
+    # Fields left off one page, as the exclude_from_ flags on a field do.
+    exclude_fields_from_list: Sequence[ColumnReference] = ()
+    exclude_fields_from_detail: Sequence[ColumnReference] = ()
+    exclude_fields_from_create: Sequence[ColumnReference] = ()
+    exclude_fields_from_edit: Sequence[ColumnReference] = ()
+    exclude_fields_from_export: Sequence[ColumnReference] = ()
+    searchable_fields: Sequence[ColumnReference] = ()
+    # The columns the list can be sorted by. Left empty, every stored column.
+    sortable_fields: Sequence[ColumnReference] = ()
+    # Descending(Order.created_at), or "-created_at", sorts newest first.
+    fields_default_sort: Sequence[ColumnReference | Descending] = ()
+
+    # The settings the ones above replace, read until 0.1.0a10 refuses them.
+    # A view that sets list_display, form_fields or detail_fields keeps the
+    # old meaning of fields: it changes the fields those settings name, and
+    # places none.
     list_display: Sequence[ColumnReference] = ()
-    # More columns people may add to the list from the column picker.
     list_columns: Sequence[ColumnReference] = ()
     search_fields: Sequence[ColumnReference] = ()
-    list_filter: Sequence[ColumnReference | Filter] = ()
-    # Descending(Order.created_at), or "-created_at", sorts newest first.
     ordering: Sequence[ColumnReference | Descending] = ()
+    form_fields: Sequence[ColumnReference] = ()
+    detail_fields: Sequence[ColumnReference] = ()
+    exclude: Sequence[ColumnReference] = ()
+
+    list_filter: Sequence[ColumnReference | Filter] = ()
     page_size: int = 25
     # The sizes people may switch between. Empty leaves the size fixed.
     page_sizes: Sequence[int] = ()
@@ -130,19 +157,11 @@ class ModelView(Generic[M]):
     global_search: bool = True
     pagination: Pagination = Pagination.OFFSET
 
-    form_fields: Sequence[ColumnReference] = ()
-    # What the record page shows, when that differs from the form.
-    detail_fields: Sequence[ColumnReference] = ()
     readonly_fields: Sequence[ColumnReference] = ()
-    exclude: Sequence[ColumnReference] = ()
 
     # Columns the list does not read, such as a large JSON payload, left out
     # of its query. The record page and the form load them as usual.
     deferred_fields: Sequence[ColumnReference] = ()
-
-    # Fields that replace the ones worked out from the columns, and
-    # `FieldOptions` that only change one. Each is matched by its name.
-    fields: Sequence[Field | FieldOptions] = ()
 
     # Child records edited inside this model's form.
     inlines: Sequence[Inline] = ()
@@ -221,38 +240,69 @@ class ModelView(Generic[M]):
         self.label_plural = self.label_plural or self.schema.label_plural
 
         # The settings as the paths the rest of adminsite works with.
+        self._overrides: dict[str, Field] = {}
+        self._changes: dict[str, dict[str, Any]] = {}
+        self._placed = self._read_fields()
+        self._excluded: dict[PageName, tuple[str, ...]] = {
+            "list": self._paths(
+                "exclude_fields_from_list", self.exclude_fields_from_list
+            ),
+            "detail": self._paths(
+                "exclude_fields_from_detail", self.exclude_fields_from_detail
+            ),
+            "create": self._paths(
+                "exclude_fields_from_create", self.exclude_fields_from_create
+            ),
+            "edit": self._paths(
+                "exclude_fields_from_edit", self.exclude_fields_from_edit
+            ),
+            "export": self._paths(
+                "exclude_fields_from_export", self.exclude_fields_from_export
+            ),
+        }
+        self._search_fields = self._paths(
+            "searchable_fields", self.searchable_fields
+        ) or self._paths("search_fields", self.search_fields)
+        self._sortable_fields = self._paths("sortable_fields", self.sortable_fields)
+        self._ordering = self._sorts(
+            "fields_default_sort", self.fields_default_sort
+        ) or self._sorts("ordering", self.ordering)
         self._list_display = self._paths("list_display", self.list_display)
         self._list_columns = self._paths("list_columns", self.list_columns)
-        self._search_fields = self._paths("search_fields", self.search_fields)
         self._form_fields = self._paths("form_fields", self.form_fields)
         self._detail_fields = self._paths("detail_fields", self.detail_fields)
         self._readonly_fields = self._paths("readonly_fields", self.readonly_fields)
         self._exclude = self._paths("exclude", self.exclude)
         self._deferred_fields = self._paths("deferred_fields", self.deferred_fields)
-        self._ordering = tuple(
-            self._converted("ordering", item, sort_of)
-            for item in self._entries("ordering", self.ordering)
+        # A key the database numbers, or one the parent record's key fills
+        # in, is never typed into a form. A key people choose, such as a
+        # code, is.
+        self._filled_keys = frozenset(
+            name
+            for name in self.schema.primary_key
+            if name in self.schema.fields
+            and (
+                self.schema.fields[name].autoincrement
+                or self.schema.fields[name].foreign_key
+            )
         )
 
-        self._overrides = {
-            item.name: item for item in self.fields if isinstance(item, Field)
-        }
-        self._changes = {
-            item.name: item.changes
-            for item in self.fields
-            if isinstance(item, FieldOptions)
-        }
         self._actions = self._collect_actions()
         self._inline_views = {
-            inline.name: self._build_inline_view(inline) for inline in self.inlines
+            inline.name: self._build_inline_view(inline, f"inlines[{index}]")
+            for index, inline in enumerate(self._entries("inlines", self.inlines))
         }
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, Field] = {}
-        # Built now, so a mistake in FieldOptions, such as a tone that does not
-        # exist, stops the admin starting rather than the page that shows it.
-        for path in self._changes:
-            self.field_for(path)
+        # Built now, so a mistake such as a column that does not exist, or a
+        # tone that does not exist, stops the admin starting rather than the
+        # page that shows it.
+        for path in (*self._placed, *self._changes):
+            try:
+                self.field_for(path)
+            except (InvalidPathError, UnknownFieldError) as error:
+                raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
 
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
@@ -261,7 +311,9 @@ class ModelView(Generic[M]):
         """The columns the list shows."""
         if self._list_display:
             return self._list_display
-        return self._default_paths(skip=set(self._exclude))
+        return tuple(
+            path for path in self._listed() if not self.field_for(path).hidden_in_list
+        )
 
     def get_page_sizes(self, request: Any = None) -> tuple[int, ...]:
         """The page sizes on offer, the view's own size among them."""
@@ -281,9 +333,13 @@ class ModelView(Generic[M]):
         return self.page_size
 
     def get_column_choices(self, request: Any = None) -> tuple[str, ...]:
-        """The columns the picker offers: the list's own, then the extras."""
+        """The columns the picker offers: the list's own, then the hidden ones."""
         shown = self.get_list_display(request)
-        return shown + tuple(path for path in self._list_columns if path not in shown)
+        hidden = [
+            path for path in self._listed() if self.field_for(path).hidden_in_list
+        ]
+        extras = dict.fromkeys((*self._list_columns, *hidden))
+        return shown + tuple(path for path in extras if path not in shown)
 
     def pick_columns(
         self, picked: Sequence[str], request: Any = None
@@ -327,27 +383,44 @@ class ModelView(Generic[M]):
     def get_form_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """The fields the form shows, in order."""
+        """The fields the form shows, in order: a new record's, or `record`'s.
+
+        A column of a related model and a computed field are shown, never
+        edited, so they stay off forms, as does a key nobody types in.
+        """
         if self._form_fields:
             return self._form_fields
-        return self._default_paths(
-            skip=set(self._exclude) | set(self.schema.primary_key)
+        page: PageName = "create" if record is None else "edit"
+        return tuple(
+            path
+            for path in self._candidates()
+            if self._editable(path) and not self._excluded_from(page, path)
         )
 
     def get_detail_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """What the record page shows. The form's fields unless you say.
+        """What the record page shows.
 
         A form-only field, such as a password to set, has nothing to show.
+        A view that lists no fields shows what its form shows.
         """
         if self._detail_fields:
             return self._detail_fields
+        if self._placing():
+            shown: Sequence[str] = self._candidates()
+        else:
+            shown = self.get_form_fields(request, record)
         return tuple(
             path
-            for path in self.get_form_fields(request, record)
+            for path in shown
             if not self.field_for(path).form_only
+            and not self._excluded_from("detail", path)
         )
+
+    def exported(self, paths: Sequence[str]) -> tuple[str, ...]:
+        """The columns of a list that go into its export."""
+        return tuple(path for path in paths if not self._excluded_from("export", path))
 
     def get_deferred_fields(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list leaves out of its query."""
@@ -420,6 +493,8 @@ class ModelView(Generic[M]):
 
     def sortable(self, path: str) -> bool:
         """Whether a list can be sorted by this column."""
+        if self._sortable_fields and path not in self._sortable_fields:
+            return False
         return self.field_for(path).stored
 
     def readable_paths(self, request: Any = None) -> tuple[str, ...]:
@@ -430,7 +505,8 @@ class ModelView(Generic[M]):
                 paths.append(path)
         return tuple(paths)
 
-    def _build_inline_view(self, inline: Inline) -> "ModelView[Any]":
+    def _build_inline_view(self, inline: Inline, setting: str) -> "ModelView[Any]":
+        self._converted(setting, inline.relation, path_of)
         relation = self.schema.relation_named(inline.name)
         if not relation.collection:
             raise AdminSiteError(
@@ -448,14 +524,62 @@ class ModelView(Generic[M]):
         namespace: dict[str, Any] = {
             "model": relation.target,
             "name": f"{self.name}__{inline.name}",
-            "form_fields": tuple(inline.fields),
-            "readonly_fields": tuple(inline.readonly_fields),
+            "form_fields": self._paths(
+                f"{setting}.fields", inline.fields, relation.target
+            ),
+            "readonly_fields": self._paths(
+                f"{setting}.readonly_fields", inline.readonly_fields, relation.target
+            ),
             "exclude": back_links,
             "display_template": inline.display_template,
         }
         child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
         built: ModelView[Any] = child_class(self.inspector, self.registry)
         return built
+
+    def _placing(self) -> bool:
+        """Whether `fields` decides what the pages show.
+
+        It does unless it is empty, or the view still sets list_display,
+        form_fields or detail_fields, where fields only changes fields.
+        """
+        old = self._list_display or self._form_fields or self._detail_fields
+        return bool(self._placed) and not old
+
+    def _candidates(self) -> tuple[str, ...]:
+        """The fields a page picks from: the view's, or every column."""
+        if self._placing():
+            return tuple(path for path in self._placed if path not in self._exclude)
+        return self._default_paths(skip=set(self._exclude))
+
+    def _listed(self) -> tuple[str, ...]:
+        """The columns the list can show, hidden or not."""
+        return tuple(
+            path
+            for path in self._candidates()
+            if not self.field_for(path).form_only
+            and not self._excluded_from("list", path)
+        )
+
+    def _editable(self, path: str) -> bool:
+        """Whether a path can be an input in a form."""
+        if "." in path or path in self._filled_keys:
+            return False
+        item = self.field_for(path)
+        return item.stored or item.form_only
+
+    def _excluded_from(self, page: PageName, path: str) -> bool:
+        """Whether the field is left off a page, by its flag or the view's list."""
+        if path in self._excluded[page]:
+            return True
+        item = self.field_for(path)
+        return {
+            "list": item.exclude_from_list,
+            "detail": item.exclude_from_detail,
+            "create": item.exclude_from_create,
+            "edit": item.exclude_from_edit,
+            "export": item.exclude_from_export,
+        }[page]
 
     def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
         """Every column in order, with a foreign key shown as its link.
@@ -499,21 +623,57 @@ class ModelView(Generic[M]):
         setting: str,
         entry: Any,
         convert: Callable[[Any, type[Any]], T],
+        model: type[Any] | None = None,
     ) -> T:
-        """One entry of a setting converted, naming the setting if it fails."""
+        """One entry of a setting converted, naming the setting if it fails.
+
+        It starts from the view's model, or from `model` for a setting about
+        related records, such as an inline's fields.
+        """
         try:
-            return convert(entry, self.model)
+            return convert(entry, model or self.model)
         except AdminSiteError as error:
             raise AdminSiteError(f"{type(self).__name__}.{setting}: {error}") from None
 
     def _paths(
-        self, setting: str, entries: Sequence[ColumnReference]
+        self,
+        setting: str,
+        entries: Sequence[ColumnReference],
+        model: type[Any] | None = None,
     ) -> tuple[str, ...]:
         """The paths a setting names, such as `customer.email`."""
         return tuple(
-            self._converted(setting, entry, path_of)
+            self._converted(setting, entry, path_of, model)
             for entry in self._entries(setting, entries)
         )
+
+    def _sorts(
+        self, setting: str, entries: Sequence[ColumnReference | Descending]
+    ) -> tuple[Sort, ...]:
+        """The sorts a setting asks for, in order."""
+        return tuple(
+            self._converted(setting, entry, sort_of)
+            for entry in self._entries(setting, entries)
+        )
+
+    def _read_fields(self) -> tuple[str, ...]:
+        """The paths `fields` places, in order, keeping the fields it sets.
+
+        A field given in full is used as it is; `FieldOptions` changes the
+        one adminsite works out. A path placed twice keeps its first place.
+        """
+        placed: dict[str, None] = {}
+        for entry in self._entries("fields", self.fields):
+            if isinstance(entry, Field):
+                path = entry.name
+                self._overrides[path] = entry
+            elif isinstance(entry, FieldOptions):
+                path = entry.name
+                self._changes[path] = entry.changes
+            else:
+                path = self._converted("fields", entry, path_of)
+            placed.setdefault(path)
+        return tuple(placed)
 
     # Turning paths into fields and values.
 

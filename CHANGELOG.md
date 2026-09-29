@@ -23,6 +23,16 @@
   Link(Order.customer, Customer.name)]`, `ordering = [Descending(Order.created_at)]`. An attribute
   of another model, a link that leads elsewhere, or one string where a list belongs stops the admin
   with a message naming the setting.
+- `fields` lists a view's fields once, in order, for every page, as starlette-admin does. A page
+  leaves one out by a flag on the field, such as `exclude_from_list=True`, or by a list on the view,
+  such as `exclude_fields_from_export`; `hidden_in_list=True` keeps a column in the Columns menu but
+  off the list until someone turns it on. Forms leave out columns of related models, computed
+  fields and keys the database numbers by themselves. `searchable_fields`, `sortable_fields` and
+  `fields_default_sort` join them, and `Inline` takes attributes too: `Inline(Order.items,
+  fields=[OrderItem.product])`. The old settings still work until 0.1.0a10.
+- A key people type, such as a code or the two columns of a composite key, is now in the form of a
+  view that names no form fields, so such records can be created there. A key the database numbers
+  stays out.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

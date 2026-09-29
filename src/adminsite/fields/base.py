@@ -35,6 +35,12 @@ class Field:
         format: str | None = None,
         secret: bool | None = None,
         form_only: bool = False,
+        exclude_from_list: bool = False,
+        exclude_from_detail: bool = False,
+        exclude_from_create: bool = False,
+        exclude_from_edit: bool = False,
+        exclude_from_export: bool = False,
+        hidden_in_list: bool = False,
     ) -> None:
         self.name = name
         self.label = label if label is not None else humanize(name)
@@ -58,6 +64,16 @@ class Field:
         self.form_only = form_only
         if form_only:
             self.stored = False
+        # The pages a view leaves the field off, as its exclude_fields_from_
+        # lists do.
+        self.exclude_from_list = exclude_from_list
+        self.exclude_from_detail = exclude_from_detail
+        self.exclude_from_create = exclude_from_create
+        self.exclude_from_edit = exclude_from_edit
+        self.exclude_from_export = exclude_from_export
+        # Offered in the list's Columns menu, and off the list until someone
+        # turns it on.
+        self.hidden_in_list = hidden_in_list
         self._adapter: TypeAdapter[Any] = TypeAdapter(self.python_type)
 
     @classmethod

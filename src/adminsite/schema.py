@@ -25,6 +25,9 @@ class FieldSchema:
     nullable: bool = False
     primary_key: bool = False
     foreign_key: bool = False
+    # Whether the database numbers new records with it, as it does a
+    # table's integer primary key.
+    autoincrement: bool = False
     has_default: bool = False
     max_length: int | None = None
     enum_values: tuple[str, ...] | None = None

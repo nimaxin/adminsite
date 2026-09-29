@@ -5,27 +5,34 @@ A `ModelView` says how one model appears in the admin, and names the model as it
 answer depends on who is asking.
 
 ```python
-from adminsite import Descending, Link, ModelView
+from adminsite import Descending, FieldOptions, Link, ModelView
+from adminsite.fields import TextField
 
 
 class OrderView(ModelView[Order]):
     group = "Sales"
     display_template = "Order #{id}"
 
-    list_display = [
+    fields = [
         Order.id,
-        Link(Order.customer, Customer.name),
+        Order.customer,
+        Link(Order.customer, Customer.email),
         Order.status,
         Order.total,
-        Order.created_at,
+        TextField("note", exclude_from_list=True),
+        FieldOptions(
+            "created_at",
+            hidden_in_list=True,
+            exclude_from_create=True,
+            exclude_from_edit=True,
+        ),
     ]
-    search_fields = [Order.id, Link(Order.customer, Customer.email)]
+    searchable_fields = [Order.id, Link(Order.customer, Customer.email)]
+    sortable_fields = [Order.created_at, Order.total]
+    fields_default_sort = [Descending(Order.created_at)]
     list_filter = [Order.status, Order.total, Order.created_at]
-    ordering = [Descending(Order.created_at)]
-    page_size = 50
-
-    form_fields = [Order.customer, Order.status, Order.note]
     readonly_fields = [Order.total]
+    page_size = 50
 ```
 
 A view with no settings needs no class of its own: `Admin(engine, views=[OrderView, ModelView[Tag]])`.
@@ -41,8 +48,46 @@ A sort takes the same, and `Descending(Order.created_at)`, or the string `"-crea
 the highest value down, so newest first.
 
 An attribute of another model, a link whose relation does not lead to its column, or one string
-where a list belongs, such as `search_fields = "note"`, stops the admin when it starts, with a
+where a list belongs, such as `searchable_fields = "note"`, stops the admin when it starts, with a
 message that names the view and the setting.
+
+## Fields
+
+`fields` lists every field of the view once, in order, and each page shows them in that order. An
+entry is a column, named as above, or a field: `FieldOptions("created_at", label="Placed")` changes
+the one adminsite works out, and a field class such as `TextField("note")` replaces it. See
+[Fields](fields.md). With `fields` empty, the view shows every column the model has, and a foreign
+key such as `customer_id` appears as its relationship, `customer`.
+
+A relationship does two jobs: `Order.customer` shows the customer's name in the list and a picker
+in the form. A column of a related model, such as `Link(Order.customer, Customer.email)`, is shown
+and never edited, as is a computed field, so forms leave both out. They leave out a key the
+database numbers too; a key people choose, such as a product code, stays in the form.
+
+A page leaves a field out by a flag on the field or a list on the view, which mean the same:
+
+| Flag on a field | List on the view | Leaves the field off |
+|---|---|---|
+| `exclude_from_list` | `exclude_fields_from_list` | the list |
+| `exclude_from_detail` | `exclude_fields_from_detail` | the record page |
+| `exclude_from_create` | `exclude_fields_from_create` | the form for a new record |
+| `exclude_from_edit` | `exclude_fields_from_edit` | the form for an existing record |
+| `exclude_from_export` | `exclude_fields_from_export` | the CSV export |
+
+```python
+class ProductView(ModelView[Product]):
+    fields = [Product.name, Product.price, Product.cost, Product.description]
+    exclude_fields_from_list = [Product.description]
+    exclude_fields_from_export = [Product.cost]
+```
+
+`hidden_in_list=True` keeps a column off the list until someone turns it on in the
+[Columns menu](#choosing-columns).
+
+`list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude`, `search_fields` and
+`ordering` still work, and 0.1.0a10 will refuse them, naming what replaces each. A view that still
+sets `list_display`, `form_fields` or `detail_fields` reads `fields` as before: it changes the
+fields those settings name, and places none.
 
 ## Naming
 
@@ -68,21 +113,17 @@ its record pages, in its export, in its audit log and in its pickers. A customer
 
 | Setting | What it does |
 |---|---|
-| `list_display` | The columns, in order. Dotted paths such as `customer.name` follow links. |
-| `search_fields` | The paths the search box looks in. Text matches anywhere in the value, numbers match exactly. |
-| `list_filter` | Paths, or filters you built yourself. See [Filters](filters.md). |
-| `ordering` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. |
+| `searchable_fields` | The columns the search box looks in. Text matches anywhere in the value, numbers match exactly. |
+| `sortable_fields` | The columns people can sort the list by. Every stored column when left empty. |
+| `fields_default_sort` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. |
+| `list_filter` | Columns, or filters you built yourself. See [Filters](filters.md). |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `page_sizes` | The sizes people may switch between. Empty leaves the size fixed. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
 | `deferred_fields` | Columns the list never shows, left out of its query. |
 | `global_search` | Whether the command palette searches this view. On by default. |
-| `list_columns` | More columns people can add from the Columns menu. |
 | `icon` | The sidebar icon: inline SVG markup, or the address of a picture. |
 | `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
-
-With no `list_display`, every column is shown, and a foreign key such as `customer_id` appears as
-its relationship, `customer`.
 
 Anything the list shows is loaded with the page. `customer.name` joins the customer into the same
 query; a path through a collection such as `items.quantity` costs one more query for the whole
@@ -99,7 +140,7 @@ import re
 
 
 class ContactView(ModelView[Contact]):
-    search_fields = ("phone", "name")
+    searchable_fields = [Contact.phone, Contact.name]
 
     def search_condition(self, term, *, request=None):
         digits = re.sub(r"\D", "", term)
@@ -115,13 +156,19 @@ above for a name.
 
 ### Choosing columns
 
-The **Columns** menu above the list hides and shows columns. It offers the columns of
-`list_display`, plus any in `list_columns`:
+The **Columns** menu above the list hides and shows columns. It offers the list's columns, and the
+fields with `hidden_in_list=True`, which start off the list:
 
 ```python
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
-    list_columns = ("customer.email", "note", "created_at")
+    fields = [
+        Order.id,
+        Order.customer,
+        Order.status,
+        Order.total,
+        FieldOptions("note", hidden_in_list=True),
+        FieldOptions("created_at", hidden_in_list=True),
+    ]
 ```
 
 The choice goes in the URL as `?cols=id&cols=total`, so it can be bookmarked and shared, and it is
@@ -179,7 +226,7 @@ and shows the first five matches per view, named by `display_template`. Arrow ke
 opens.
 
 It searches only views the user may open, through `scope_query`, and only views with
-`search_fields`. Leave a view out, for example a very large table, with `global_search = False`.
+`searchable_fields`. Leave a view out, for example a very large table, with `global_search = False`.
 
 ### Large tables
 
@@ -232,12 +279,9 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 
 | Setting | What it does |
 |---|---|
-| `form_fields` | The fields, in order. A relationship name, such as `customer`, gives a picker. |
+| `fields` | The fields, in order, as under [Fields](#fields). A relationship, such as `Order.customer`, gives a picker. |
 | `readonly_fields` | Shown, but never read back from what was submitted. |
-| `exclude` | Left out of both the list and the form. |
-| `fields` | Field objects that replace the ones worked out from the columns. See [Fields](fields.md). |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
-| `detail_fields` | What the record page shows, when that differs from the form. |
 | `can_detail`, `can_export` | Switch off the record page and the CSV export. |
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
@@ -245,23 +289,17 @@ if someone adds the input back by hand.
 
 ### The record page
 
-The record page shows the form's fields unless you name its own. That is how a page shows things
-nobody should post back, and how a form keeps fields the page has no reason to repeat:
+The record page shows every field, and the forms the ones that can be edited. A field nobody should
+post back is left off the forms:
 
 ```python
 class UserView(ModelView[User]):
-    form_fields = ("name", "email", "is_active")
-    detail_fields = (
-        "name",
-        "email",
-        "is_active",
-        "signed_up_at",
-        "invoices",
-        "raw_payload",
-    )
+    fields = [User.name, User.email, User.is_active, User.signed_up_at, User.invoices]
+    exclude_fields_from_create = [User.signed_up_at, User.invoices]
+    exclude_fields_from_edit = [User.signed_up_at, User.invoices]
 ```
 
-Anything the page names is loaded with the record, so a linked record costs no extra query. Use
+Anything the page shows is loaded with the record, so a linked record costs no extra query. Use
 `get_detail_fields(request, record)` to answer per user, and remember that a field only on the
 page is never read back from a form, so it needs no `readonly_fields` entry.
 
@@ -279,7 +317,12 @@ from adminsite import Inline
 
 
 class OrderView(ModelView[Order]):
-    inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
+    inlines = [
+        Inline(
+            Order.items,
+            fields=[OrderItem.product, OrderItem.quantity, OrderItem.unit_price],
+        )
+    ]
 ```
 
 The lines show as a table under the order's fields, with an **Add a row** button and a button to

@@ -111,6 +111,7 @@ class SQLAlchemyInspector:
             nullable=bool(column.nullable),
             primary_key=bool(column.primary_key),
             foreign_key=bool(column.foreign_keys),
+            autoincrement=column.table.autoincrement_column is column,
             has_default=column.default is not None
             or column.server_default is not None
             or bool(column.primary_key and column.autoincrement is not False),
