@@ -37,7 +37,7 @@ class OrderView(ModelView[Order]):
         "Assign to product",
         inputs=[RelationField("product", target=Product, required=True)],
     )
-    async def assign(self, selection: Selection, product: Product) -> str:
+    async def assign(self, selection: Selection[Order], product: Product) -> str:
         seen["product"] = product
         changed = await selection.update(note=f"For {product.name}")
         return f"{changed} orders assigned."
@@ -57,7 +57,7 @@ class OrderView(ModelView[Order]):
         "Bundle",
         inputs=[RelationField("products", target=Product, collection=True)],
     )
-    async def bundle(self, selection: Selection, products: list[Product]) -> str:
+    async def bundle(self, selection: Selection[Order], products: list[Product]) -> str:
         seen["products"] = products
         return "Bundled."
 
@@ -68,7 +68,7 @@ class ReadOnlyOrderView(ModelView[Order]):
     name = "archived_orders"
 
     @action("Assign", inputs=[RelationField("product", target=Product)])
-    async def assign(self, selection: Selection, product: Product) -> str:
+    async def assign(self, selection: Selection[Order], product: Product) -> str:
         return "Assigned."
 
     async def allows(

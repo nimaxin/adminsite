@@ -58,12 +58,12 @@ class OrderView(ModelView[Order]):
         "Mark as shipped",
         inputs=[ChoiceField("carrier", choices=(("dhl", "DHL"),), required=True)],
     )
-    async def ship(self, selection: Selection, carrier: str) -> str:
+    async def ship(self, selection: Selection[Order], carrier: str) -> str:
         changed = await selection.update(status=OrderStatus.SHIPPED)
         return f"{changed} orders shipped with {carrier}."
 
     @action("Remove")
-    async def remove(self, selection: Selection) -> str:
+    async def remove(self, selection: Selection[Order]) -> str:
         removed = await selection.delete()
         return f"{removed} removed."
 

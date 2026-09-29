@@ -86,30 +86,66 @@ class FileField(Field[str | None]):
 
     def check(self, upload: UploadFile) -> None:
         """Refuse a file that is too big or not of an accepted type."""
-        if upload.size is not None and upload.size > self.max_size:
-            limit = self.max_size / MEGABYTE
-            raise FieldValidationError(
-                self.name, _("Keep the file under {size} MB.", size=f"{limit:g}")
-            )
-        if self.accept and not self.accepts(upload):
-            raise FieldValidationError(
-                self.name, _("Choose a file of this type: {types}.", types=self.accept)
-            )
+        check_upload(self.name, upload, accept=self.accept, max_size=self.max_size)
 
     def accepts(self, upload: UploadFile) -> bool:
         """Whether the upload matches `accept`, as a browser reads it."""
-        filename = (upload.filename or "").lower()
-        content_type = (upload.content_type or "").lower()
-        for wanted in (part.strip().lower() for part in self.accept.split(",")):
-            if not wanted:
-                continue
-            if wanted.startswith(".") and filename.endswith(wanted):
-                return True
-            if wanted.endswith("/*") and content_type.startswith(wanted[:-1]):
-                return True
-            if wanted == content_type:
-                return True
-        return False
+        return accepts(self.accept, upload)
+
+
+@dataclass(eq=False, repr=False)
+class UploadField(Field[Any]):
+    """A file an action asks for, handed to its method as it came, never stored.
+
+    An action parameter typed `UploadFile` is asked for with one.
+    """
+
+    _: KW_ONLY
+    # The types a browser offers to pick, as its accept attribute takes them.
+    accept: str = ""
+    # The largest file taken, in bytes.
+    max_size: int = 10 * MEGABYTE
+
+    widget = "file"
+
+    def read_upload(self, raw: Any) -> UploadFile | None:
+        """The file that was sent, checked, or None when none was chosen."""
+        upload = raw if isinstance(raw, UploadFile) and raw.filename else None
+        if upload is None:
+            if self.required:
+                raise FieldValidationError(self.name, _("Choose a file."))
+            return None
+        check_upload(self.name, upload, accept=self.accept, max_size=self.max_size)
+        return upload
+
+
+def check_upload(name: str, upload: UploadFile, *, accept: str, max_size: int) -> None:
+    """Refuse a file that is too big or not of an accepted type."""
+    if upload.size is not None and upload.size > max_size:
+        limit = max_size / MEGABYTE
+        raise FieldValidationError(
+            name, _("Keep the file under {size} MB.", size=f"{limit:g}")
+        )
+    if accept and not accepts(accept, upload):
+        raise FieldValidationError(
+            name, _("Choose a file of this type: {types}.", types=accept)
+        )
+
+
+def accepts(accept: str, upload: UploadFile) -> bool:
+    """Whether the upload matches an accept attribute, as a browser reads it."""
+    filename = (upload.filename or "").lower()
+    content_type = (upload.content_type or "").lower()
+    for wanted in (part.strip().lower() for part in accept.split(",")):
+        if not wanted:
+            continue
+        if wanted.startswith(".") and filename.endswith(wanted):
+            return True
+        if wanted.endswith("/*") and content_type.startswith(wanted[:-1]):
+            return True
+        if wanted == content_type:
+            return True
+    return False
 
 
 @dataclass(eq=False, repr=False)

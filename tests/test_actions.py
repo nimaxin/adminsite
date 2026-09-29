@@ -22,21 +22,21 @@ class OrderView(ModelView[Order]):
     page_size = 3
 
     @action("Mark as shipped", confirm="Mark these as shipped?")
-    async def ship(self, selection: Selection) -> str:
+    async def ship(self, selection: Selection[Order]) -> str:
         changed = await selection.update(status=OrderStatus.SHIPPED)
         return f"{changed} orders marked as shipped."
 
     @action("Discard", dangerous=True, permission=Permission.DELETE)
-    async def discard(self, selection: Selection) -> str:
+    async def discard(self, selection: Selection[Order]) -> str:
         removed = await selection.delete()
         return f"{removed} orders deleted."
 
     @action("Never")
-    async def never(self, selection: Selection) -> str:
+    async def never(self, selection: Selection[Order]) -> str:
         raise RefusedError("Not while the shop is open.")
 
     @action("Count one by one")
-    async def one_by_one(self, selection: Selection) -> str:
+    async def one_by_one(self, selection: Selection[Order]) -> str:
         records = await selection.records()
         return f"{len(records)} orders seen."
 
@@ -52,7 +52,9 @@ class OrderView(ModelView[Order]):
             ),
         ],
     )
-    async def add_note(self, selection: Selection, text: str, urgency: str) -> str:
+    async def add_note(
+        self, selection: Selection[Order], text: str, urgency: str
+    ) -> str:
         changed = await selection.update(note=f"[{urgency}] {text}")
         return f"Note added to {changed} orders."
 

@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, update
 from sqlalchemy.sql import Executable
@@ -14,17 +14,21 @@ from adminsite.query import QuerySpec
 if TYPE_CHECKING:
     from adminsite.views import ModelView
 
+# The model of the view the rows belong to.
+M = TypeVar("M")
+
 
 @dataclass
-class Selection:
+class Selection(Generic[M]):
     """The rows an action runs over.
 
     Either the rows that were ticked, or every row the current search and
     filters match. The second kind is never loaded into memory, so an
-    action over a large table stays one statement.
+    action over a large table stays one statement. `Selection[Order]` holds
+    orders, so `records()` returns them as orders.
     """
 
-    view: "ModelView[Any]"
+    view: "ModelView[M]"
     session: SessionAdapter
     spec: QuerySpec
     keys: Sequence[str] = ()
@@ -61,7 +65,7 @@ class Selection:
         counted = select(func.count()).select_from(self.statement().subquery())
         return int(await self.session.scalar(counted) or 0)
 
-    async def records(self, *, paths: Sequence[str] = ()) -> list[Any]:
+    async def records(self, *, paths: Sequence[str] = ()) -> list[M]:
         """Load the records, for work that needs each one in turn.
 
         `paths` names links to load with them, such as `customer`, so work

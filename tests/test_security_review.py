@@ -209,7 +209,7 @@ class TestAnActionLeftOut:
             list_display = ("id",)
 
             @action("Purge", dangerous=True)
-            async def purge(self, selection: Selection) -> str:
+            async def purge(self, selection: Selection[Order]) -> str:
                 return "gone"
 
             def get_actions(self, request: Any = None) -> tuple[Any, ...]:

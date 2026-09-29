@@ -24,11 +24,17 @@ from sqlalchemy.orm import class_mapper
 from starlette.responses import Response
 
 if TYPE_CHECKING:
-    from adminsite.actions.selection import Selection
     from adminsite.audit import AuditStore
     from adminsite.views.registry import ViewRegistry
 
 from adminsite.actions.action import Action, action_of
+from adminsite.actions.parameters import (
+    ASYNC_SESSION,
+    ActionCall,
+    async_session_refused,
+    read_call,
+)
+from adminsite.actions.selection import Selection
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
 from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
@@ -68,7 +74,7 @@ from adminsite.fields import (
 )
 from adminsite.fields.computed import LOADED
 from adminsite.fields.documents import DocumentError
-from adminsite.fields.files import UNCHANGED, FileField, NewFile
+from adminsite.fields.files import UNCHANGED, FileField, NewFile, UploadField
 from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
@@ -1302,7 +1308,9 @@ class ModelView(Generic[M]):
         for item in found.inputs:
             raw = data.get(item.name)
             try:
-                if _holds_many(item):
+                if isinstance(item, UploadField):
+                    result.values[item.name] = item.read_upload(raw)
+                elif _holds_many(item):
                     result.values[item.name] = item.parse_many(_as_list(raw))
                 else:
                     result.values[item.name] = item.parse(_as_text(raw))
@@ -1333,8 +1341,7 @@ class ModelView(Generic[M]):
             await self.ensure(found.permission, request=request, record=record)
             given, entry = await self._given(found, session, values, entry, request)
             before = self.snapshot(record, paths)
-            handler = getattr(self, found.method)
-            answer = await handler(record, session, **given)
+            answer = await self._call(found, record, request, session, given)
             if auditing:
                 # Anything the record refuses surfaces here, while the entry
                 # can still be written down as failed.
@@ -1366,8 +1373,7 @@ class ModelView(Generic[M]):
         try:
             await self.ensure(found.permission, request=request)
             given, entry = await self._given(found, session, values, entry, request)
-            handler = getattr(self, found.method)
-            answer = await handler(session, **given)
+            answer = await self._call(found, None, request, session, given)
             if self.audit is not None:
                 await session.flush()
         except Exception as error:
@@ -1381,7 +1387,7 @@ class ModelView(Generic[M]):
     async def run_action(
         self,
         found: Action,
-        selection: "Selection",
+        selection: Selection[M],
         *,
         request: Any = None,
         values: Mapping[str, Any] | None = None,
@@ -1404,8 +1410,9 @@ class ModelView(Generic[M]):
             given, entry = await self._given(
                 found, selection.session, values, entry, request
             )
-            handler = getattr(self, found.method)
-            answer = await handler(selection, **given)
+            answer = await self._call(
+                found, selection, request, selection.session, given
+            )
             if self.audit is not None:
                 await selection.session.flush()
         except Exception as error:
@@ -1506,6 +1513,57 @@ class ModelView(Generic[M]):
                 )
         return given, replace(entry, inputs=recorded_inputs(found.inputs, named))
 
+    async def _call(
+        self,
+        found: Action,
+        subject: Any,
+        request: Any,
+        session: SessionAdapter,
+        values: Mapping[str, Any],
+    ) -> Any:
+        """Call an action's method with what its parameters ask for.
+
+        `subject` is the selection or the record it runs on, and `values`
+        what the dialog asked for, by input name.
+        """
+        positional, named = self._call_of(found).arguments(
+            subject=subject, request=request, session=session, values=values
+        )
+        return await getattr(self, found.method)(*positional, **named)
+
+    def _call_of(self, found: Action) -> ActionCall:
+        """How an action's method is called, read from its parameters.
+
+        Read when the view is built for each marked method, and here for an
+        action built by hand, such as the built-in delete.
+        """
+        if found.call is not None:
+            return found.call
+        return self._read_call(found)
+
+    def _read_call(self, found: Action) -> ActionCall:
+        return read_call(
+            getattr(self, found.method),
+            where=f"{type(self).__name__}.{found.method}",
+            on=found.on,
+            model=self.model,
+            asked=found.inputs,
+        )
+
+    def check_database(self, is_async: bool) -> None:
+        """Refuse an action asking for an AsyncSession of a database that is not async.
+
+        The admin calls it when the view is registered, so the mistake stops
+        it starting rather than the action's first run.
+        """
+        if is_async:
+            return
+        for found in self._actions.values():
+            asking = found.call.handed_as(ASYNC_SESSION) if found.call else None
+            if asking is not None:
+                where = f"{type(self).__name__}.{found.method}"
+                raise AdminSiteError(f"{where}: {async_session_refused(asking.name)}")
+
     def _action_entry(
         self,
         found: Action,
@@ -1546,11 +1604,19 @@ class ModelView(Generic[M]):
         return text if found.audit_answer else None
 
     def _collect_actions(self) -> dict[str, Action]:
+        """The marked methods, each with what its parameters are handed and ask for.
+
+        Read now, so a parameter no dialog can ask for stops the admin
+        starting rather than the action's first run.
+        """
         found: dict[str, Action] = {}
         for name in dir(type(self)):
             marked = action_of(getattr(type(self), name, None))
             if marked is not None:
-                found[marked.name] = marked
+                call = self._read_call(marked)
+                found[marked.name] = replace(
+                    marked, inputs=(*marked.inputs, *call.inputs), call=call
+                )
         return found
 
     # Permissions. Four levels: the view, the action, the field and the row.
@@ -1927,7 +1993,7 @@ class ModelView(Generic[M]):
             ],
         )
 
-    async def delete_selected(self, selection: "Selection") -> str:
+    async def delete_selected(self, selection: Selection[M]) -> str:
         """Delete the chosen records, each as a single delete would, all or none.
 
         Every record goes through `allows`, `before_delete` and

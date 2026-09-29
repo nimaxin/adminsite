@@ -75,7 +75,9 @@ Send `"everything": true` instead of keys to run the action over every record th
 as the "select all matching" link does on the list page. The answer is the action's message:
 `{"message": "2 orders marked as shipped."}`. An input that asks for
 [another record](actions.md#another-record) takes its key, or a list of keys for several, and a key
-the user may not pick answers 422 with the reason under the input's name.
+the user may not pick answers 422 with the reason under the input's name. The fields of a
+[group](actions.md#a-group-of-values) go by their full name, `{"change.percent": "5"}`. A file cannot
+be sent as JSON, so an action that asks for one runs from the admin's pages.
 
 ## Signing in
 

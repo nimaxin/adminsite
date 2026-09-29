@@ -520,7 +520,9 @@ class ShowcaseView(ModelView[Showcase]):
         "Offer to stockists",
         inputs=[RelationField("stockists", target=Supplier, collection=True)],
     )
-    async def offer(self, selection: Selection, stockists: list[Supplier]) -> str:
+    async def offer(
+        self, selection: Selection[Showcase], stockists: list[Supplier]
+    ) -> str:
         names = ", ".join(stockist.name for stockist in stockists) or "nobody"
         return f"{await selection.count()} offered to {names}."
 

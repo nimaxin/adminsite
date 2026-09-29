@@ -25,7 +25,7 @@ class OrderView(ModelView[Order]):
         "Add a note",
         inputs=[ChoiceField("tone", choices=(("kind", "Kind"),), required=True)],
     )
-    async def add_note(self, selection: Selection, tone: str) -> str:
+    async def add_note(self, selection: Selection[Order], tone: str) -> str:
         changed = await selection.update(note=f"A {tone} note")
         return f"{changed} orders noted."
 

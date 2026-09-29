@@ -49,6 +49,9 @@ class FormRow:
     # Where a searchable link looks records up, when it is not the form's
     # own lookup, as for a link an action asks for.
     lookup_url: str = ""
+    # The heading it is drawn under with the rest of its group, as the
+    # fields of a dataclass an action asks for are.
+    group: str = ""
     # A JSON column drawn as a form from its schema: the parts of that form,
     # a DocumentEntry.
     document: Any = None

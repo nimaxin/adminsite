@@ -144,6 +144,7 @@ class Admin:
             if isinstance(view, ModelView)
             else view_class(view)(self.inspector, self.fields)
         )
+        built.check_database(self.database.is_async)
         if built.audit is None:
             built.audit = self.audit
         if built.audit is not None:

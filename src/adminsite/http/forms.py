@@ -222,11 +222,17 @@ def title_for(admin: "Admin", item: RelationField, record: Any) -> str:
     return name_linked(item, record, views=admin.views, inspector=admin.inspector)
 
 
-def rows_for_inputs(fields: Sequence[BaseField], *, prefix: str = "") -> list[FormRow]:
+def rows_for_inputs(
+    fields: Sequence[BaseField],
+    *,
+    prefix: str = "",
+    headings: Mapping[str, str] | None = None,
+) -> list[FormRow]:
     """Build the form rows for the values an action asks for.
 
     Each starts at the field's default, so a dialog of five switches that
-    are usually on opens with them on.
+    are usually on opens with them on. `headings` names the group an input
+    is drawn under, by the input's name.
     """
     rows = []
     for item in fields:
@@ -235,6 +241,7 @@ def rows_for_inputs(fields: Sequence[BaseField], *, prefix: str = "") -> list[Fo
             field=item,
             value=item.serialize(item.default),
             id_prefix=prefix,
+            group=(headings or {}).get(item.name, ""),
         )
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
@@ -258,7 +265,9 @@ async def rows_for_actions(
     list. A session is opened only when some action asks for a link.
     """
     rows = {
-        found.name: rows_for_inputs(found.inputs, prefix=f"{found.name}-")
+        found.name: rows_for_inputs(
+            found.inputs, prefix=f"{found.name}-", headings=found.headings
+        )
         for found in actions
     }
     links = [

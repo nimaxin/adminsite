@@ -8,7 +8,7 @@ from adminsite.actions import Selection, action
 
 class OrderView(ModelView[Order]):
     @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
-    async def ship(self, selection: Selection) -> str:
+    async def ship(self, selection: Selection[Order]) -> str:
         changed = await selection.update(status=OrderStatus.SHIPPED)
         return f"{changed} orders marked as shipped."
 ```
@@ -29,7 +29,7 @@ one statement. It gives you:
 | `await selection.update(**values)` | Changes every covered row in one `UPDATE`, and returns how many. |
 | `await selection.delete()` | Deletes every covered row in one `DELETE`, and returns how many. |
 | `await selection.count()` | How many rows it covers. |
-| `await selection.records(paths=...)` | Loads the records, for work that needs each one, with the links `paths` names. |
+| `await selection.records(paths=...)` | Loads the records, for work that needs each one, with the links `paths` names. A `Selection[Order]` loads orders. |
 | `selection.statement()` | A `select()` of the covered primary keys, to use in your own queries. |
 
 `update` and `delete` never load the records, so they skip the save hooks, and a delete relies on
@@ -52,26 +52,23 @@ Switch it off for a view with `bulk_delete = False`, or give the view an action 
 
 ## Asking for values first
 
-An action can ask for values before it runs. They appear in a dialog, are checked like form fields,
-and reach the method by name:
+An action asks for values with typed parameters. They appear in a dialog before it runs, are checked
+like form fields, and reach the method as the types say:
 
 ```python
-from adminsite.fields import EnumField, StringField
+from typing import Annotated, Literal
 
-CARRIERS = (("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL"))
+from adminsite.actions import Input, Selection, action
 
 
 class OrderView(ModelView[Order]):
-    @action(
-        "Mark as shipped",
-        confirm="Mark the chosen orders as shipped?",
-        inputs=[
-            EnumField("carrier", choices=CARRIERS, required=True),
-            StringField("tracking", label="Tracking number", max_length=40),
-        ],
-    )
+    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
     async def ship(
-        self, selection: Selection, carrier: str, tracking: str | None
+        self,
+        selection: Selection[Order],
+        *,
+        carrier: Literal["DHL", "UPS", "PostNL"],
+        tracking: Annotated[str | None, Input(label="Tracking number")] = None,
     ) -> str:
         changed = await selection.update(
             status=OrderStatus.SHIPPED, carrier=carrier, tracking=tracking
@@ -79,75 +76,152 @@ class OrderView(ModelView[Order]):
         return f"{changed} orders sent with {carrier}."
 ```
 
-A missing or invalid value stops the action and tells the user which field and why. The names
-`keys`, `everything` and `_csrf` are taken by the action form itself and cannot be used.
+The type picks the input:
 
-### Where the dialog starts
+| Type | Asked for with |
+|---|---|
+| `str` | a line of text, or a box with `Input(multiline=True)` |
+| `int`, `float`, `Decimal` | a number |
+| `bool` | a switch |
+| `date`, `datetime`, `time` | a date or time picker |
+| `UUID` | a line of text |
+| an `Enum`, or `Literal["DHL", "UPS"]` | a select |
+| a `list` of an `Enum` or a `Literal` | a select holding several |
+| a model, such as `Product` | [a record to pick](#another-record) |
+| `list[Product]` | several records |
+| `UploadFile` | [a file](#a-file) |
+| a dataclass | [its fields, under one heading](#a-group-of-values) |
 
-`default` says what an input holds when the dialog opens, so switches that are usually on open on
-and nobody has to set them every time. `multiple=True` on a `EnumField` lets one input hold
-several options, and the method receives a list:
+A value is required unless its type allows None or it has a default. A default fills the input when
+the dialog opens, so a switch that is usually on opens on, and an input left empty takes it. A
+missing or invalid value stops the action and tells the user which input and why.
 
-```python
-class OrderView(ModelView[Order]):
-    @action(
-        "Download",
-        inputs=[
-            EnumField("kinds", choices=KINDS, multiple=True, default=("paper",)),
-            BooleanField("with_totals", label="With totals", default=True),
-        ],
-    )
-    async def download(
-        self, selection: Selection, kinds: list[str], with_totals: bool
-    ) -> Response: ...
-```
+`Annotated[..., Input(...)]` words an input:
 
-`default` works on any field, and a form for a new record starts from it too. A stored value
-always wins over it, so it never overwrites anything.
+| Option | What it does |
+|---|---|
+| `label` | The text above the input. Defaults to the parameter's name, `tracking_number` reading "Tracking number". |
+| `help_text` | A line under the input. |
+| `multiline` | A box of several lines, for a `str`. |
+| `accept`, `max_size` | For an `UploadFile`: the types offered, such as `".csv"`, and the largest file, in bytes. |
+| `secret` | Keeps the value out of the [audit log](audit.md#actions), for one not named like a password. |
+
+A type adminsite cannot ask for, such as a class of your own, stops the admin when it starts, with
+the parameter's name and the types it can ask for. So does an option the type has no use for, such
+as `multiline` on an `int`. The names `keys`, `everything` and `_csrf` are taken by the action form
+itself.
 
 With the [audit log](audit.md#actions) on, the values an action was run with are written down with
 it. A secret is kept as `***`: an input named like `password` or `api_key`, or one given
 `secret=True`.
 
+### What the method is handed
+
+A parameter of one of these types is handed over instead of asked for:
+
+| Type | What it gets |
+|---|---|
+| `Selection[Order]` | the rows the user ticked, for an action on the selection |
+| the view's model, such as `Order` | the record, for an [action on one record](#on-one-record) |
+| `Request` | the request, to read who is signed in or the session |
+| `SessionAdapter` | adminsite's session, with a sync or an async database alike |
+| `AsyncSession` | SQLAlchemy's own session, where the database is async |
+
+The session is the one the action runs in, so what the method writes is committed with it, or rolled
+back when it fails. Asking for an `AsyncSession` when the database is not async stops the admin when
+it starts.
+
+### A group of values
+
+A dataclass is asked for field by field, under one heading, and reaches the method as the
+dataclass:
+
+```python
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PriceChange:
+    percent: Annotated[Decimal, Input(help_text="Negative to lower prices.")]
+    round_to: Decimal = Decimal("0.05")
+    never_below_cost: bool = True
+
+
+class ProductView(ModelView[Product]):
+    @action("Change prices")
+    async def change_prices(
+        self, selection: Selection[Product], *, change: PriceChange
+    ) -> str:
+        products = await selection.records()
+        for product in products:
+            product.price = new_price(product, change)
+        return f"{len(products)} prices changed."
+```
+
+The heading is the parameter's name, "Change", or the `label` of an `Input` on it. Each field is
+sent as `change.percent`, the name the [JSON API](api.md#actions) takes too. A dataclass inside a
+dataclass is asked for with a parameter of its own.
+
+### A file
+
+A parameter typed `UploadFile` asks for a file, and the method receives it as it was sent. Nothing
+stores it:
+
+```python
+from starlette.datastructures import UploadFile
+
+
+class ProductView(ModelView[Product]):
+    @action("Import a price list", on="view")
+    async def import_prices(
+        self,
+        session: SessionAdapter,
+        *,
+        prices: Annotated[UploadFile, Input(accept=".csv", max_size=1024 * 1024)],
+    ) -> str:
+        rows = (await prices.read()).decode().splitlines()
+        ...
+        return f"{len(rows)} prices read from {prices.filename}."
+```
+
+A file over `max_size`, 10 MB unless you say, or of a type `accept` does not name, is refused
+before the method runs. The audit log keeps the file's name, type and size, never what is in it.
+
 ### Another record
 
-A `RelationField` asks for one of another model's records. The dialog offers the records that
+A parameter typed with a model asks for one of its records. The dialog offers the records that
 model's view lets this user see: a list while there are a hundred or fewer, and a search box above
 that. The list is read when the page is drawn, so a product added a minute ago is on offer at once.
 The method receives the record itself:
 
 ```python
-from adminsite.fields import RelationField
-
-
 class RunView(ModelView[Run]):
-    @action(
-        "Assign to product",
-        inputs=[RelationField("product", target=Product, required=True)],
-    )
-    async def assign(self, selection: Selection, product: Product) -> str:
+    @action("Assign to product")
+    async def assign(self, selection: Selection[Run], *, product: Product) -> str:
         changed = await selection.update(product_id=product.id)
         return f"{changed} runs now sell as {product.name}."
 ```
 
 The key that comes back is read through the product view, with its `scope_query` and its
-permissions, so a record this user could not have picked is refused. `collection=True` asks for
+permissions, so a record this user could not have picked is refused. `list[Product]` asks for
 several, and the method receives a list. The audit log names the chosen record, and the
 [JSON API](api.md#actions) takes its key: `{"inputs": {"product": "12"}}`.
 
 ### Choices worked out per request
 
-Choices that are records are asked for with a `RelationField`, above. For any other kind, the inputs
+Choices that are records are asked for with the model's type, above. For any other kind, the inputs
 are read when the page is drawn, so `get_actions` can hand back an action carrying whatever this
 user may pick:
 
 ```python
 import dataclasses
 
+from adminsite.fields import EnumField
+
 
 class OrderView(ModelView[Order]):
-    @action("Move", inputs=[EnumField("warehouse", choices=())])
-    async def move(self, selection: Selection, warehouse: str) -> str: ...
+    @action("Move")
+    async def move(self, selection: Selection[Order], *, warehouse: str) -> str: ...
 
     def get_actions(self, request=None):
         choices = warehouses_for(request.user)
@@ -159,8 +233,9 @@ class OrderView(ModelView[Order]):
         )
 ```
 
-The run goes through `get_actions` as well, so a value that was never on offer is refused rather
-than accepted because the class said so.
+The field takes the place of the input the parameter asked for, and its value still reaches
+`warehouse`. The run goes through `get_actions` as well, so a value that was never on offer is
+refused rather than accepted because the class said so.
 
 ## Options
 
@@ -168,7 +243,7 @@ than accepted because the class said so.
 |---|---|
 | `label` | The button text. Defaults to the method name, `mark_paid` reading "Mark paid". |
 | `confirm` | A question asked in a dialog before it runs. |
-| `inputs` | Fields to ask for, each with an optional `default`. See above. |
+| `inputs` | Fields to ask for as they are, each passed to the parameter of its name. The parameters' types usually say enough. |
 | `dangerous` | Draws the button in red. |
 | `permission` | What the user needs to run it. `Permission.EDIT` unless you say otherwise. |
 | `name` | The name in the URL, if the method name will not do. |
@@ -183,7 +258,7 @@ from adminsite import RefusedError
 
 
 @action("Refund")
-async def refund(self, selection: Selection) -> str:
+async def refund(self, selection: Selection[Order]) -> str:
     if await selection.count() > 50:
         raise RefusedError("Refund at most 50 orders at a time.")
     ...
@@ -200,22 +275,24 @@ to fit in memory.
 
 ## What an action acts on
 
-`on` says what an action is about, and what its method is given:
+`on` says what an action is about, and what its method is handed:
 
-| `on` | Where it appears | The method gets |
+| `on` | Where it appears | The method is handed |
 |---|---|---|
-| `"selection"`, the default | above the list, once rows are ticked | a `Selection` |
-| `"record"` | in each row's menu, and on the record's page | `(record, session)` |
-| `"view"` | above the list, with nothing ticked | `(session)` |
+| `"selection"`, the default | above the list, once rows are ticked | a `Selection[Order]` |
+| `"record"` | in each row's menu, and on the record's page | the record, to a parameter typed `Order` |
+| `"view"` | above the list, with nothing ticked | nothing in particular |
+
+Each can also ask for the request or a session, as [above](#what-the-method-is-handed).
 
 ### On one record
 
 ```python
 class InvoiceView(ModelView[Invoice]):
     @action("Confirm", on="record", confirm="Confirm this invoice?")
-    async def confirm(self, record: Invoice, session: SessionAdapter) -> str:
-        record.status = "confirmed"
-        return f"Invoice {record.number} confirmed."
+    async def confirm(self, invoice: Invoice) -> str:
+        invoice.status = "confirmed"
+        return f"Invoice {invoice.number} confirmed."
 ```
 
 The button sits on the row and on the record's page, and the record's own permission decides
@@ -278,13 +355,11 @@ An action can return a response instead of a message, which is how a download wo
 
 ```python
 @action("Download as CSV", on="record", permission=Permission.EXPORT)
-async def download(self, record: Order, session: SessionAdapter) -> Response:
+async def download(self, order: Order) -> Response:
     return Response(
-        render_csv(record),
+        render_csv(order),
         media_type="text/csv",
-        headers={
-            "content-disposition": f'attachment; filename="order-{record.id}.csv"'
-        },
+        headers={"content-disposition": f'attachment; filename="order-{order.id}.csv"'},
     )
 ```
 

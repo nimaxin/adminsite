@@ -58,6 +58,8 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.actions.Selection
 
+::: adminsite.actions.Input
+
 ::: adminsite.Message
     options:
       members: [update, delete, count, records, statement, covered_keys]

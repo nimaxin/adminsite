@@ -1,0 +1,17 @@
+{#- The values an action asks for, in its dialog, spaced as the form's fields
+    are. The fields of a dataclass it asks for sit together under the
+    group's heading. -#}
+{% if action_rows[item.name] %}
+  <div class="mt-3 flex flex-col gap-y-5">
+    {% for row in action_rows[item.name] %}
+      {% if row.group and (loop.first or loop.previtem.group != row.group) %}
+        <fieldset class="flex flex-col gap-y-5">
+          <legend class="mb-3 text-sm font-semibold">{{ row.group }}</legend>
+      {% endif %}
+      {% include "adminsite/_field.html" %}
+      {% if row.group and (loop.last or loop.nextitem.group != row.group) %}
+        </fieldset>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endif %}

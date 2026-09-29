@@ -201,11 +201,11 @@ class TestButtonsFollowPermissions:
             name = "guarded"
 
             @action("Mark as shipped")
-            async def ship(self, selection: Selection) -> str:
+            async def ship(self, selection: Selection[Order]) -> str:
                 return "done"
 
             @action("Discard", permission=Permission.DELETE)
-            async def discard(self, selection: Selection) -> str:
+            async def discard(self, selection: Selection[Order]) -> str:
                 return "gone"
 
             async def allows(

@@ -37,7 +37,7 @@ class OrderView(ModelView[Order]):
             ChoiceField("shape", choices=(("csv", "CSV"), ("pdf", "PDF"))),
         ),
     )
-    async def download(self, selection: Selection, **values: Any) -> str:
+    async def download(self, selection: Selection[Order], **values: Any) -> str:
         seen.clear()
         seen.update(values)
         return "Downloaded."
@@ -50,7 +50,7 @@ class PerRequestView(ModelView[Order]):
     list_display = ("id",)
 
     @action("Move", inputs=(ChoiceField("target", choices=()),))
-    async def move(self, selection: Selection, **values: Any) -> str:
+    async def move(self, selection: Selection[Order], **values: Any) -> str:
         seen.clear()
         seen.update(values)
         return "Moved."

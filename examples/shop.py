@@ -229,7 +229,7 @@ class OrderView(ModelView[Order]):
             ),
         ],
     )
-    async def ship(self, selection: Selection, carrier: str) -> str:
+    async def ship(self, selection: Selection[Order], carrier: str) -> str:
         changed = await selection.update(
             status=OrderStatus.SHIPPED, note=f"Sent with {carrier.upper()}"
         )

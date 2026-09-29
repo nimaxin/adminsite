@@ -53,7 +53,7 @@ class OwnDelete(ModelView[Product]):
     name = "own_delete"
 
     @action("Archive instead", name="delete_selected")
-    async def archive(self, selection: Selection) -> str:
+    async def archive(self, selection: Selection[Product]) -> str:
         return f"{await selection.count()} archived."
 
 

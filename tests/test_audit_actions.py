@@ -67,7 +67,7 @@ class OrderView(ModelView[Order]):
         return str(1 // 0)
 
     @action("Download archive")
-    async def download(self, selection: Selection) -> Response:
+    async def download(self, selection: Selection[Order]) -> Response:
         records = await selection.records()
         return Response(f"{len(records)} orders", media_type="application/zip")
 

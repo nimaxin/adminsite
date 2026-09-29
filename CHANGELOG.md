@@ -70,6 +70,16 @@
   0.1.0a10.
 - A field worked out for a column of a related model is named by its path, `customer.email`, as
   one written in `fields` already was, rather than by the column alone.
+- An action asks for its values with typed parameters, as FastAPI does: `carrier: Literal["DHL",
+  "UPS"]` is a select, `day: date` a date picker, `product: Product` a record to pick, a dataclass
+  its fields under one heading, and `UploadFile` a file, which no action could ask for before. The
+  values reach the method typed, and `Annotated[str, Input(label="Reason", multiline=True)]` words
+  an input. A parameter typed `Request`, `AsyncSession` or `SessionAdapter` is handed the request or
+  the session, and a record action's record goes to the parameter typed with the model. A type
+  no dialog can ask for stops the admin when it starts, naming the parameter. `inputs=` and
+  untyped `(record, session)` methods still work.
+- `Selection[Order]` names the model of the rows an action runs over, so `records()` returns
+  orders. A bare `Selection` now needs its model under mypy's strict mode, as a bare `list` does.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

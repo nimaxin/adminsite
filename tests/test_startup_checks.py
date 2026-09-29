@@ -13,7 +13,7 @@ from adminsite.backends.sqlalchemy import SQLAlchemyInspector
 from adminsite.fields import ComputedField, EnumField, RelationField
 from tests.models import Customer, Order
 from tests.reference import startup_mistakes
-from tests.reference.startup_mistakes import EXPECTED, InputNobodyCanDraw
+from tests.reference.startup_mistakes import EXPECTED
 
 
 def line_count(order: Order) -> int:
@@ -27,24 +27,8 @@ def refusal(view: type[ModelView[Any]]) -> str:
     return str(raised.value)
 
 
-# Refused once typed action parameters are read.
-NOT_YET = {
-    InputNobodyCanDraw: "an action's parameters are not read yet",
-}
-
-
 @pytest.mark.parametrize(
-    "view",
-    [
-        pytest.param(
-            view,
-            id=view.__name__,
-            marks=[pytest.mark.xfail(reason=NOT_YET[view], strict=True)]
-            if view in NOT_YET
-            else [],
-        )
-        for view in EXPECTED
-    ],
+    "view", [pytest.param(view, id=view.__name__) for view in EXPECTED]
 )
 def test_each_mistake_of_the_reference_is_refused(view: type[ModelView[Any]]) -> None:
     message = refusal(view)

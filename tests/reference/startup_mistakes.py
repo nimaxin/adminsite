@@ -4,10 +4,6 @@ Every view here type-checks. Building an admin with it must fail, with a
 message naming the view, the setting and the words in `EXPECTED`.
 """
 
-# Selection[Order] is only subscriptable once actions are typed; until then
-# the annotations must stay unevaluated for the module to import.
-from __future__ import annotations
-
 from typing import Any
 
 from pydantic import BaseModel

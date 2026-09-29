@@ -26,7 +26,7 @@ class CustomerView(ModelView[Customer]):
         return None
 
     @action("Count them")
-    async def count_them(self, selection: Selection) -> str:
+    async def count_them(self, selection: Selection[Customer]) -> str:
         return f"{await selection.count()} chosen"
 
 

@@ -3,7 +3,6 @@
 import re
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any
 
 import httpx
 import pytest
@@ -24,15 +23,17 @@ class ShelfView(ModelView[Shelf]):
     ordering = ("aisle", "slot")
 
     @action("Relabel")
-    async def relabel(self, selection: Selection) -> str:
+    async def relabel(self, selection: Selection[Shelf]) -> str:
         return f"{await selection.update(label='Moved')} relabelled."
 
     @action("Clear")
-    async def clear(self, selection: Selection) -> str:
+    async def clear(self, selection: Selection[Shelf]) -> str:
         return f"{await selection.delete()} cleared."
 
 
-def chosen(view: ModelView[Any], session: SessionAdapter, *keys: str) -> Selection:
+def chosen(
+    view: ModelView[Shelf], session: SessionAdapter, *keys: str
+) -> Selection[Shelf]:
     return Selection(view=view, session=session, spec=view.build_spec(), keys=keys)
 
 

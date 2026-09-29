@@ -23,7 +23,7 @@ class OrderView(ModelView[Order]):
     can_import = True
 
     @action("Remove")
-    async def remove(self, selection: Selection) -> str:
+    async def remove(self, selection: Selection[Order]) -> str:
         return f"{await selection.delete()} removed."
 
 

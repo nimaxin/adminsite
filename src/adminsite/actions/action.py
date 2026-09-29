@@ -1,20 +1,22 @@
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Final, Literal, TypeAlias, TypeVar
 
 from adminsite.exceptions import AdminSiteError
 from adminsite.security import Permission
 from adminsite.text import humanize
 
 if TYPE_CHECKING:
+    from adminsite.actions.parameters import ActionCall
     from adminsite.fields import BaseField
 
 MARKER = "__adminsite_action__"
 
 # What an action acts on.
-ON_SELECTION = "selection"
-ON_RECORD = "record"
-ON_VIEW = "view"
+ON_SELECTION: Final = "selection"
+ON_RECORD: Final = "record"
+ON_VIEW: Final = "view"
+ActionTarget: TypeAlias = Literal["selection", "record", "view"]
 TARGETS = frozenset({ON_SELECTION, ON_RECORD, ON_VIEW})
 
 # Names the action form already uses for itself.
@@ -34,13 +36,16 @@ class Action:
     permission: str = Permission.EDIT
     dangerous: bool = False
     inputs: tuple["BaseField", ...] = ()
-    on: str = ON_SELECTION
+    on: ActionTarget = ON_SELECTION
     # Whether the audit log keeps what the action answered. Switch it off
     # for an answer that holds a secret shown once, such as a new API key.
     audit_answer: bool = True
     # Set on the built-in delete, which writes an entry for each record it
     # deletes, so the log does not also say it "ran Delete".
     writes_own_audit: bool = False
+    # How the method is called, read from its parameters when the view is
+    # built. None until then, and for an action built by hand.
+    call: "ActionCall | None" = None
 
     @property
     def needs_confirming(self) -> bool:
@@ -67,6 +72,17 @@ class Action:
         """Whether a dialog opens first, to confirm or to ask for values."""
         return bool(self.confirm or self.inputs)
 
+    @property
+    def headings(self) -> dict[str, str]:
+        """The heading each input of a group is drawn under, by input name."""
+        if self.call is None:
+            return {}
+        return {
+            group.input_name(part): group.label
+            for group in self.call.groups
+            for part in group.fields
+        }
+
 
 def action(
     label: str = "",
@@ -76,33 +92,38 @@ def action(
     permission: str = Permission.EDIT,
     dangerous: bool = False,
     inputs: Sequence["BaseField"] = (),
-    on: str = ON_SELECTION,
+    on: ActionTarget = ON_SELECTION,
     audit_answer: bool = True,
 ) -> Callable[[Handler], Handler]:
     """Mark a method as an action.
 
     ```python
-    @action(
-        "Mark as shipped",
-        confirm="Mark the chosen orders as shipped?",
-        inputs=[EnumField("carrier", choices=CARRIERS, required=True)],
-    )
-    async def ship(self, selection: Selection, carrier: str) -> str:
-        changed = await selection.update(status="shipped", carrier=carrier)
-        return f"{changed} orders sent with {carrier}."
+    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
+    async def ship(
+        self, selection: Selection[Order], *, carrier: Literal["DHL", "UPS"]
+    ) -> str:
+        orders = await selection.records()
+        for order in orders:
+            order.status = OrderStatus.SHIPPED
+        return f"{len(orders)} orders sent with {carrier}."
     ```
 
-    Each input is asked for in a dialog before the action runs, checked
-    like a form field, and passed to the method by name.
+    Each parameter the method does not get handed is asked for in a
+    dialog before the action runs, checked like a form field, and passed to
+    the method by name. Its type picks the input, and
+    `Annotated[str, Input(label="Reason")]` words it.
 
-    `on` says what it acts on, and what the method is given:
+    `on` says what it acts on:
 
-    - `"selection"`, the default: the rows the user ticked, as a
-      `Selection`.
+    - `"selection"`, the default: the rows the user ticked, handed to a
+      parameter typed `Selection[Order]`.
     - `"record"`: one record, from its row in the list or from its page,
-      as `(record, session)`.
-    - `"view"`: nothing in particular, as `(session)`. For work about the
-      whole table, such as fetching from another system.
+      handed to a parameter typed with the view's model.
+    - `"view"`: nothing in particular. For work about the whole table, such
+      as fetching from another system.
+
+    A parameter typed `Request`, `AsyncSession` or `SessionAdapter` is
+    handed the request or the session the action runs in.
 
     A method returns the message to show, or a response to send instead,
     such as a file to download.

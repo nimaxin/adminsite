@@ -21,7 +21,7 @@ class OrderView(ModelView[Order]):
         return Message("The new key is ready. It is not shown again.", copy="abc123")
 
     @action("Export")
-    async def queue_export(self, selection: Selection) -> Message:
+    async def queue_export(self, selection: Selection[Order]) -> Message:
         return Message(
             "The export is on its way.",
             link="/admin/orders?status=PAID",

@@ -61,7 +61,7 @@ class OrderView(ModelView[Order]):
         return PlainTextResponse(f"summary by {group}")
 
     @action("Note them all")
-    async def note(self, selection: Selection) -> str:
+    async def note(self, selection: Selection[Order]) -> str:
         return f"{await selection.update(note='seen')} noted."
 
     async def allows(
@@ -138,7 +138,8 @@ class TestDeclaring:
         with pytest.raises(AdminSiteError, match="'selection', 'record' or 'view'"):
 
             class Broken(ModelView[Order]):
-                @action("Nope", on="everything")
+                # The type checker refuses it too; this is Python's own refusal.
+                @action("Nope", on="everything")  # type: ignore[arg-type]
                 async def nope(self, record: Order) -> str:
                     return ""
 

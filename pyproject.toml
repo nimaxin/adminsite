@@ -131,11 +131,6 @@ exclude = [
 module = "tests.*"
 disallow_untyped_defs = false
 
-# Selection takes the model as its type argument once actions are typed.
-[[tool.mypy.overrides]]
-module = "tests.reference.startup_mistakes"
-disable_error_code = ["type-arg"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--strict-config"]
