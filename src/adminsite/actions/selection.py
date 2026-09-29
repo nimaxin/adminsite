@@ -102,7 +102,7 @@ class Selection(Generic[M]):
         if self.view._audit_log is not None:
             paths = [
                 path
-                for path in self.view.get_form_fields(self.request)
+                for path in self.view._form_fields(self.request)
                 if path in self.view._schema.fields
             ]
             await self._remember(paths, after=None)

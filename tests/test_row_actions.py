@@ -20,7 +20,7 @@ CARRIERS = (("dhl", "DHL"), ("ups", "UPS"))
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     list_filters = ("status",)
 
     @action("Confirm", on="record")

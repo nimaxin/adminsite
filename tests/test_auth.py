@@ -21,8 +21,7 @@ SECRET = "a-secret-for-the-tests"
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name", "price")
-    form_fields = ("name", "price")
+    fields = ["id", "name", "price"]
 
 
 def build_admin(database: Database, auth: AuthProvider | None = None) -> Admin:

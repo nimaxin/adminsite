@@ -7,7 +7,6 @@ from adminsite.fields.computed import ComputedField
 from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
 from adminsite.fields.list_field import ListField
-from adminsite.fields.options import FieldOptions
 from adminsite.fields.password import PasswordField
 from adminsite.fields.registry import (
     FieldRegistry,
@@ -37,7 +36,6 @@ __all__ = [
     "EmailField",
     "EnumField",
     "Field",
-    "FieldOptions",
     "FieldRegistry",
     "FileField",
     "FloatField",
@@ -64,6 +62,7 @@ if not TYPE_CHECKING:
         {
             "ChoiceField": "EnumField",
             "Computed": "ComputedField",
+            "FieldOptions": "Field",
             "TextField": "TextAreaField",
         },
     )

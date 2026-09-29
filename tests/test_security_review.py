@@ -58,11 +58,10 @@ class OneProduct(ModelView[Product]):
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status")
+    fields = ["id", "customer", "status"]
+    exclude_fields_from_list = ["customer"]
     # A default order, so an ignored sort falls back to something definite.
-    fields_default_sort = ("id",)
-    exclude = ("note",)
-    form_fields = ("customer", "status")
+    fields_default_sort = ["id"]
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
 
 
@@ -201,7 +200,7 @@ class TestAnActionLeftOut:
     async def test_it_cannot_be_run_by_name(self, database: Database) -> None:
         class ShyOrders(ModelView[Order]):
             name = "shy_orders"
-            list_display = ("id",)
+            fields = ["id"]
 
             @action("Purge", dangerous=True)
             async def purge(self, selection: Selection[Order]) -> str:
@@ -271,7 +270,7 @@ class TestAnAdminWithoutASession:
 
 
 class ProductView(ModelView[Product]):
-    form_fields = ("name", "price")
+    fields = ["name", "price"]
 
 
 class TestSigningIn:
@@ -313,7 +312,7 @@ class TestTheExport:
             await session.commit()
 
         class CustomerView(ModelView[Customer]):
-            list_display = ("id", "name")
+            fields = ["id", "name"]
 
         admin = Admin(database, views=[CustomerView])
         async with client_for(admin) as client:
@@ -330,7 +329,7 @@ class TestTheExport:
             await session.commit()
 
         class Orders(ModelView[Order]):
-            list_display = ("id", "total")
+            fields = ["id", "total"]
 
         admin = Admin(database, views=[Orders])
         async with client_for(admin) as client:
@@ -351,7 +350,7 @@ class TestRecordActionButtons:
     async def test_the_markup_survives_the_key(self, database: Database) -> None:
         class Orders(ModelView[Order]):
             name = "acting_orders"
-            list_display = ("id",)
+            fields = ["id"]
 
             @action("Confirm", on="record")
             async def confirm(self, record: Any, session: Any) -> str:
@@ -367,14 +366,14 @@ class TestRecordActionButtons:
 class TestTheApiWritesAMultiSelect:
     async def test_a_list_of_options_is_stored(self, database: Database) -> None:
         class SettingView(ModelView[Setting]):
-            form_fields = ("name", "notes")
-            fields = (
+            fields = [
+                "name",
                 EnumField(
                     "notes",
                     choices=(("a", "A"), ("b", "B"), ("c", "C")),
                     multiple=True,
                 ),
-            )
+            ]
 
         admin = Admin(database, views=[SettingView], api=True)
         async with client_for(admin) as client:

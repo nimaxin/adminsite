@@ -42,10 +42,11 @@ class WrongActions(ModelView[Order]):
 
 def old_names(engine: AsyncEngine) -> None:
     """Keywords and classes 0.1.0a10 renamed, written the old way."""
+    from adminsite import FieldOptions  # type: ignore[attr-defined]
     from adminsite.auth import SignInRefused  # type: ignore[attr-defined]
     from adminsite.fields import ChoiceField, TextField  # type: ignore[attr-defined]
 
     Inline(Order.items, extra=1)  # type: ignore[call-arg]
     RecentRecords("Latest", "orders", detail="total")  # type: ignore[call-arg]
     Admin(engine, fields=default_registry)  # type: ignore[call-arg]
-    print(SignInRefused, ChoiceField, TextField)
+    print(FieldOptions, SignInRefused, ChoiceField, TextField)

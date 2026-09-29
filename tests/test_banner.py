@@ -8,7 +8,7 @@ from tests.models import Product
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name")
+    fields = ["id", "name"]
 
 
 def client_for(site: Admin) -> httpx.AsyncClient:

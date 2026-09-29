@@ -22,13 +22,11 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.ModelView
     options:
       members:
-        - get_list_display
+        - can_access_field
+        - get_readonly_fields
         - get_searchable_fields
         - get_list_filters
         - get_fields_default_sort
-        - get_form_fields
-        - get_readonly_fields
-        - can_access_field
         - get_actions
         - get_deferred_fields
         - get_inlines

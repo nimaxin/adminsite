@@ -298,6 +298,19 @@ class TestWhatTheDialogAsksFor:
         assert customers.collection is True
         assert customers.related_model is Customer
 
+    def test_a_list_without_a_default_needs_a_value(self) -> None:
+        class Offers(ModelView[Order]):
+            @action("Offer")
+            async def offer(
+                self, selection: Selection[Order], *, customers: list[Customer]
+            ) -> str:
+                return ""
+
+        view = Offers()
+        read = view._parse_action_inputs(view._action_named("offer"), {})
+
+        assert read.errors == {"customers": "This field is required."}
+
 
 class TestTheDialog:
     async def test_a_group_sits_under_its_heading(

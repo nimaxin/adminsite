@@ -8,13 +8,13 @@ from adminsite import (
     Admin,
     AdminSiteError,
     Descending,
-    FieldOptions,
+    Field,
     Inline,
     Link,
     ModelView,
     Sort,
 )
-from adminsite.fields import ComputedField, RelationField, TextAreaField
+from adminsite.fields import ComputedField, TextAreaField
 from tests.models import Customer, Order, OrderItem, Product, Shelf
 from tests.support import Backend
 
@@ -31,8 +31,8 @@ class OrderView(ModelView[Order]):
         Order.status,
         Order.total,
         TextAreaField("note", exclude_from_list=True),
-        FieldOptions(
-            "created_at",
+        Field(
+            Order.created_at,
             hidden_in_list=True,
             exclude_from_create=True,
             exclude_from_edit=True,
@@ -46,7 +46,7 @@ class OrderView(ModelView[Order]):
 
 class TestFieldsPlaceEachColumnOnEveryPage:
     def test_the_list_shows_them_in_order(self) -> None:
-        assert OrderView().get_list_display() == (
+        assert OrderView()._list_fields() == (
             "id",
             "customer",
             "customer.email",
@@ -58,11 +58,11 @@ class TestFieldsPlaceEachColumnOnEveryPage:
     def test_a_hidden_column_waits_in_the_columns_menu(self) -> None:
         view = OrderView()
 
-        assert "created_at" not in view.get_list_display()
+        assert "created_at" not in view._list_fields()
         assert view._column_choices()[-1] == "created_at"
 
     def test_the_record_page_shows_every_field(self) -> None:
-        assert OrderView().get_detail_fields() == (
+        assert OrderView()._detail_fields() == (
             "id",
             "customer",
             "customer.email",
@@ -76,7 +76,7 @@ class TestFieldsPlaceEachColumnOnEveryPage:
     def test_the_form_edits_only_what_can_be_edited(self) -> None:
         # The key the database numbers, the related customer's email and
         # the worked out line count are shown, never typed in.
-        assert OrderView().get_form_fields() == ("customer", "status", "total", "note")
+        assert OrderView()._form_fields() == ("customer", "status", "total", "note")
 
     def test_the_field_given_in_full_is_used(self) -> None:
         assert isinstance(OrderView()._field_for("note"), TextAreaField)
@@ -85,20 +85,20 @@ class TestFieldsPlaceEachColumnOnEveryPage:
         class SetOnce(ModelView[Order]):
             fields = [
                 Order.customer,
-                FieldOptions("status", exclude_from_edit=True),
+                Field(Order.status, exclude_from_edit=True),
                 Order.total,
             ]
 
         view = SetOnce()
 
-        assert view.get_form_fields() == ("customer", "status", "total")
-        assert view.get_form_fields(record=Order(id=1)) == ("customer", "total")
+        assert view._form_fields() == ("customer", "status", "total")
+        assert view._form_fields(record=Order(id=1)) == ("customer", "total")
 
     def test_a_field_named_twice_keeps_its_first_place(self) -> None:
         class Twice(ModelView[Order]):
             fields = [Order.total, Order.status, "total"]
 
-        assert Twice().get_list_display() == ("total", "status")
+        assert Twice()._list_fields() == ("total", "status")
 
 
 class TestExcludeLists:
@@ -113,10 +113,10 @@ class TestExcludeLists:
 
         view = Trimmed()
 
-        assert view.get_list_display() == ("id", "customer", "status")
-        assert view.get_detail_fields() == ("id", "customer", "note")
-        assert view.get_form_fields() == ("customer", "note")
-        assert view.get_form_fields(record=Order(id=1)) == ("status", "note")
+        assert view._list_fields() == ("id", "customer", "status")
+        assert view._detail_fields() == ("id", "customer", "note")
+        assert view._form_fields() == ("customer", "note")
+        assert view._form_fields(record=Order(id=1)) == ("status", "note")
         assert view._exported(("id", "customer", "status")) == ("id", "status")
 
     def test_they_trim_every_column_when_fields_is_empty(self) -> None:
@@ -125,8 +125,8 @@ class TestExcludeLists:
 
         view = Trimmed()
 
-        assert view.get_list_display() == ("id", "name", "price")
-        assert "description" in view.get_form_fields()
+        assert view._list_fields() == ("id", "name", "price")
+        assert "description" in view._form_fields()
 
 
 class TestKeysInForms:
@@ -134,19 +134,19 @@ class TestKeysInForms:
         class ShelfView(ModelView[Shelf]):
             fields = [Shelf.aisle, Shelf.slot, Shelf.label]
 
-        assert ShelfView().get_form_fields() == ("aisle", "slot", "label")
+        assert ShelfView()._form_fields() == ("aisle", "slot", "label")
 
     def test_so_it_is_with_no_fields_listed(self) -> None:
         class ShelfView(ModelView[Shelf]):
             pass
 
-        assert ShelfView().get_form_fields() == ("aisle", "slot", "label")
+        assert ShelfView()._form_fields() == ("aisle", "slot", "label")
 
     def test_a_numbered_key_is_not(self) -> None:
         class ProductView(ModelView[Product]):
             pass
 
-        assert "id" not in ProductView().get_form_fields()
+        assert "id" not in ProductView()._form_fields()
 
 
 class TestSearchSortAndOrder:
@@ -182,25 +182,6 @@ class TestSearchSortAndOrder:
         )
 
 
-class TestAViewThatStillSetsTheOldSettings:
-    def test_fields_only_changes_the_fields_they_name(self) -> None:
-        class OldShape(ModelView[Order]):
-            list_display = ["id", "customer"]
-            fields = [RelationField("customer", target=Customer)]
-
-        view = OldShape()
-
-        assert view.get_list_display() == ("id", "customer")
-        assert view.get_form_fields() == (
-            "customer",
-            "status",
-            "total",
-            "note",
-            "created_at",
-        )
-        assert isinstance(view._field_for("customer"), RelationField)
-
-
 class TestInlinesTakeAttributes:
     def test_the_relation_and_the_fields(self) -> None:
         class WithLines(ModelView[Order]):
@@ -211,7 +192,7 @@ class TestInlinesTakeAttributes:
         view = WithLines()
 
         assert view.inlines[0].name == "items"
-        assert view._inline_view("items").get_form_fields() == ("product", "quantity")
+        assert view._inline_view("items")._form_fields() == ("product", "quantity")
 
     def test_a_relation_of_another_model(self) -> None:
         class Wrong(ModelView[Order]):

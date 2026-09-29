@@ -5,9 +5,8 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, ModelView
+from adminsite import Admin, Field, Link, ModelView
 from adminsite.backends.sqlalchemy import Database
-from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField, StringField
 from tests.models import Customer, Order, Product
 
@@ -15,42 +14,32 @@ from tests.models import Customer, Order, Product
 class ProductView(ModelView[Product]):
     """Only the options change; the fields stay the ones that were worked out."""
 
-    list_display = ("id", "name", "price")
-    form_fields = ("name", "price", "description")
-    fields = (
-        FieldOptions("name", label="Product name", max_length=10),
-        FieldOptions("description", help_text="Shown on the shop page."),
-        FieldOptions("price", readonly=True),
-    )
+    fields = [
+        Product.id,
+        Field(Product.name, label="Product name", max_length=10),
+        Field(Product.price, read_only=True),
+        Field(Product.description, help_text="Shown on the shop page."),
+    ]
+    exclude_fields_from_list = [Product.description]
 
 
 class OrderView(ModelView[Order]):
     """A path through a link keeps the name it was given."""
 
-    list_display = ("id", "customer.name")
-    form_fields = ("customer", "status")
-    fields = (
-        FieldOptions("customer.name", label="Bought by"),
-        FieldOptions("customer", display_template="{name} <{email}>"),
-    )
-
-
-class StatedView(ModelView[Product]):
-    """A field given in full wins over options for the same name."""
-
-    name = "stated_products"
-    form_fields = ("name",)
-    fields = (
-        StringField("name", label="Given in full"),
-        FieldOptions("name", label="Passed over"),
-    )
+    fields = [
+        Order.id,
+        Field(Link(Order.customer, Customer.name), label="Bought by"),
+        RelationField(Order.customer, display_template="{name} <{email}>"),
+        Order.status,
+    ]
+    exclude_fields_from_list = [Order.customer, Order.status]
 
 
 @pytest.fixture
 async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
     admin = Admin(
         database,
-        views=[ProductView, OrderView, StatedView],
+        views=[ProductView, OrderView],
         secret_key="for-the-session",
     )
     app = Starlette()
@@ -95,12 +84,9 @@ class TestWhatTheyChange:
     def test_a_path_nobody_named_still_names_the_link(self) -> None:
         class Plain(ModelView[Order]):
             name = "plain_orders"
-            list_display = ("id", "customer.name")
+            fields = ["id", "customer.name"]
 
         assert Plain()._label_for("customer.name") == "Customer name"
-
-    def test_a_field_given_in_full_wins(self) -> None:
-        assert StatedView()._label_for("name") == "Given in full"
 
 
 class TestOnThePage:
@@ -152,25 +138,11 @@ class TestOnThePage:
         assert "10 characters or fewer" in answer.text
 
 
-class TestAnOptionThatDoesNotExist:
-    def test_it_says_which_view_and_which_path(self) -> None:
-        class Wrong(ModelView[Product]):
-            name = "wrong_products"
-            fields = (FieldOptions("name", colour="red"),)
-
-        with pytest.raises(AdminSiteError) as raised:
-            Wrong()
-
-        message = str(raised.value)
-        assert 'Wrong.fields: FieldOptions("name") gives colour' in message
-        assert "which StringField does not take. It takes label, help_text" in message
-
-
 class TestAFormat:
     def test_it_writes_the_value_wherever_it_is_shown(self) -> None:
         class Priced(ModelView[Product]):
             name = "priced_products"
-            fields = (FieldOptions("price", format="€{:,.2f}"),)
+            fields = [Field(Product.price, format="€{:,.2f}")]
 
         item = Priced()._field_for("price")
 
@@ -182,9 +154,7 @@ class TestAFormat:
     async def test_the_list_and_the_form_follow_it(self, database: Database) -> None:
         class Priced(ModelView[Product]):
             name = "priced_products"
-            list_display = ("name", "price")
-            form_fields = ("name", "price")
-            fields = (FieldOptions("price", format="€{:,.2f}"),)
+            fields = [Product.name, Field(Product.price, format="€{:,.2f}")]
 
         admin = Admin(database, views=[Priced])
         app = Starlette()

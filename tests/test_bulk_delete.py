@@ -20,7 +20,7 @@ from tests.models import Product
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name")
+    fields = ["id", "name"]
     searchable_fields = ("name",)
 
     async def before_delete(self, context: DeleteContext[Product]) -> None:

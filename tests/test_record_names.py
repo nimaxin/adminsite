@@ -31,8 +31,8 @@ class Ticket(TicketBase):
 
 
 class ItemView(ModelView[OrderItem]):
-    list_display = ("id", "quantity")
-    form_fields = ("quantity", "unit_price")
+    fields = ["id", "quantity", "unit_price"]
+    exclude_fields_from_list = ["unit_price"]
 
 
 class TicketView(ModelView[Ticket]):

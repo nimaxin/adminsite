@@ -27,9 +27,11 @@ from tests.models import Order, OrderStatus
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total", "note"]
+    exclude_fields_from_list = ["note"]
+    exclude_fields_from_create = ["total"]
+    exclude_fields_from_edit = ["total"]
     list_filters = ("status",)
-    form_fields = ("status", "note")
 
     @action(
         "Top up",

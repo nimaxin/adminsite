@@ -245,7 +245,7 @@ class TestEstimatedCounts:
 
 class NewestOrders(ModelView[Order]):
     name = "orders"
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     fields_default_sort = ("-created_at",)
     page_size = 3
     pagination = Pagination.KEYSET

@@ -119,7 +119,7 @@ async def build_inline_tables(
     tables = []
     for inline in view.get_inlines(request, record):
         child = view._inline_view(inline.name)
-        paths = child.get_form_fields(request)
+        paths = child._form_fields(request)
         readonly = set(child._readonly_paths(request))
         options = {
             path: await _relation_options(
@@ -241,7 +241,7 @@ def child_tables(
     tables = []
     for inline in view.get_inlines(request, record):
         child = view._inline_view(inline.name)
-        paths = child.get_form_fields(request)
+        paths = child._form_fields(request)
         children = list(getattr(record, inline.name, None) or [])
         tables.append(
             {

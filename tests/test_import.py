@@ -26,12 +26,12 @@ from tests.models import Customer, Order
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "region", "is_active")
+    fields = ["name", "email", "region", "is_active"]
     can_import = True
 
 
 class OrderView(ModelView[Order]):
-    form_fields = ("customer", "status", "total", "created_at")
+    fields = ["customer", "status", "total", "created_at"]
     can_import = True
 
 

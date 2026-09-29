@@ -364,7 +364,7 @@ class OrdersWithAFilterPerRequest(ModelView[Order]):
     """Adds a filter for this request only; list_filters does not name it."""
 
     name = "orders"
-    list_display = ("id", "total")
+    fields = ["id", "total"]
 
     def get_list_filters(
         self, request: Request

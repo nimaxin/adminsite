@@ -11,7 +11,7 @@ from tests.models import Customer, Order
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     list_filters = ("status",)
     searchable_fields = ("customer.name",)
     fields_default_sort = ("id",)

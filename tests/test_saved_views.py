@@ -6,7 +6,7 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView, SavedView, SavedViews
+from adminsite import Admin, Field, ModelView, SavedView, SavedViews
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.saved_views import clean_query
@@ -14,10 +14,15 @@ from tests.models import Order
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
-    list_columns = ("note", "created_at")
-    searchable_fields = ("customer.name",)
-    list_filters = ("status",)
+    fields = [
+        "id",
+        "status",
+        "total",
+        Field("note", hidden_in_list=True),
+        Field("created_at", hidden_in_list=True),
+    ]
+    searchable_fields = ["customer.name"]
+    list_filters = ["status"]
 
 
 @pytest.fixture

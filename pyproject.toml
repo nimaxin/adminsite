@@ -112,7 +112,8 @@ known-first-party = ["demo", "examples"]
 # A view's settings are lists in a class body; adminsite copies them when the
 # view is built, so RUF012's warning about shared mutable defaults does not apply.
 "tests/*" = ["D", "RUF012"]
-"examples/*" = ["D"]
+"examples/*" = ["D", "RUF012"]
+"demo/*" = ["RUF012"]
 
 [tool.ruff.format]
 docstring-code-format = true

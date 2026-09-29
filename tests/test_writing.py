@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RecordNotFoundError, RefusedError
-from adminsite.fields import RelationField
+from adminsite.fields import Field, RelationField
 from adminsite.query import QuerySpec
 from adminsite.views import ModelView
 from adminsite.views.writing import DeleteContext, SaveContext
@@ -15,17 +15,21 @@ from tests.support import spare_product
 
 
 class ProductView(ModelView[Product]):
-    form_fields = ("name", "price", "description")
+    fields = ["name", "price", "description"]
 
 
 class OrderView(ModelView[Order]):
-    form_fields = ("customer", "status", "total", "created_at", "note")
-    readonly_fields = ("total",)
-    fields = (RelationField("customer", target=Customer, required=True),)
+    fields = [
+        RelationField("customer", target=Customer, required=True),
+        "status",
+        Field("total", read_only=True),
+        "created_at",
+        "note",
+    ]
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "region", "is_active")
+    fields = ["name", "email", "region", "is_active"]
 
 
 @pytest.fixture
@@ -78,7 +82,7 @@ class TestReadingAForm:
 
     def test_a_form_can_send_several_values_for_one_field(self) -> None:
         class CustomerWithOrders(ModelView[Customer]):
-            form_fields = ("name", "email", "orders")
+            fields = ["name", "email", "orders"]
 
         result = CustomerWithOrders()._parse_form(
             {"name": "Lena", "email": "lena@example.com", "orders": ["1", "2"]}
@@ -133,7 +137,7 @@ class TestCreating:
 
     async def test_many_links_are_made_from_keys(self, database: Database) -> None:
         class CustomerWithOrders(ModelView[Customer]):
-            form_fields = ("name", "email", "orders")
+            fields = ["name", "email", "orders"]
 
         view = CustomerWithOrders()
         async with database.session() as session:
@@ -236,7 +240,7 @@ class TestHooks:
         seen: list[SaveContext[Product]] = []
 
         class Watching(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def before_save(self, context: SaveContext[Product]) -> None:
                 seen.append(context)
@@ -251,7 +255,7 @@ class TestHooks:
 
     async def test_a_hook_can_change_the_record(self, database: Database) -> None:
         class Stamping(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def before_save(self, context: SaveContext[Product]) -> None:
                 context.record.description = "Added by a hook"
@@ -265,7 +269,7 @@ class TestHooks:
 
     async def test_a_hook_can_use_the_session(self, database: Database) -> None:
         class Counting(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
             seen_before = 0
 
             async def before_save(self, context: SaveContext[Product]) -> None:
@@ -283,7 +287,7 @@ class TestHooks:
         self, database: Database
     ) -> None:
         class Auditing(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def after_save(self, context: SaveContext[Product]) -> None:
                 await context.session.add(
@@ -306,7 +310,7 @@ class TestHooks:
         self, database: Database
     ) -> None:
         class Refusing(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def before_save(self, context: SaveContext[Product]) -> None:
                 raise RuntimeError("that price is too low")
@@ -326,7 +330,7 @@ class TestHooks:
         self, database: Database
     ) -> None:
         class SecondThoughts(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def after_save(self, context: SaveContext[Product]) -> None:
                 raise RuntimeError("not allowed after all")
@@ -348,7 +352,7 @@ class TestHooks:
         marks: list[bool] = []
 
         class Marking(ModelView[Product]):
-            form_fields = ("name", "price")
+            fields = ["name", "price"]
 
             async def before_save(self, context: SaveContext[Product]) -> None:
                 marks.append(context.created)

@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import func, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, Field, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views.writing import SaveContext
@@ -12,25 +12,32 @@ from tests.support import spare_product
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name", "price")
-    form_fields = ("name", "price", "description")
+    fields = ["id", "name", "price", "description"]
+    exclude_fields_from_list = ["description"]
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
-    form_fields = ("customer", "status", "total", "note", "created_at")
-    readonly_fields = ("total",)
+    fields = [
+        "id",
+        "customer.name",
+        "customer",
+        "status",
+        Field("total", read_only=True),
+        "note",
+        "created_at",
+    ]
+    exclude_fields_from_list = ["customer", "note", "created_at"]
     record_title = "Order {id}"
 
 
 class CustomerView(ModelView[Customer]):
     record_title = "{name} ({email})"
-    form_fields = ("name", "email", "region", "is_active")
+    fields = ["name", "email", "region", "is_active"]
 
 
 class GuardedProducts(ModelView[Product]):
     name = "guarded"
-    form_fields = ("name", "price")
+    fields = ["name", "price"]
 
     async def before_save(self, context: SaveContext[Product]) -> None:
         if context.values[Product.name].get() == "Forbidden":

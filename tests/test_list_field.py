@@ -48,8 +48,8 @@ class Region(ListBase):
 
 
 class RegionView(ModelView[Region]):
-    list_display = ("name", "codes")
-    form_fields = ("name", "codes", "scores")
+    fields = ["name", "codes", "scores"]
+    exclude_fields_from_list = ["scores"]
 
 
 class TestTheColumn:
@@ -231,8 +231,7 @@ class TestOnPostgres:
 
 
 class NotesView(ModelView[Setting]):
-    form_fields = ("name", "notes")
-    fields = (ListField("notes"),)
+    fields = ["name", ListField("notes")]
 
 
 class TestAJsonColumnHoldingAList:

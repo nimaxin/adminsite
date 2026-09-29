@@ -29,8 +29,10 @@ from starlette.responses import Response
 from adminsite import (
     Admin,
     Chart,
-    FieldOptions,
+    Descending,
+    Field,
     Inline,
+    Link,
     ModelView,
     Permission,
     RecentRecords,
@@ -39,7 +41,7 @@ from adminsite import (
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import SessionAdapter
-from adminsite.fields import EnumField, ImageField, RelationField
+from adminsite.fields import EnumField, ImageField
 from adminsite.files import LocalStorage
 
 
@@ -157,10 +159,10 @@ class CustomerView(ModelView[Customer]):
         '<path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
     )
     record_title = "{name} ({email})"
-    list_display = ("name", "email", "region", "is_active")
-    searchable_fields = ("name", "email")
-    list_filters = ("region", "is_active")
-    fields_default_sort = ("name",)
+    fields = [Customer.name, Customer.email, Customer.region, Customer.is_active]
+    searchable_fields = [Customer.name, Customer.email]
+    list_filters = [Customer.region, Customer.is_active]
+    fields_default_sort = [Customer.name]
     can_import = True
 
 
@@ -170,18 +172,14 @@ class OrderView(ModelView[Order]):
         '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'
     )
     record_title = "Order #{id}"
-    list_display = ("id", "customer.name", "status", "total", "created_at")
-    list_columns = ("customer.email", "note")
-    searchable_fields = ("id", "customer.name", "customer.email")
-    list_filters = ("status", "total", "created_at")
-    fields_default_sort = ("-created_at",)
-    readonly_fields = ("total",)
-    inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
-    fields = (
-        RelationField("customer", target=Customer, display_template="{name} ({email})"),
-        FieldOptions("total", format=EUROS),
-        FieldOptions(
-            "status",
+    fields = [
+        Order.id,
+        # The list names the customer, the form offers a picker.
+        Order.customer,
+        # One column of the customer, shown and never edited.
+        Field(Link(Order.customer, Customer.email), hidden_in_list=True),
+        EnumField(
+            Order.status,
             tones={
                 OrderStatus.PENDING: "amber",
                 OrderStatus.PAID: "blue",
@@ -189,7 +187,23 @@ class OrderView(ModelView[Order]):
                 OrderStatus.REFUNDED: "rose",
             },
         ),
-    )
+        Field(Order.total, format=EUROS, read_only=True),
+        Field(Order.note, hidden_in_list=True),
+        Order.created_at,
+    ]
+    searchable_fields = [
+        Order.id,
+        Link(Order.customer, Customer.name),
+        Link(Order.customer, Customer.email),
+    ]
+    list_filters = [Order.status, Order.total, Order.created_at]
+    fields_default_sort = [Descending(Order.created_at)]
+    inlines = [
+        Inline(
+            Order.items,
+            fields=[OrderItem.product, OrderItem.quantity, OrderItem.unit_price],
+        )
+    ]
 
     @action("Mark as paid", on="record")
     async def mark_paid(self, record: Order, session: SessionAdapter) -> str:
@@ -242,14 +256,15 @@ class ProductView(ModelView[Product]):
         '<path d="m3 7.5 9-4.5 9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5"/>'
         '<path d="M12 12v9"/>'
     )
-    list_display = ("name", "photo", "price", "tags", "description")
-    form_fields = ("name", "price", "description", "photo", "tags")
-    fields = (
-        ImageField("photo", storage=LocalStorage("shop_uploads")),
-        FieldOptions("price", format=EUROS),
-    )
-    searchable_fields = ("name", "description")
-    list_filters = ("price",)
+    fields = [
+        Product.name,
+        ImageField(Product.photo, storage=LocalStorage("shop_uploads")),
+        Field(Product.price, format=EUROS),
+        Product.tags,
+        Product.description,
+    ]
+    searchable_fields = [Product.name, Product.description]
+    list_filters = [Product.price]
 
 
 class TagView(ModelView[Tag]):
@@ -259,8 +274,8 @@ class TagView(ModelView[Tag]):
         '<circle cx="7.5" cy="7.5" r="1.5"/>'
     )
     record_title = "{name}"
-    searchable_fields = ("name",)
-    fields_default_sort = ("name",)
+    searchable_fields = [Tag.name]
+    fields_default_sort = [Tag.name]
 
 
 engine = create_async_engine("sqlite+aiosqlite:///shop.db")

@@ -24,12 +24,12 @@ from sqlalchemy import JSON, Column, ForeignKey, Integer, Numeric, String, Table
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import StaticPool
+from starlette.datastructures import UploadFile
 from typing_extensions import TypedDict
 
 from adminsite import Admin, Inline, ModelView, SaveContext
-from adminsite.actions import Selection, action
+from adminsite.actions import Input, Selection, action
 from adminsite.auth import hash_password
-from adminsite.backends.sqlalchemy import SessionAdapter
 from adminsite.fields import (
     BooleanField,
     ComputedField,
@@ -312,25 +312,34 @@ def showcase_fields(
     """
     return [
         Field(Showcase.name, help_text="StringField, required: one line of text."),
-        Field(Showcase.summary, help_text="TextAreaField: a Text column gets a box."),
-        EmailField(Showcase.email, help_text="EmailField, chosen in the view."),
+        Field(
+            Showcase.summary,
+            hidden_in_list=True,
+            help_text="TextAreaField: a Text column gets a box.",
+        ),
+        EmailField(
+            Showcase.email,
+            hidden_in_list=True,
+            help_text="EmailField, chosen in the view.",
+        ),
         PasswordField(
             "password",
             help_text="PasswordField: never shown. Leave it empty to keep the one set.",
         ),
-        Field(Showcase.quantity, help_text="IntegerField."),
-        Field(Showcase.weight, help_text="FloatField."),
+        Field(Showcase.quantity, hidden_in_list=True, help_text="IntegerField."),
+        Field(Showcase.weight, hidden_in_list=True, help_text="FloatField."),
         Field(Showcase.price, format=EUROS, help_text="DecimalField, shown in euros."),
         Field(Showcase.in_stock, help_text="BooleanField."),
         BooleanField(
             Showcase.flagged,
+            hidden_in_list=True,
             tones={True: "rose", False: None},
             help_text="BooleanField that may be left empty, rose when it is set.",
         ),
         Field(Showcase.released_on, help_text="DateField."),
-        Field(Showcase.updated_at, help_text="DateTimeField."),
-        Field(Showcase.opens_at, help_text="TimeField."),
-        Field(Showcase.serial, help_text="UUIDField."),
+        Field(Showcase.updated_at, hidden_in_list=True, help_text="DateTimeField."),
+        Field(Showcase.opens_at, hidden_in_list=True, help_text="TimeField."),
+        Field(Showcase.serial, hidden_in_list=True, help_text="UUIDField."),
         EnumField(
             Showcase.status,
             tones={
@@ -343,28 +352,33 @@ def showcase_fields(
         ),
         EnumField(
             Showcase.size,
+            hidden_in_list=True,
             choices=SIZES,
             help_text="EnumField with its own choices, on a String column.",
         ),
         EnumField(
             Showcase.colours,
+            hidden_in_list=True,
             choices=COLOURS,
             multiple=True,
             help_text="EnumField with multiple=True, on a JSON column.",
         ),
-        Field(Showcase.specs, help_text="JSONField."),
+        Field(Showcase.specs, hidden_in_list=True, help_text="JSONField."),
         JSONField(
             Showcase.settings,
+            hidden_in_list=True,
             schema=ShopSettings,
             help_text="JSONField with a schema: a form built from a Pydantic model.",
         ),
         ListField(
             Showcase.scores,
+            hidden_in_list=True,
             item=IntegerField("scores"),
             help_text="ListField of whole numbers, one on each line.",
         ),
         FileField(
             Showcase.manual,
+            hidden_in_list=True,
             storage=storage,
             accept=".pdf,.txt",
             max_size=upload_limit,
@@ -381,24 +395,33 @@ def showcase_fields(
         ),
         Field(
             Showcase.supplier,
+            hidden_in_list=True,
             help_text="RelationField to one of 150: searched as you type.",
         ),
         Field(Showcase.labels, help_text="RelationField to many of twelve: chips."),
         Field(
             Showcase.stockists,
+            hidden_in_list=True,
             help_text="RelationField to many of 150: chips, searched as you type.",
         ),
         RelationField(
             Showcase.servers,
+            hidden_in_list=True,
             ordered=True,
             help_text="RelationField with ordered=True: tried in this order.",
         ),
-        Field(Showcase.created_at, help_text="DateTimeField, read only."),
+        Field(
+            Showcase.created_at,
+            read_only=True,
+            hidden_in_list=True,
+            help_text="DateTimeField, read only.",
+        ),
         ComputedField(
             "stock_value",
             stock_value,
             label="Stock value",
             format=EUROS,
+            hidden_in_list=True,
             help_text="ComputedField: the price times the quantity.",
         ),
     ]
@@ -418,86 +441,26 @@ class ShowcaseView(ModelView[Showcase]):
         '<circle cx="17.5" cy="17.5" r="3.5"/>'
     )
     record_title = "{name}"
-    list_display = (
-        "name",
-        "photo",
-        "status",
-        "price",
-        "in_stock",
-        "category",
-        "labels",
-        "released_on",
-    )
-    # Every other field, to add from the column picker.
-    list_columns = (
-        "summary",
-        "email",
-        "quantity",
-        "weight",
-        "flagged",
-        "updated_at",
-        "opens_at",
-        "serial",
-        "size",
-        "colours",
-        "specs",
-        "settings",
-        "scores",
-        "manual",
-        "supplier",
-        "stockists",
-        "servers",
-        "stock_value",
-        "created_at",
-    )
-    searchable_fields = ("name", "email", "summary")
-    list_filters = (
-        "status",
-        "in_stock",
-        "flagged",
-        "size",
-        "category",
-        "price",
-        "released_on",
-        "updated_at",
-    )
-    fields_default_sort = ("id",)
-    readonly_fields = ("created_at",)
-    form_fields = (
-        "name",
-        "summary",
-        "email",
-        "password",
-        "quantity",
-        "weight",
-        "price",
-        "in_stock",
-        "flagged",
-        "released_on",
-        "updated_at",
-        "opens_at",
-        "serial",
-        "status",
-        "size",
-        "colours",
-        "specs",
-        "settings",
-        "scores",
-        "manual",
-        "photo",
-        "category",
-        "supplier",
-        "labels",
-        "stockists",
-        "servers",
-        "created_at",
-    )
-    detail_fields = (
-        *(name for name in form_fields if name != "password"),
-        "stock_value",
-    )
-    inlines = (Inline("variants", fields=("name", "supplier", "stock")),)
+    # The list shows a few; the rest wait in the Columns menu.
     fields = showcase_fields(uploads)
+    searchable_fields = [Showcase.name, Showcase.email, Showcase.summary]
+    list_filters = [
+        Showcase.status,
+        Showcase.in_stock,
+        Showcase.flagged,
+        Showcase.size,
+        Showcase.category,
+        Showcase.price,
+        Showcase.released_on,
+        Showcase.updated_at,
+    ]
+    fields_default_sort = [Showcase.id]
+    inlines = [
+        Inline(
+            Showcase.variants,
+            fields=[Variant.name, Variant.supplier, Variant.stock],
+        )
+    ]
 
     async def before_save(self, context: SaveContext[Showcase]) -> None:
         # The password is form only: it reaches the record as a hash.
@@ -505,25 +468,27 @@ class ShowcaseView(ModelView[Showcase]):
         if password:
             context.values[Showcase.password_hash].set(hash_password(password))
 
-    @action(
-        "Order from a supplier",
-        on="record",
-        inputs=[RelationField("supplier", target=Supplier, required=True)],
-    )
-    async def order_from(
-        self, record: Showcase, session: SessionAdapter, supplier: Supplier
-    ) -> str:
+    # An action asks for what its parameters are typed as: a record, many
+    # records, a file.
+    @action("Order from a supplier", on="record")
+    async def order_from(self, record: Showcase, *, supplier: Supplier) -> str:
         return f"Ordered {record.name} from {supplier.name}."
 
-    @action(
-        "Offer to stockists",
-        inputs=[RelationField("stockists", target=Supplier, collection=True)],
-    )
+    @action("Offer to stockists")
     async def offer(
-        self, selection: Selection[Showcase], stockists: list[Supplier]
+        self, selection: Selection[Showcase], *, stockists: list[Supplier]
     ) -> str:
-        names = ", ".join(stockist.name for stockist in stockists) or "nobody"
+        names = ", ".join(stockist.name for stockist in stockists)
         return f"{await selection.count()} offered to {names}."
+
+    @action("Read a price list", on="view")
+    async def read_price_list(
+        self,
+        *,
+        price_list: Annotated[UploadFile, Input(accept=".csv,.txt", max_size=MEGABYTE)],
+    ) -> str:
+        lines = (await price_list.read()).decode(errors="replace").splitlines()
+        return f"{price_list.filename} has {len(lines)} lines."
 
 
 class SettingView(ModelView[Setting]):
@@ -535,9 +500,7 @@ class SettingView(ModelView[Setting]):
         '<circle cx="17" cy="18" r="2"/>'
     )
     record_title = "{key}"
-    list_display = ("key", "value")
-    form_fields = ("key", "value")
-    fields = (
+    fields = [
         EnumField(
             Setting.key,
             choices=[(key, key.capitalize()) for key in SETTINGS],
@@ -549,7 +512,7 @@ class SettingView(ModelView[Setting]):
             schema=setting_schema,
             help_text="JSONField whose schema comes from the record: one for each key.",
         ),
-    )
+    ]
 
 
 class CustomerGroupView(ModelView[CustomerGroup]):
@@ -561,16 +524,15 @@ class CustomerGroupView(ModelView[CustomerGroup]):
         '<path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.6.7 2.7 2.4 3 5.2"/>'
     )
     record_title = "{name}"
-    list_display = ("name", "overrides")
-    form_fields = ("name", "overrides")
-    fields = (
+    fields = [
+        CustomerGroup.name,
         JSONField(
             "overrides",
             schema=ShopSettings,
             partial=True,
             help_text="JSONField with partial=True: only what is set here is saved.",
         ),
-    )
+    ]
 
 
 class CategoryView(ModelView[Category]):
@@ -580,7 +542,7 @@ class CategoryView(ModelView[Category]):
         'a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>'
     )
     record_title = "{name}"
-    searchable_fields = ("name",)
+    searchable_fields = [Category.name]
 
 
 class SupplierView(ModelView[Supplier]):
@@ -591,16 +553,16 @@ class SupplierView(ModelView[Supplier]):
         '<circle cx="17" cy="17.5" r="2"/>'
     )
     record_title = "{name} ({country})"
-    list_display = ("name", "country")
-    searchable_fields = ("name", "country")
-    list_filters = ("country",)
+    fields = [Supplier.name, Supplier.country]
+    searchable_fields = [Supplier.name, Supplier.country]
+    list_filters = [Supplier.country]
 
 
 class LabelView(ModelView[Label]):
     group = GROUP
     icon = outline('<path d="M6 3h12v18l-6-4-6 4z"/>')
     record_title = "{name}"
-    searchable_fields = ("name",)
+    searchable_fields = [Label.name]
 
 
 class ServerView(ModelView[Server]):
@@ -611,7 +573,7 @@ class ServerView(ModelView[Server]):
         '<path d="M7 6.5h.01M7 17.5h.01"/>'
     )
     record_title = "{name}"
-    searchable_fields = ("name",)
+    searchable_fields = [Server.name]
 
 
 VIEWS: list[type[ModelView[Any]]] = [

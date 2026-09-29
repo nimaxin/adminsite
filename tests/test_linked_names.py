@@ -6,9 +6,10 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, Inline, ModelView
+from adminsite import Admin, Inline, ModelView
 from adminsite.audit import AuditLog, AuditQuery
 from adminsite.backends.sqlalchemy import Database
+from adminsite.fields import RelationField
 from tests.models import Customer, Order, Product
 
 
@@ -21,17 +22,17 @@ class ProductView(ModelView[Product]):
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer", "items")
-    form_fields = ("customer", "status")
-    detail_fields = ("customer", "items", "status")
+    fields = ["id", "customer", "items", "status"]
+    exclude_fields_from_list = ["status"]
+    exclude_fields_from_create = ["items"]
+    exclude_fields_from_edit = ["items"]
     inlines = (Inline("items", fields=("product", "quantity")),)
 
 
 class EmailedOrderView(ModelView[Order]):
     name = "emailed_orders"
-    list_display = ("id", "customer")
-    form_fields = ("customer", "status")
-    fields = (FieldOptions("customer", display_template="{email}"),)
+    fields = ["id", RelationField("customer", display_template="{email}"), "status"]
+    exclude_fields_from_list = ["status"]
 
 
 LENA = "Lena Fischer (lena@fischer.de)"

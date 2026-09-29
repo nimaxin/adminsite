@@ -55,14 +55,14 @@ async def build_rows(
     if record is not None:
         # A computed value on the form, read only, may come from a loader.
         await view._load_values(
-            session, [record], view.get_form_fields(request, record), request=request
+            session, [record], view._form_fields(request, record), request=request
         )
 
     starting = await view.form_only_values(session, record, request=request)
     draft: Any = None
 
     rows = []
-    for path in view.get_form_fields(request, record):
+    for path in view._form_fields(request, record):
         item = view._field_for(path)
         if item.form_only:
             stored = starting.get(path)

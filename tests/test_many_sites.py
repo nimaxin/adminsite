@@ -11,15 +11,15 @@ from tests.models import Customer, Order, Product
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status")
+    fields = ["id", "customer.name", "status"]
 
 
 class CustomerView(ModelView[Customer]):
-    list_display = ("name", "email")
+    fields = ["name", "email"]
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("name", "price")
+    fields = ["name", "price"]
 
 
 @pytest.fixture

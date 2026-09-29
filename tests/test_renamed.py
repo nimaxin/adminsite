@@ -16,8 +16,10 @@ from adminsite.fields import StringField
     ("module", "old", "new"),
     [
         ("adminsite", "Computed", "ComputedField"),
+        ("adminsite", "FieldOptions", "Field"),
         ("adminsite.fields", "ChoiceField", "EnumField"),
         ("adminsite.fields", "Computed", "ComputedField"),
+        ("adminsite.fields", "FieldOptions", "Field"),
         ("adminsite.fields", "TextField", "TextAreaField"),
         ("adminsite.auth", "SignInRefused", "SignInRefusedError"),
         ("adminsite.exceptions", "SignInRefused", "SignInRefusedError"),

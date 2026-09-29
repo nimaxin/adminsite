@@ -45,14 +45,24 @@ from tests.support import spare_product
 
 
 class ProductView(ModelView[Product]):
-    form_fields = ("name", "price", "description")
+    fields = ["name", "price", "description"]
 
 
 class OrderView(ModelView[Order]):
     record_title = "Order {id}"
-    list_display = ("id", "customer.name", "status", "total")
+    fields = [
+        "id",
+        "customer.name",
+        "customer",
+        "status",
+        "total",
+        "note",
+        "created_at",
+    ]
+    exclude_fields_from_list = ["customer", "note", "created_at"]
+    exclude_fields_from_create = ["total"]
+    exclude_fields_from_edit = ["total"]
     list_filters = ("status",)
-    form_fields = ("customer", "status", "note", "created_at")
 
     @action(
         "Mark as shipped",
@@ -70,7 +80,7 @@ class OrderView(ModelView[Order]):
 
 class RefusingProducts(ModelView[Product]):
     name = "refusing"
-    form_fields = ("name", "price")
+    fields = ["name", "price"]
 
     async def after_save(self, context: SaveContext[Product]) -> None:
         raise RefusedError("Not today.")

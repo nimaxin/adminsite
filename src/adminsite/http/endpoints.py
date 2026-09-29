@@ -148,7 +148,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         await view._load_values(
             session,
             list(page),
-            read.columns or view.get_list_display(request),
+            read.columns or view._list_fields(request),
             request=request,
         )
         panels = await build_panels(view, session, spec, request)
@@ -349,10 +349,10 @@ async def detail(admin: "Admin", request: Request) -> Response:
     await view._ensure(Permission.VIEW_DETAIL, request=request)
     # A to-many link is read a few records at a time below, never loaded
     # whole: an invoice may cover thousands of records.
-    counted = many_links(view, view.get_detail_fields(request), request)
+    counted = many_links(view, view._detail_fields(request), request)
     # Unless a computed field on the page reads it, which needs it whole.
     needed = computed_needs(
-        view, (*view.get_form_fields(request), *view.get_detail_fields(request))
+        view, (*view._form_fields(request), *view._detail_fields(request))
     )
     record = await load_or_404(
         admin,
@@ -365,7 +365,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
         ],
     )
 
-    paths = view.get_detail_fields(request, record)
+    paths = view._detail_fields(request, record)
     async with admin.database.session() as session:
         await view._load_values(session, [record], paths, request=request)
     links = await linked_records(admin, view, record, paths, request)
@@ -774,7 +774,7 @@ async def document(admin: "Admin", request: Request) -> Response:
     else:
         await view._ensure(Permission.CREATE, request=request)
     # Only a field this user edits on this form, so no other is read back.
-    editable = set(view.get_form_fields(request, record)) - set(
+    editable = set(view._form_fields(request, record)) - set(
         view._readonly_paths(request, record)
     )
     if path not in editable:

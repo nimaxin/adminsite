@@ -14,7 +14,7 @@ from tests.models import Order
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status")
+    fields = ["id", "status"]
 
     @action("Rotate the key", on="record")
     async def rotate(self, record: Order, session: SessionAdapter) -> Message:

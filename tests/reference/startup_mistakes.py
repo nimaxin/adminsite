@@ -137,6 +137,45 @@ class OldDeleteSelected(ModelView[Order]):
         return "Nothing deleted."
 
 
+class OldListDisplay(ModelView[Order]):
+    list_display = ["id", "total"]
+
+
+class OldListColumns(ModelView[Order]):
+    list_columns = ["note"]
+
+
+class OldFormFields(ModelView[Order]):
+    form_fields = ["customer", "status"]
+
+
+class OldDetailFields(ModelView[Order]):
+    detail_fields = ["customer", "total"]
+
+
+class OldExclude(ModelView[Order]):
+    exclude = ["note"]
+
+
+class OldReadonlyFields(ModelView[Order]):
+    readonly_fields = ["total"]
+
+
+class OldGetListDisplay(ModelView[Order]):
+    def get_list_display(self, request: Request) -> list[str]:
+        return ["id"]
+
+
+class OldGetFormFields(ModelView[Order]):
+    def get_form_fields(self, request: Request, record: Order | None) -> list[str]:
+        return ["status"]
+
+
+class OldGetDetailFields(ModelView[Order]):
+    def get_detail_fields(self, request: Request, record: Order | None) -> list[str]:
+        return ["status"]
+
+
 # The words each refusal must contain, besides the view's name. Views of
 # different models share the dict, which is the boundary where Any belongs.
 EXPECTED: dict[type[ModelView[Any]], list[str]] = {
@@ -164,4 +203,13 @@ EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     OldTitleOf: ["title_of", "get_record_title"],
     OldFormValues: ["form_values", "form_only_values"],
     OldDeleteSelected: ["delete_selected", "can_delete_selected = False"],
+    OldListDisplay: ["sets list_display", "exclude_fields_from_list"],
+    OldListColumns: ["sets list_columns", "hidden_in_list=True"],
+    OldFormFields: ["sets form_fields", "exclude_fields_from_create"],
+    OldDetailFields: ["sets detail_fields", "exclude_fields_from_detail"],
+    OldExclude: ["sets exclude", "leaving those out"],
+    OldReadonlyFields: ["sets readonly_fields", "read_only=True"],
+    OldGetListDisplay: ["defines get_list_display", "can_access_field"],
+    OldGetFormFields: ["defines get_form_fields", "can_access_field"],
+    OldGetDetailFields: ["defines get_detail_fields", "can_access_field"],
 }

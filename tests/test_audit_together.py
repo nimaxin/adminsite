@@ -26,8 +26,7 @@ from tests.models import Order
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "note")
-    form_fields = ("note",)
+    fields = ["id", "note"]
 
 
 class Broken:

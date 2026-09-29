@@ -151,7 +151,7 @@ def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]
     readonly = set(view._readonly_paths(request))
     fields = tuple(
         path
-        for path in view.get_form_fields(request)
+        for path in view._form_fields(request)
         if path not in readonly
         and view._field_for(path).stored
         and not isinstance(view._field_for(path), FileField)

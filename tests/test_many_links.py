@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, ModelView
+from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField
@@ -30,7 +30,7 @@ TAGS = (
 
 
 class ArticleView(ModelView[Article]):
-    form_fields = ("title", "tags")
+    fields = ["title", "tags"]
 
 
 class TagView(ModelView[Tag]):
@@ -163,8 +163,7 @@ class OrderedArticleView(ModelView[Article]):
     """The same link, where the order the tags are in means something."""
 
     name = "ordered_articles"
-    form_fields = ("title", "tags")
-    fields = (FieldOptions("tags", ordered=True),)
+    fields = ["title", RelationField("tags", ordered=True)]
 
 
 @pytest.fixture

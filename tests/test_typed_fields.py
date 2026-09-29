@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from adminsite import AdminSiteError, Field, FieldOptions, Link, ModelView, ViewRegistry
+from adminsite import AdminSiteError, Field, Link, ModelView, ViewRegistry
 from adminsite.fields import (
     ComputedField,
     DecimalField,
@@ -108,8 +108,10 @@ class TestFieldOnItsOwn:
 
         view = Contact()
 
-        assert view.get_list_display() == ("id", "customer.email", "customer.name")
+        assert view._list_fields() == ("id", "customer.email", "customer.name")
         assert view._field_for("customer.email").format == "<{}>"
+        # Named by its path, as can_access_field reads it.
+        assert view._field_for("customer.email").name == "customer.email"
         # Without a label of its own, the column names the relation too.
         assert view._label_for("customer.email") == "Customer email"
         assert view._label_for("customer.name") == "Buyer"
@@ -235,16 +237,3 @@ class TestOptionsAreKeywords:
     def test_a_misspelt_option_is_refused(self) -> None:
         with pytest.raises(TypeError, match="label"):
             Field(Order.note, lable="Note")  # type: ignore[call-arg]
-
-
-class TestTheOldNames:
-    def test_they_still_work_until_0_1_0a10(self) -> None:
-        assert TextAreaField is TextAreaField
-        assert EnumField is EnumField
-        assert ComputedField is ComputedField
-
-    def test_field_options_takes_the_old_readonly(self) -> None:
-        class Old(ModelView[Order]):
-            fields = [FieldOptions("total", readonly=True)]
-
-        assert Old()._field_for("total").read_only is True

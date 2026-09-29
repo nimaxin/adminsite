@@ -268,7 +268,7 @@ def as_context(
         "page_size": read.size,
         "page_sizes": view._page_sizes(request),
         "column_choices": view._column_choices(request),
-        "columns_changed": read.columns != view.get_list_display(request),
+        "columns_changed": read.columns != view._list_fields(request),
         "current_query": clean_query(request.url.query),
         "panels": panels,
         "chips": active_chips(panels),

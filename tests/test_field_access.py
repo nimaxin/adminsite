@@ -52,9 +52,9 @@ class TestEachPage:
         view = Orders()
 
         for page in (
-            view.get_list_display,
-            view.get_detail_fields,
-            view.get_form_fields,
+            view._list_fields,
+            view._detail_fields,
+            view._form_fields,
         ):
             assert "total" not in page("staff")
             assert "total" in page("manager")
@@ -62,7 +62,7 @@ class TestEachPage:
     def test_the_edit_form_and_the_export_ask_too(self) -> None:
         view = Orders()
 
-        assert "total" not in view.get_form_fields("staff", Order(id=1))
+        assert "total" not in view._form_fields("staff", Order(id=1))
         assert view._exported(["id", "total"], "staff") == ("id",)
         assert view._exported(["id", "total"], "manager") == ("id", "total")
 
@@ -79,10 +79,10 @@ class TestEachPage:
                 return True
 
         view = Asking()
-        view.get_list_display()
-        view.get_detail_fields()
-        view.get_form_fields()
-        view.get_form_fields(record=Order(id=1))
+        view._list_fields()
+        view._detail_fields()
+        view._form_fields()
+        view._form_fields(record=Order(id=1))
         view._exported(["id"])
 
         assert {action for _name, action in asked} == set(RequestAction)
@@ -99,7 +99,7 @@ class TestEachPage:
                 names.add(field.name)
                 return True
 
-        Asking().get_list_display()
+        Asking()._list_fields()
 
         assert names == {"id", "customer.email", "customer.name"}
 

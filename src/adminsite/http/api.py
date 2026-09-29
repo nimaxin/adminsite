@@ -86,9 +86,9 @@ def api_paths(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The fields a record carries: the list's, the record page's, the form's."""
     paths: list[str] = []
     for path in (
-        *view.get_list_display(request),
-        *view.get_detail_fields(request),
-        *view.get_form_fields(request),
+        *view._list_fields(request),
+        *view._detail_fields(request),
+        *view._form_fields(request),
     ):
         if path not in paths:
             paths.append(path)
@@ -164,7 +164,7 @@ def read_values(
     Only the fields sent are touched, so a PATCH with one field changes one
     field. A new record needs every required field.
     """
-    writable = set(view.get_form_fields(request, record)) - set(
+    writable = set(view._form_fields(request, record)) - set(
         view._readonly_paths(request, record)
     )
     values: dict[str, Any] = {}

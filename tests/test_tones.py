@@ -5,7 +5,7 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, ModelView
+from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BooleanField, EnumField
@@ -17,25 +17,23 @@ GREEN = TONE_NAMES.index("green")
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status")
-    fields_default_sort = ("id",)
-    fields = (
-        FieldOptions(
+    fields = [
+        "id",
+        EnumField(
             "status",
             tones={OrderStatus.PENDING: "green", OrderStatus.REFUNDED: "rose"},
         ),
-    )
+    ]
+    fields_default_sort = ["id"]
 
 
 class PlainOrderView(ModelView[Order]):
     name = "plain_orders"
-    list_display = ("id", "status")
-    fields = (FieldOptions("status", tones="grey"),)
+    fields = ["id", EnumField("status", tones="grey")]
 
 
 class CustomerView(ModelView[Customer]):
-    list_display = ("name", "is_active")
-    fields = (FieldOptions("is_active", tones={True: "rose", False: None}),)
+    fields = ["name", BooleanField("is_active", tones={True: "rose", False: None})]
 
 
 @pytest.fixture
@@ -143,7 +141,7 @@ class TestTheField:
 class TestAMistake:
     def test_a_tone_that_does_not_exist_names_the_tones(self) -> None:
         # A type checker already refuses "red"; this is the check for code
-        # that has none, such as FieldOptions.
+        # that is not type checked.
         with pytest.raises(AdminSiteError, match="amber, blue, green, grey"):
             EnumField("size", choices=(("s", "Small"),), tones={"s": "red"})  # type: ignore[dict-item]
 
@@ -166,7 +164,7 @@ class TestAMistake:
     def test_it_stops_the_view_from_being_created(self) -> None:
         class Wrong(ModelView[Order]):
             name = "wrong_orders"
-            fields = (FieldOptions("status", tones={"lost": "rose"}),)
+            fields = [EnumField("status", tones={"lost": "rose"})]
 
         with pytest.raises(AdminSiteError) as raised:
             Wrong()

@@ -21,7 +21,7 @@ seen: dict[str, Any] = {}
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status")
+    fields = ["id", "status"]
     fields_default_sort = ("id",)
 
     @action(
@@ -47,7 +47,7 @@ class PerRequestView(ModelView[Order]):
     """The choices are worked out when the page is drawn."""
 
     name = "live_orders"
-    list_display = ("id",)
+    fields = ["id"]
 
     @action("Move", inputs=(EnumField("target", choices=()),))
     async def move(self, selection: Selection[Order], **values: Any) -> str:

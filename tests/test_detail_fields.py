@@ -6,7 +6,7 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, BaseField, ModelView, RequestAction
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order
 
@@ -14,24 +14,26 @@ from tests.models import Customer, Order
 class OrderView(ModelView[Order]):
     """The page shows the customer and when it was made; the form does not."""
 
-    form_fields = ("status", "note")
-    detail_fields = ("customer", "status", "total", "created_at")
+    fields = ["customer", "status", "total", "note", "created_at"]
+    exclude_fields_from_detail = ["note"]
+    exclude_fields_from_create = ["customer", "total", "created_at"]
+    exclude_fields_from_edit = ["customer", "total", "created_at"]
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email")
+    fields = ["name", "email"]
 
 
 class PerUserView(ModelView[Order]):
     name = "audited"
-    form_fields = ("status",)
+    fields = ["customer", "status", "total", "note", "created_at"]
 
-    def get_detail_fields(
-        self, request: Any = None, record: Any = None
-    ) -> tuple[str, ...]:
-        if request is not None and request.query_params.get("full"):
-            return ("customer", "status", "total", "note", "created_at")
-        return ("status",)
+    def can_access_field(
+        self, request: Any, field: BaseField, action: RequestAction
+    ) -> bool:
+        if action is not RequestAction.DETAIL or request.query_params.get("full"):
+            return True
+        return field.name == "status"
 
 
 @pytest.fixture
@@ -82,7 +84,7 @@ class TestTheDetailPage:
 
         assert "Lena Fischer" in page.text
 
-    async def test_without_a_list_it_follows_the_form(
+    async def test_with_nothing_excluded_it_shows_every_field(
         self, client: httpx.AsyncClient
     ) -> None:
         page = await client.get("/admin/customers/1")

@@ -10,7 +10,7 @@ from tests.models import Customer, Order, Product
 
 class OrderView(ModelView[Order]):
     group = "Sales"
-    list_display = ("id", "customer.name", "status", "total", "created_at")
+    fields = ["id", "customer.name", "status", "total", "created_at"]
     fields_default_sort = ("-created_at",)
     page_size = 3
     record_title = "Order {id}"
@@ -18,7 +18,7 @@ class OrderView(ModelView[Order]):
 
 class CustomerView(ModelView[Customer]):
     group = "Sales"
-    list_display = ("name", "email", "region")
+    fields = ["name", "email", "region"]
 
 
 class ProductView(ModelView[Product]):

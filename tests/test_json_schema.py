@@ -54,9 +54,8 @@ class Delivery(BaseModel):
 
 
 class SettingView(ModelView[Setting]):
-    list_display = ("name", "options")
-    form_fields = ("name", "options", "notes")
-    fields = (JSONField("options", schema=Delivery),)
+    fields = ["name", JSONField("options", schema=Delivery), "notes"]
+    exclude_fields_from_list = ["notes"]
 
 
 def token_in(page: httpx.Response) -> str:
@@ -515,8 +514,7 @@ def schema_for(setting: Setting) -> Any:
 
 
 class PerNameView(ModelView[Setting]):
-    form_fields = ("name", "options")
-    fields = (JSONField("options", schema=schema_for),)
+    fields = ["name", JSONField("options", schema=schema_for)]
 
 
 @pytest.fixture
@@ -599,8 +597,7 @@ class TestASchemaFromTheRecord:
 
 
 class OverrideView(ModelView[Setting]):
-    form_fields = ("name", "options")
-    fields = (JSONField("options", schema=Delivery, partial=True),)
+    fields = ["name", JSONField("options", schema=Delivery, partial=True)]
 
 
 @pytest.fixture
@@ -692,9 +689,7 @@ class TestAPartialDocument:
 
 
 class ReadOnlyView(ModelView[Setting]):
-    form_fields = ("name", "options")
-    readonly_fields = ("options",)
-    fields = (JSONField("options", schema=Delivery),)
+    fields = ["name", JSONField("options", schema=Delivery, read_only=True)]
 
 
 async def test_a_field_the_user_cannot_edit_is_never_read_back(

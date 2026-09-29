@@ -16,7 +16,7 @@ from tests.models import Customer, Product
 class ProductView(ModelView[Product]):
     """Names are slugged on the way in, and a price has to make sense."""
 
-    form_fields = ("name", "price", "description")
+    fields = ["name", "price", "description"]
 
     async def before_save(self, context: SaveContext[Product]) -> None:
         name = context.values[Product.name].get()
@@ -28,7 +28,7 @@ class ProductView(ModelView[Product]):
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "region", "is_active")
+    fields = ["name", "email", "region", "is_active"]
 
     async def before_save(self, context: SaveContext[Customer]) -> None:
         if context.values[Customer.region].get() == "XX":

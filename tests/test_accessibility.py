@@ -14,10 +14,18 @@ from tests.models import Customer, Order, Product
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
+    fields = [
+        "id",
+        "customer.name",
+        "customer",
+        "status",
+        "total",
+        "note",
+        "created_at",
+    ]
+    exclude_fields_from_list = ["customer", "note", "created_at"]
     list_filters = ("status", "total", "created_at")
     searchable_fields = ("customer.name",)
-    form_fields = ("customer", "status", "total", "note", "created_at")
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
     page_size = 3
     can_import = True

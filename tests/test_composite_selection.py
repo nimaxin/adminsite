@@ -19,7 +19,7 @@ from tests.models import Shelf
 
 class ShelfView(ModelView[Shelf]):
     name = "shelves"
-    list_display = ("aisle", "slot", "label")
+    fields = ["aisle", "slot", "label"]
     fields_default_sort = ("aisle", "slot")
 
     @action("Relabel")

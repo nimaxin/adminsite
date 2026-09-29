@@ -12,7 +12,7 @@ from sqlalchemy import select
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, FieldOptions, ModelView, RefusedError
+from adminsite import Admin, Field, ModelView, RefusedError
 from adminsite.audit import AuditEntry, AuditLog, AuditQuery
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.fields import JSONField, PasswordField
@@ -25,9 +25,7 @@ def hashed(password: str) -> str:
 
 
 class AccountView(ModelView[Account]):
-    list_display = ("email",)
-    form_fields = ("email", "password")
-    fields = (PasswordField("password", required=True),)
+    fields = ["email", PasswordField("password", required=True)]
 
     async def before_save(self, context: SaveContext[Account]) -> None:
         password = context.values["password"].get()
@@ -44,11 +42,11 @@ def kept_as(customer: Customer) -> str:
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "preferences")
-    fields = (
+    fields = [
+        "name",
+        Field("email", secret=True),
         JSONField("preferences", form_only=True),
-        FieldOptions("email", secret=True),
-    )
+    ]
 
     async def form_only_values(
         self, session: SessionAdapter, record: Customer | None, *, request: Request

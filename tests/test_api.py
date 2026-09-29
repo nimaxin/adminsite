@@ -15,10 +15,18 @@ from tests.models import Customer, Order, Product
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
+    fields = [
+        "id",
+        "customer.name",
+        "customer",
+        "status",
+        "total",
+        "note",
+        "created_at",
+    ]
+    exclude_fields_from_list = ["customer", "note", "created_at"]
     list_filters = ("status",)
     searchable_fields = ("customer.name",)
-    form_fields = ("customer", "status", "total", "note", "created_at")
 
     @action(
         "Add a note",
@@ -30,14 +38,14 @@ class OrderView(ModelView[Order]):
 
 
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "region")
+    fields = ["name", "email", "region"]
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
 
 
 class ProductView(ModelView[Product]):
-    form_fields = ("name", "price")
+    fields = ["name", "price"]
 
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None

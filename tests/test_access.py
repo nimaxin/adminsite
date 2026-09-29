@@ -13,13 +13,13 @@ from tests.models import Customer, Order, Product
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status")
+    fields = ["id", "status"]
 
 
 class CustomerView(ModelView[Customer]):
     """Open to everyone, but its history is private."""
 
-    list_display = ("name",)
+    fields = ["name"]
 
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None

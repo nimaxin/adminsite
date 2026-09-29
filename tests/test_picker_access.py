@@ -22,7 +22,7 @@ class CustomerView(ModelView[Customer]):
 
 class OrderView(ModelView[Order]):
     record_title = "Order #{id}"
-    form_fields = ("customer", "status")
+    fields = ["customer", "status"]
 
 
 class ClosedCustomers(ModelView[Customer]):
@@ -38,7 +38,7 @@ class ClosedCustomers(ModelView[Customer]):
 
 
 class ItemView(ModelView[OrderItem]):
-    form_fields = ("product", "quantity")
+    fields = ["product", "quantity"]
 
 
 class ReadOnlyProducts(ModelView[Product]):
@@ -128,7 +128,7 @@ class TestTheSourceView:
     ) -> None:
         class LockedOrders(ModelView[Order]):
             name = "locked_orders"
-            form_fields = ("customer",)
+            fields = ["customer"]
             can_create = False
             can_edit = False
 
@@ -148,7 +148,7 @@ class TestTheSourceView:
     ) -> None:
         class NewOnly(ModelView[Order]):
             name = "new_orders"
-            form_fields = ("customer",)
+            fields = ["customer"]
             can_edit = False
 
         admin = Admin(database, views=[NewOnly, CustomerView], secret_key="a-secret")
@@ -176,7 +176,7 @@ class TestAnInlineCell:
 
         class OrderWithItems(ModelView[Order]):
             name = "packed_orders"
-            form_fields = ("status",)
+            fields = ["status"]
             inlines = (Inline("items", fields=("product", "quantity")),)
 
         admin = Admin(

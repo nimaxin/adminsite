@@ -15,7 +15,7 @@ from adminsite.exceptions import (
     UnknownFieldError,
     renamed_names,
 )
-from adminsite.fields import BaseField, Field, FieldOptions
+from adminsite.fields import BaseField, Field
 from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
@@ -52,7 +52,6 @@ __all__ = [
     "DeleteContext",
     "Descending",
     "Field",
-    "FieldOptions",
     "FieldPath",
     "FieldSchema",
     "Html",
@@ -93,4 +92,6 @@ __all__ = [
 if not TYPE_CHECKING:
     # The names 0.1.0a10 changed, refused with the name each has now. Hidden
     # from type checkers, which report an old name as missing.
-    __getattr__ = renamed_names(__name__, {"Computed": "ComputedField"})
+    __getattr__ = renamed_names(
+        __name__, {"Computed": "ComputedField", "FieldOptions": "Field"}
+    )

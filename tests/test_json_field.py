@@ -16,8 +16,8 @@ from tests.models import Setting
 
 
 class SettingView(ModelView[Setting]):
-    list_display = ("name", "options")
-    form_fields = ("name", "options", "notes")
+    fields = ["name", "options", "notes"]
+    exclude_fields_from_list = ["notes"]
 
 
 @pytest.fixture

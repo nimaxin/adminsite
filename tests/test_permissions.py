@@ -6,11 +6,11 @@ from sqlalchemy import select
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, Statement
+from adminsite import Admin, BaseField, Statement
 from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import PermissionDeniedError
-from adminsite.security import Permission
+from adminsite.security import Permission, RequestAction
 from adminsite.views import ModelView
 from tests.models import Customer, Order, OrderStatus
 
@@ -21,7 +21,7 @@ REQUEST = Request({"type": "http", "headers": []})
 class GermanOrders(ModelView[Order]):
     """Only shows orders from customers in one region."""
 
-    list_display = ("id", "customer.name", "status")
+    fields = ["id", "customer.name", "status"]
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         region = request or "DE"
@@ -46,12 +46,13 @@ class ByRole(ModelView[Order]):
 
 
 class HidesAColumn(ModelView[Customer]):
-    list_display = ("name", "email", "region")
+    fields = ["name", "email", "region"]
 
-    def get_list_display(self, request: Any = None) -> tuple[str, ...]:
-        if request == "support":
-            return ("name", "region")
-        return super().get_list_display(request)
+    def can_access_field(
+        self, request: Any, field: BaseField, action: RequestAction
+    ) -> bool:
+        hidden = request == "support" and action is RequestAction.LIST
+        return not (hidden and field.name == "email")
 
     def get_readonly_fields(
         self, request: Any = None, record: Any = None
@@ -178,8 +179,8 @@ class TestFieldPermissions:
     def test_a_column_can_be_hidden_from_some_people(self) -> None:
         view = HidesAColumn()
 
-        assert view.get_list_display("support") == ("name", "region")
-        assert view.get_list_display("manager") == ("name", "email", "region")
+        assert view._list_fields("support") == ("name", "region")
+        assert view._list_fields("manager") == ("name", "email", "region")
 
     def test_a_field_can_be_locked_for_some_people(self) -> None:
         view = HidesAColumn()

@@ -35,14 +35,15 @@ CELL = r"\s*<td[^>]*>\s*<span[^>]*>"
 
 class CustomerView(ModelView[Customer]):
     record_title = "{name}"
-    list_display = ("name", "orders_placed")
-    form_fields = ("name", "email", "orders_placed")
-    fields_default_sort = ("name",)
-    fields = (
+    fields = [
+        "name",
+        "email",
         ComputedField(
             "orders_placed", load=order_counts, label="Orders placed", default=0
         ),
-    )
+    ]
+    exclude_fields_from_list = ["email"]
+    fields_default_sort = ["name"]
 
 
 @pytest.fixture
@@ -91,16 +92,14 @@ class TestAValueFromTheDatabase:
 
         assert two.count == four.count
 
-    async def test_the_record_page_and_the_form_show_it(
+    async def test_the_record_page_shows_it(
         self, client: httpx.AsyncClient, backend: Backend
     ) -> None:
         lena = (await counts_by_name(backend))["Lena Fischer"]
 
         record = await client.get("/admin/customers/1")
-        form = await client.get("/admin/customers/1/edit")
 
         assert re.search(rf"Orders placed</dt>\s*<dd[^>]*>\s*{lena}\s*<", record.text)
-        assert f'value="{lena}"' in form.text
 
     async def test_the_export_and_the_api_carry_it(
         self, client: httpx.AsyncClient, backend: Backend

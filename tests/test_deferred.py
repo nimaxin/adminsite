@@ -15,15 +15,16 @@ class SettingView(ModelView[Setting]):
     """The payload is heavy and the list never shows it."""
 
     record_title = "{name}"
-    list_display = ("id", "name")
-    deferred_fields = ("options", "notes")
+    fields = ["id", "name", "options", "notes"]
+    exclude_fields_from_list = ["options", "notes"]
+    deferred_fields = ["options", "notes"]
 
 
 class ShownView(ModelView[Setting]):
     """A column on show is loaded, whatever the view asks for."""
 
     name = "shown_settings"
-    list_display = ("id", "name", "options")
+    fields = ["id", "name", "options"]
     deferred_fields = ("options",)
 
 
@@ -32,7 +33,7 @@ class TitledView(ModelView[Setting]):
 
     name = "titled_settings"
     record_title = "{name} ({options})"
-    list_display = ("id",)
+    fields = ["id"]
     deferred_fields = ("name", "options")
 
 

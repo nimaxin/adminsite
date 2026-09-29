@@ -2,8 +2,9 @@ from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
+from adminsite.i18n import gettext as _
 from adminsite.schema import RelationSchema
 from adminsite.text import RecordValues
 
@@ -99,6 +100,7 @@ class RelationField(Field[Any]):
 
     def parse_many(self, raw: Iterable[str] | None) -> list[str]:
         """Return the keys chosen for a relationship holding many records."""
-        if raw is None:
-            return []
-        return [value.strip() for value in raw if value.strip()]
+        keys = [value.strip() for value in raw or () if value.strip()]
+        if not keys and self.required:
+            raise FieldValidationError(self.name, _("This field is required."))
+        return keys

@@ -18,18 +18,20 @@ def shop_link(product: Product) -> Html:
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name", "shop", "warning")
-    detail_fields = ("name", "shop")
-    fields = (
+    fields = [
+        "id",
+        "name",
         ComputedField("shop", shop_link, needs=("id", "name")),
         # Plain text, so the page shows the tags rather than obeying them.
         ComputedField("warning", lambda product: "<b>handle with care</b>"),
-    )
+    ]
+    exclude_fields_from_detail = ["id", "warning"]
 
 
 class CustomerView(ModelView[Customer]):
-    list_display = ("id", "name", "mail")
-    fields = (
+    fields = [
+        "id",
+        "name",
         ComputedField(
             "mail",
             lambda customer: Html('<a href="mailto:{}">Write</a>').format(
@@ -37,7 +39,7 @@ class CustomerView(ModelView[Customer]):
             ),
             needs=("email",),
         ),
-    )
+    ]
 
 
 @pytest.fixture

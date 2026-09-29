@@ -22,7 +22,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
-from adminsite import Admin, FieldOptions, SavedViews
+from adminsite import Admin, SavedViews
 from adminsite.audit import (
     AuditEntry,
     AuditLog,
@@ -37,7 +37,6 @@ from adminsite.files import LocalStorage
 from adminsite.saved_views import saved_view_metadata
 from examples import fields as gallery
 from examples.shop import (
-    EUROS,
     Base,
     CustomerView,
     OrderView,
@@ -168,10 +167,12 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
     class DemoProductView(ProductView):
         """The example's products, with smaller photos kept beside the data."""
 
-        fields = (
-            ImageField("photo", storage=LocalStorage(uploads), max_size=MEGABYTE),
-            FieldOptions("price", format=EUROS),
-        )
+        fields = [
+            replace(entry, storage=LocalStorage(uploads), max_size=MEGABYTE)
+            if isinstance(entry, ImageField)
+            else entry
+            for entry in ProductView.fields
+        ]
 
     class DemoShowcaseView(gallery.ShowcaseView):
         """The gallery, its files kept beside the data and as small as photos."""

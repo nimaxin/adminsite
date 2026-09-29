@@ -19,21 +19,26 @@
 - A view names its model as its type argument, `class OrderView(ModelView[Order])`, in place of
   `class OrderView(ModelView, model=Order)`, which now stops with the new form. `ModelView[Tag]` can
   be registered with no class of its own.
-- Settings name columns by attribute as well as by string: `list_display = [Order.id,
+- Settings name columns by attribute as well as by string: `fields = [Order.id,
   Link(Order.customer, Customer.name)]`, `fields_default_sort = [Descending(Order.created_at)]`. An
-  attribute
-  of another model, a link that leads elsewhere, or one string where a list belongs stops the admin
-  with a message naming the setting.
+  attribute of another model, a link that leads elsewhere, or one string where a list belongs stops
+  the admin with a message naming the setting.
 - `fields` lists a view's fields once, in order, for every page, as starlette-admin does. A page
   leaves one out by a flag on the field, such as `exclude_from_list=True`, or by a list on the view,
   such as `exclude_fields_from_export`; `hidden_in_list=True` keeps a column in the Columns menu but
   off the list until someone turns it on. Forms leave out columns of related models, computed
   fields and keys the database numbers by themselves. `searchable_fields`, `sortable_fields` and
   `fields_default_sort` join them, and `Inline` takes attributes too: `Inline(Order.items,
-  fields=[OrderItem.product])`. `list_display`, `list_columns`, `form_fields`, `detail_fields` and
-  `exclude` still work until 0.1.0a10.
+  fields=[OrderItem.product])`. A view that lists no fields shows every column on every page,
+  its key on the record page included.
+- `list_display`, `form_fields`, `detail_fields`, `list_columns`, `exclude` and `readonly_fields`
+  are gone: list the fields once in `fields`, leave one off a page with the `exclude_fields_from_`
+  lists or flags, and give a field `hidden_in_list=True` or `read_only=True`. A computed field is
+  shown and never edited, so no form has it any more. `get_list_display`, `get_form_fields` and
+  `get_detail_fields` are gone too: `can_access_field` decides who sees a field. A view that still
+  sets or defines one of these stops the admin when it starts, saying what to write instead.
 - A key people type, such as a code or the two columns of a composite key, is now in the form of a
-  view that names no form fields, so such records can be created there. A key the database numbers
+  view that lists no fields, so such records can be created there. A key the database numbers
   stays out.
 - Fields take the column they show and typed options, all keywords: `Field(Order.created_at,
   label="Placed")` is the field adminsite picks for the column, with your options, and a kind such
@@ -46,10 +51,10 @@
   picks does, where it used to mean not required. Give `required=False` to keep a field optional.
 - `TextField`, `ChoiceField` and `Computed` are now `TextAreaField`, `EnumField` and
   `ComputedField`, with starlette-admin's names; importing an old name raises an error naming the
-  new one. `FieldOptions` is replaced by `Field`, and still works until 0.1.0a10. `readonly=` on a
-  field is `read_only=`, `enum_class=` is
-  `enum=`, `ComputedField`'s `needs` takes attributes, and `RelationField(Order.customer,
-  view=CustomerView)` names its view by class as well as by name.
+  new one. `FieldOptions("price", format=...)` is `Field(Product.price, format=...)`, which places
+  the field as well, and importing `FieldOptions` names `Field`. `readonly=` on a field is
+  `read_only=`, `enum_class=` is `enum=`, `ComputedField`'s `needs` takes attributes, and
+  `RelationField(Order.customer, view=CustomerView)` names its view by class as well as by name.
 - A computed field's `format` is used; it was left out before.
 - Every name in a view's settings is checked when the admin starts, strings as well as attributes:
   one the model does not have stops the admin with a message naming the view and the setting and
@@ -70,8 +75,8 @@
 - `get_readonly_fields(request, record)` takes attributes, `[Order.customer, Order.status]`, and a
   misspelt name it returns is refused rather than ignored. `can_view_detail` and
   `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`.
-- A field worked out for a column of a related model is named by its path, `customer.email`, as
-  one written in `fields` already was, rather than by the column alone.
+- A field for a column of a related model is named by its path, `customer.email`, rather than by
+  the column alone, whether adminsite works it out or `Field(Link(...))` gives it.
 - An action asks for its values with typed parameters, as FastAPI does: `carrier: Literal["DHL",
   "UPS"]` is a select, `day: date` a date picker, `product: Product` a record to pick, a dataclass
   its fields under one heading, and `UploadFile` a file, which no action could ask for before. The
@@ -80,6 +85,8 @@
   the session, and a record action's record goes to the parameter typed with the model. A type
   no dialog can ask for stops the admin when it starts, naming the parameter. `inputs=` and
   untyped `(record, session)` methods still work.
+- A link to many records that is required, such as an action's `stockists: list[Supplier]` with no
+  default, now needs at least one record chosen, as a choice of several already did.
 - `Selection[Order]` names the model of the rows an action runs over, so `records()` returns
   orders. A bare `Selection` now needs its model under mypy's strict mode, as a bare `list` does.
 - A save hook takes `SaveContext[Order]`, so `context.record` is an order, and reads and changes

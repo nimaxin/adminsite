@@ -14,7 +14,7 @@ from tests.models import Order, OrderItem, Product
 
 class OrderView(ModelView[Order]):
     record_title = "Order {id}"
-    form_fields = ("customer", "status", "note", "created_at")
+    fields = ["customer", "status", "note", "created_at"]
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
 
 
@@ -75,7 +75,7 @@ class TestDeclaring:
             name = "everything"
             inlines = (Inline("items"),)
 
-        fields = Everything()._inline_view("items").get_form_fields()
+        fields = Everything()._inline_view("items")._form_fields()
 
         assert "order" not in fields
         assert "product" in fields

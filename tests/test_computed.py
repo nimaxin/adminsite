@@ -25,10 +25,9 @@ class Money(Field[Any]):
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total", "lines")
-    detail_fields = ("id", "status", "total", "lines", "biggest")
-    form_fields = ("status", "note")
-    fields = (
+    fields = [
+        "id",
+        "status",
         Money("total", label="Total"),
         ComputedField(
             "lines",
@@ -42,13 +41,18 @@ class OrderView(ModelView[Order]):
             label="Biggest line",
             needs=("items",),
         ),
-    )
+        "note",
+    ]
+    exclude_fields_from_list = ["biggest", "note"]
+    exclude_fields_from_detail = ["note"]
+    exclude_fields_from_create = ["total"]
+    exclude_fields_from_edit = ["total"]
 
 
 class StatusView(ModelView[Order]):
     name = "statuses"
-    list_display = ("id", "state")
-    fields = (
+    fields = [
+        "id",
         ComputedField(
             "state",
             lambda order: (
@@ -56,7 +60,7 @@ class StatusView(ModelView[Order]):
             ),
             label="State",
         ),
-    )
+    ]
 
 
 class CustomerView(ModelView[Customer]):

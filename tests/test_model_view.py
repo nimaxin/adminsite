@@ -11,35 +11,40 @@ from adminsite.backends.sqlalchemy import (
     RelationFilter,
 )
 from adminsite.exceptions import AdminSiteError
-from adminsite.fields import DecimalField, EnumField, RelationField
+from adminsite.fields import BaseField, DecimalField, EnumField, Field, RelationField
 from adminsite.filters import FilterValue
 from adminsite.query import CountMode, Sort
+from adminsite.security import RequestAction
 from adminsite.views import ModelView, ViewRegistry
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
 
 
 class OrderView(ModelView[Order]):
     group = "Sales"
-    list_display = ("id", "customer.name", "status", "total", "created_at")
-    searchable_fields = ("id", "customer.name", "customer.email")
-    list_filters = ("status", "total", "created_at", "customer")
-    fields_default_sort = ("-created_at",)
+    fields = [
+        "id",
+        "customer.name",
+        RelationField("customer", target=Customer, display_template="{name} ({email})"),
+        "status",
+        "total",
+        "note",
+        "created_at",
+    ]
+    exclude_fields_from_list = ["customer", "note"]
+    searchable_fields = ["id", "customer.name", "customer.email"]
+    list_filters = ["status", "total", "created_at", "customer"]
+    fields_default_sort = ["-created_at"]
     page_size = 3
     record_title = "Order {id}"
-    fields = (
-        RelationField("customer", target=Customer, display_template="{name} ({email})"),
-    )
 
 
 class CustomerView(ModelView[Customer]):
     group = "Sales"
-    list_display = ("name", "email", "region")
-    form_fields = ("name", "email", "region")
-    readonly_fields = ("email",)
+    fields = ["name", Field("email", read_only=True), "region"]
 
 
 class ProductView(ModelView[Product]):
-    exclude = ("description",)
+    pass
 
 
 @pytest.fixture
@@ -81,7 +86,7 @@ class TestNaming:
 
 class TestColumns:
     def test_the_listed_columns_are_used(self, orders: OrderView) -> None:
-        assert orders.get_list_display() == (
+        assert orders._list_fields() == (
             "id",
             "customer.name",
             "status",
@@ -92,7 +97,7 @@ class TestColumns:
     def test_without_a_list_every_column_is_shown(self) -> None:
         view = ProductView()
 
-        assert view.get_list_display() == ("id", "name", "price")
+        assert view._list_fields() == ("id", "name", "price", "description")
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
         assert orders._label_for("created_at") == "Created at"
@@ -120,7 +125,7 @@ class TestReadingValues:
 
     def test_many_records_read_as_a_list(self) -> None:
         class ItemsView(ModelView[Order]):
-            list_display = ("items.quantity",)
+            fields = ["items.quantity"]
 
         order = Order(items=[OrderItem(quantity=2), OrderItem(quantity=3)])
 
@@ -165,7 +170,7 @@ class TestBuildingAQuery:
     def test_the_query_asks_for_what_the_list_shows(self, orders: OrderView) -> None:
         spec = orders._build_spec()
 
-        assert spec.paths == orders.get_list_display()
+        assert spec.paths == orders._list_fields()
         assert spec.search_paths == orders._search_paths(None)
         assert spec.limit == 3
         assert spec.count is CountMode.EXACT
@@ -206,13 +211,13 @@ class TestBuildingAQuery:
 
 class TestForms:
     def test_the_form_skips_the_key(self) -> None:
-        assert "id" not in ProductView().get_form_fields()
+        assert "id" not in ProductView()._form_fields()
 
     def test_a_foreign_key_becomes_its_link_in_the_form(self) -> None:
         class PlainOrders(ModelView[Order]):
             pass
 
-        fields = PlainOrders().get_form_fields()
+        fields = PlainOrders()._form_fields()
 
         assert "customer" in fields
         assert "customer_id" not in fields
@@ -221,7 +226,7 @@ class TestForms:
         class PlainOrders(ModelView[Order]):
             pass
 
-        columns = PlainOrders().get_list_display()
+        columns = PlainOrders()._list_fields()
 
         assert columns.index("customer") == 1
         assert "customer_id" not in columns
@@ -232,14 +237,18 @@ class TestForms:
 
         assert isinstance(PlainOrders()._field_for("customer"), RelationField)
 
-    def test_excluded_fields_stay_out_of_both(self) -> None:
-        view = ProductView()
+    def test_a_column_left_out_of_fields_is_on_no_page(self) -> None:
+        class ShortProducts(ModelView[Product]):
+            fields = ["id", "name", "price"]
 
-        assert "description" not in view.get_list_display()
-        assert "description" not in view.get_form_fields()
+        view = ShortProducts()
+
+        assert "description" not in view._list_fields()
+        assert "description" not in view._form_fields()
+        assert "description" not in view._detail_fields()
 
     def test_the_listed_form_fields_are_used_in_order(self) -> None:
-        assert CustomerView().get_form_fields() == ("name", "email", "region")
+        assert CustomerView()._form_fields() == ("name", "email", "region")
 
     def test_readonly_fields_are_reported(self) -> None:
         assert CustomerView()._readonly_paths() == ("email",)
@@ -248,17 +257,17 @@ class TestForms:
 class TestOverriding:
     def test_columns_can_depend_on_who_is_asking(self) -> None:
         class StaffView(ModelView[Customer]):
-            list_display = ("name", "email", "region")
+            fields = ["name", "email", "region"]
 
-            def get_list_display(self, request: object = None) -> tuple[str, ...]:
-                if request == "staff":
-                    return ("name",)
-                return super().get_list_display(request)
+            def can_access_field(
+                self, request: Any, field: BaseField, action: RequestAction
+            ) -> bool:
+                return request != "staff" or field.name == "name"
 
         view = StaffView()
 
-        assert view.get_list_display("staff") == ("name",)
-        assert view.get_list_display() == ("name", "email", "region")
+        assert view._list_fields("staff") == ("name",)
+        assert view._list_fields() == ("name", "email", "region")
 
 
 class TestRegistry:

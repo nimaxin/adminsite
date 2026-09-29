@@ -1,6 +1,5 @@
 import types
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from functools import partial
 from typing import (
@@ -72,7 +71,6 @@ from adminsite.fields import (
     ComputedField,
     EnumField,
     Field,
-    FieldOptions,
     FieldRegistry,
     JSONField,
     RelationField,
@@ -136,6 +134,38 @@ _RENAMED = {
     "form_values": "form_only_values",
 }
 
+# The settings and methods 0.1.0a10 replaced with ones that work differently,
+# each with what to write instead.
+_REPLACED = {
+    "list_display": (
+        "List the view's fields in fields, and leave one off the list with "
+        "exclude_fields_from_list."
+    ),
+    "list_columns": "Give each of those fields hidden_in_list=True in fields.",
+    "form_fields": (
+        "List the view's fields in fields, and leave one off the forms with "
+        "exclude_fields_from_create and exclude_fields_from_edit."
+    ),
+    "detail_fields": (
+        "List the view's fields in fields, and leave one off the record page "
+        "with exclude_fields_from_detail."
+    ),
+    "exclude": "List the fields to show in fields, leaving those out.",
+    "readonly_fields": (
+        "Give each of those fields read_only=True in fields, or name them in "
+        "get_readonly_fields."
+    ),
+    "get_list_display": (
+        "Decide who sees a field with can_access_field(request, field, action)."
+    ),
+    "get_form_fields": (
+        "Decide who sees a field with can_access_field(request, field, action)."
+    ),
+    "get_detail_fields": (
+        "Decide who sees a field with can_access_field(request, field, action)."
+    ),
+}
+
 # The model a view shows. Not bound to DeclarativeBase: a SQLModel model is
 # mapped without it. The admin refuses a class that is not mapped.
 M = TypeVar("M")
@@ -177,9 +207,7 @@ class ModelView(Generic[M]):
     # name as a string, "total" or "customer.email"; a field sets options.
     # Left empty, the view shows every column the model has. A field's value
     # type differs from one to the next, hence Field[Any].
-    fields: Sequence[
-        ColumnReference | Field[Any] | ComputedField[M, Any] | FieldOptions
-    ] = ()
+    fields: Sequence[ColumnReference | Field[Any] | ComputedField[M, Any]] = ()
     # Fields left off one page, as the exclude_from_ flags on a field do.
     exclude_fields_from_list: Sequence[ColumnReference] = ()
     exclude_fields_from_detail: Sequence[ColumnReference] = ()
@@ -192,16 +220,6 @@ class ModelView(Generic[M]):
     # Descending(Order.created_at), or "-created_at", sorts newest first.
     fields_default_sort: Sequence[ColumnReference | Descending] = ()
 
-    # The settings the ones above replace, read until 0.1.0a10 refuses them.
-    # A view that sets list_display, form_fields or detail_fields keeps the
-    # old meaning of fields: it changes the fields those settings name, and
-    # places none.
-    list_display: Sequence[ColumnReference] = ()
-    list_columns: Sequence[ColumnReference] = ()
-    form_fields: Sequence[ColumnReference] = ()
-    detail_fields: Sequence[ColumnReference] = ()
-    exclude: Sequence[ColumnReference] = ()
-
     # The filters beside the list: a column, which gets the filter that
     # suits its type, or a filter of your own.
     list_filters: Sequence[ColumnReference | SQLFilter[M]] = ()
@@ -212,10 +230,6 @@ class ModelView(Generic[M]):
     # Whether the command palette looks through this view's records.
     global_search: bool = True
     pagination: Pagination = Pagination.OFFSET
-
-    # Fields never editable. read_only=True on a field replaces it, read
-    # until 0.1.0a10 refuses it; get_readonly_fields decides per record.
-    readonly_fields: Sequence[ColumnReference] = ()
 
     # Columns the list does not read, such as a large JSON payload, left out
     # of its query. The record page and the form load them as usual.
@@ -308,7 +322,6 @@ class ModelView(Generic[M]):
 
         # The settings as the paths the rest of adminsite works with.
         self._overrides: dict[str, BaseField] = {}
-        self._changes: dict[str, dict[str, Any]] = {}
         self._placed = self._read_fields()
         exclusions: dict[RequestAction, Sequence[ColumnReference]] = {
             RequestAction.LIST: self.exclude_fields_from_list,
@@ -328,20 +341,6 @@ class ModelView(Generic[M]):
             "sortable_fields", self.sortable_fields, takes="sortable"
         )
         self._ordering = self._sorts("fields_default_sort", self.fields_default_sort)
-        self._list_display = self._paths(
-            "list_display", self.list_display, takes="fields"
-        )
-        self._list_columns = self._paths(
-            "list_columns", self.list_columns, takes="fields"
-        )
-        self._form_fields = self._paths("form_fields", self.form_fields, takes="fields")
-        self._detail_fields = self._paths(
-            "detail_fields", self.detail_fields, takes="fields"
-        )
-        self._readonly_fields = self._paths(
-            "readonly_fields", self.readonly_fields, takes="fields"
-        )
-        self._exclude = self._paths("exclude", self.exclude, takes="fields")
         self._deferred_fields = self._paths(
             "deferred_fields", self.deferred_fields, takes="own columns"
         )
@@ -379,7 +378,7 @@ class ModelView(Generic[M]):
         self._fields: dict[str, BaseField] = {}
         # Built now, so a mistake such as a tone for a value the field does
         # not have stops the admin starting rather than the page that shows it.
-        for path in (*self._placed, *self._changes):
+        for path in self._placed:
             try:
                 self._field_for(path)
                 self._check_list_flags(path)
@@ -399,6 +398,14 @@ class ModelView(Generic[M]):
                         f"{view} sets {old}, which is called {new} now. "
                         f"Rename it to {new}."
                     )
+            for old, instead in _REPLACED.items():
+                if old not in written:
+                    continue
+                if callable(written[old]):
+                    said = f"{view} defines {old}, which adminsite no longer calls."
+                else:
+                    said = f"{view} sets {old}, which adminsite no longer reads."
+                raise AdminSiteError(f"{said} {instead}")
             replaced = written.get(DELETE_ACTION)
             if replaced is not None and action_of(replaced) is None:
                 raise AdminSiteError(
@@ -433,11 +440,11 @@ class ModelView(Generic[M]):
             if self.can_access_field(request, self._field_for(path), action)
         )
 
-    def get_list_display(self, request: Any = None) -> tuple[str, ...]:
-        """The columns the list shows."""
-        shown = self._list_display or tuple(
+    def _list_fields(self, request: Any = None) -> tuple[str, ...]:
+        """The columns the list shows, for this user."""
+        shown = [
             path for path in self._listed() if not self._field_for(path).hidden_in_list
-        )
+        ]
         return self._accessible(request, shown, RequestAction.LIST)
 
     def _page_sizes(self, request: Any = None) -> tuple[int, ...]:
@@ -459,16 +466,12 @@ class ModelView(Generic[M]):
 
     def _column_choices(self, request: Any = None) -> tuple[str, ...]:
         """The columns the picker offers: the list's own, then the hidden ones."""
-        shown = self.get_list_display(request)
         hidden = [
             path for path in self._listed() if self._field_for(path).hidden_in_list
         ]
-        extras = self._accessible(
-            request,
-            tuple(dict.fromkeys((*self._list_columns, *hidden))),
-            RequestAction.LIST,
+        return self._list_fields(request) + self._accessible(
+            request, hidden, RequestAction.LIST
         )
-        return shown + tuple(path for path in extras if path not in shown)
 
     def _pick_columns(
         self, picked: Sequence[str], request: Any = None
@@ -480,7 +483,7 @@ class ModelView(Generic[M]):
         """
         wanted = set(picked)
         chosen = tuple(path for path in self._column_choices(request) if path in wanted)
-        return chosen or self.get_list_display(request)
+        return chosen or self._list_fields(request)
 
     def get_searchable_fields(self, request: Request) -> Sequence[ColumnReference]:
         """The columns the search box looks in, for this user."""
@@ -532,52 +535,34 @@ class ModelView(Generic[M]):
             return self._ordering
         return self._sorts("get_fields_default_sort", named)
 
-    def get_form_fields(
-        self, request: Any = None, record: Any = None
-    ) -> tuple[str, ...]:
+    def _form_fields(self, request: Any = None, record: Any = None) -> tuple[str, ...]:
         """The fields the form shows, in order: a new record's, or `record`'s.
 
         A column of a related model and a computed field are shown, never
         edited, so they stay off forms, as does a key nobody types in.
         """
         page = RequestAction.CREATE if record is None else RequestAction.EDIT
-        return self._accessible(request, self._form_paths(page), page)
-
-    def _form_paths(self, page: RequestAction) -> tuple[str, ...]:
-        """The fields a form places, before anyone is asked about."""
-        if self._form_fields:
-            return self._form_fields
-        return tuple(
+        placed = [
             path
             for path in self._candidates()
             if self._editable(path) and not self._excluded_from(page, path)
-        )
+        ]
+        return self._accessible(request, placed, page)
 
-    def get_detail_fields(
+    def _detail_fields(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """What the record page shows.
+        """What the record page shows, for this user.
 
         A form-only field, such as a password to set, has nothing to show.
-        A view that lists no fields shows what its form shows.
         """
-        if self._detail_fields:
-            return self._accessible(request, self._detail_fields, RequestAction.DETAIL)
-        if self._placing():
-            shown: Sequence[str] = self._candidates()
-        else:
-            page = RequestAction.CREATE if record is None else RequestAction.EDIT
-            shown = self._form_paths(page)
-        return self._accessible(
-            request,
-            [
-                path
-                for path in shown
-                if not self._field_for(path).form_only
-                and not self._excluded_from(RequestAction.DETAIL, path)
-            ],
-            RequestAction.DETAIL,
-        )
+        shown = [
+            path
+            for path in self._candidates()
+            if not self._field_for(path).form_only
+            and not self._excluded_from(RequestAction.DETAIL, path)
+        ]
+        return self._accessible(request, shown, RequestAction.DETAIL)
 
     def _exported(self, paths: Sequence[str], request: Any = None) -> tuple[str, ...]:
         """The columns of a list that go into its export."""
@@ -604,7 +589,7 @@ class ModelView(Generic[M]):
         for one record or one user, such as the customer of a shipped order;
         `record` is None on the form for a new record.
         """
-        return self._readonly_fields
+        return []
 
     def _readonly_paths(
         self, request: Any = None, record: Any = None
@@ -622,7 +607,7 @@ class ModelView(Generic[M]):
         keys = set(self._schema.primary_key)
         return named + tuple(
             path
-            for path in self.get_form_fields(request, record)
+            for path in self._form_fields(request, record)
             if path not in named
             and path not in keys
             and self._field_for(path).read_only
@@ -648,15 +633,15 @@ class ModelView(Generic[M]):
 
     def _load_paths(self, request: Any = None, record: Any = None) -> tuple[str, ...]:
         """Everything a record page shows, so it can be loaded in one go."""
-        paths = list(self.get_form_fields(request, record))
-        for path in self.get_detail_fields(request, record):
+        paths = list(self._form_fields(request, record))
+        for path in self._detail_fields(request, record):
             if path not in paths:
                 paths.append(path)
         paths = self._loadable(paths)
         for inline in self.get_inlines(request, record):
             paths.append(inline.name)
             child = self._inline_view(inline.name)
-            for path in child.get_form_fields(request):
+            for path in child._form_fields(request):
                 if path in child._schema.relations:
                     paths.append(f"{inline.name}.{path}")
         return tuple(paths)
@@ -693,7 +678,7 @@ class ModelView(Generic[M]):
     def _readable_paths(self, request: Any = None) -> tuple[str, ...]:
         """Every path this user may read on some page of the view."""
         paths = list(self._column_choices(request))
-        for path in (*self.get_detail_fields(request), *self.get_form_fields(request)):
+        for path in (*self._detail_fields(request), *self._form_fields(request)):
             if path not in paths:
                 paths.append(path)
         return tuple(paths)
@@ -717,41 +702,36 @@ class ModelView(Generic[M]):
         # The link back to the parent is set by the relationship itself, so
         # it never appears as an input in the child rows.
         target = self._inspector.inspect(relation.target)
-        back_links = tuple(
+        back_links = [
             name
             for name, found in target.relations.items()
             if found.target is self.model and not found.collection
+        ]
+        readonly = self._paths(
+            f"{setting}.readonly_fields", inline.readonly_fields, relation.target
         )
+
+        def get_readonly_fields(
+            child: ModelView[Any], request: Request, record: Any
+        ) -> Sequence[ColumnReference]:
+            return readonly
+
         namespace: dict[str, Any] = {
             "model": relation.target,
             "name": f"{self.name}__{inline.name}",
-            "form_fields": self._paths(
-                f"{setting}.fields", inline.fields, relation.target
-            ),
-            "readonly_fields": self._paths(
-                f"{setting}.readonly_fields", inline.readonly_fields, relation.target
-            ),
-            "exclude": back_links,
+            "fields": self._paths(f"{setting}.fields", inline.fields, relation.target),
+            "exclude_fields_from_create": back_links,
+            "exclude_fields_from_edit": back_links,
+            "get_readonly_fields": get_readonly_fields,
             "record_title": inline.display_template,
         }
         child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
         built: ModelView[Any] = child_class(self._inspector, self._registry)
         return built
 
-    def _placing(self) -> bool:
-        """Whether `fields` decides what the pages show.
-
-        It does unless it is empty, or the view still sets list_display,
-        form_fields or detail_fields, where fields only changes fields.
-        """
-        old = self._list_display or self._form_fields or self._detail_fields
-        return bool(self._placed) and not old
-
     def _candidates(self) -> tuple[str, ...]:
         """The fields a page picks from: the view's, or every column."""
-        if self._placing():
-            return tuple(path for path in self._placed if path not in self._exclude)
-        return self._default_paths(skip=set(self._exclude))
+        return self._placed or self._default_paths()
 
     def _listed(self) -> tuple[str, ...]:
         """The columns the list can show, hidden or not."""
@@ -782,7 +762,7 @@ class ModelView(Generic[M]):
             RequestAction.EXPORT: item.exclude_from_export,
         }[page]
 
-    def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
+    def _default_paths(self) -> tuple[str, ...]:
         """Every column in order, with a foreign key shown as its link.
 
         A form offering `customer_id` as a number box is no use to anyone,
@@ -795,14 +775,9 @@ class ModelView(Generic[M]):
             if not relation.collection
             for column in relation.local_columns
         }
-        paths: list[str] = []
-        for name in self._schema.fields:
-            if name in skip:
-                continue
-            path = links.get(name, name)
-            if path not in paths and path not in skip:
-                paths.append(path)
-        return tuple(paths)
+        return tuple(
+            dict.fromkeys(links.get(name, name) for name in self._schema.fields)
+        )
 
     # Turning settings into paths.
 
@@ -975,20 +950,15 @@ class ModelView(Generic[M]):
     def _read_fields(self) -> tuple[str, ...]:
         """The paths `fields` places, in order, keeping the fields it sets.
 
-        A field is completed from its column when it is first asked for;
-        `FieldOptions` changes the one adminsite works out. A path placed
-        twice keeps its first place.
+        A field is completed from its column when it is first asked for. A
+        path placed twice keeps its first place.
         """
         placed: dict[str, None] = {}
         # The columns named, checked once the view's own fields are known,
         # so a name may come before the field it refers to.
         named: dict[str, _Takes] = {}
         for index, entry in enumerate(self._entries("fields", self.fields)):
-            if isinstance(entry, FieldOptions):
-                path = entry.name
-                self._changes[path] = entry.changes
-                named[path] = "paths"
-            elif isinstance(entry, Field):
+            if isinstance(entry, Field):
                 path = self._converted("fields", entry.column, path_of)
                 self._overrides[path] = entry
                 if not entry.form_only:
@@ -1050,18 +1020,20 @@ class ModelView(Generic[M]):
         if not isinstance(given, Field) or given.form_only:
             given.check_options()
             return given
-        resolved = self._inspector.resolve(
-            self.model, path_of(given.column, self.model)
-        )
+        path = path_of(given.column, self.model)
+        resolved = self._inspector.resolve(self.model, path)
         completed: BaseField
+        # Built under the path, so a column of a related model is named
+        # customer.email rather than email.
         if type(given) is Field:
             if resolved.field is not None:
                 completed = self._registry.build(
-                    resolved.field, **given.given_options()
+                    replace(resolved.field, name=path), **given.given_options()
                 )
             else:
                 completed = RelationField.from_relation(
-                    resolved.relations[-1], **given.given_options()
+                    replace(resolved.relations[-1], name=path),
+                    **given.given_options(),
                 )
         elif resolved.field is not None:
             completed = self._registry.fill(given, resolved.field)
@@ -1077,44 +1049,11 @@ class ModelView(Generic[M]):
         return completed
 
     def _built_field(self, path: str) -> BaseField:
-        """The field adminsite works out for a path, with FieldOptions' changes."""
+        """The field adminsite works out for a path nobody gave a field for."""
         resolved = self._inspector.resolve(self.model, path)
-        changes = self._changes.get(path, {})
-        if changes:
-            kind = (
-                RelationField
-                if resolved.field is None
-                else self._registry.field_class_for(resolved.field)
-            )
-            taken = [
-                option.name
-                for option in dataclass_fields(kind)
-                if option.init and option.name != "column"
-            ]
-            unknown = [name for name in changes if name not in taken]
-            if unknown:
-                raise AdminSiteError(
-                    f"FieldOptions({describe(path)}) gives {', '.join(unknown)}, "
-                    f"which {kind.__name__} does not take. It takes "
-                    f"{', '.join(taken)}."
-                )
-        try:
-            if resolved.field is not None:
-                built: BaseField = self._registry.build(
-                    replace(resolved.field, name=path), **changes
-                )
-            else:
-                built = RelationField.from_relation(
-                    replace(resolved.relations[-1], name=path), **changes
-                )
-        except AdminSiteError as error:
-            if not changes:
-                raise
-            raise AdminSiteError(f"FieldOptions({describe(path)}): {error}") from error
-        if changes:
-            built.check_options()
-            self._check_link_title(built, f"FieldOptions({describe(path)})")
-        return built
+        if resolved.field is not None:
+            return self._registry.build(replace(resolved.field, name=path))
+        return RelationField.from_relation(replace(resolved.relations[-1], name=path))
 
     async def form_only_values(
         self, session: SessionAdapter, record: M | None, *, request: Request
@@ -1194,7 +1133,7 @@ class ModelView(Generic[M]):
         """
         # Made without the model's own __init__, which may ask for values.
         draft = class_mapper(self.model).class_manager.new_instance()
-        for path in self.get_form_fields(request):
+        for path in self._form_fields(request):
             item = self._field_for(path)
             if "." in path or not item.stored:
                 continue
@@ -1297,7 +1236,7 @@ class ModelView(Generic[M]):
         size: int | None = None,
     ) -> QuerySpec:
         """Describe the read this view wants, page by page."""
-        wanted = tuple(self._loadable(tuple(paths) or self.get_list_display(request)))
+        wanted = tuple(self._loadable(tuple(paths) or self._list_fields(request)))
         spec = QuerySpec(
             paths=wanted,
             defer=self._deferred(request, wanted),
@@ -1418,7 +1357,7 @@ class ModelView(Generic[M]):
             self.get_record_title(record),
         )
         auditing = self._audit_log is not None
-        paths = list(self.get_form_fields(request, record)) if auditing else []
+        paths = list(self._form_fields(request, record)) if auditing else []
         try:
             await self._ensure(found.permission, request=request, record=record)
             given, entry = await self._given(found, session, values, entry, request)
@@ -1802,7 +1741,7 @@ class ModelView(Generic[M]):
         readonly = set(self._readonly_paths(request, record))
         draft: Any = None
 
-        for path in self.get_form_fields(request, record):
+        for path in self._form_fields(request, record):
             item = self._field_for(path)
             if path in readonly or not (item.stored or item.form_only):
                 continue
@@ -1855,9 +1794,7 @@ class ModelView(Generic[M]):
     ) -> list[InlineRow]:
         child = self._inline_view(inline.name)
         readonly = set(child._readonly_paths(request))
-        paths = [
-            path for path in child.get_form_fields(request) if path not in readonly
-        ]
+        paths = [path for path in child._form_fields(request) if path not in readonly]
         try:
             count = int(_as_text(data.get(f"{inline.name}-count")) or 0)
         except ValueError:
@@ -2055,7 +1992,7 @@ class ModelView(Generic[M]):
         await self.before_delete(context)
         auditing = self._audit_log is not None
         before = (
-            self._snapshot(record, self.get_form_fields(request, record))
+            self._snapshot(record, self._form_fields(request, record))
             if auditing
             else {}
         )
@@ -2094,7 +2031,7 @@ class ModelView(Generic[M]):
         """
         request = selection.request
         records = await selection.records(
-            paths=self._loadable(self.get_form_fields(request))
+            paths=self._loadable(self._form_fields(request))
         )
         if len(records) > BULK_DELETE_LIMIT:
             raise RefusedError(

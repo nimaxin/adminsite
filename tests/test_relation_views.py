@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import select
 from starlette.applications import Starlette
 
-from adminsite import Admin, FieldOptions, ModelView, Statement
+from adminsite import Admin, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
@@ -20,7 +20,7 @@ class CustomerView(ModelView[Customer]):
     """Every customer outside Sweden."""
 
     record_title = "{name}"
-    detail_fields = ("name", "email", "orders")
+    fields = ["name", "email", "orders"]
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
@@ -38,7 +38,7 @@ class NordicView(ModelView[Customer]):
 
 class OrderView(ModelView[Order]):
     record_title = "Order #{id}"
-    form_fields = ("customer", "status")
+    fields = ["customer", "status"]
 
 
 class NordicOrderView(ModelView[Order]):
@@ -46,8 +46,7 @@ class NordicOrderView(ModelView[Order]):
 
     name = "nordic_orders"
     record_title = "Order #{id}"
-    form_fields = ("customer", "status")
-    fields = (FieldOptions("customer", view="nordic"),)
+    fields = [RelationField("customer", view="nordic"), "status"]
 
 
 @pytest.fixture
@@ -176,7 +175,7 @@ class CustomerFormView(ModelView[Customer]):
     """A to-many link on the form, which the record page shows as well."""
 
     name = "customer_forms"
-    form_fields = ("name", "orders")
+    fields = ["name", "orders"]
 
 
 class CountedOrderView(ModelView[Order]):
@@ -184,10 +183,11 @@ class CountedOrderView(ModelView[Order]):
 
     name = "counted_orders"
     record_title = "Order #{id}"
-    detail_fields = ("status", "items", "item_count")
-    fields = (
+    fields = [
+        "status",
+        "items",
         ComputedField("item_count", lambda order: len(order.items), needs=("items",)),
-    )
+    ]
 
 
 @pytest.fixture

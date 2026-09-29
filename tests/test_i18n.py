@@ -105,7 +105,7 @@ class TestTheCatalog:
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     searchable_fields = ("customer.name",)
 
 

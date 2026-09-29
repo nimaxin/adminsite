@@ -19,7 +19,7 @@ REQUEST = Request({"type": "http", "headers": []})
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     searchable_fields = ("customer.name",)
     icon = ICON
 
@@ -28,7 +28,7 @@ class QuietView(ModelView[Customer]):
     """A list that says everything, so a record page would only repeat it."""
 
     name = "customers"
-    list_display = ("name", "email")
+    fields = ["name", "email"]
     searchable_fields = ("name",)
     can_view_detail = False
     can_export = False

@@ -19,7 +19,7 @@ REQUEST = Request({"type": "http", "headers": []})
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "status", "total")
+    fields = ["id", "status", "total"]
     list_filters = ("status",)
     searchable_fields = ("customer.name",)
     page_size = 3
@@ -63,7 +63,7 @@ class OrderView(ModelView[Order]):
 
 
 class ProductView(ModelView[Product]):
-    list_display = ("id", "name", "price")
+    fields = ["id", "name", "price"]
 
 
 @pytest.fixture

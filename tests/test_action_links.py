@@ -27,7 +27,7 @@ class ProductView(ModelView[Product]):
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "note")
+    fields = ["id", "note"]
     fields_default_sort = ("id",)
 
     @action(

@@ -19,27 +19,28 @@ from tests.models import Customer, Order, OrderItem, OrderStatus
 class CustomerView(ModelView[Customer]):
     """A customer holds many orders, picked from a table that grew."""
 
-    form_fields = ("name", "email", "orders")
-    fields = (
+    fields = [
+        "name",
+        "email",
         RelationField(
             "orders",
             target=Order,
             collection=True,
             display_template="Order #{id}",
         ),
-    )
+    ]
 
 
 class OrderItemView(ModelView[OrderItem]):
     """A line holds one order, picked from the same large table."""
 
-    form_fields = ("order", "quantity")
-    # Not required, though its column is, so the box can be cleared.
-    fields = (
+    fields = [
+        # Not required, though its column is, so the box can be cleared.
         RelationField(
             "order", target=Order, display_template="Order #{id}", required=False
         ),
-    )
+        "quantity",
+    ]
 
 
 @pytest.fixture
@@ -208,12 +209,12 @@ class TestTheBox:
     ) -> None:
         class RequiredItemView(ModelView[OrderItem]):
             name = "required_items"
-            form_fields = ("order", "quantity")
-            fields = (
+            fields = [
                 RelationField(
                     "order", target=Order, display_template="Order #{id}", required=True
                 ),
-            )
+                "quantity",
+            ]
 
         admin = Admin(big_database, views=[RequiredItemView], secret_key="s")
         app = Starlette()

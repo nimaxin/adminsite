@@ -153,9 +153,12 @@ class TestFileField:
 
 def product_view(storage: LocalStorage) -> type[ModelView[Any]]:
     class ProductView(ModelView[Product]):
-        form_fields = ("name", "price", "description")
-        list_display = ("name", "description")
-        fields = (ImageField("description", label="Photo", storage=storage),)
+        fields = [
+            "name",
+            "price",
+            ImageField("description", label="Photo", storage=storage),
+        ]
+        exclude_fields_from_list = ["price"]
 
     return ProductView
 

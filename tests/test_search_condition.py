@@ -32,7 +32,7 @@ class CustomerView(ModelView[Customer]):
 
 class OrderView(ModelView[Order]):
     record_title = "Order #{id}"
-    form_fields = ("customer", "status")
+    fields = ["customer", "status"]
 
 
 @pytest.fixture

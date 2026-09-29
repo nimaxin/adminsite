@@ -1,15 +1,18 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from typing import Any, Generic, TypeVar
 
 import httpx
 import pytest
 from sqlalchemy.orm import aliased
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import (
     Admin,
     AdminSiteError,
+    ColumnReference,
     Descending,
+    Field,
     Link,
     ModelView,
     Sort,
@@ -106,21 +109,26 @@ class TestAViewWithNoClassOfItsOwn:
 class TestSettingsNameColumnsByAttribute:
     def test_attributes_links_and_strings_become_paths(self) -> None:
         class OrderView(ModelView[Order]):
-            list_display = [
+            fields = [
                 Order.id,
                 Link(Order.customer, Customer.name),
+                Order.customer,
                 "status",
                 "customer.email",
+                Field(Order.note, hidden_in_list=True),
             ]
-            list_columns = [Order.note]
+            exclude_fields_from_list = [Order.customer]
             searchable_fields = [Order.id, Link(Order.customer, Customer.email)]
-            form_fields = [Order.customer, Order.status, Order.note]
-            readonly_fields = [Order.status]
             deferred_fields = [Order.note]
+
+            def get_readonly_fields(
+                self, request: Request, record: Order | None
+            ) -> Sequence[ColumnReference]:
+                return [Order.status]
 
         view = OrderView()
 
-        assert view.get_list_display() == (
+        assert view._list_fields() == (
             "id",
             "customer.name",
             "status",
@@ -128,21 +136,21 @@ class TestSettingsNameColumnsByAttribute:
         )
         assert view._column_choices()[-1] == "note"
         assert view._search_paths(None) == ("id", "customer.email")
-        assert view.get_form_fields() == ("customer", "status", "note")
+        assert view._form_fields() == ("customer", "status", "note")
         assert view._readonly_paths()[0] == "status"
         assert view._deferred_fields == ("note",)
 
     def test_a_link_can_go_through_several_relations(self) -> None:
         class ItemView(ModelView[OrderItem]):
-            list_display = [Link(OrderItem.order, Link(Order.customer, Customer.name))]
+            fields = [Link(OrderItem.order, Link(Order.customer, Customer.name))]
 
-        assert ItemView().get_list_display() == ("order.customer.name",)
+        assert ItemView()._list_fields() == ("order.customer.name",)
 
     def test_excluded_attributes_leave_the_default_columns(self) -> None:
         class OrderView(ModelView[Order]):
-            exclude = [Order.note, Order.created_at]
+            exclude_fields_from_list = [Order.note, Order.created_at]
 
-        shown = OrderView().get_list_display()
+        shown = OrderView()._list_fields()
 
         assert "note" not in shown
         assert "created_at" not in shown
@@ -185,13 +193,13 @@ class TestSorts:
 class TestMistakesStopTheView:
     def test_a_column_of_another_model(self) -> None:
         class OrderView(ModelView[Order]):
-            list_display = [Order.id, Customer.name]
+            fields = [Order.id, Customer.name]
 
         with pytest.raises(AdminSiteError) as caught:
             OrderView()
 
         message = str(caught.value)
-        assert "OrderView.list_display" in message
+        assert "OrderView.fields" in message
         assert "Customer.name is a column of Customer, not of Order" in message
         assert "Link(Order.<relation>, Customer.name)" in message
 
@@ -209,14 +217,14 @@ class TestMistakesStopTheView:
 
     def test_a_link_that_starts_from_a_column(self) -> None:
         class OrderView(ModelView[Order]):
-            list_display = [Link(Order.note, Customer.name)]
+            fields = [Link(Order.note, Customer.name)]
 
         with pytest.raises(AdminSiteError, match="A link starts from a relationship"):
             OrderView()
 
     def test_a_link_from_another_model(self) -> None:
         class OrderView(ModelView[Order]):
-            list_display = [Link(OrderItem.product, Product.name)]
+            fields = [Link(OrderItem.product, Product.name)]
 
         with pytest.raises(AdminSiteError, match=r"OrderItem\.product is a column of"):
             OrderView()
@@ -243,7 +251,7 @@ class TestMistakesStopTheView:
         other = aliased(Order)
 
         class OrderView(ModelView[Order]):
-            list_display = [other.total]
+            fields = [other.total]
 
         with pytest.raises(AdminSiteError, match="belongs to an alias"):
             OrderView()
@@ -257,7 +265,7 @@ class TestMistakesStopTheView:
 
 
 class LinkedOrders(ModelView[Order]):
-    list_display = [Order.id, Link(Order.customer, Customer.name), Order.total]
+    fields = [Order.id, Link(Order.customer, Customer.name), Order.total]
     searchable_fields = [Link(Order.customer, Customer.email)]
     fields_default_sort = [Descending(Order.total)]
 
