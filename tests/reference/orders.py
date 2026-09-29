@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated
 
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite import (
+    BaseField,
     ColumnReference,
     DeleteContext,
     Descending,
@@ -118,7 +119,7 @@ class OrderView(ModelView[Order]):
         return Order.id == int(digits) if digits.isdigit() else None
 
     def can_access_field(
-        self, request: Request, field: Field[Any], action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name != "total" or is_manager(request)
 

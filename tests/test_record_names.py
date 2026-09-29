@@ -11,7 +11,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.audit import AuditLog, AuditQuery
 from adminsite.backends.sqlalchemy import Database
-from tests.models import Customer, OrderItem
+from tests.models import Customer, Order, OrderItem
 
 
 class TicketBase(DeclarativeBase):
@@ -45,25 +45,59 @@ class CustomerView(ModelView[Customer]):
 
 class NamedItemView(ModelView[OrderItem]):
     name = "named_items"
-    display_template = "{quantity} pieces"
+    record_title = "{quantity} pieces"
 
 
 class TestTheName:
     def test_a_record_without_one_is_named_by_its_view_and_key(self) -> None:
-        assert ItemView().title_of(OrderItem(id=12)) == "Order item #12"
+        assert ItemView().get_record_title(OrderItem(id=12)) == "Order item #12"
 
     def test_a_repr_is_not_a_name(self) -> None:
-        assert TicketView().title_of(Ticket(id=3, secret="s3cr3t")) == "Ticket #3"
+        assert (
+            TicketView().get_record_title(Ticket(id=3, secret="s3cr3t")) == "Ticket #3"
+        )
 
     def test_a_model_that_names_itself_keeps_its_name(self) -> None:
         lena = Customer(id=1, name="Lena Fischer")
 
-        assert CustomerView().title_of(lena) == "Lena Fischer"
+        assert CustomerView().get_record_title(lena) == "Lena Fischer"
 
-    def test_a_display_template_comes_first(self) -> None:
+    def test_a_record_title_comes_first(self) -> None:
         item = OrderItem(id=1, quantity=2)
 
-        assert NamedItemView().title_of(item) == "2 pieces"
+        assert NamedItemView().get_record_title(item) == "2 pieces"
+
+    def test_the_old_name_still_names_it(self) -> None:
+        class Named(ModelView[OrderItem]):
+            display_template = "{quantity} pieces"
+
+        assert Named().get_record_title(OrderItem(id=1, quantity=2)) == "2 pieces"
+
+
+class NamedCustomers(ModelView[Customer]):
+    def get_record_title(self, customer: Customer, /) -> str:
+        return f"{customer.name} of {customer.region}"
+
+
+class LinkingOrders(ModelView[Order]):
+    fields = [Order.id, Order.customer]
+
+
+class TestAMethodOfItsOwn:
+    async def test_it_names_the_record_on_its_page_and_where_it_is_linked(
+        self, database: Database
+    ) -> None:
+        admin = Admin(database, views=[NamedCustomers, LinkingOrders])
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/customers/1")
+            listed = await client.get("/admin/orders")
+
+        assert re.search(r"<h1[^>]*>\s*Lena Fischer of DE\s*</h1>", page.text)
+        assert "Lena Fischer of DE" in listed.text
 
 
 @pytest.fixture

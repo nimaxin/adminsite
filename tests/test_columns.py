@@ -129,7 +129,7 @@ class TestSettingsNameColumnsByAttribute:
         assert view.get_column_choices()[-1] == "note"
         assert view.get_search_fields() == ("id", "customer.email")
         assert view.get_form_fields() == ("customer", "status", "note")
-        assert view.get_readonly_fields()[0] == "status"
+        assert view.readonly_paths()[0] == "status"
         assert view.get_deferred_fields() == ("note",)
 
     def test_a_link_can_go_through_several_relations(self) -> None:

@@ -162,7 +162,7 @@ typing searches for another, and picking replaces it. Below 100 it is a plain se
 `EnumField` with `multiple=True` gets the same picker, over its options.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
-whatever the lookup finds, twenty at a time. Give the other model's view a `display_template` so those
+whatever the lookup finds, twenty at a time. Give the other model's view a `record_title` so those
 twenty read as something more telling than `Order #12`.
 
 A picker reads through the other model's own view, so its `scope_query` and its permissions apply
@@ -173,7 +173,7 @@ its own, there is nothing to ask and its records are read directly.
 The search looks in the target view's `search_fields`. Where it names none, it looks in the text
 columns the records are named by, which the picker is already showing. So a column a view keeps off
 its pages cannot be read a letter at a time through a picker, and a target with neither
-`search_fields` nor a `display_template` cannot be narrowed at all.
+`search_fields` nor a `record_title` cannot be narrowed at all.
 
 ### When the order means something
 

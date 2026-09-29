@@ -11,11 +11,23 @@ class Permission(StrEnum):
     EXPORT = "export"
     # Opening one record's page. A view whose list says everything can
     # switch it off.
+    VIEW_DETAIL = "detail"
+    # The name VIEW_DETAIL replaces, read until 0.1.0a10 refuses it.
     DETAIL = "detail"
     IMPORT = "import"
     # Reading the audit log: a record's History tab, and the view's entries
     # on the Activity page.
     HISTORY = "history"
+
+
+class RequestAction(StrEnum):
+    """The page a field is asked for, as `can_access_field` is told it."""
+
+    LIST = "list"
+    DETAIL = "detail"
+    CREATE = "create"
+    EDIT = "edit"
+    EXPORT = "export"
 
 
 def permission_name(permission: "Permission | str") -> str:

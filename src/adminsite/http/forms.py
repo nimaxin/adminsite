@@ -39,7 +39,7 @@ async def build_rows(
     `submitted` holds the values that were read; `typed` holds the text they
     were read from, which is what a field that failed shows again.
     """
-    readonly = set(view.get_readonly_fields(request, record))
+    readonly = set(view.readonly_paths(request, record))
     errors = errors or {}
     submitted = submitted or {}
     typed = typed or {}

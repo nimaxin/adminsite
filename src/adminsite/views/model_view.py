@@ -2,7 +2,6 @@ import types
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import replace
-from string import Formatter
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -74,8 +73,14 @@ from adminsite.filters import Filter, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
-from adminsite.security import Permission, permission_name
-from adminsite.text import RecordValues, names_itself, pluralize, snake_case
+from adminsite.security import Permission, RequestAction, permission_name
+from adminsite.text import (
+    RecordValues,
+    names_itself,
+    pluralize,
+    snake_case,
+    template_names,
+)
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.naming import name_all_linked, name_linked
 from adminsite.views.writing import (
@@ -97,9 +102,6 @@ BULK_DELETE_LIMIT = 1000
 M = TypeVar("M")
 
 T = TypeVar("T")
-
-# The pages a field can be left off.
-PageName: TypeAlias = Literal["list", "detail", "create", "edit", "export"]
 
 # What a setting may name: any field of the view, a column or relationship
 # of the model, a column, a column the list can be sorted by, or a column of
@@ -126,7 +128,10 @@ class ModelView(Generic[M]):
     label_plural: str = ""
     group: str = ""
     icon: str = ""
-    display_template: str = ""
+    # How a record is named in headings, links to it and the history, such
+    # as "Order #{id}". Left empty, the model's own __str__, or the view's
+    # label and the record's key.
+    record_title: str = ""
 
     # Every field of the view, in order, for every page. Columns are named by
     # attribute, Order.total, by Link for a column of a related model, or by
@@ -159,6 +164,8 @@ class ModelView(Generic[M]):
     form_fields: Sequence[ColumnReference] = ()
     detail_fields: Sequence[ColumnReference] = ()
     exclude: Sequence[ColumnReference] = ()
+    display_template: str = ""
+    can_detail: bool = True
 
     list_filter: Sequence[ColumnReference | Filter] = ()
     page_size: int = 25
@@ -169,6 +176,8 @@ class ModelView(Generic[M]):
     global_search: bool = True
     pagination: Pagination = Pagination.OFFSET
 
+    # Fields never editable. read_only=True on a field replaces it, read
+    # until 0.1.0a10 refuses it; get_readonly_fields decides per record.
     readonly_fields: Sequence[ColumnReference] = ()
 
     # Columns the list does not read, such as a large JSON payload, left out
@@ -179,7 +188,7 @@ class ModelView(Generic[M]):
     inlines: Sequence[Inline] = ()
 
     can_create: bool = True
-    can_detail: bool = True
+    can_view_detail: bool = True
     can_export: bool = True
     can_edit: bool = True
     can_delete: bool = True
@@ -263,12 +272,12 @@ class ModelView(Generic[M]):
         self._overrides: dict[str, BaseField] = {}
         self._changes: dict[str, dict[str, Any]] = {}
         self._placed = self._read_fields()
-        exclusions: dict[PageName, Sequence[ColumnReference]] = {
-            "list": self.exclude_fields_from_list,
-            "detail": self.exclude_fields_from_detail,
-            "create": self.exclude_fields_from_create,
-            "edit": self.exclude_fields_from_edit,
-            "export": self.exclude_fields_from_export,
+        exclusions: dict[RequestAction, Sequence[ColumnReference]] = {
+            RequestAction.LIST: self.exclude_fields_from_list,
+            RequestAction.DETAIL: self.exclude_fields_from_detail,
+            RequestAction.CREATE: self.exclude_fields_from_create,
+            RequestAction.EDIT: self.exclude_fields_from_edit,
+            RequestAction.EXPORT: self.exclude_fields_from_export,
         }
         self._excluded = {
             page: self._paths(f"exclude_fields_from_{page}", entries, takes="fields")
@@ -300,6 +309,14 @@ class ModelView(Generic[M]):
         self._deferred_fields = self._paths(
             "deferred_fields", self.deferred_fields, takes="own columns"
         )
+        self._record_title = self.record_title or self.display_template
+        if self._record_title:
+            setting = "record_title" if self.record_title else "display_template"
+            self._check_title(
+                f"{type(self).__name__}.{setting}: {describe(self._record_title)}",
+                self._record_title,
+                self.model,
+            )
         # A key the database numbers, or one the parent record's key fills
         # in, is never typed into a form. A key people choose, such as a
         # code, is.
@@ -333,13 +350,35 @@ class ModelView(Generic[M]):
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
 
+    def can_access_field(
+        self, request: Any, field: BaseField, action: RequestAction
+    ) -> bool:
+        """Whether this user sees the field on this page.
+
+        Every field is shown to everyone by default. Answer False to keep one
+        from someone, such as a cost price from staff who are not managers:
+        it leaves the page, the export and the API, and no form reads it
+        back. `field.name` is the path it shows, such as "total" or
+        "customer.email".
+        """
+        return True
+
+    def _accessible(
+        self, request: Any, paths: Sequence[str], action: RequestAction
+    ) -> tuple[str, ...]:
+        """The paths among these whose fields this user sees on this page."""
+        return tuple(
+            path
+            for path in paths
+            if self.can_access_field(request, self.field_for(path), action)
+        )
+
     def get_list_display(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list shows."""
-        if self._list_display:
-            return self._list_display
-        return tuple(
+        shown = self._list_display or tuple(
             path for path in self._listed() if not self.field_for(path).hidden_in_list
         )
+        return self._accessible(request, shown, RequestAction.LIST)
 
     def get_page_sizes(self, request: Any = None) -> tuple[int, ...]:
         """The page sizes on offer, the view's own size among them."""
@@ -364,7 +403,11 @@ class ModelView(Generic[M]):
         hidden = [
             path for path in self._listed() if self.field_for(path).hidden_in_list
         ]
-        extras = dict.fromkeys((*self._list_columns, *hidden))
+        extras = self._accessible(
+            request,
+            tuple(dict.fromkeys((*self._list_columns, *hidden))),
+            RequestAction.LIST,
+        )
         return shown + tuple(path for path in extras if path not in shown)
 
     def pick_columns(
@@ -414,9 +457,13 @@ class ModelView(Generic[M]):
         A column of a related model and a computed field are shown, never
         edited, so they stay off forms, as does a key nobody types in.
         """
+        page = RequestAction.CREATE if record is None else RequestAction.EDIT
+        return self._accessible(request, self._form_paths(page), page)
+
+    def _form_paths(self, page: RequestAction) -> tuple[str, ...]:
+        """The fields a form places, before anyone is asked about."""
         if self._form_fields:
             return self._form_fields
-        page: PageName = "create" if record is None else "edit"
         return tuple(
             path
             for path in self._candidates()
@@ -432,35 +479,63 @@ class ModelView(Generic[M]):
         A view that lists no fields shows what its form shows.
         """
         if self._detail_fields:
-            return self._detail_fields
+            return self._accessible(request, self._detail_fields, RequestAction.DETAIL)
         if self._placing():
             shown: Sequence[str] = self._candidates()
         else:
-            shown = self.get_form_fields(request, record)
-        return tuple(
-            path
-            for path in shown
-            if not self.field_for(path).form_only
-            and not self._excluded_from("detail", path)
+            page = RequestAction.CREATE if record is None else RequestAction.EDIT
+            shown = self._form_paths(page)
+        return self._accessible(
+            request,
+            [
+                path
+                for path in shown
+                if not self.field_for(path).form_only
+                and not self._excluded_from(RequestAction.DETAIL, path)
+            ],
+            RequestAction.DETAIL,
         )
 
-    def exported(self, paths: Sequence[str]) -> tuple[str, ...]:
+    def exported(self, paths: Sequence[str], request: Any = None) -> tuple[str, ...]:
         """The columns of a list that go into its export."""
-        return tuple(path for path in paths if not self._excluded_from("export", path))
+        return self._accessible(
+            request,
+            [
+                path
+                for path in paths
+                if not self._excluded_from(RequestAction.EXPORT, path)
+            ],
+            RequestAction.EXPORT,
+        )
 
     def get_deferred_fields(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list leaves out of its query."""
         return self._deferred_fields
 
     def get_readonly_fields(
+        self, request: Any, record: M | None
+    ) -> Sequence[ColumnReference]:
+        """Fields shown on this record's form but not editable there.
+
+        A field with `read_only=True` is never editable. Answer with more
+        for one record or one user, such as the customer of a shipped order;
+        `record` is None on the form for a new record.
+        """
+        return self._readonly_fields
+
+    def readonly_paths(
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
-        """The fields shown but not editable, named here or by themselves.
+        """The paths shown but not editable, named for the record or by themselves.
 
         A primary key is readonly by its nature, but a form that names one
-        means to set it, so a key stays editable unless it is named here.
+        means to set it, so a key stays editable unless it is named.
         """
-        named = self._readonly_fields
+        named = self._paths(
+            "get_readonly_fields",
+            self.get_readonly_fields(request, record),
+            takes="fields",
+        )
         keys = set(self.schema.primary_key)
         return named + tuple(
             path
@@ -546,6 +621,13 @@ class ModelView(Generic[M]):
                 f"{type(self).__name__}.inlines names {inline.name!r}, which "
                 "holds one record. An inline needs a relationship holding many."
             )
+        if inline.display_template:
+            self._check_title(
+                f"{type(self).__name__}.{setting}.display_template: "
+                f"{describe(inline.display_template)}",
+                inline.display_template,
+                relation.target,
+            )
         # The link back to the parent is set by the relationship itself, so
         # it never appears as an input in the child rows.
         target = self.inspector.inspect(relation.target)
@@ -564,7 +646,7 @@ class ModelView(Generic[M]):
                 f"{setting}.readonly_fields", inline.readonly_fields, relation.target
             ),
             "exclude": back_links,
-            "display_template": inline.display_template,
+            "record_title": inline.display_template,
         }
         child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
         built: ModelView[Any] = child_class(self.inspector, self.registry)
@@ -591,7 +673,7 @@ class ModelView(Generic[M]):
             path
             for path in self._candidates()
             if not self.field_for(path).form_only
-            and not self._excluded_from("list", path)
+            and not self._excluded_from(RequestAction.LIST, path)
         )
 
     def _editable(self, path: str) -> bool:
@@ -601,17 +683,17 @@ class ModelView(Generic[M]):
         item = self.field_for(path)
         return item.stored or item.form_only
 
-    def _excluded_from(self, page: PageName, path: str) -> bool:
+    def _excluded_from(self, page: RequestAction, path: str) -> bool:
         """Whether the field is left off a page, by its flag or the view's list."""
         if path in self._excluded[page]:
             return True
         item = self.field_for(path)
         return {
-            "list": item.exclude_from_list,
-            "detail": item.exclude_from_detail,
-            "create": item.exclude_from_create,
-            "edit": item.exclude_from_edit,
-            "export": item.exclude_from_export,
+            RequestAction.LIST: item.exclude_from_list,
+            RequestAction.DETAIL: item.exclude_from_detail,
+            RequestAction.CREATE: item.exclude_from_create,
+            RequestAction.EDIT: item.exclude_from_edit,
+            RequestAction.EXPORT: item.exclude_from_export,
         }[page]
 
     def _default_paths(self, skip: set[str]) -> tuple[str, ...]:
@@ -766,6 +848,36 @@ class ModelView(Generic[M]):
             said += f" The view's own fields: {', '.join(own)}."
         return said
 
+    def _check_title(self, where: str, template: str, model: type[Any]) -> None:
+        """Refuse a record title that reads an attribute the model does not have.
+
+        A template `str.format` cannot read would fail on every page that
+        names a record, and a name the model lacks would show as nothing, so
+        both stop the admin.
+        """
+        try:
+            names = template_names(template)
+        except ValueError as error:
+            raise AdminSiteError(
+                f"{where} cannot be read: {error}. Write each column's name in "
+                "braces, such as {id}, and double a brace meant as text."
+            ) from None
+        for name in names:
+            if not hasattr(model, name):
+                missing = UnknownFieldError(model, name)
+                raise AdminSiteError(
+                    f"{where} reads {{{name}}}, and {self._missing(name, missing, {})}"
+                )
+
+    def _check_link_title(self, item: BaseField, written: str) -> None:
+        """Refuse a link's display_template that reads what its model lacks."""
+        if isinstance(item, RelationField) and item.display_template:
+            self._check_title(
+                f"{written}: its display_template {describe(item.display_template)}",
+                item.display_template,
+                item.related_model,
+            )
+
     def _own_fields(self) -> dict[str, BaseField]:
         """The fields in `fields` that are no column, such as a computed one."""
         return {
@@ -818,7 +930,7 @@ class ModelView(Generic[M]):
             both = (
                 f"{written!r} has both hidden_in_list=True and exclude_from_list=True."
             )
-        elif path in self._excluded["list"]:
+        elif path in self._excluded[RequestAction.LIST]:
             both = (
                 f"{written!r} has hidden_in_list=True, and exclude_fields_from_list "
                 "names it."
@@ -871,6 +983,7 @@ class ModelView(Generic[M]):
                 "name it in fields without a field."
             )
         completed.check_options()
+        self._check_link_title(completed, repr(given))
         return completed
 
     def _built_field(self, path: str) -> BaseField:
@@ -897,15 +1010,20 @@ class ModelView(Generic[M]):
                 )
         try:
             if resolved.field is not None:
-                built: BaseField = self.registry.build(resolved.field, **changes)
+                built: BaseField = self.registry.build(
+                    replace(resolved.field, name=path), **changes
+                )
             else:
-                built = RelationField.from_relation(resolved.relations[-1], **changes)
+                built = RelationField.from_relation(
+                    replace(resolved.relations[-1], name=path), **changes
+                )
         except AdminSiteError as error:
             if not changes:
                 raise
             raise AdminSiteError(f"FieldOptions({describe(path)}): {error}") from error
         if changes:
             built.check_options()
+            self._check_link_title(built, f"FieldOptions({describe(path)})")
         return built
 
     async def form_values(
@@ -1056,15 +1174,15 @@ class ModelView(Generic[M]):
         """Name a record one of this view's links points at."""
         return name_linked(item, record, views=self.views, inspector=self.inspector)
 
-    def title_of(self, record: Any) -> str:
-        """Name a record, for a heading or a link to it.
+    def get_record_title(self, record: M, /) -> str:
+        """Name a record, for a heading, a link to it and the history.
 
-        The view's `display_template` first, then the model's own `__str__`.
-        A model with neither is named by the view's label and the record's
-        key, "Order #12", rather than by where it sits in memory.
+        `record_title` first, then the model's own `__str__`. A model with
+        neither is named by the view's label and the record's key, "Order
+        #12", rather than by where it sits in memory.
         """
-        if self.display_template:
-            return self.display_template.format_map(RecordValues(record))
+        if self._record_title:
+            return self._record_title.format_map(RecordValues(record))
         if names_itself(record):
             return str(record)
         return _("{thing} #{key}", thing=self.label, key=self.identity_of(record))
@@ -1129,16 +1247,8 @@ class ModelView(Generic[M]):
         return tuple(wanted)
 
     def _named_in_title(self) -> set[str]:
-        """The columns `display_template` reads, which every row needs."""
-        if not self.display_template:
-            return set()
-        return {
-            name
-            for _text, name, _spec, _conversion in Formatter().parse(
-                self.display_template
-            )
-            if name
-        }
+        """The columns `record_title` reads, which every row needs."""
+        return set(template_names(self._record_title))
 
     # Actions.
 
@@ -1211,7 +1321,11 @@ class ModelView(Generic[M]):
     ) -> Any:
         """Run an action on one record, and say what to tell the user."""
         entry = self._action_entry(
-            found, request, values, self.identity_of(record), self.title_of(record)
+            found,
+            request,
+            values,
+            self.identity_of(record),
+            self.get_record_title(record),
         )
         auditing = self.audit is not None
         paths = list(self.get_form_fields(request, record)) if auditing else []
@@ -1454,8 +1568,8 @@ class ModelView(Generic[M]):
             return self.can_delete
         if name == Permission.IMPORT:
             return self.can_import
-        if name == Permission.DETAIL:
-            return self.can_detail
+        if name == Permission.VIEW_DETAIL:
+            return self.can_view_detail and self.can_detail
         if name == Permission.EXPORT:
             return self.can_export
         return True
@@ -1515,7 +1629,7 @@ class ModelView(Generic[M]):
         request: Any = None,
     ) -> tuple[Sequence[Any], int]:
         """The first records a to-many link of this record holds, and the total."""
-        await self.ensure(Permission.DETAIL, request=request, record=record)
+        await self.ensure(Permission.VIEW_DETAIL, request=request, record=record)
         return await self.repository.related(session, record, path, limit=limit)
 
     # Writing.
@@ -1529,7 +1643,7 @@ class ModelView(Generic[M]):
     ) -> FormResult:
         """Read a submitted form into values, collecting any messages."""
         result = FormResult()
-        readonly = set(self.get_readonly_fields(request, record))
+        readonly = set(self.readonly_paths(request, record))
         draft: Any = None
 
         for path in self.get_form_fields(request, record):
@@ -1584,7 +1698,7 @@ class ModelView(Generic[M]):
         request: Any,
     ) -> list[InlineRow]:
         child = self.inline_view(inline.name)
-        readonly = set(child.get_readonly_fields(request))
+        readonly = set(child.readonly_paths(request))
         paths = [
             path for path in child.get_form_fields(request) if path not in readonly
         ]
@@ -1788,7 +1902,7 @@ class ModelView(Generic[M]):
             if auditing
             else {}
         )
-        key, title = self.identity_of(record), self.title_of(record)
+        key, title = self.identity_of(record), self.get_record_title(record)
         await self.repository.delete(session, record)
         await self.after_delete(context)
         if not auditing:
@@ -1832,7 +1946,7 @@ class ModelView(Generic[M]):
                 )
             )
         for record in records:
-            title = self.title_of(record)
+            title = self.get_record_title(record)
             try:
                 await self._delete_within(selection.session, record, request=request)
             except (RefusedError, PermissionDeniedError) as error:
@@ -1983,7 +2097,7 @@ class ModelView(Generic[M]):
                 AuditEntry(
                     view=self.name,
                     record_key=self.identity_of(record),
-                    record_title=self.title_of(record),
+                    record_title=self.get_record_title(record),
                     event=AuditEvent.CREATED if created else AuditEvent.UPDATED,
                     changes=changes,
                     **actor_of(request),

@@ -26,7 +26,7 @@ from adminsite.schema import (
     RelationDirection,
     RelationSchema,
 )
-from adminsite.security import Permission
+from adminsite.security import Permission, RequestAction
 from adminsite.text import Html
 from adminsite.views import Inline, ModelView, ViewRegistry
 
@@ -67,6 +67,7 @@ __all__ = [
     "RefusedError",
     "RelationDirection",
     "RelationSchema",
+    "RequestAction",
     "SavedView",
     "SavedViews",
     "Sort",

@@ -70,7 +70,7 @@ async def stream_csv(
     The columns are what the file holds; the spec says what to load, which
     is not the same, since a computed column loads whatever it reads.
     """
-    paths = view.exported(tuple(columns) or view.get_list_display(request))
+    paths = view.exported(tuple(columns) or view.get_list_display(request), request)
     yield csv_header(view, paths)
 
     offset = 0

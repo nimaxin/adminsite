@@ -112,7 +112,7 @@ async def build_inline_tables(
     for inline in view.get_inlines(request, record):
         child = view.inline_view(inline.name)
         paths = child.get_form_fields(request)
-        readonly = set(child.get_readonly_fields(request))
+        readonly = set(child.readonly_paths(request))
         options = {
             path: await _relation_options(
                 admin, session, child.field_for(path), request

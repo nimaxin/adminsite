@@ -73,10 +73,10 @@ class TestNaming:
             Broken()
 
     def test_a_record_can_be_named_by_a_template(self, orders: OrderView) -> None:
-        assert orders.title_of(Order(id=12)) == "Order 12"
+        assert orders.get_record_title(Order(id=12)) == "Order 12"
 
     def test_without_a_template_a_record_names_itself(self) -> None:
-        assert CustomerView().title_of(Customer(name="Lena")) == "Lena"
+        assert CustomerView().get_record_title(Customer(name="Lena")) == "Lena"
 
 
 class TestColumns:
@@ -242,7 +242,7 @@ class TestForms:
         assert CustomerView().get_form_fields() == ("name", "email", "region")
 
     def test_readonly_fields_are_reported(self) -> None:
-        assert CustomerView().get_readonly_fields() == ("email",)
+        assert CustomerView().readonly_paths() == ("email",)
 
 
 class TestOverriding:

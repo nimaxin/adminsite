@@ -25,7 +25,7 @@ class QuietView(ModelView[Customer]):
     name = "customers"
     list_display = ("name", "email")
     search_fields = ("name",)
-    can_detail = False
+    can_view_detail = False
     can_export = False
     icon = "icons/customers.svg"
 
@@ -137,6 +137,17 @@ class TestTheDetailPage:
 
         assert 'href="/admin/orders/1"' in listed.text
         assert page.status_code == 200
+
+
+class TestTheOldName:
+    async def test_can_detail_still_switches_the_page_off(self) -> None:
+        class Quiet(ModelView[Customer]):
+            can_detail = False
+
+        view = Quiet()
+
+        assert await view.allows(Permission.VIEW_DETAIL) is False
+        assert await view.allows(Permission.DETAIL) is False
 
 
 class TestIcons:

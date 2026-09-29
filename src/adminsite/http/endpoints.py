@@ -103,7 +103,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     context = as_context(view, request, spec, page, panels, read)
     context["can_create"] = await view.allows(Permission.CREATE, request=request)
     context["can_export"] = await view.allows(Permission.EXPORT, request=request)
-    context["can_detail"] = await view.allows(Permission.DETAIL, request=request)
+    context["can_detail"] = await view.allows(Permission.VIEW_DETAIL, request=request)
     context["can_edit"] = await view.allows(Permission.EDIT, request=request)
     context["can_import"] = await view.allows(Permission.IMPORT, request=request)
     # Offer only the actions this user may run.
@@ -283,7 +283,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
 async def detail(admin: "Admin", request: Request) -> Response:
     """One record, read only."""
     view = find_view(admin, request)
-    await view.ensure(Permission.DETAIL, request=request)
+    await view.ensure(Permission.VIEW_DETAIL, request=request)
     # A to-many link is read a few records at a time below, never loaded
     # whole: an invoice may cover thousands of records.
     counted = many_links(view, view.get_detail_fields(request), request)
@@ -346,7 +346,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "view": view,
             "record": record,
             "key": key,
-            "heading": view.title_of(record),
+            "heading": view.get_record_title(record),
             "rows": rows,
             "links": links,
             "children": child_tables(view, record, request),
@@ -491,7 +491,9 @@ async def view_that_opens(
         candidate
         for candidate in candidates
         if candidate is not None
-        and await candidate.allows(Permission.DETAIL, request=request, record=value)
+        and await candidate.allows(
+            Permission.VIEW_DETAIL, request=request, record=value
+        )
     ]
     if len(allowed) <= 1 or item.view is not None:
         return allowed[0] if allowed else None
@@ -567,7 +569,7 @@ async def activity(admin: "Admin", request: Request) -> Response:
             "detail_views": {
                 view.name
                 for view in await admin.views_allowing(
-                    request, Permission.VIEW, Permission.DETAIL
+                    request, Permission.VIEW, Permission.VIEW_DETAIL
                 )
             },
             "view": None,
@@ -708,7 +710,7 @@ async def document(admin: "Admin", request: Request) -> Response:
         await view.ensure(Permission.CREATE, request=request)
     # Only a field this user edits on this form, so no other is read back.
     editable = set(view.get_form_fields(request, record)) - set(
-        view.get_readonly_fields(request, record)
+        view.readonly_paths(request, record)
     )
     if path not in editable:
         raise HTTPException(
@@ -809,7 +811,7 @@ def form_context(
         "rows": rows,
         "record": record,
         "key": key,
-        "heading": view.title_of(record)
+        "heading": view.get_record_title(record)
         if editing
         else _("New {thing}", thing=view.label.lower()),
         "submit_label": _("Save changes")
@@ -877,7 +879,7 @@ async def after_save(
 ) -> str:
     """Where a save lands: the record's page, or the list without one."""
     urls = Urls(request)
-    if await view.allows(Permission.DETAIL, request=request):
+    if await view.allows(Permission.VIEW_DETAIL, request=request):
         return urls.detail(view, key)
     return urls.list(view)
 
@@ -1163,7 +1165,7 @@ def back_from_action(
     """Where an action lands: the record it ran on, or the list it came from."""
     keys = submitted.get("keys", [])
     chosen = keys if isinstance(keys, list) else [keys]
-    if found.on_record and chosen and view.can_detail:
+    if found.on_record and chosen and view.can_view_detail and view.can_detail:
         return RedirectResponse(Urls(request).detail(view, str(chosen[0])), 303)
     return back_to_list(request, view)
 

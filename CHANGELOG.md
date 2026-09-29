@@ -56,6 +56,20 @@
   nothing to choose from, and a class that is not a mapped model.
 - A tone given for a value a choice field does not have is refused when the view is built, once
   the column has given its choices, rather than when the field is written.
+- `record_title = "Order #{id}"` names a view's records, in place of `display_template`, and
+  `get_record_title(record)` in place of `title_of`. A name in braces the model does not have, in a
+  view's title, an inline's or a link's, stops the admin with the model's columns listed, where it
+  used to show as nothing.
+- `can_access_field(request, field, action)` decides who sees which field on which page, as in
+  starlette-admin: the list and its Columns menu, the record page, the create and edit forms and the
+  export, each named by `RequestAction`. A refused field is left out of the JSON API as well, is
+  never read back from a form, and cannot be sorted by.
+- `get_readonly_fields(request, record)` takes attributes, `[Order.customer, Order.status]`, and a
+  misspelt name it returns is refused rather than ignored. `can_view_detail` and
+  `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`, which still work until
+  0.1.0a10.
+- A field worked out for a column of a related model is named by its path, `customer.email`, as
+  one written in `fields` already was, rather than by the column alone.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

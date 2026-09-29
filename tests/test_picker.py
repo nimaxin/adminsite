@@ -160,6 +160,26 @@ class TestALinkThatSearches:
 
         assert found.text.count("choose(") == 1
 
+    async def test_the_columns_a_record_title_reads_are_searched(
+        self, big_database: Database
+    ) -> None:
+        class Customers(ModelView[Customer]):
+            # A link with no template of its own is named by the order's view.
+            fields = [Customer.name, Customer.email, Customer.orders]
+
+        class OrderView(ModelView[Order]):
+            record_title = "Order #{id}: {note}"
+
+        admin = Admin(big_database, views=[Customers, OrderView])
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            found = await client.get("/admin/customers/lookup/orders?q=rush")
+
+        assert found.text.count("choose(") == 1
+
 
 class TestTheBox:
     async def test_it_is_typed_in_and_opens_a_list(

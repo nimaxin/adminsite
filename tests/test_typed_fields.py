@@ -99,7 +99,7 @@ class TestFieldOnItsOwn:
         class Fixed(ModelView[Order]):
             fields = [Order.customer, Field(Order.total, read_only=True)]
 
-        assert Fixed().get_readonly_fields() == ("total",)
+        assert Fixed().readonly_paths() == ("total",)
 
     def test_a_column_of_a_related_model(self) -> None:
         class Contact(ModelView[Order]):

@@ -145,7 +145,7 @@ def read_values(
     field. A new record needs every required field.
     """
     writable = set(view.get_form_fields(request, record)) - set(
-        view.get_readonly_fields(request, record)
+        view.readonly_paths(request, record)
     )
     values: dict[str, Any] = {}
     errors: dict[str, str] = {}

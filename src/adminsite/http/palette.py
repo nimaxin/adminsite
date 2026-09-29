@@ -82,7 +82,7 @@ async def records_matching(
             if not view.global_search or not view.get_search_fields(request):
                 continue
             # A view with no record page opens the form instead.
-            opens_detail = await view.allows(Permission.DETAIL, request=request)
+            opens_detail = await view.allows(Permission.VIEW_DETAIL, request=request)
             if not opens_detail and not await view.allows(
                 Permission.EDIT, request=request
             ):
@@ -96,7 +96,7 @@ async def records_matching(
                     view.label_plural,
                     [
                         PaletteItem(
-                            view.title_of(record),
+                            view.get_record_title(record),
                             urls.detail(view, view.identity_of(record))
                             if opens_detail
                             else urls.edit(view, view.identity_of(record)),

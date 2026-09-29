@@ -29,7 +29,7 @@ class OrderView(ModelView[Order]):
         return await super().allows(action, request=request, record=record)
 ```
 
-`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `DETAIL`, `EXPORT`, `IMPORT`
+`action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `VIEW_DETAIL`, `EXPORT`, `IMPORT`
 and `HISTORY`, or the permission an [action](actions.md) asks for. The check runs before a page is shown and again before anything is
 written, so a refused user gets an error even if they post the form by hand. Buttons for things the
 user may not do are left out.
@@ -85,25 +85,44 @@ the order of a value the user cannot see.
 
 ## Fields
 
-Hide a column or lock a field for some users with the `get_` methods:
+`can_access_field` decides who sees which field, page by page, and `get_readonly_fields` who
+may change it:
 
 ```python
+from starlette.requests import Request
+
+from adminsite import BaseField, ColumnReference, RequestAction
+
+
 class CustomerView(ModelView[Customer]):
-    list_display = ("name", "email", "credit_limit")
+    fields = [Customer.name, Customer.email, Customer.credit_limit]
 
-    def get_list_display(self, request=None):
-        if not request.state.user.can_see_money:
-            return ("name", "email")
-        return super().get_list_display(request)
+    def can_access_field(
+        self, request: Request, field: BaseField, action: RequestAction
+    ) -> bool:
+        if field.name == "credit_limit":
+            return request.state.user.can_see_money
+        return True
 
-    def get_readonly_fields(self, request=None, record=None):
+    def get_readonly_fields(
+        self, request: Request, record: Customer | None
+    ) -> list[ColumnReference]:
         if not request.state.user.is_manager:
-            return ("credit_limit",)
-        return ()
+            return [Customer.credit_limit]
+        return []
 ```
 
-A locked field is ignored when the form comes back, so adding the input back with the browser's
-developer tools changes nothing.
+`action` is the page the field is asked for: `RequestAction.LIST`, `DETAIL`, `CREATE`, `EDIT` or
+`EXPORT`, so `action == RequestAction.EXPORT` keeps a column out of the CSV alone. `field.name` is
+the path the field shows, such as `credit_limit` or `customer.email`. A field refused on a page is
+left off it: the list and its Columns menu, the record page, the form and the export. The JSON API
+carries what the list, the record page and the form show this user, and nobody can sort by a field
+they see nowhere.
+
+`get_readonly_fields` answers for one record too, such as the customer of a shipped order, and
+`record` is None on the form for a new one. A field with `read_only=True` is locked for everyone.
+A locked or refused field is ignored when the form comes back, so adding the input back with the
+browser's developer tools changes nothing.
 
 ## Who is asking
 

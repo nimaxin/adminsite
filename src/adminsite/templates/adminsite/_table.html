@@ -61,7 +61,7 @@
               {% if actions %}
                 <td class="h-12 border-b border-line ps-4 pe-1 lg:ps-7">
                   <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
-                         aria-label="{{ _('Select {name}', name=view.title_of(row)) }}"
+                         aria-label="{{ _('Select {name}', name=view.get_record_title(row)) }}"
                          @change="
                            picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
                            everything = false;
@@ -70,7 +70,7 @@
               {% endif %}
               <td class="h-12 border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
                 {% with allowed = row_actions.get(key, []) if row_actions else [],
-                        title = view.title_of(row),
+                        title = view.get_record_title(row),
                         edit_url = urls.edit(view, key) if can_edit else "",
                         upward = loop.revindex <= 3 and loop.length > 5 %}
                   {% include "adminsite/_row_actions.html" %}
@@ -87,7 +87,7 @@
                         has no record page, or is plain text where it has neither. -#}
                     {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
                     {% set is_key = widget == "number" and path in view.schema.primary_key %}
-                    {% set shown = ("#" ~ text if is_key and text else (text or view.title_of(row))) %}
+                    {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
                     {% if opens %}
                       <a class="font-medium text-link hover:underline {% if is_key %}font-mono text-[13px]{% endif %}" href="{{ opens }}">{{ shown }}</a>
                     {% else %}
@@ -133,7 +133,7 @@
           {% set first = columns[0] %}
           {% set text = view.display(row, first) %}
           {% set is_key = view.field_for(first).widget == "number" and first in view.schema.primary_key %}
-          {% set shown = ("#" ~ text if is_key and text else (text or view.title_of(row))) %}
+          {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
           {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
           {% set rest = [] %}
           {% for path in columns[1:] if path not in (layout.badge, layout.amount) and view.field_for(path).widget not in ("image", "file") %}

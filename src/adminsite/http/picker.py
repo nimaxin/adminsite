@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from string import Formatter
 from typing import TYPE_CHECKING, Any
 
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
@@ -7,6 +6,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.fields import RelationField
 from adminsite.query import CountMode, Page, QuerySpec
+from adminsite.text import template_names
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
@@ -65,15 +65,15 @@ class Picker:
         view = self.view
         # Named by the link's own template first, as everywhere else.
         template = self.item.display_template or (
-            view.display_template if view is not None else ""
+            (view.record_title or view.display_template) if view is not None else ""
         )
         if not template:
             return ()
         fields = self.admin.inspector.inspect(self.item.related_model).fields
         return tuple(
             name
-            for _text, name, _spec, _conversion in Formatter().parse(template)
-            if name and name in fields and fields[name].python_type is str
+            for name in template_names(template)
+            if name in fields and fields[name].python_type is str
         )
 
     async def page(

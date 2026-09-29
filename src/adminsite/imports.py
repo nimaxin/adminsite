@@ -129,7 +129,7 @@ class ImportPlan:
 
 def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The paths a file can fill: the key, then the form's own fields."""
-    readonly = set(view.get_readonly_fields(request))
+    readonly = set(view.readonly_paths(request))
     fields = tuple(
         path
         for path in view.get_form_fields(request)

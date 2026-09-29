@@ -30,7 +30,7 @@ def name_linked(
         return item.label_for(record)
     target = views.for_relation(item) if views is not None else None
     if target is not None:
-        return target.title_of(record)
+        return target.get_record_title(record)
     if names_itself(record):
         return str(record)
     schema = inspector.inspect(item.related_model)

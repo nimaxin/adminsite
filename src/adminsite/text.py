@@ -1,5 +1,6 @@
 import re
 from collections.abc import Mapping
+from string import Formatter
 from typing import Any
 
 from markupsafe import Markup
@@ -50,6 +51,23 @@ def names_itself(record: Any) -> bool:
     """
     found: Any = type(record).__str__
     return found is not object.__str__
+
+
+def template_names(template: str) -> list[str]:
+    """The attributes a template such as `{name} ({email})` reads, in order.
+
+    `{customer.name}` reads `customer`. Raises ValueError for a template
+    `str.format` cannot read, and for braces that name no attribute.
+    """
+    names = []
+    for _text, field, _spec, _conversion in Formatter().parse(template):
+        if field is None:
+            continue
+        attribute = re.split(r"[.\[]", field, maxsplit=1)[0]
+        if not attribute.isidentifier():
+            raise ValueError(f"{{{field}}} names no column")
+        names.append(attribute)
+    return names
 
 
 class RecordValues(Mapping[str, Any]):

@@ -11,7 +11,7 @@ from adminsite.fields import TextAreaField
 
 class OrderView(ModelView[Order]):
     group = "Sales"
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
 
     fields = [
         Order.id,
@@ -111,17 +111,32 @@ none.
 | `label` | `Order`, `Order item` | headings and buttons |
 | `label_plural` | `Orders`, `Order items` | the sidebar and the list heading |
 | `group` | none | the sidebar section the view sits under |
-| `display_template` | `str(record)`, or `Order #12` | how a record is named elsewhere, for example `"{name} ({email})"` |
+| `record_title` | `str(record)`, or `Order #12` | how a record is named elsewhere, for example `"{name} ({email})"` |
 
-Without a `display_template`, a record is named by its model's `__str__`. A model without one, as
+Without a `record_title`, a record is named by its model's `__str__`. A model without one, as
 SQLAlchemy models start out, is named by the view's label and the record's key, `Order #12`,
 rather than `<Order object at 0x...>`. A `__repr__` is not used as a name, since one written for a
 dataclass prints every column.
 
-`display_template` is also used wherever another model links to this one: in its list cells, on
+`record_title` is also used wherever another model links to this one: in its list cells, on
 its record pages, in its export, in its audit log and in its pickers. A customer then reads
 `Lena Fischer (lena@fischer.de)` on every order, not just the name. A link given its own
 `display_template` keeps it.
+
+Each name in braces is checked against the model when the admin starts, so
+`record_title = "Order #{nmae}"` stops it with a message listing the columns the model has.
+`{customer.name}` reads through a link. A name no template can build comes from
+`get_record_title`:
+
+```python
+class SupplierView(ModelView[Supplier]):
+    def get_record_title(self, supplier: Supplier, /) -> str:
+        if supplier.closed_at is not None:
+            return f"{supplier.name} (closed)"
+        return supplier.name
+```
+
+The record is passed by position, so the parameter can be named after the model.
 
 ## The list
 
@@ -236,7 +251,7 @@ target_metadata = [Base.metadata, saved_view_metadata]
 
 Press <kbd>Ctrl</kbd>+<kbd>K</kbd>, or <kbd>Cmd</kbd>+<kbd>K</kbd> on a Mac, anywhere in the admin to jump to a page or a record.
 With nothing typed it lists the pages. From two letters on it also runs each view's own search
-and shows the first five matches per view, named by `display_template`. Arrow keys move, Enter
+and shows the first five matches per view, named by `record_title`. Arrow keys move, Enter
 opens.
 
 It searches only views the user may open, through `scope_query`, and only views with
@@ -281,7 +296,7 @@ class EventView(ModelView[Event]):
 ```
 
 The record page, the form and the API load them as usual, so nothing disappears, and a column that
-the list does show is loaded whatever this says, as is the key and anything `display_template`
+the list does show is loaded whatever this says, as is the key and anything `record_title`
 reads. Those are the columns every row needs, and reading one afterwards would cost a query per
 row. Answer per request with `get_deferred_fields(request)`.
 
@@ -294,9 +309,9 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | Setting | What it does |
 |---|---|
 | `fields` | The fields, in order, as under [Fields](#fields). A relationship, such as `Order.customer`, gives a picker. |
-| `readonly_fields` | Shown, but never read back from what was submitted. `read_only=True` on a field does the same. |
+| `read_only=True` on a field | Shown, but never read back from what was submitted. `get_readonly_fields(request, record)` locks more for one user or one record. |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
-| `can_detail`, `can_export` | Switch off the record page and the CSV export. |
+| `can_view_detail`, `can_export` | Switch off the record page and the CSV export. |
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
 if someone adds the input back by hand.
@@ -315,7 +330,7 @@ class UserView(ModelView[User]):
 
 Anything the page shows is loaded with the record, so a linked record costs no extra query. Use
 `get_detail_fields(request, record)` to answer per user, and remember that a field only on the
-page is never read back from a form, so it needs no `readonly_fields` entry.
+page is never read back from a form, so it needs no `read_only=True`.
 
 A link to many records, such as `invoices` above, is the exception. It is never loaded whole,
 since a user may have thousands: the page names the first 20 and says how many more there are, in
@@ -368,13 +383,13 @@ Some views are complete on the list, and some hold data nobody should carry out 
 
 ```python
 class SessionView(ModelView[Session]):
-    can_detail = False
+    can_view_detail = False
     can_export = False
 ```
 
 Without a detail page, rows open the form instead, or read as plain text where there is no form
 either, and saving lands back on the list. Without export, the CSV button is gone and the route
-refuses. Both go through `allows`, so `Permission.DETAIL` and `Permission.EXPORT` can be decided
+refuses. Both go through `allows`, so `Permission.VIEW_DETAIL` and `Permission.EXPORT` can be decided
 per user like any other permission.
 
 ### An icon in the sidebar
@@ -405,25 +420,34 @@ them, and the command palette still finds its records.
 
 ## Answering per request
 
-Every `get_` method receives the request, so the answer can depend on the user:
+Every `get_` method receives the request, so the answer can depend on the user, and
+`can_access_field` decides who sees which field on which page:
 
 ```python
+from starlette.requests import Request
+
+from adminsite import BaseField, ColumnReference, ModelView, RequestAction
+
+
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
+    fields = [Order.id, Order.customer, Order.status, Order.total]
 
-    def get_list_display(self, request=None):
-        if request.user.is_support:
-            return ("id", "status")
-        return super().get_list_display(request)
+    def can_access_field(
+        self, request: Request, field: BaseField, action: RequestAction
+    ) -> bool:
+        return field.name != "total" or request.user.is_manager
 
-    def get_readonly_fields(self, request=None, record=None):
+    def get_readonly_fields(
+        self, request: Request, record: Order | None
+    ) -> list[ColumnReference]:
         if record is not None and record.status == "shipped":
-            return ("customer", "status", "total")
-        return ()
+            return [Order.customer, Order.status]
+        return []
 ```
 
-The methods are `get_list_display`, `get_search_fields`, `get_filters`, `get_ordering`,
-`get_form_fields`, `get_readonly_fields` and `get_actions`.
+The methods are `get_search_fields`, `get_filters`, `get_ordering`, `get_readonly_fields`,
+`get_inlines` and `get_actions`. [Permissions](permissions.md#fields) says where a refused field
+is left out.
 
 ## Several views of one model
 

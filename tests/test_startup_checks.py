@@ -10,14 +10,10 @@ import pytest
 
 from adminsite import AdminSiteError, Descending, Field, Inline, ModelView
 from adminsite.backends.sqlalchemy import SQLAlchemyInspector
-from adminsite.fields import ComputedField, EnumField
+from adminsite.fields import ComputedField, EnumField, RelationField
 from tests.models import Customer, Order
 from tests.reference import startup_mistakes
-from tests.reference.startup_mistakes import (
-    EXPECTED,
-    InputNobodyCanDraw,
-    TitleTypo,
-)
+from tests.reference.startup_mistakes import EXPECTED, InputNobodyCanDraw
 
 
 def line_count(order: Order) -> int:
@@ -31,9 +27,8 @@ def refusal(view: type[ModelView[Any]]) -> str:
     return str(raised.value)
 
 
-# Refused once record_title and typed action parameters are read.
+# Refused once typed action parameters are read.
 NOT_YET = {
-    TitleTypo: "record_title is not read yet",
     InputNobodyCanDraw: "an action's parameters are not read yet",
 }
 
@@ -133,6 +128,70 @@ class TestAName:
 
         assert 'WithLines.inlines[0]: Order has no column or relationship "itms"' in (
             refusal(WithLines)
+        )
+
+
+class TestARecordTitle:
+    def test_a_misspelt_name_lists_the_columns_there_are(self) -> None:
+        class Titled(ModelView[Order]):
+            record_title = "Order #{nmae}"
+
+        assert refusal(Titled) == (
+            'Titled.record_title: "Order #{nmae}" reads {nmae}, and Order has no '
+            'column or relationship "nmae". Its columns: id, customer_id, status, '
+            "total, note, created_at. Its relationships: customer, items."
+        )
+
+    def test_one_str_format_cannot_read_is_refused(self) -> None:
+        class Titled(ModelView[Order]):
+            record_title = "Order #{id"
+
+        assert refusal(Titled).startswith(
+            'Titled.record_title: "Order #{id" cannot be read: '
+        )
+
+    def test_braces_with_no_name_are_refused(self) -> None:
+        class Titled(ModelView[Order]):
+            record_title = "Order #{}"
+
+        assert "cannot be read: {} names no column." in refusal(Titled)
+
+    def test_a_related_record_is_read_through_its_link(self) -> None:
+        class Titled(ModelView[Order]):
+            record_title = "{customer.name}, #{id}"
+
+        order = Order(id=3, customer=Customer(name="Lena"))
+
+        assert Titled().get_record_title(order) == "Lena, #3"
+
+    def test_the_old_name_is_checked_the_same_way(self) -> None:
+        class Titled(ModelView[Order]):
+            display_template = "{nmae}"
+
+        assert refusal(Titled).startswith(
+            'Titled.display_template: "{nmae}" reads {nmae}, and Order has no '
+        )
+
+    def test_an_inline_s_is_checked_against_its_model(self) -> None:
+        class WithLines(ModelView[Order]):
+            inlines = [Inline("items", display_template="{qty}")]
+
+        assert refusal(WithLines).startswith(
+            'WithLines.inlines[0].display_template: "{qty}" reads {qty}, and '
+            'OrderItem has no column or relationship "qty".'
+        )
+
+    def test_a_link_s_is_checked_against_the_model_it_links_to(self) -> None:
+        class Linked(ModelView[Order]):
+            fields = [
+                Order.id,
+                RelationField(Order.customer, display_template="{nmae}"),
+            ]
+
+        assert refusal(Linked).startswith(
+            "Linked.fields: RelationField(Order.customer): its display_template "
+            '"{nmae}" reads {nmae}, and Customer has no column or relationship '
+            '"nmae".'
         )
 
 

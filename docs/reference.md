@@ -28,6 +28,7 @@ The classes you use most, with their signatures and docstrings.
         - get_ordering
         - get_form_fields
         - get_readonly_fields
+        - can_access_field
         - get_actions
         - get_inlines
         - get_column_choices
@@ -37,7 +38,9 @@ The classes you use most, with their signatures and docstrings.
         - after_save
         - before_delete
         - after_delete
-        - title_of
+        - get_record_title
+
+::: adminsite.RequestAction
 
 ::: adminsite.Inline
 
