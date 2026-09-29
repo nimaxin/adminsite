@@ -47,6 +47,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "types-openpyxl" },
+    { name = "typing-extensions" },
     { name = "uvicorn" },
 ]
 docs = [
@@ -91,6 +92,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=5" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "types-openpyxl", specifier = ">=3.1.5.20260827" },
+    { name = "typing-extensions", specifier = ">=4.12" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
 docs = [

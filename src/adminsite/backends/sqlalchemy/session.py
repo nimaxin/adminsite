@@ -17,9 +17,10 @@ from adminsite.exceptions import AdminSiteError
 
 T = TypeVar("T")
 
-# Rows with any number of columns. SQLAlchemy 2.1 types a result column by
-# column, where Result[Any] now means a single column.
-Rows = Result[*tuple[Any, ...]]
+# execute returns rows of any number of columns. SQLAlchemy 2.0 types a result
+# by a tuple, Result[tuple[int, str]], and 2.1 column by column, Result[int,
+# str], so no subscript fits both. The plain Result means any columns in both,
+# and mypy wants its type arguments, hence the ignore on each execute.
 
 SessionSource = (
     Engine | AsyncEngine | sessionmaker[Session] | async_sessionmaker[AsyncSession]
@@ -101,7 +102,7 @@ class SessionAdapter(ABC):
             await _run_after("rollback", work)
 
     @abstractmethod
-    async def execute(self, statement: Executable) -> Rows:
+    async def execute(self, statement: Executable) -> Result:  # type: ignore[type-arg]
         """Run a statement and return its result."""
 
     @abstractmethod
@@ -188,7 +189,7 @@ class AsyncSessionAdapter(SessionAdapter):
         super().__init__()
         self.session = session
 
-    async def execute(self, statement: Executable) -> Rows:
+    async def execute(self, statement: Executable) -> Result:  # type: ignore[type-arg]
         """Run a statement and return its result."""
         return await self.session.execute(statement)
 
@@ -250,7 +251,7 @@ class SyncSessionAdapter(SessionAdapter):
             max_workers=1, thread_name_prefix="adminsite-db"
         )
 
-    async def execute(self, statement: Executable) -> Rows:
+    async def execute(self, statement: Executable) -> Result:  # type: ignore[type-arg]
         """Run a statement and return its result."""
         return await self.run(lambda session: session.execute(statement))
 

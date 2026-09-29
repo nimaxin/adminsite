@@ -20,8 +20,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger("adminsite")
 
 # Where a widget's numbers come from: a select, or a function given the
-# session that returns them.
-Source = Select[*tuple[Any, ...]] | Callable[[SessionAdapter], Awaitable[Any]]
+# session that returns them. The plain Select takes a select of any columns on
+# SQLAlchemy 2.0 and 2.1, which write a select's type differently.
+Source = Select | Callable[[SessionAdapter], Awaitable[Any]]  # type: ignore[type-arg]
 
 
 class Widget:

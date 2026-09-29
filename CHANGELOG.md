@@ -16,6 +16,8 @@
   order's number, now reads from the start like text rather than lining up on the right like an
   amount, so on a list of one or two columns it no longer lands in the middle of the page. Each
   row's menu stays right after its checkbox.
+- adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
+  2.0 too.
 
 ## 0.1.0a9
 
