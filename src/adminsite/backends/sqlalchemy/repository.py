@@ -1,7 +1,7 @@
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from sqlalchemy import (
     ColumnElement,
@@ -14,8 +14,7 @@ from sqlalchemy import (
     select,
     text,
 )
-from sqlalchemy import inspect as sqlalchemy_inspect
-from sqlalchemy.orm import aliased, with_parent
+from sqlalchemy.orm import aliased, class_mapper, with_parent
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
@@ -42,6 +41,16 @@ ConditionBuilder = Callable[
 # Narrows every read to the rows the current user may see.
 Scope = Callable[[Select[Any]], Select[Any]]
 
+Statement = TypeVar("Statement", bound=Select[Any])
+"""The select a view's `scope_query` is given, and hands back narrowed.
+
+A type variable, so the hook returns the same kind of select it was given:
+`statement.where(...)` does, and a new `select(Order)` is a type error.
+"""
+
+# The model a repository reads.
+M = TypeVar("M")
+
 # Up to this many rows an exact count is cheap, so an estimated count only
 # guesses above it, and a narrowed count stops just past it.
 EXACT_COUNT_LIMIT = 10_000
@@ -66,14 +75,14 @@ class Total:
     at_least: bool = False
 
 
-class SQLAlchemyRepository:
+class SQLAlchemyRepository(Generic[M]):
     """Reads records for one model, in as few queries as it can manage."""
 
     def __init__(
         self,
-        model: type[Any],
+        model: type[M],
         inspector: SQLAlchemyInspector | None = None,
-        filters: Sequence["SQLFilter"] = (),
+        filters: Sequence["SQLFilter[Any]"] = (),
     ) -> None:
         self.model = model
         self.inspector = inspector or SQLAlchemyInspector()
@@ -171,7 +180,7 @@ class SQLAlchemyRepository:
         Postgres and MySQL keep one in their statistics, which costs nothing
         to read. Other databases give None.
         """
-        table = sqlalchemy_inspect(self.model).local_table
+        table = class_mapper(self.model).local_table
         if not isinstance(table, Table):
             return None
         dialect = await session.run(lambda plain: plain.get_bind().dialect)
@@ -352,7 +361,7 @@ class SQLAlchemyRepository:
             # Through the link table itself, not an alias of it, so the
             # relationship's own order, such as the link rows' ids, can be
             # read, as the form reads it.
-            parent = sqlalchemy_inspect(self.model)
+            parent = class_mapper(self.model)
             condition = and_(
                 *(
                     linked == getattr(record, parent.get_property_by_column(own).key)

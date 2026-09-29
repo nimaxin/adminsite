@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from enum import Enum
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from sqlalchemy import ColumnElement, Select, false, func, select
 
@@ -25,9 +25,12 @@ from adminsite.text import humanize
 RANGE_SEPARATOR = ","
 DISTINCT_LIMIT = 50
 
+# The model a filter narrows the list of.
+M = TypeVar("M")
 
-class SQLFilter(Filter):
-    """A filter that narrows a SQLAlchemy statement.
+
+class SQLFilter(Filter, Generic[M]):
+    """A filter that narrows a SQLAlchemy statement: `SQLFilter[Product]`.
 
     Write a custom filter by subclassing this and returning a condition.
     Override `apply` instead when the filter needs to change the statement
@@ -35,7 +38,7 @@ class SQLFilter(Filter):
     """
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[M]
     ) -> ColumnElement[bool] | None:
         """The condition this filter adds, or nothing to leave the list be."""
         raise NotImplementedError
@@ -44,7 +47,7 @@ class SQLFilter(Filter):
         self,
         statement: Select[Any],
         value: FilterValue,
-        repository: SQLAlchemyRepository,
+        repository: SQLAlchemyRepository[M],
     ) -> Select[Any]:
         """Narrow the statement with this filter's condition."""
         condition = self.condition(value, repository)
@@ -53,7 +56,7 @@ class SQLFilter(Filter):
         return statement.where(condition)
 
 
-class ChoiceFilter(SQLFilter):
+class ChoiceFilter(SQLFilter[Any]):
     """Pick one or more values from a fixed list, such as a status."""
 
     multiple = True
@@ -82,7 +85,7 @@ class ChoiceFilter(SQLFilter):
         )
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match any of the chosen values."""
         return repository.condition_at(
@@ -90,7 +93,7 @@ class ChoiceFilter(SQLFilter):
         )
 
 
-class BooleanFilter(SQLFilter):
+class BooleanFilter(SQLFilter[Any]):
     """A yes or no column."""
 
     template = "choice"
@@ -116,7 +119,7 @@ class BooleanFilter(SQLFilter):
         )
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match records where the column is set or not set."""
         wanted = value.first == "true"
@@ -125,7 +128,7 @@ class BooleanFilter(SQLFilter):
         )
 
 
-class NumberRangeFilter(SQLFilter):
+class NumberRangeFilter(SQLFilter[Any]):
     """A range of numbers, written as `min,max` with either side empty."""
 
     template = "range"
@@ -147,7 +150,7 @@ class NumberRangeFilter(SQLFilter):
         return tuple(FilterOption(value, label) for value, label in self.presets)
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match records inside the range."""
         low, high = self._bounds(value.first)
@@ -183,7 +186,7 @@ class NumberRangeFilter(SQLFilter):
             return None
 
 
-class DateRangeFilter(SQLFilter):
+class DateRangeFilter(SQLFilter[Any]):
     """A period, either one of the shortcuts or `from,to` as dates."""
 
     template = "range"
@@ -207,7 +210,7 @@ class DateRangeFilter(SQLFilter):
         )
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match records whose date falls inside the period."""
         start, end = self._period(value.first)
@@ -252,7 +255,7 @@ class DateRangeFilter(SQLFilter):
         return moment + timedelta(days=1, microseconds=-1) if end_of_day else moment
 
 
-class RelationFilter(SQLFilter):
+class RelationFilter(SQLFilter[Any]):
     """Records linked to one of the chosen related records."""
 
     multiple = True
@@ -263,7 +266,7 @@ class RelationFilter(SQLFilter):
         self.key = key
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match records linked to any of the chosen keys."""
 
@@ -281,13 +284,13 @@ class RelationFilter(SQLFilter):
         return repository.condition_at(f"{self.path}.{self.key}", build)
 
 
-class TextFilter(SQLFilter):
+class TextFilter(SQLFilter[Any]):
     """Records whose text contains what was typed."""
 
     template = "text"
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
         """Match the text anywhere in the column."""
         term = value.first
@@ -301,7 +304,7 @@ class SQLFilterContext:
     """Lets a filter ask the database what to offer, and how often."""
 
     session: SessionAdapter
-    repository: SQLAlchemyRepository
+    repository: SQLAlchemyRepository[Any]
     spec: QuerySpec
 
     async def count_by(self, path: str) -> Mapping[str, int]:
@@ -349,8 +352,8 @@ def stored_value(value: Any) -> str:
 
 
 def filter_for(
-    repository: SQLAlchemyRepository, path: str, **options: Any
-) -> SQLFilter:
+    repository: SQLAlchemyRepository[Any], path: str, **options: Any
+) -> SQLFilter[Any]:
     """Build the filter that fits what the path points at."""
     resolved = repository.inspector.resolve(repository.model, path)
     name = options.pop("name", path.replace(".", "__"))

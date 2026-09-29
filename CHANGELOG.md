@@ -80,6 +80,23 @@
   untyped `(record, session)` methods still work.
 - `Selection[Order]` names the model of the rows an action runs over, so `records()` returns
   orders. A bare `Selection` now needs its model under mypy's strict mode, as a bare `list` does.
+- A save hook takes `SaveContext[Order]`, so `context.record` is an order, and reads and changes
+  each value by its column, typed as the column is: `context.values[Order.status].get()` and
+  `context.values[Order.note].set(...)`. A column the save leaves as it is reads as the record has
+  it. `context.values.get("name")` and `context.set("slug", ...)` are gone; a string still names a
+  column, or an input that is no column, as `context.values["password"].get()`.
+- `after_save_committed` and `after_delete_committed` run once a change has committed, for an email
+  or a webhook that must only follow a change that was kept. An error in one is logged, and the
+  change stands.
+- `RefusedError(..., field=Order.note)` names the field by its attribute, or by `Link(...)`, as well
+  as by its name.
+- `scope_query` takes and returns `Statement`, so returning a new select in place of the one given
+  is a type error, and `scope_query`, `search_condition`, `allows`, `can_access_field` and
+  `get_readonly_fields` take a `Request`, never left out. `allows` takes `record=` too, None for a
+  question about the whole view. An override typed `-> Select[Any]` needs `-> Statement` under
+  mypy's strict mode.
+- `SQLFilter[Order]` names the model a filter narrows, so its `condition` gets a
+  `SQLAlchemyRepository[Order]`.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

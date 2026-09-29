@@ -305,8 +305,8 @@ class TestImportPages:
         class Picky(CustomerView):
             name = "picky"
 
-            async def before_save(self, context: SaveContext) -> None:
-                if context.values.get("name") == "Tom":
+            async def before_save(self, context: SaveContext[Customer]) -> None:
+                if context.values[Customer.name].get() == "Tom":
                     raise RefusedError("No Toms.")
 
         admin = Admin(

@@ -7,10 +7,9 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select
 from starlette.applications import Starlette
 
-from adminsite import Admin, Inline, ModelView
+from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
@@ -47,18 +46,14 @@ class GermanCustomers(ModelView[Customer]):
 
     display_template = "{name}"
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "DE")
 
 
 class OneProduct(ModelView[Product]):
     display_template = "{name}"
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Product.id == 1)
 
 

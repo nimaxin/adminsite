@@ -32,8 +32,8 @@ class GuardedProducts(ModelView[Product]):
     name = "guarded"
     form_fields = ("name", "price")
 
-    async def before_save(self, context: SaveContext) -> None:
-        if context.values.get("name") == "Forbidden":
+    async def before_save(self, context: SaveContext[Product]) -> None:
+        if context.values[Product.name].get() == "Forbidden":
             raise RefusedError("That name is taken.")
 
 

@@ -40,7 +40,7 @@ class Picker:
         return self.admin.views.for_relation(self.item)
 
     @property
-    def repository(self) -> SQLAlchemyRepository:
+    def repository(self) -> SQLAlchemyRepository[Any]:
         """The target model's repository, for naming and keys."""
         return SQLAlchemyRepository(self.item.related_model, self.admin.inspector)
 

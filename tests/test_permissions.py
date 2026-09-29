@@ -2,10 +2,11 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
-from adminsite import Admin
+from adminsite import Admin, Statement
 from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import PermissionDeniedError
@@ -13,15 +14,16 @@ from adminsite.security import Permission
 from adminsite.views import ModelView
 from tests.models import Customer, Order, OrderStatus
 
+# Outside a real request, a bare one.
+REQUEST = Request({"type": "http", "headers": []})
+
 
 class GermanOrders(ModelView[Order]):
     """Only shows orders from customers in one region."""
 
     list_display = ("id", "customer.name", "status")
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         region = request or "DE"
         return statement.where(Order.customer.has(Customer.region == region))
 
@@ -117,10 +119,14 @@ class TestActionPermissions:
     async def test_flags_refuse_the_action(self, database: Database) -> None:
         view = ReadOnlyOrders()
 
-        assert await view.allows(Permission.VIEW) is True
-        assert await view.allows(Permission.CREATE) is False
-        assert await view.allows(Permission.EDIT) is False
-        assert await view.allows(Permission.DELETE) is False
+        assert await view.allows(Permission.VIEW, request=REQUEST, record=None) is True
+        assert (
+            await view.allows(Permission.CREATE, request=REQUEST, record=None) is False
+        )
+        assert await view.allows(Permission.EDIT, request=REQUEST, record=None) is False
+        assert (
+            await view.allows(Permission.DELETE, request=REQUEST, record=None) is False
+        )
 
     async def test_saving_is_refused_when_creating_is_not_allowed(
         self, database: Database

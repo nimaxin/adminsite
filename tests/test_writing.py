@@ -233,12 +233,12 @@ class TestHooks:
     async def test_a_hook_sees_the_values_before_they_are_written(
         self, database: Database
     ) -> None:
-        seen: list[SaveContext] = []
+        seen: list[SaveContext[Product]] = []
 
         class Watching(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 seen.append(context)
 
         async with database.session() as session:
@@ -247,13 +247,13 @@ class TestHooks:
             )
 
             assert seen[0].created is True
-            assert seen[0].values["name"] == "Watched"
+            assert seen[0].values[Product.name].get() == "Watched"
 
     async def test_a_hook_can_change_the_record(self, database: Database) -> None:
         class Stamping(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 context.record.description = "Added by a hook"
 
         async with database.session() as session:
@@ -268,7 +268,7 @@ class TestHooks:
             form_fields = ("name", "price")
             seen_before = 0
 
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 self.seen_before = await context.session.scalar(
                     select(func.count()).select_from(Product)
                 )
@@ -285,7 +285,7 @@ class TestHooks:
         class Auditing(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def after_save(self, context: SaveContext) -> None:
+            async def after_save(self, context: SaveContext[Product]) -> None:
                 await context.session.add(
                     Product(name=f"Copy of {context.record.name}", price=Decimal(0))
                 )
@@ -308,7 +308,7 @@ class TestHooks:
         class Refusing(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 raise RuntimeError("that price is too low")
 
         async with database.session() as session:
@@ -328,7 +328,7 @@ class TestHooks:
         class SecondThoughts(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def after_save(self, context: SaveContext) -> None:
+            async def after_save(self, context: SaveContext[Product]) -> None:
                 raise RuntimeError("not allowed after all")
 
         async with database.session() as session:
@@ -350,7 +350,7 @@ class TestHooks:
         class Marking(ModelView[Product]):
             form_fields = ("name", "price")
 
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 marks.append(context.created)
 
         async with database.session() as session:
@@ -363,7 +363,7 @@ class TestHooks:
 
     async def test_a_delete_hook_can_refuse(self, database: Database) -> None:
         class Protective(ModelView[Product]):
-            async def before_delete(self, context: DeleteContext) -> None:
+            async def before_delete(self, context: DeleteContext[Product]) -> None:
                 raise RuntimeError("this product is still selling")
 
         async with database.session() as session:
@@ -382,7 +382,7 @@ class TestHooks:
         names: list[str] = []
 
         class Logging(ModelView[Product]):
-            async def after_delete(self, context: DeleteContext) -> None:
+            async def after_delete(self, context: DeleteContext[Product]) -> None:
                 names.append(context.record.name)
 
         key = await spare_product(database)

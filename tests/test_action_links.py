@@ -6,10 +6,9 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView, Permission
+from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
@@ -22,9 +21,7 @@ seen: dict[str, Any] = {}
 class ProductView(ModelView[Product]):
     search_fields = ("name",)
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         # The scarf is off the shelves, so nobody may pick it.
         return statement.where(Product.name != "Wool scarf")
 

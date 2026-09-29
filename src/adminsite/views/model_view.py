@@ -2,6 +2,7 @@ import types
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from dataclasses import replace
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,10 +18,11 @@ from typing import (
 from uuid import uuid4
 
 from markupsafe import Markup
-from sqlalchemy import ColumnElement, Select
+from sqlalchemy import ColumnElement
 from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
+from starlette.requests import Request
 from starlette.responses import Response
 
 if TYPE_CHECKING:
@@ -41,7 +43,11 @@ from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
 from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
+from adminsite.backends.sqlalchemy.repository import (
+    Scope,
+    SQLAlchemyRepository,
+    Statement,
+)
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.columns import (
     ColumnReference,
@@ -94,6 +100,8 @@ from adminsite.views.writing import (
     FormData,
     FormResult,
     SaveContext,
+    SaveValues,
+    stored_values,
 )
 
 # The name of the built-in action that deletes the chosen rows.
@@ -341,7 +349,7 @@ class ModelView(Generic[M]):
             inline.name: self._build_inline_view(inline, f"inlines[{index}]")
             for index, inline in enumerate(self._entries("inlines", self.inlines))
         }
-        self.filters: tuple[SQLFilter, ...] = self._build_filters()
+        self.filters: tuple[SQLFilter[Any], ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, BaseField] = {}
         # Built now, so a mistake such as a tone for a value the field does
@@ -357,7 +365,7 @@ class ModelView(Generic[M]):
     # the request, for example to hide a column from some people.
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         """Whether this user sees the field on this page.
 
@@ -435,8 +443,8 @@ class ModelView(Generic[M]):
         return self._search_fields
 
     def search_condition(
-        self, term: str, *, request: Any = None
-    ) -> "ColumnElement[bool] | None":
+        self, term: str, *, request: Request
+    ) -> ColumnElement[bool] | None:
         """The condition the search box matches with, or None for the usual one.
 
         The usual one looks for the term inside every search field, which a
@@ -447,7 +455,7 @@ class ModelView(Generic[M]):
         """
         return None
 
-    def get_filters(self, request: Any = None) -> tuple[SQLFilter, ...]:
+    def get_filters(self, request: Any = None) -> tuple[SQLFilter[Any], ...]:
         """The filters offered beside the list."""
         return self.filters
 
@@ -519,7 +527,7 @@ class ModelView(Generic[M]):
         return self._deferred_fields
 
     def get_readonly_fields(
-        self, request: Any, record: M | None
+        self, request: Request, record: M | None
     ) -> Sequence[ColumnReference]:
         """Fields shown on this record's form but not editable there.
 
@@ -1622,9 +1630,13 @@ class ModelView(Generic[M]):
     # Permissions. Four levels: the view, the action, the field and the row.
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: M | None
     ) -> bool:
-        """Whether the current user may do this, to this record."""
+        """Whether the current user may do this, to this record.
+
+        `record` is None when the question is about the view as a whole,
+        such as whether its list may be exported.
+        """
         name = permission_name(action)
         if name == Permission.CREATE:
             return self.can_create
@@ -1647,9 +1659,7 @@ class ModelView(Generic[M]):
         if not await self.allows(action, request=request, record=record):
             raise PermissionDeniedError(permission_name(action), self.label_plural)
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         """Narrow every read to the rows this user may see.
 
         This runs on the list, the count, a single record, an export and a
@@ -1822,7 +1832,7 @@ class ModelView(Generic[M]):
                 context = SaveContext(
                     session=session,
                     record=target,
-                    values=dict(values),
+                    values=SaveValues(target, values, form_only=self._form_only),
                     created=created,
                     request=request,
                 )
@@ -1831,7 +1841,7 @@ class ModelView(Generic[M]):
                 # apart from form-only values, which the hooks store themselves.
                 values = {
                     path: value
-                    for path, value in context.values.items()
+                    for path, value in stored_values(context.values).items()
                     if not self._form_only(path)
                 }
 
@@ -1853,6 +1863,7 @@ class ModelView(Generic[M]):
                 await session.flush()
 
                 await self.after_save(context)
+                session.after_commit(partial(self.after_save_committed, context))
                 self._audit_save(
                     session, target, before, list(values), request, created=created
                 )
@@ -1888,7 +1899,7 @@ class ModelView(Generic[M]):
                 continue
             target = SQLAlchemyRepository(item.related_model, self.inspector)
 
-            def key_of(one: Any, target: SQLAlchemyRepository = target) -> str:
+            def key_of(one: Any, target: SQLAlchemyRepository[Any] = target) -> str:
                 return (
                     target.identity_of(one)
                     if isinstance(one, target.model)
@@ -1971,6 +1982,7 @@ class ModelView(Generic[M]):
         key, title = self.identity_of(record), self.get_record_title(record)
         await self.repository.delete(session, record)
         await self.after_delete(context)
+        session.after_commit(partial(self.after_delete_committed, context))
         if not auditing:
             return
         self._audit(
@@ -2217,26 +2229,41 @@ class ModelView(Generic[M]):
 
         session.after_commit(write)
 
-    async def before_save(self, context: SaveContext) -> None:
+    async def before_save(self, context: SaveContext[M]) -> None:
         """Runs before the values are written.
 
-        Change `context.values`, or `context.set("slug", ...)`, to store
-        something other than what was submitted. Raise `RefusedError` to
-        refuse the save, naming a field to put the message beside it.
+        `context.values[Order.slug].set(...)` stores something other than
+        what was submitted. Raise `RefusedError` to refuse the save, naming
+        a field to put the message beside it.
         """
 
-    async def after_save(self, context: SaveContext) -> None:
+    async def after_save(self, context: SaveContext[M]) -> None:
         """Runs after the flush, while the transaction is still open."""
 
-    async def before_delete(self, context: DeleteContext) -> None:
+    async def after_save_committed(self, context: SaveContext[M]) -> None:
+        """Runs once the save has committed, such as to send an email.
+
+        The change is stored by now, so nothing here can undo it: an error is
+        written to the server's log, and the save still succeeds. The
+        transaction is over, so write through a session of your own.
+        """
+
+    async def before_delete(self, context: DeleteContext[M]) -> None:
         """Runs before a record is deleted. Raise to refuse the delete."""
 
-    async def after_delete(self, context: DeleteContext) -> None:
+    async def after_delete(self, context: DeleteContext[M]) -> None:
         """Runs after the delete, while the transaction is still open."""
 
-    def _build_filters(self) -> tuple[SQLFilter, ...]:
+    async def after_delete_committed(self, context: DeleteContext[M]) -> None:
+        """Runs once the delete has committed.
+
+        As with `after_save_committed`, an error here is logged and the
+        delete still stands.
+        """
+
+    def _build_filters(self) -> tuple[SQLFilter[Any], ...]:
         repository = SQLAlchemyRepository(self.model, self.inspector)
-        built: list[SQLFilter] = []
+        built: list[SQLFilter[Any]] = []
         for item in self._entries("list_filter", self.list_filter):
             if isinstance(item, SQLFilter):
                 built.append(item)

@@ -23,7 +23,7 @@ SIZE_KEY = "adminsite_page_size"
 class FilterPanel:
     """One filter as the page needs it: the control, and what is chosen."""
 
-    filter: SQLFilter
+    filter: SQLFilter[Any]
     options: Sequence[FilterOption] = ()
     value: FilterValue | None = None
 

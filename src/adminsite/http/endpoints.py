@@ -101,27 +101,37 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         panels = await build_panels(view, session, spec, request)
 
     context = as_context(view, request, spec, page, panels, read)
-    context["can_create"] = await view.allows(Permission.CREATE, request=request)
-    context["can_export"] = await view.allows(Permission.EXPORT, request=request)
-    context["can_detail"] = await view.allows(Permission.VIEW_DETAIL, request=request)
-    context["can_edit"] = await view.allows(Permission.EDIT, request=request)
-    context["can_import"] = await view.allows(Permission.IMPORT, request=request)
+    context["can_create"] = await view.allows(
+        Permission.CREATE, request=request, record=None
+    )
+    context["can_export"] = await view.allows(
+        Permission.EXPORT, request=request, record=None
+    )
+    context["can_detail"] = await view.allows(
+        Permission.VIEW_DETAIL, request=request, record=None
+    )
+    context["can_edit"] = await view.allows(
+        Permission.EDIT, request=request, record=None
+    )
+    context["can_import"] = await view.allows(
+        Permission.IMPORT, request=request, record=None
+    )
     # Offer only the actions this user may run.
     allowed = [
         item
         for item in context["actions"]
-        if await view.allows(item.permission, request=request)
+        if await view.allows(item.permission, request=request, record=None)
     ]
     context["actions"] = allowed
     context["view_actions"] = [
         item
         for item in context["view_actions"]
-        if await view.allows(item.permission, request=request)
+        if await view.allows(item.permission, request=request, record=None)
     ]
     record_actions = [
         item
         for item in context["record_actions"]
-        if await view.allows(item.permission, request=request)
+        if await view.allows(item.permission, request=request, record=None)
     ]
     context["record_actions"] = record_actions
     context["action_rows"] = await rows_for_actions(
@@ -674,7 +684,7 @@ async def lookup(admin: "Admin", request: Request) -> Response:
     so its scope and its permissions apply here as on any other page.
     """
     view = find_view(admin, request)
-    if not await view.allows(Permission.CREATE, request=request):
+    if not await view.allows(Permission.CREATE, request=request, record=None):
         await view.ensure(Permission.EDIT, request=request)
 
     path = request.path_params["path"]
@@ -879,7 +889,7 @@ async def after_save(
 ) -> str:
     """Where a save lands: the record's page, or the list without one."""
     urls = Urls(request)
-    if await view.allows(Permission.VIEW_DETAIL, request=request):
+    if await view.allows(Permission.VIEW_DETAIL, request=request, record=None):
         return urls.detail(view, key)
     return urls.list(view)
 

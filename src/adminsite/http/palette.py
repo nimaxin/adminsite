@@ -54,7 +54,7 @@ async def pages_matching(admin: "Admin", request: Request, term: str) -> Palette
         if not view.in_sidebar:
             continue
         found.append(PaletteItem(view.label_plural, urls.list(view), view.group))
-        if await view.allows(Permission.CREATE, request=request):
+        if await view.allows(Permission.CREATE, request=request, record=None):
             found.append(
                 PaletteItem(
                     _("New {thing}", thing=view.label.lower()), urls.create(view)
@@ -82,9 +82,11 @@ async def records_matching(
             if not view.global_search or not view.get_search_fields(request):
                 continue
             # A view with no record page opens the form instead.
-            opens_detail = await view.allows(Permission.VIEW_DETAIL, request=request)
+            opens_detail = await view.allows(
+                Permission.VIEW_DETAIL, request=request, record=None
+            )
             if not opens_detail and not await view.allows(
-                Permission.EDIT, request=request
+                Permission.EDIT, request=request, record=None
             ):
                 continue
             spec = view.build_spec(request=request, search=term).replace(

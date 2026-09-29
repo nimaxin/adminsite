@@ -225,7 +225,7 @@ class Admin:
         found = []
         for view in self.views:
             for permission in wanted:
-                if not await view.allows(permission, request=request):
+                if not await view.allows(permission, request=request, record=None):
                     break
             else:
                 found.append(view)

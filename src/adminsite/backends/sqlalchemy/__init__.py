@@ -10,7 +10,7 @@ from adminsite.backends.sqlalchemy.filters import (
     filter_for,
 )
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository, Statement
 from adminsite.backends.sqlalchemy.session import (
     AsyncSessionAdapter,
     Database,
@@ -31,6 +31,7 @@ __all__ = [
     "SQLFilter",
     "SQLFilterContext",
     "SessionAdapter",
+    "Statement",
     "SyncSessionAdapter",
     "TextFilter",
     "filter_for",

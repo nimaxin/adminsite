@@ -32,7 +32,7 @@ def picked(name: str, *values: str) -> FilterValue:
     return FilterValue(name, values)
 
 
-def orders_with(*filters: SQLFilter) -> SQLAlchemyRepository:
+def orders_with(*filters: SQLFilter[Any]) -> SQLAlchemyRepository[Order]:
     return SQLAlchemyRepository(Order, filters=filters)
 
 
@@ -280,11 +280,11 @@ class TestCustomFilters:
     async def test_a_custom_filter_writes_its_own_condition(
         self, database: Database
     ) -> None:
-        class BigOrderFilter(SQLFilter):
+        class BigOrderFilter(SQLFilter[Order]):
             """Orders worth more than the chosen amount."""
 
             def condition(
-                self, value: FilterValue, repository: SQLAlchemyRepository
+                self, value: FilterValue, repository: SQLAlchemyRepository[Order]
             ) -> ColumnElement[bool] | None:
                 floor = Decimal(value.first)
                 return Order.total > floor
@@ -301,14 +301,14 @@ class TestCustomFilters:
     async def test_a_custom_filter_can_change_the_statement(
         self, database: Database
     ) -> None:
-        class OnlyTheFirstTwo(SQLFilter):
+        class OnlyTheFirstTwo(SQLFilter[Order]):
             """Keeps the two oldest orders, whatever else is asked for."""
 
             def apply(
                 self,
                 statement: Select[Any],
                 value: FilterValue,
-                repository: SQLAlchemyRepository,
+                repository: SQLAlchemyRepository[Order],
             ) -> Select[Any]:
                 # MySQL refuses a LIMIT straight inside IN (...), but takes
                 # one inside a derived table.
@@ -328,7 +328,7 @@ class TestCustomFilters:
             """Groups orders by whether they have shipped."""
 
             def condition(
-                self, value: FilterValue, repository: SQLAlchemyRepository
+                self, value: FilterValue, repository: SQLAlchemyRepository[Any]
             ) -> ColumnElement[bool] | None:
                 if value.first == "shipped":
                     return Order.status == OrderStatus.SHIPPED
@@ -349,11 +349,11 @@ class TestCustomFilters:
             assert len(page) == 5
 
 
-class BigOrderFilter(SQLFilter):
+class BigOrderFilter(SQLFilter[Order]):
     """Orders worth more than the chosen amount."""
 
     def condition(
-        self, value: FilterValue, repository: SQLAlchemyRepository
+        self, value: FilterValue, repository: SQLAlchemyRepository[Order]
     ) -> ColumnElement[bool] | None:
         return Order.total > Decimal(value.first)
 
@@ -364,7 +364,7 @@ class OrdersWithAFilterPerRequest(ModelView[Order]):
     name = "orders"
     list_display = ("id", "total")
 
-    def get_filters(self, request: Any = None) -> tuple[SQLFilter, ...]:
+    def get_filters(self, request: Any = None) -> tuple[SQLFilter[Any], ...]:
         return (*super().get_filters(request), BigOrderFilter("big"))
 
 

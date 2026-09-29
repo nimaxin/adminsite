@@ -455,25 +455,25 @@ answers leave it out, and imports do not offer it.
 failed save, and on a record that exists, leaving it empty keeps the password there:
 
 ```python
-from adminsite import RefusedError
+from adminsite import RefusedError, SaveContext
 from adminsite.fields import PasswordField
-from adminsite.views.writing import SaveContext
 
 
 class UserView(ModelView[User]):
     fields = [User.email, PasswordField("password", required=True)]
 
-    async def before_save(self, context: SaveContext) -> None:
-        password = context.values.get("password")
+    async def before_save(self, context: SaveContext[User]) -> None:
+        password = context.values["password"].get()
         if password is None:
             return
         if len(password) < 12:
             raise RefusedError("Use 12 characters or more.", field="password")
-        context.set("password_hash", hash_password(password))
+        context.values[User.password_hash].set(hash_password(password))
 ```
 
 `required` holds for a new record. On one that exists the input says "Leave it empty to keep the
-current one.", and left empty, `password` is not in `context.values` at all. A password is kept as
+current one.", and left empty, `password` is not in `context.values` at all, so `get()` reads
+None. A password is kept as
 typed, spaces included, but spaces alone count as empty. A refusal naming the field shows beside
 it.
 
@@ -504,8 +504,8 @@ class GroupView(ModelView[Group]):
         )
         return {"settings": {row.name: row.value for row in rows}}
 
-    async def after_save(self, context: SaveContext) -> None:
-        settings = context.values.get("settings")
+    async def after_save(self, context: SaveContext[Group]) -> None:
+        settings = context.values["settings"].get()
         if settings is None:
             return
         group = context.record

@@ -23,7 +23,7 @@ class ProductView(ModelView[Product]):
     list_display = ("id", "name")
     search_fields = ("name",)
 
-    async def before_delete(self, context: DeleteContext) -> None:
+    async def before_delete(self, context: DeleteContext[Product]) -> None:
         if context.record.name == "Keep me":
             raise RefusedError("This one stays in the catalogue.")
 

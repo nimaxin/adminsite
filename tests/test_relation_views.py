@@ -5,10 +5,10 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from starlette.applications import Starlette
 
-from adminsite import Admin, Computed, FieldOptions, ModelView
+from adminsite import Admin, Computed, FieldOptions, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField
@@ -22,9 +22,7 @@ class CustomerView(ModelView[Customer]):
     display_template = "{name}"
     detail_fields = ("name", "email", "orders")
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
 
 
@@ -34,9 +32,7 @@ class NordicView(ModelView[Customer]):
     name = "nordic"
     display_template = "{name}"
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "SE")
 
 

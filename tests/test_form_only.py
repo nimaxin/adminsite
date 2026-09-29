@@ -28,13 +28,13 @@ class AccountView(ModelView[Account]):
     form_fields = ("email", "password")
     fields = (PasswordField("password", required=True),)
 
-    async def before_save(self, context: SaveContext) -> None:
-        password = context.values.get("password")
+    async def before_save(self, context: SaveContext[Account]) -> None:
+        password = context.values["password"].get()
         if password is None:
             return
         if len(password) < 8:
             raise RefusedError("Use eight characters or more.", field="password")
-        context.set("password_hash", hashed(password))
+        context.values[Account.password_hash].set(hashed(password))
 
 
 def kept_as(customer: Customer) -> str:
@@ -59,8 +59,8 @@ class CustomerView(ModelView[Customer]):
         )
         return {"preferences": row.options if row is not None else {}}
 
-    async def after_save(self, context: SaveContext) -> None:
-        preferences = context.values.get("preferences")
+    async def after_save(self, context: SaveContext[Customer]) -> None:
+        preferences = context.values["preferences"].get()
         if preferences is None:
             return
         name = kept_as(context.record)

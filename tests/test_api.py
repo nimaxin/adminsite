@@ -4,10 +4,9 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView, Permission
+from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
@@ -33,9 +32,7 @@ class OrderView(ModelView[Order]):
 class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region")
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
 
 

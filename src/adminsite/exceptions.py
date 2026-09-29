@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from adminsite.columns import ColumnReference
+
+
 class AdminSiteError(Exception):
     """Base class for every error adminsite raises."""
 
@@ -34,13 +40,17 @@ class RefusedError(AdminSiteError):
     above the form:
 
     ```python
-    raise RefusedError("Keep this above the check delay.", field="delay")
+    raise RefusedError("Keep this above the check delay.", field=Check.delay)
     ```
     """
 
-    def __init__(self, message: str, *, field: str = "") -> None:
+    def __init__(self, message: str, *, field: "ColumnReference" = "") -> None:
+        # columns imports this module, so it is imported here, when needed.
+        from adminsite.columns import written_path
+
         super().__init__(message)
-        self.field = field
+        # The field's path, such as "delay", or "" for none.
+        self.field = field if isinstance(field, str) else written_path(field)
 
 
 class PermissionDeniedError(AdminSiteError):

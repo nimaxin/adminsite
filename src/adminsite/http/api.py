@@ -216,7 +216,7 @@ async def index(admin: "Admin", request: Request) -> Response:
                 "actions": [
                     {"name": item.name, "label": item.label}
                     for item in view.get_actions(request)
-                    if await view.allows(item.permission, request=request)
+                    if await view.allows(item.permission, request=request, record=None)
                 ],
             }
         )

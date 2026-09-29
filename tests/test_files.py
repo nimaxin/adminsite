@@ -289,7 +289,7 @@ class TestAFailedSave:
         self, database: Database, storage: LocalStorage
     ) -> None:
         class Refusing(product_view(storage)):  # type: ignore[misc]
-            async def before_save(self, context: SaveContext) -> None:
+            async def before_save(self, context: SaveContext[Product]) -> None:
                 raise RefusedError("Not today.")
 
         view = Refusing()

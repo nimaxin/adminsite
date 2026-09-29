@@ -1,6 +1,7 @@
 from importlib.metadata import version
 
 from adminsite.admin import Admin
+from adminsite.backends.sqlalchemy.repository import Statement
 from adminsite.columns import ColumnReference, Descending, Link
 from adminsite.dashboard import Chart, ModelCounts, RecentRecords, Stat, Widget
 from adminsite.exceptions import (
@@ -28,7 +29,13 @@ from adminsite.schema import (
 )
 from adminsite.security import Permission, RequestAction
 from adminsite.text import Html
-from adminsite.views import Inline, ModelView, ViewRegistry
+from adminsite.views import (
+    DeleteContext,
+    Inline,
+    ModelView,
+    SaveContext,
+    ViewRegistry,
+)
 
 __version__ = version("adminsite")
 
@@ -41,6 +48,7 @@ __all__ = [
     "ColumnReference",
     "Computed",
     "CountMode",
+    "DeleteContext",
     "Descending",
     "Field",
     "FieldOptions",
@@ -68,10 +76,12 @@ __all__ = [
     "RelationDirection",
     "RelationSchema",
     "RequestAction",
+    "SaveContext",
     "SavedView",
     "SavedViews",
     "Sort",
     "Stat",
+    "Statement",
     "UnknownFieldError",
     "ViewRegistry",
     "Widget",

@@ -121,10 +121,10 @@ docstring-code-format = true
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
-# The reference views are written in the typed API before it exists; each file
-# joins the check once the library provides what it uses.
+# The reference views are written in the typed API before it exists. The order
+# view joins the check with Inline(blank_rows=), the last name it waits for.
 exclude = [
-    '^tests/reference/(gallery|mistakes|orders|products)\.py$',
+    '^tests/reference/orders\.py$',
 ]
 
 [[tool.mypy.overrides]]

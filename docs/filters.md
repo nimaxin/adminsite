@@ -50,19 +50,21 @@ A filter is a class that returns a condition. Here orders are grouped by whether
 ```python
 from datetime import timedelta
 
-from sqlalchemy import func
+from sqlalchemy import ColumnElement, func
 
-from adminsite.backends.sqlalchemy import SQLFilter
-from adminsite.filters import FilterOption
+from adminsite.backends.sqlalchemy import SQLAlchemyRepository, SQLFilter
+from adminsite.filters import FilterContext, FilterOption, FilterValue
 
 
-class DeliveryFilter(SQLFilter):
+class DeliveryFilter(SQLFilter[Order]):
     """Orders past their delivery date, or due soon."""
 
-    async def options(self, context):
+    async def options(self, context: FilterContext) -> list[FilterOption]:
         return [FilterOption("late", "Overdue"), FilterOption("soon", "Due in 2 days")]
 
-    def condition(self, value, repository):
+    def condition(
+        self, value: FilterValue, repository: SQLAlchemyRepository[Order]
+    ) -> ColumnElement[bool]:
         if value.first == "late":
             return Order.due_at < func.now()
         return Order.due_at.between(func.now(), func.now() + timedelta(days=2))
@@ -72,18 +74,26 @@ class OrderView(ModelView[Order]):
     list_filter = ("status", DeliveryFilter("delivery", label="Delivery"))
 ```
 
-`value.first` is the chosen option, and `value.values` holds all of them when the filter allows
+`SQLFilter[Order]` is a filter of orders, so `repository` reads orders. `value.first` is the
+chosen option, and `value.values` holds all of them when the filter allows
 several (set `multiple = True` on the class).
 
 When the filter needs to change the statement itself, for example to add a join, override `apply`
 instead of `condition`:
 
 ```python
-from sqlalchemy import func, select
+from typing import Any
+
+from sqlalchemy import Select, func, select
 
 
-class BigSpenders(SQLFilter):
-    def apply(self, statement, value, repository):
+class BigSpenders(SQLFilter[Customer]):
+    def apply(
+        self,
+        statement: Select[Any],
+        value: FilterValue,
+        repository: SQLAlchemyRepository[Customer],
+    ) -> Select[Any]:
         spent = (
             select(Order.customer_id)
             .group_by(Order.customer_id)

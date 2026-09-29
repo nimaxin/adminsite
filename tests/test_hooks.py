@@ -18,20 +18,20 @@ class ProductView(ModelView[Product]):
 
     form_fields = ("name", "price", "description")
 
-    async def before_save(self, context: SaveContext) -> None:
-        name = context.values.get("name")
+    async def before_save(self, context: SaveContext[Product]) -> None:
+        name = context.values[Product.name].get()
         if name:
-            context.set("description", name.strip().lower().replace(" ", "-"))
-        price = context.values.get("price")
-        if price is not None and price < 0:
-            raise RefusedError("A price cannot be below zero.", field="price")
+            slug = name.strip().lower().replace(" ", "-")
+            context.values[Product.description].set(slug)
+        if context.values[Product.price].get() < 0:
+            raise RefusedError("A price cannot be below zero.", field=Product.price)
 
 
 class CustomerView(ModelView[Customer]):
     form_fields = ("name", "email", "region", "is_active")
 
-    async def before_save(self, context: SaveContext) -> None:
-        if context.values.get("region") == "XX":
+    async def before_save(self, context: SaveContext[Customer]) -> None:
+        if context.values[Customer.region].get() == "XX":
             raise RefusedError("That region is closed.")
 
 

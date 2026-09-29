@@ -34,10 +34,13 @@ The classes you use most, with their signatures and docstrings.
         - get_column_choices
         - allows
         - scope_query
+        - search_condition
         - before_save
         - after_save
+        - after_save_committed
         - before_delete
         - after_delete
+        - after_delete_committed
         - get_record_title
 
 ::: adminsite.RequestAction
@@ -48,9 +51,15 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.Pagination
 
-::: adminsite.views.writing.SaveContext
+::: adminsite.SaveContext
 
-::: adminsite.views.writing.DeleteContext
+::: adminsite.views.SaveValues
+
+::: adminsite.views.SaveValue
+
+::: adminsite.DeleteContext
+
+::: adminsite.Statement
 
 ## Actions
 

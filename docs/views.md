@@ -167,11 +167,16 @@ table. `search_condition` lets the view decide the condition instead:
 ```python
 import re
 
+from sqlalchemy import ColumnElement
+from starlette.requests import Request
+
 
 class ContactView(ModelView[Contact]):
     searchable_fields = [Contact.phone, Contact.name]
 
-    def search_condition(self, term, *, request=None):
+    def search_condition(
+        self, term: str, *, request: Request
+    ) -> ColumnElement[bool] | None:
         digits = re.sub(r"\D", "", term)
         if len(digits) >= 6:
             # "+1 (555) 0100" finds 15550100, through the index on phone.
@@ -458,7 +463,7 @@ class ShippedOrders(ModelView[Order]):
     name = "shipped_orders"
     label_plural = "Shipped orders"
 
-    def scope_query(self, statement, *, request=None):
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Order.status == OrderStatus.SHIPPED)
 ```
 

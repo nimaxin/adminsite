@@ -307,7 +307,7 @@ class RecentRecords(Widget):
         """Shown to whoever may open the view."""
         found = admin.views.find(self.view)
         return found is not None and await found.allows(
-            Permission.VIEW, request=request
+            Permission.VIEW, request=request, record=None
         )
 
     async def load(self, admin: "Admin", request: Request) -> list[RecentItem]:
@@ -320,7 +320,9 @@ class RecentRecords(Widget):
             limit=self.limit, offset=0, count=CountMode.NONE, keyset=False
         )
         urls = Urls(request)
-        opens_detail = await view.allows(Permission.VIEW_DETAIL, request=request)
+        opens_detail = await view.allows(
+            Permission.VIEW_DETAIL, request=request, record=None
+        )
         async with admin.database.session() as session:
             page = await view.fetch_page(session, spec, request=request)
             return [

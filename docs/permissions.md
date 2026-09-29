@@ -16,11 +16,15 @@ class AuditedPayments(ModelView[Payment]):
 For anything that depends on the user, override `allows`:
 
 ```python
+from starlette.requests import Request
+
 from adminsite import Permission
 
 
 class OrderView(ModelView[Order]):
-    async def allows(self, action, *, request=None, record=None):
+    async def allows(
+        self, action: Permission | str, *, request: Request, record: Order | None
+    ) -> bool:
         user = request.state.user
         if action == Permission.DELETE:
             return user.is_manager
@@ -30,7 +34,9 @@ class OrderView(ModelView[Order]):
 ```
 
 `action` is one of `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `VIEW_DETAIL`, `EXPORT`, `IMPORT`
-and `HISTORY`, or the permission an [action](actions.md) asks for. The check runs before a page is shown and again before anything is
+and `HISTORY`, or the permission an [action](actions.md) asks for. `record` is the record the
+question is about, or None when it is about the view as a whole, such as whether its list may be
+exported. The check runs before a page is shown and again before anything is
 written, so a refused user gets an error even if they post the form by hand. Buttons for things the
 user may not do are left out.
 
@@ -45,7 +51,9 @@ refuse it where the values are sensitive:
 
 ```python
 class PayrollView(ModelView[Salary]):
-    async def allows(self, action, *, request=None, record=None):
+    async def allows(
+        self, action: Permission | str, *, request: Request, record: Salary | None
+    ) -> bool:
         if action == Permission.HISTORY:
             return request.state.user.is_hr
         return await super().allows(action, request=request, record=record)
@@ -60,10 +68,17 @@ entries. A user with no such view does not see the Activity page at all.
 `scope_query` narrows every read the view makes:
 
 ```python
+from adminsite import Statement
+
+
 class OrderView(ModelView[Order]):
-    def scope_query(self, statement, *, request=None):
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Order.region == request.state.user.region)
 ```
+
+`Statement` stands for the select the view hands over, so the hook returns that select narrowed.
+Returning a new `select(Order)` in its place is a type error: it would drop what the view had
+already asked for, such as the page's filters.
 
 It is applied to the list, its count, opening one record, the CSV export and bulk actions. A row
 outside the scope cannot be seen, opened, changed or deleted, and guessing its key in the URL gives

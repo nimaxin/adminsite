@@ -20,7 +20,7 @@ NEWEST_FIRST = (Sort("created_at", descending=True),)
 
 
 @pytest.fixture
-def orders() -> SQLAlchemyRepository:
+def orders() -> SQLAlchemyRepository[Order]:
     return SQLAlchemyRepository(Order)
 
 
@@ -50,7 +50,7 @@ class TestCursor:
 
 class TestKeysetPages:
     async def test_walking_forward_visits_every_row_once(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         seen: list[int] = []
         async with database.session() as session:
@@ -67,7 +67,7 @@ class TestKeysetPages:
         assert page.keyset is True
 
     async def test_ties_are_broken_by_the_key(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         seen: list[int] = []
         spec = keyset(sort=(Sort("customer_id"),), limit=2)
@@ -81,7 +81,7 @@ class TestKeysetPages:
         assert sorted(seen) == [1, 2, 3, 4, 5, 6, 7]
 
     async def test_going_back_shows_the_page_before(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             first = await orders.list(session, keyset())
@@ -94,7 +94,7 @@ class TestKeysetPages:
         assert back.has_previous is True
 
     async def test_going_back_to_the_start_shows_a_full_first_page(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             first = await orders.list(session, keyset())
@@ -106,7 +106,7 @@ class TestKeysetPages:
         assert first.has_previous is False
 
     async def test_a_decimal_sort_pages_too(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         spec = keyset(sort=(Sort("total"),))
         async with database.session() as session:
@@ -116,7 +116,7 @@ class TestKeysetPages:
         assert max(row.total for row in first) <= min(row.total for row in second)
 
     async def test_the_search_still_applies(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         spec = keyset(search="lena", search_paths=("customer.name",), limit=1)
         async with database.session() as session:
@@ -128,7 +128,7 @@ class TestKeysetPages:
         assert second.has_next is False
 
     async def test_a_bad_cursor_starts_from_the_top(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             first = await orders.list(session, keyset())
@@ -137,7 +137,7 @@ class TestKeysetPages:
         assert ids(tampered) == ids(first)
 
     async def test_without_a_count_one_query_reads_a_page(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             first = await orders.list(session, keyset(count=CountMode.NONE))
@@ -150,7 +150,7 @@ class TestKeysetPages:
 
     @pytest.mark.parametrize("path", ["note", "customer.name", "status"])
     async def test_a_sort_it_cannot_use_falls_back_to_page_numbers(
-        self, database: Database, orders: SQLAlchemyRepository, path: str
+        self, database: Database, orders: SQLAlchemyRepository[Order], path: str
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, keyset(sort=(Sort(path),)))
@@ -161,7 +161,7 @@ class TestKeysetPages:
 
 class TestEstimatedCounts:
     async def test_small_or_unknown_tables_are_counted_exactly(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -175,7 +175,7 @@ class TestEstimatedCounts:
     async def test_a_big_table_shows_the_database_estimate(
         self,
         database: Database,
-        orders: SQLAlchemyRepository,
+        orders: SQLAlchemyRepository[Order],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         async def guess(session: object) -> int:
@@ -194,7 +194,7 @@ class TestEstimatedCounts:
     async def test_a_narrowed_count_stops_at_the_limit(
         self,
         database: Database,
-        orders: SQLAlchemyRepository,
+        orders: SQLAlchemyRepository[Order],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(repository_module, "EXACT_COUNT_LIMIT", 4)
@@ -213,7 +213,7 @@ class TestEstimatedCounts:
     async def test_a_scope_that_narrows_is_never_estimated(
         self,
         database: Database,
-        orders: SQLAlchemyRepository,
+        orders: SQLAlchemyRepository[Order],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         async def guess(session: object) -> int:
@@ -232,7 +232,7 @@ class TestEstimatedCounts:
         assert page.estimated is False
 
     async def test_the_estimate_can_be_read_on_every_database(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             found = await orders.estimate(session)

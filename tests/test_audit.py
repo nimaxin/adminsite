@@ -72,7 +72,7 @@ class RefusingProducts(ModelView[Product]):
     name = "refusing"
     form_fields = ("name", "price")
 
-    async def after_save(self, context: SaveContext) -> None:
+    async def after_save(self, context: SaveContext[Product]) -> None:
         raise RefusedError("Not today.")
 
 

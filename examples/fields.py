@@ -26,7 +26,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import StaticPool
 from typing_extensions import TypedDict
 
-from adminsite import Admin, Inline, ModelView
+from adminsite import Admin, Inline, ModelView, SaveContext
 from adminsite.actions import Selection, action
 from adminsite.auth import hash_password
 from adminsite.backends.sqlalchemy import SessionAdapter
@@ -45,7 +45,6 @@ from adminsite.fields import (
     RelationField,
 )
 from adminsite.files import FileStorage, LocalStorage
-from adminsite.views.writing import SaveContext
 
 MEGABYTE = 1024 * 1024
 EUROS = "€{:,.2f}"
@@ -500,11 +499,11 @@ class ShowcaseView(ModelView[Showcase]):
     inlines = (Inline("variants", fields=("name", "supplier", "stock")),)
     fields = showcase_fields(uploads)
 
-    async def before_save(self, context: SaveContext) -> None:
+    async def before_save(self, context: SaveContext[Showcase]) -> None:
         # The password is form only: it reaches the record as a hash.
-        password = context.values.get("password")
+        password = context.values["password"].get()
         if password:
-            context.set("password_hash", hash_password(password))
+            context.values[Showcase.password_hash].set(hash_password(password))
 
     @action(
         "Order from a supplier",

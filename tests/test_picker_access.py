@@ -3,10 +3,9 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import Select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView, Permission
+from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, OrderItem, Product
 
@@ -17,9 +16,7 @@ class CustomerView(ModelView[Customer]):
     display_template = "{name}"
     search_fields = ("name",)
 
-    def scope_query(
-        self, statement: Select[Any], *, request: Any = None
-    ) -> Select[Any]:
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "DE")
 
 
@@ -171,8 +168,8 @@ class TestAnInlineCell:
             display_template = "{name}"
 
             def scope_query(
-                self, statement: Select[Any], *, request: Any = None
-            ) -> Select[Any]:
+                self, statement: Statement, *, request: Any = None
+            ) -> Statement:
                 return statement.where(Product.name == "Linen shirt")
 
         from adminsite import Inline

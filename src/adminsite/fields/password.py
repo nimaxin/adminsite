@@ -15,10 +15,10 @@ class PasswordField(StringField):
             PasswordField("password", required=True, exclude_from_detail=True),
         ]
 
-        async def before_save(self, context: SaveContext) -> None:
-            password = context.values.get("password")
+        async def before_save(self, context: SaveContext[User]) -> None:
+            password = context.values["password"].get()
             if password:
-                context.set("password_hash", hash_password(password))
+                context.values[User.password_hash].set(hash_password(password))
     ```
 
     It is form only: what is typed reaches the hooks, never the record, and

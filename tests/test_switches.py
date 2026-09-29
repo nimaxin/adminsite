@@ -5,12 +5,17 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission, RecentRecords
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order, Product
 
 ICON = '<svg viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>'
+
+
+# Outside a real request, a bare one.
+REQUEST = Request({"type": "http", "headers": []})
 
 
 class OrderView(ModelView[Order]):
@@ -146,8 +151,13 @@ class TestTheOldName:
 
         view = Quiet()
 
-        assert await view.allows(Permission.VIEW_DETAIL) is False
-        assert await view.allows(Permission.DETAIL) is False
+        assert (
+            await view.allows(Permission.VIEW_DETAIL, request=REQUEST, record=None)
+            is False
+        )
+        assert (
+            await view.allows(Permission.DETAIL, request=REQUEST, record=None) is False
+        )
 
 
 class TestIcons:

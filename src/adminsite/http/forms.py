@@ -203,7 +203,7 @@ async def _picked(
     return chosen
 
 
-def _keys_of(repository: SQLAlchemyRepository, current: Any) -> list[str]:
+def _keys_of(repository: SQLAlchemyRepository[Any], current: Any) -> list[str]:
     if current is None or current == "":
         return []
     items = current if isinstance(current, list | tuple | set) else [current]

@@ -12,18 +12,18 @@ from tests.support import Backend, count_queries
 
 
 @pytest.fixture
-def orders() -> SQLAlchemyRepository:
+def orders() -> SQLAlchemyRepository[Order]:
     return SQLAlchemyRepository(Order)
 
 
 @pytest.fixture
-def customers() -> SQLAlchemyRepository:
+def customers() -> SQLAlchemyRepository[Customer]:
     return SQLAlchemyRepository(Customer)
 
 
 class TestReadingPages:
     async def test_a_page_holds_the_rows_and_the_total(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, QuerySpec(limit=3))
@@ -34,7 +34,7 @@ class TestReadingPages:
             assert page.has_previous is False
 
     async def test_the_second_page_follows_the_first(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             spec = QuerySpec(limit=3, sort=(Sort("id"),))
@@ -46,7 +46,7 @@ class TestReadingPages:
             assert [row.id for row in first] != [row.id for row in second]
 
     async def test_the_last_page_says_there_is_no_next(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, QuerySpec(limit=3).page(3))
@@ -55,7 +55,7 @@ class TestReadingPages:
             assert page.has_next is False
 
     async def test_counting_can_be_switched_off(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, QuerySpec(limit=3, count=CountMode.NONE))
@@ -65,7 +65,7 @@ class TestReadingPages:
             assert len(page) == 3
 
     async def test_without_counting_one_query_reads_the_page(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             with count_queries(backend) as queries:
@@ -76,7 +76,7 @@ class TestReadingPages:
 
 class TestSorting:
     async def test_rows_come_back_in_the_order_asked_for(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             ascending = await orders.list(session, QuerySpec(sort=(Sort("total"),)))
@@ -89,7 +89,7 @@ class TestSorting:
             assert descending.rows[0].total == max(totals)
 
     async def test_sorting_can_follow_a_relationship(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -101,7 +101,7 @@ class TestSorting:
             assert names == sorted(names)
 
     async def test_two_sorts_are_applied_in_order(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -116,14 +116,14 @@ class TestSorting:
             assert pairs == sorted(pairs)
 
     async def test_sorting_through_many_rows_is_refused(
-        self, database: Database, customers: SQLAlchemyRepository
+        self, database: Database, customers: SQLAlchemyRepository[Customer]
     ) -> None:
         async with database.session() as session:
             with pytest.raises(InvalidPathError, match="many records"):
                 await customers.list(session, QuerySpec(sort=(Sort("orders.total"),)))
 
     async def test_sorting_needs_a_field(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             with pytest.raises(InvalidPathError, match="needs a field"):
@@ -132,7 +132,7 @@ class TestSorting:
 
 class TestSearching:
     async def test_text_is_matched_anywhere_in_the_value(
-        self, database: Database, customers: SQLAlchemyRepository
+        self, database: Database, customers: SQLAlchemyRepository[Customer]
     ) -> None:
         async with database.session() as session:
             page = await customers.list(
@@ -143,7 +143,7 @@ class TestSearching:
             assert [row.name for row in page] == ["Lena Fischer"]
 
     async def test_search_looks_in_every_listed_path(
-        self, database: Database, customers: SQLAlchemyRepository
+        self, database: Database, customers: SQLAlchemyRepository[Customer]
     ) -> None:
         async with database.session() as session:
             page = await customers.list(
@@ -154,7 +154,7 @@ class TestSearching:
             assert [row.email for row in page] == ["jonas@berg.se"]
 
     async def test_search_can_follow_a_relationship(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -165,7 +165,7 @@ class TestSearching:
             assert len(page) == 2
 
     async def test_search_can_reach_through_many_rows(
-        self, database: Database, customers: SQLAlchemyRepository
+        self, database: Database, customers: SQLAlchemyRepository[Customer]
     ) -> None:
         async with database.session() as session:
             page = await customers.list(
@@ -176,7 +176,7 @@ class TestSearching:
             assert [row.name for row in page] == ["Aisha Khan"]
 
     async def test_numbers_are_matched_exactly(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             first = (await orders.list(session, QuerySpec(limit=1))).rows[0]
@@ -187,7 +187,7 @@ class TestSearching:
             assert [row.id for row in page] == [first.id]
 
     async def test_a_term_that_fits_nothing_matches_nothing(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -198,7 +198,7 @@ class TestSearching:
             assert page.total == 0
 
     async def test_the_total_counts_what_the_search_matched(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(
@@ -211,7 +211,7 @@ class TestSearching:
 
 class TestEagerLoading:
     async def test_a_to_one_path_is_loaded_with_the_page(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             page = await orders.list(
@@ -226,7 +226,7 @@ class TestEagerLoading:
             assert queries.count == 0
 
     async def test_a_collection_path_costs_one_extra_query(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             with count_queries(backend) as queries:
@@ -277,7 +277,7 @@ class TestEagerLoading:
 
 class TestSingleRecords:
     async def test_a_record_is_loaded_by_key(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, QuerySpec(limit=1))
@@ -289,13 +289,13 @@ class TestSingleRecords:
             assert found.id == wanted.id
 
     async def test_a_missing_key_gives_nothing(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             assert await orders.get(session, 9999) is None
 
     async def test_a_record_can_be_loaded_with_its_links(
-        self, backend: Backend, orders: SQLAlchemyRepository
+        self, backend: Backend, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with backend.database.session() as session:
             page = await orders.list(session, QuerySpec(limit=1))
@@ -312,14 +312,14 @@ class TestSingleRecords:
             assert queries.count == 0
 
     async def test_the_wrong_number_of_key_values_is_refused(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             with pytest.raises(InvalidPathError, match="needs 1 key values"):
                 await orders.get(session, (1, 2))
 
     async def test_a_record_can_name_its_own_key(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             record = (await orders.list(session, QuerySpec(limit=1))).rows[0]
@@ -329,13 +329,13 @@ class TestSingleRecords:
 
 class TestCounting:
     async def test_counting_ignores_the_page(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             assert await orders.count(session, QuerySpec(limit=2)) == 7
 
     async def test_counting_respects_the_search(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             spec = QuerySpec(search="lena", search_paths=("customer.name",))
@@ -343,7 +343,7 @@ class TestCounting:
             assert await orders.count(session, spec) == 2
 
     async def test_totals_add_up_across_pages(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             spec = QuerySpec(limit=4, sort=(Sort("id"),))
@@ -353,7 +353,7 @@ class TestCounting:
             assert len(first) + len(second) == first.total
 
     async def test_money_survives_the_trip(
-        self, database: Database, orders: SQLAlchemyRepository
+        self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
         async with database.session() as session:
             page = await orders.list(session, QuerySpec(limit=1))
