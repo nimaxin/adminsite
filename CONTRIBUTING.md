@@ -26,9 +26,14 @@ the same shop, served by `demo/app.py`; [demo/README.md](demo/README.md) describ
 ```
 uv run ruff check . && uv run ruff format --check .
 uv run mypy src tests
+uv run python -m tests.doc_examples
 uv run pytest -q
 uv run --group docs mkdocs build --strict
 ```
+
+`tests.doc_examples` type-checks every python example in `docs/`, the README and the docstrings.
+Names an example takes as given, such as the shop's models, are in
+`tests/doc_examples/context.py`.
 
 The tests run every database test on SQLite, async and sync. To run them on Postgres and MySQL
 too, start both and point the tests at them:

@@ -5,10 +5,19 @@
 Give the admin whichever you already have:
 
 ```python
-Admin(create_async_engine("postgresql+asyncpg://localhost/shop"))
-Admin(create_engine("postgresql+psycopg://localhost/shop"))
-Admin(async_sessionmaker(engine))
-Admin(sessionmaker(engine))
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from adminsite import Admin
+
+async_engine = create_async_engine("postgresql+asyncpg://localhost/shop")
+sync_engine = create_engine("postgresql+psycopg://localhost/shop")
+
+Admin(async_engine)
+Admin(sync_engine)
+Admin(async_sessionmaker(async_engine))
+Admin(sessionmaker(sync_engine))
 ```
 
 Everything above the session is written once, so both behave the same. A sync session runs on a
@@ -43,6 +52,8 @@ A sync session runs on a worker thread, and SQLite refuses a connection that mov
 unless told otherwise:
 
 ```python
+from sqlalchemy import create_engine
+
 engine = create_engine("sqlite:///shop.db", connect_args={"check_same_thread": False})
 ```
 
@@ -55,12 +66,21 @@ connection:
 
 ```python
 from sqlalchemy import event
+from sqlalchemy.engine.interfaces import DBAPIConnection
+from sqlalchemy.pool import ConnectionPoolEntry
 
 
 @event.listens_for(engine, "connect")
-def enforce_foreign_keys(connection, record):
-    connection.execute("PRAGMA foreign_keys=ON")
+def enforce_foreign_keys(
+    connection: DBAPIConnection, record: ConnectionPoolEntry
+) -> None:
+    cursor = connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 ```
+
+With an async engine, listen on `engine.sync_engine`: SQLAlchemy takes no listener on the async
+engine itself.
 
 With them on, deleting a record that others still point at is refused, and the admin shows "This
 customer cannot be deleted, because other records still refer to it." A value that must be unique

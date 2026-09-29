@@ -36,6 +36,15 @@ class OrderView(ModelView[Order]):
 
 A view with no settings needs no class of its own: `Admin(engine, views=[OrderView, ModelView[Tag]])`.
 
+The settings are lists in the class body. adminsite reads them when it builds the view and never
+changes them, so ruff's RUF012, which asks for `ClassVar` on such a list, can be switched off for
+the module that holds your views:
+
+```toml
+[tool.ruff.lint.per-file-ignores]
+"app/admin.py" = ["RUF012"]
+```
+
 ## Naming columns
 
 A setting names a column by its attribute, `Order.total`, or by its name as a string, `"total"`.
@@ -97,11 +106,8 @@ class ProductView(ModelView[Product]):
 [Columns menu](#choosing-columns). A field hidden in the list and excluded from it at once asks for
 two different things, and stops the admin when it starts.
 
-`list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude` and `FieldOptions` still
-work, and 0.1.0a10 will refuse them, naming what replaces each. A view that still sets
-`list_display`, `form_fields` or `detail_fields` reads `fields` as before: it changes the fields
-those settings name, and places none. The other names 0.1.0a9 used, such as `search_fields`,
-`ordering` and `list_filter`, already stop the admin with the name each has now.
+A setting from another admin, such as Django's `list_display`, `search_fields` or
+`readonly_fields`, stops the admin when it starts, with what to write instead.
 
 ## Naming
 
@@ -217,7 +223,7 @@ hidden from them, whatever the URL says.
 ```python
 class OrderView(ModelView[Order]):
     page_size = 25
-    page_size_options = (25, 100, 500)
+    page_size_options = [25, 100, 500]
 ```
 
 The choice goes in the URL as `?size=100`, stays while paging, sorting, searching and filtering,
@@ -267,11 +273,11 @@ Two things get slow once a table holds millions of rows: counting every match, a
 pages, since the database walks every row before the page it returns. Both have a setting.
 
 ```python
-from adminsite import CountMode, ModelView, Pagination
+from adminsite import CountMode, Descending, ModelView, Pagination
 
 
 class EventView(ModelView[Event]):
-    fields_default_sort = ("-created_at",)
+    fields_default_sort = [Descending(Event.created_at)]
     count_mode = CountMode.ESTIMATED
     pagination = Pagination.KEYSET
 ```
@@ -291,12 +297,13 @@ carries a short cursor such as `?after=WyIyMDI2...`. The primary key is added to
 with the same value never repeat or go missing between pages.
 
 **Wide rows.** A list that never shows a large column still loads it on every row. Name those
-columns and the list query leaves them out:
+columns in `deferred_fields` and the list query leaves them out:
 
 ```python
 class EventView(ModelView[Event]):
-    list_display = ("id", "kind", "created_at")
-    deferred_fields = ("payload",)
+    fields = [Event.id, Event.kind, Event.created_at, Event.payload]
+    exclude_fields_from_list = [Event.payload]
+    deferred_fields = [Event.payload]
 ```
 
 The record page, the form and the API load them as usual, so nothing disappears, and a column that
@@ -332,9 +339,10 @@ class UserView(ModelView[User]):
     exclude_fields_from_edit = [User.signed_up_at, User.invoices]
 ```
 
-Anything the page shows is loaded with the record, so a linked record costs no extra query. Use
-`get_detail_fields(request, record)` to answer per user, and remember that a field only on the
-page is never read back from a form, so it needs no `read_only=True`.
+Anything the page shows is loaded with the record, so a linked record costs no extra query.
+`can_access_field` with `RequestAction.DETAIL` answers per user, as under
+[Answering per request](#answering-per-request). A field only on the page is never read back from
+a form, so it needs no `read_only=True`.
 
 A link to many records, such as `invoices` above, is the exception. It is never loaded whole,
 since a user may have thousands: the page names the first 20 and says how many more there are, in
@@ -386,7 +394,7 @@ Pick a different set per request with `get_inlines(request, record)`.
 Some views are complete on the list, and some hold data nobody should carry out of the admin:
 
 ```python
-class SessionView(ModelView[Session]):
+class ApiKeyView(ModelView[ApiKey]):
     can_view_detail = False
     can_export = False
 ```
@@ -410,12 +418,12 @@ served from the admin, so a plugin's `add_static` folder works.
 
 ### Left out of the sidebar
 
-Some views exist only so their records can be opened from the records that point at them: a
-customer's sessions, an invoice's payments. `in_sidebar = False` leaves such a view out of the
-sidebar, the command palette's list of pages and the overview's counts:
+Some views exist only so their records can be opened from the records that point at them: an
+invoice's payments, an order's lines. `in_sidebar = False` leaves such a view out of the sidebar,
+the command palette's list of pages and the overview's counts:
 
 ```python
-class SessionView(ModelView[Session]):
+class PaymentView(ModelView[Payment]):
     in_sidebar = False
 ```
 

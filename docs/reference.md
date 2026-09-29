@@ -44,6 +44,10 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.RequestAction
 
+::: adminsite.Link
+
+::: adminsite.Descending
+
 ::: adminsite.Inline
 
 ::: adminsite.CountMode

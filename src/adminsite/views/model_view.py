@@ -116,9 +116,9 @@ DELETE_ACTION = "delete_selected"
 # hooks inside a single transaction.
 BULK_DELETE_LIMIT = 1000
 
-# The settings and methods 0.1.0a10 renamed, by their old names. Python would
-# take one as a new attribute that adminsite never reads, so a view setting
-# one is refused with the name it has now.
+# Settings and methods under the names other admins give them, or adminsite
+# did before 0.1.0a10, with the name adminsite uses. Python would take one as a
+# new attribute that adminsite never reads, so a view setting one is refused.
 _RENAMED = {
     "list_filter": "list_filters",
     "get_filters": "get_list_filters",
@@ -134,8 +134,8 @@ _RENAMED = {
     "form_values": "form_only_values",
 }
 
-# The settings and methods 0.1.0a10 replaced with ones that work differently,
-# each with what to write instead.
+# Settings and methods adminsite has nothing by that name for, as other
+# admins do, each with what to write instead.
 _REPLACED = {
     "list_display": (
         "List the view's fields in fields, and leave one off the list with "
@@ -181,9 +181,18 @@ _Takes: TypeAlias = Literal["fields", "paths", "columns", "sortable", "own colum
 class ModelView(Generic[M]):
     """How one model appears in the admin: `class OrderView(ModelView[Order])`.
 
-    Set the class attributes to describe the list and the form. Override
-    the `get_` methods when the answer depends on who is asking. A view
-    with no settings needs no class: register `ModelView[Tag]`.
+    ```python
+    class OrderView(ModelView[Order]):
+        fields = [Order.id, Order.customer, Order.status, Order.total]
+        searchable_fields = [Order.id, Link(Order.customer, Customer.name)]
+        fields_default_sort = [Descending(Order.created_at)]
+    ```
+
+    `fields` lists every field once, in order, for every page. The other
+    class attributes describe the list and the forms, and the `get_`
+    methods and `can_access_field` answer per request, for when the answer
+    depends on who is asking. A view with no settings needs no class:
+    register `ModelView[Tag]`.
     """
 
     model: type[M]
@@ -394,24 +403,25 @@ class ModelView(Generic[M]):
             written = vars(owner)
             for old, new in _RENAMED.items():
                 if old in written:
+                    verb = "defines" if callable(written[old]) else "sets"
                     raise AdminSiteError(
-                        f"{view} sets {old}, which is called {new} now. "
+                        f"{view} {verb} {old}, which adminsite calls {new}. "
                         f"Rename it to {new}."
                     )
             for old, instead in _REPLACED.items():
                 if old not in written:
                     continue
                 if callable(written[old]):
-                    said = f"{view} defines {old}, which adminsite no longer calls."
+                    said = f"{view} defines {old}, a method adminsite does not call."
                 else:
-                    said = f"{view} sets {old}, which adminsite no longer reads."
+                    said = f"{view} sets {old}, a setting adminsite does not have."
                 raise AdminSiteError(f"{said} {instead}")
             replaced = written.get(DELETE_ACTION)
             if replaced is not None and action_of(replaced) is None:
                 raise AdminSiteError(
-                    f"{view}.{DELETE_ACTION} no longer replaces the built-in "
-                    "delete of the chosen rows. Set can_delete_selected = False "
-                    "and add an action of your own."
+                    f"{view}.{DELETE_ACTION} does not replace the built-in delete "
+                    "of the chosen rows. Set can_delete_selected = False and add "
+                    "an action of your own."
                 )
 
     # Reading the configuration. Override these when the answer depends on

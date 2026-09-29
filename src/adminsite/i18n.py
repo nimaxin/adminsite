@@ -3,7 +3,7 @@
 ```python
 from adminsite.i18n import gettext as _
 
-message = _("{label} created.", label=view.label)
+message = _("{count} orders shipped.", count=12)
 ```
 
 The language is set once per request, so code deep inside a view or a

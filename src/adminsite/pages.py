@@ -20,12 +20,15 @@ class AdminPage:
     """A page of your own inside the admin, such as a report or a settings form.
 
     ```python
+    from typing import Any
+
+
     class SalesReport(AdminPage):
         label = "Sales report"
         group = "Reports"
         template = "reports/sales.html"
 
-        async def get_context(self, request):
+        async def get_context(self, request: Request) -> dict[str, Any]:
             async with self.admin.database.session() as session:
                 total = await session.scalar(select(func.sum(Order.total)))
             return {"total": total}

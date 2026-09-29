@@ -5,11 +5,20 @@ the URL, so a filtered list can be bookmarked or sent to someone.
 
 ## Built in
 
-Name a path in `list_filters` and adminsite picks the filter that fits the column:
+Name a column in `list_filters` and adminsite picks the filter that fits it:
 
 ```python
+from adminsite import Link
+
+
 class OrderView(ModelView[Order]):
-    list_filters = ("status", "total", "created_at", "customer", "customer.region")
+    list_filters = [
+        Order.status,
+        Order.total,
+        Order.created_at,
+        Order.customer,
+        Link(Order.customer, Customer.region),
+    ]
 ```
 
 | Column | Filter | In the URL |
@@ -21,8 +30,9 @@ class OrderView(ModelView[Order]):
 | relationship | `RelationFilter`, by the linked record's key | `?customer=3` |
 | text | `TextFilter`, matching part of the value | `?email=fischer` |
 
-A dotted path such as `customer.region` filters through the link without adding a join, so rows
-are never duplicated. Its name in the URL is `customer__region`.
+A column of a related model, such as `Link(Order.customer, Customer.region)`, filters through the
+relation without adding a join, so rows are never duplicated. Its name in the URL is
+`customer__region`.
 
 ## Counts
 
@@ -34,13 +44,13 @@ from adminsite.backends.sqlalchemy import ChoiceFilter
 
 
 class OrderView(ModelView[Order]):
-    list_filters = (
+    list_filters = [
         ChoiceFilter(
             "status",
-            choices=(("PAID", "Paid"), ("SHIPPED", "Shipped")),
+            choices=[("PAID", "Paid"), ("SHIPPED", "Shipped")],
             show_counts=False,
         ),
-    )
+    ]
 ```
 
 ## Writing your own
@@ -71,7 +81,7 @@ class DeliveryFilter(SQLFilter[Order]):
 
 
 class OrderView(ModelView[Order]):
-    list_filters = ("status", DeliveryFilter("delivery", label="Delivery"))
+    list_filters = [Order.status, DeliveryFilter("delivery", label="Delivery")]
 ```
 
 `SQLFilter[Order]` is a filter of orders, so `repository` reads orders. `value.first` is the

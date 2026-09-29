@@ -15,12 +15,17 @@ class Plugin:
     the same methods a project uses:
 
     ```python
+    from pathlib import Path
+
+    HERE = Path(__file__).parent
+
+
     class Reports(Plugin):
         name = "reports"
 
-        def setup(self, admin):
-            admin.add_template_dir(Path(__file__).parent / "templates")
-            admin.add_static("reports", Path(__file__).parent / "static")
+        def setup(self, admin: Admin) -> None:
+            admin.add_template_dir(HERE / "templates")
+            admin.add_static("reports", HERE / "static")
             admin.add_stylesheet("-/static/reports/reports.css")
             admin.add_page(SalesReport)
             admin.add_route("/-/reports/export", export_sales)

@@ -95,8 +95,8 @@ record." A model with no view of its own is loaded by key, since there is no vie
 
 Sorting follows it too. `?sort=` in the URL is honoured only for a column the user can read
 somewhere on the view: one on offer in the list, on the record page or in the form. Sorting by
-anything else, such as a column left out with `exclude`, is ignored rather than putting the rows in
-the order of a value the user cannot see.
+anything else, such as a column no page shows them, is ignored rather than putting the rows in the
+order of a value the user cannot see.
 
 ## Fields
 

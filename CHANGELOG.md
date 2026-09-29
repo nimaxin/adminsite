@@ -130,6 +130,12 @@
   longer offers `Path` or `re`.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
+- The guides, the README and the docstrings write views this way, and CI type-checks every example
+  in them under mypy's strict mode. Examples that could not have run are fixed: the audit log is
+  read through the `AuditLog` given to the admin, and a SQLite listener goes on a sync engine.
+- A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
+  words for someone who never used an older adminsite: "OrderView sets list_display, a setting
+  adminsite does not have."
 
 ## 0.1.0a9
 

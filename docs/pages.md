@@ -7,8 +7,12 @@ sign in.
 ## A page of your own
 
 ```python
-from adminsite import AdminPage
+from typing import Any
+
 from sqlalchemy import func, select
+from starlette.requests import Request
+
+from adminsite import AdminPage
 
 
 class SalesReport(AdminPage):
@@ -16,7 +20,7 @@ class SalesReport(AdminPage):
     group = "Reports"
     template = "reports/sales.html"
 
-    async def get_context(self, request):
+    async def get_context(self, request: Request) -> dict[str, Any]:
         async with self.admin.database.session() as session:
             total = await session.scalar(select(func.sum(Order.total)))
         return {"total": total}
@@ -61,7 +65,7 @@ stats and tables as the rest of the admin. `page` is the page object; `urls`, `u
 
 ```python
 class SalesReport(AdminPage):
-    async def allows(self, request):
+    async def allows(self, request: Request) -> bool:
         return request.state.user.is_manager
 ```
 
@@ -73,7 +77,7 @@ A page that takes a form overrides `post`. The form's token is already checked, 
 another site never reaches it:
 
 ```python
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 
 from adminsite.http.templating import add_message
 
@@ -81,7 +85,7 @@ from adminsite.http.templating import add_message
 class Settings(AdminPage):
     template = "settings.html"
 
-    async def post(self, request, form):
+    async def post(self, request: Request, form: dict[str, Any]) -> Response:
         await save_settings(form)
         add_message(request, "Settings saved.")
         return RedirectResponse(request.url, status_code=303)
@@ -108,7 +112,7 @@ HERE = Path(__file__).parent
 class Reports(Plugin):
     name = "reports"
 
-    def setup(self, admin):
+    def setup(self, admin: Admin) -> None:
         admin.add_template_dir(HERE / "templates")
         admin.add_static("reports", HERE / "static")
         admin.add_stylesheet("-/static/reports/reports.css")

@@ -1,4 +1,4 @@
-"""A name 0.1.0a10 changed is refused with the name it has now.
+"""An old name is refused with the name adminsite uses.
 
 The settings and methods of a view are in reference/startup_mistakes.py, and
 the keywords a type checker refuses in reference/mistakes.py.
@@ -26,7 +26,7 @@ from adminsite.fields import StringField
     ],
 )
 def test_an_old_name_says_what_to_import(module: str, old: str, new: str) -> None:
-    with pytest.raises(ImportError, match=f"{old} is called {new} now"):
+    with pytest.raises(ImportError, match=f"calls it {new}, not {old}"):
         getattr(importlib.import_module(module), old)
 
 
@@ -38,7 +38,7 @@ def test_a_name_that_never_existed_is_missing_as_usual() -> None:
 
 
 def test_a_field_class_keeping_its_value_by_the_old_name_is_refused() -> None:
-    with pytest.raises(AdminSiteError, match="called keeps_value_when_blank now"):
+    with pytest.raises(AdminSiteError, match="calls keeps_value_when_blank"):
 
         class Secret(StringField):
             blank_keeps = True

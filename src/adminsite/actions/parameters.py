@@ -111,6 +111,10 @@ class Input:
     """How an action asks for one value, written in the parameter's annotation.
 
     ```python
+    from typing import Annotated
+
+    from adminsite.actions import Input
+
     reason: Annotated[str, Input(label="Reason", multiline=True)]
     ```
     """

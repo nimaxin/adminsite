@@ -30,6 +30,7 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 uv sync --all-groups
 uv run ruff check . && uv run ruff format --check .
 uv run mypy src tests
+uv run python -m tests.doc_examples
 uv run pytest -q
 uv run --group docs mkdocs build --strict
 ```
@@ -71,6 +72,9 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
   `to_column_type`. MySQL refuses a `LIMIT` straight inside `IN (...)`.
 - **The session is only saved when a key is set.** Assign a new value; never change a list or
   dict inside it in place.
+- **Examples type-check.** `python -m tests.doc_examples` runs mypy strict over every python block
+  in `docs/`, the README and the docstrings, and refuses a view setting `ModelView` does not have.
+  A name an example takes as given, such as a model, goes in `tests/doc_examples/context.py`.
 - **Text files use LF endings.** `.gitattributes` enforces it; keep it that way when writing files
   from scripts.
 

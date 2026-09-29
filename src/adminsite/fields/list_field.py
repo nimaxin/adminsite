@@ -22,7 +22,7 @@ class ListField(Field[Sequence[Any] | None]):
     `ARRAY(String(2))` two letters at most. Give `item` to choose it:
 
     ```python
-    ListField(Player.scores, item=IntegerField("scores"))
+    ListField(Product.sizes, item=IntegerField("sizes"))
     ```
     """
 

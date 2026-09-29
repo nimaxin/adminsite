@@ -138,12 +138,12 @@ dataclass:
 
 ```python
 from dataclasses import dataclass
+from decimal import Decimal
 
 
 @dataclass(frozen=True)
 class PriceChange:
     percent: Annotated[Decimal, Input(help_text="Negative to lower prices.")]
-    round_to: Decimal = Decimal("0.05")
     never_below_cost: bool = True
 
 
@@ -154,7 +154,10 @@ class ProductView(ModelView[Product]):
     ) -> str:
         products = await selection.records()
         for product in products:
-            product.price = new_price(product, change)
+            price = product.price * (100 + change.percent) / 100
+            if change.never_below_cost:
+                price = max(price, product.cost)
+            product.price = round(price, 2)
         return f"{len(products)} prices changed."
 ```
 
@@ -215,16 +218,22 @@ user may pick:
 
 ```python
 import dataclasses
+from collections.abc import Sequence
 
+from starlette.requests import Request
+
+from adminsite.actions import Action
 from adminsite.fields import EnumField
 
 
 class OrderView(ModelView[Order]):
     @action("Move")
-    async def move(self, selection: Selection[Order], *, warehouse: str) -> str: ...
+    async def move(self, selection: Selection[Order], *, warehouse: str) -> str:
+        changed = await selection.update(warehouse=warehouse)
+        return f"{changed} orders moved to {warehouse}."
 
-    def get_actions(self, request):
-        choices = warehouses_for(request.user)
+    def get_actions(self, request: Request) -> Sequence[Action]:
+        choices = warehouses_for(request.state.user)
         return [
             dataclasses.replace(item, inputs=(EnumField("warehouse", choices=choices),))
             if item.name == "move"
@@ -257,11 +266,13 @@ Raise `RefusedError` to stop an action with a message. Everything it did is roll
 from adminsite import RefusedError
 
 
-@action("Refund")
-async def refund(self, selection: Selection[Order]) -> str:
-    if await selection.count() > 50:
-        raise RefusedError("Refund at most 50 orders at a time.")
-    ...
+class OrderView(ModelView[Order]):
+    @action("Refund")
+    async def refund(self, selection: Selection[Order]) -> str:
+        if await selection.count() > 50:
+            raise RefusedError("Refund at most 50 orders at a time.")
+        changed = await selection.update(status=OrderStatus.REFUNDED)
+        return f"{changed} orders refunded."
 ```
 
 An action that breaks a database constraint, for example deleting customers that orders still
@@ -324,20 +335,22 @@ something, return a `Message` instead of a string:
 from adminsite import Message
 
 
-@action("Rotate the key", on="record", audit_answer=False)
-async def rotate(self, account: Account, session: SessionAdapter) -> Message:
-    key = await issue_key(session, account)
-    return Message(
-        "The new key is ready. Copy it now: it is not shown again.", copy=key
-    )
+class AccountView(ModelView[Account]):
+    @action("Rotate the key", on="record", audit_answer=False)
+    async def rotate(self, account: Account, session: SessionAdapter) -> Message:
+        key = await issue_key(session, account)
+        return Message(
+            "The new key is ready. Copy it now: it is not shown again.", copy=key
+        )
 
-
-@action("Export", on="view")
-async def export(self, session: SessionAdapter) -> Message:
-    await queue_export(session)
-    return Message(
-        "The export is on its way.", link="/admin/exports", link_text="See the exports"
-    )
+    @action("Export all", on="view")
+    async def export_all(self, session: SessionAdapter) -> Message:
+        await queue_export(session)
+        return Message(
+            "The export is on its way.",
+            link="/admin/exports",
+            link_text="See the exports",
+        )
 ```
 
 | Option | What it does |
@@ -354,13 +367,18 @@ The JSON API answers with the message, the link and the value to copy as fields 
 An action can return a response instead of a message, which is how a download works:
 
 ```python
-@action("Download as CSV", on="record", permission=Permission.EXPORT)
-async def download(self, order: Order) -> Response:
-    return Response(
-        render_csv(order),
-        media_type="text/csv",
-        headers={"content-disposition": f'attachment; filename="order-{order.id}.csv"'},
-    )
+from starlette.responses import Response
+
+
+class OrderView(ModelView[Order]):
+    @action("Download as CSV", on="record", permission=Permission.EXPORT)
+    async def download(self, order: Order) -> Response:
+        filename = f"order-{order.id}.csv"
+        return Response(
+            render_csv(order),
+            media_type="text/csv",
+            headers={"content-disposition": f'attachment; filename="{filename}"'},
+        )
 ```
 
 Anything Starlette can answer with works: a file, JSON, or a redirect to somewhere the result

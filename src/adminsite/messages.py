@@ -14,9 +14,9 @@ class Message:
     """What an action answers, when a line of text that fades is not enough.
 
     ```python
-    return Message("The new key is ready.", copy=key)
-    return Message("The export is on its way.", link=url, link_text="Exports")
-    return Message(Html("Queued <b>40</b> checks."), sticky=True)
+    Message("The new key is ready.", copy="sk_live_k3j9x2")
+    Message("The export is on its way.", link="/admin/exports", link_text="Exports")
+    Message(Html("Queued <b>40</b> checks."), sticky=True)
     ```
 
     - `text` says what happened. It is escaped, unless given as `Html`.

@@ -99,10 +99,11 @@ holds a secret shown once, such as a new API key, says so with `audit_answer=Fal
 records who ran it, on what and when, and keeps nothing of the answer.
 
 ```python
-@action("Rotate the key", on="record", audit_answer=False)
-async def rotate(self, account: Account, session: SessionAdapter) -> str:
-    key = await issue_key(session, account)
-    return f"The new key is {key}. Copy it now: it is not shown again."
+class AccountView(ModelView[Account]):
+    @action("Rotate the key", on="record", audit_answer=False)
+    async def rotate(self, account: Account, session: SessionAdapter) -> str:
+        key = await issue_key(session, account)
+        return f"The new key is {key}. Copy it now: it is not shown again."
 ```
 
 An action that is refused, that the person may not run, or that fails is written down too, as
@@ -164,11 +165,16 @@ Activity page, filtered to that record.
 
 ## Reading it yourself
 
-```python
-from adminsite.audit import AuditEvent, AuditQuery
+Keep the log you give the admin, and read from it:
 
-entries = await admin.audit.find(AuditQuery(view="orders", record_key="42"), limit=50)
-deletes = await admin.audit.find(
+```python
+from adminsite.audit import AuditEvent, AuditLog, AuditQuery
+
+audit = AuditLog(engine)
+admin = Admin(engine, views=[OrderView], audit=audit)
+
+entries = await audit.find(AuditQuery(view="orders", record_key="42"), limit=50)
+deletes = await audit.find(
     AuditQuery(user="nima", events=[AuditEvent.DELETED], since=last_monday), limit=100
 )
 
@@ -196,6 +202,23 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from adminsite.audit import AuditEntry, AuditEvent, AuditQuery
 
 
+def change_log_row(entry: AuditEntry) -> ChangeLog:
+    """The entry as a row of the change_log table."""
+    return ChangeLog(
+        at=entry.occurred_at,
+        table_name=entry.view,
+        row_key=entry.record_key,
+        event=entry.event.value,
+        changes={name: list(pair) for name, pair in entry.changes.items()},
+        payload=dict(entry.inputs),
+        error=entry.error,
+        who=entry.user_key,
+        who_name=entry.user,
+        ip=entry.ip,
+        user_agent=entry.user_agent,
+    )
+
+
 class ChangeLogStore:
     """The admin's log, in the application's own change_log table."""
 
@@ -204,22 +227,7 @@ class ChangeLogStore:
 
     async def record(self, entries: Sequence[AuditEntry]) -> None:
         async with self.sessions() as session:
-            session.add_all(
-                ChangeLog(
-                    at=entry.occurred_at,
-                    table_name=entry.view,
-                    row_key=entry.record_key,
-                    event=entry.event.value,
-                    changes={name: list(pair) for name, pair in entry.changes.items()},
-                    payload=dict(entry.inputs),
-                    error=entry.error,
-                    who=entry.user_key,
-                    who_name=entry.user,
-                    ip=entry.ip,
-                    user_agent=entry.user_agent,
-                )
-                for entry in entries
-            )
+            session.add_all(change_log_row(entry) for entry in entries)
             await session.commit()
 
     async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
@@ -250,7 +258,7 @@ class ChangeLogStore:
             ]
 
 
-admin = Admin(engine, views=[OrderView], audit=ChangeLogStore(sessions))
+admin = Admin(engine, views=[OrderView], audit=ChangeLogStore(session_factory))
 ```
 
 A store like this one writes after the change has committed, so a failure leaves the change saved
@@ -262,8 +270,8 @@ entries are saved together. It needs two more methods:
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
 
 
-class ChangeLogStore:
-    ...
+class SharedChangeLogStore(ChangeLogStore):
+    """The same log, written in the transaction of the change it describes."""
 
     def lives_in(self, database: Database) -> bool:
         """Whether the entries are kept in that database."""
@@ -274,7 +282,7 @@ class ChangeLogStore:
     ) -> None:
         """Write the entries through the admin's session, without committing."""
         for entry in entries:
-            await session.add(ChangeLog(...))
+            await session.add(change_log_row(entry))
 ```
 
 A store that wraps another passes both on, or its entries are written after the commit.

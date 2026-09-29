@@ -54,7 +54,7 @@ class RefusedError(AdminSiteError):
     above the form:
 
     ```python
-    raise RefusedError("Keep this above the check delay.", field=Check.delay)
+    raise RefusedError("Keep this above the check delay.", field=Check.validation_delay)
     ```
     """
 
@@ -125,7 +125,7 @@ class SignInRefusedError(AdminSiteError):
 
 
 def renamed_names(module: str, renamed: Mapping[str, str]) -> Callable[[str], NoReturn]:
-    """A module's `__getattr__` that names what an old name is called now.
+    """A module's `__getattr__` that names what adminsite calls an old name.
 
     It raises ImportError rather than AttributeError, whose message Python
     replaces with its own when the name is imported.
@@ -134,7 +134,7 @@ def renamed_names(module: str, renamed: Mapping[str, str]) -> Callable[[str], No
     def __getattr__(name: str) -> NoReturn:
         if name in renamed:
             raise ImportError(
-                f"{module}.{name} is called {renamed[name]} now. "
+                f"{module} calls it {renamed[name]}, not {name}. "
                 f"Import {renamed[name]} instead.",
                 name=module,
             )

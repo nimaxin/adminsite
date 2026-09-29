@@ -12,10 +12,11 @@ from adminsite import DeleteContext, ModelView, RefusedError, SaveContext
 class OrderView(ModelView[Order]):
     async def before_save(self, context: SaveContext[Order]) -> None:
         if context.created:
-            product = context.values[Order.product].get()
-            stock = await context.session.get(Stock, product.id)
-            if stock is None or stock.quantity < 1:
-                raise RefusedError("That product is out of stock.", field=Order.product)
+            customer = context.values[Order.customer].get()
+            if not customer.is_active:
+                raise RefusedError(
+                    "This customer's account is closed.", field=Order.customer
+                )
 
     async def after_save(self, context: SaveContext[Order]) -> None:
         await context.session.add(Notification(order_id=context.record.id))
@@ -97,12 +98,13 @@ A refusal naming a field appears next to that input, like any other problem with
 and everything else the person wrote stays in place:
 
 ```python
-async def before_save(self, context: SaveContext[Check]) -> None:
-    delay = context.values[Check.validation_delay].get()
-    if delay is not None and delay < context.record.check_delay:
-        raise RefusedError(
-            "Keep this above the check delay.", field=Check.validation_delay
-        )
+class CheckView(ModelView[Check]):
+    async def before_save(self, context: SaveContext[Check]) -> None:
+        delay = context.values[Check.validation_delay].get()
+        if delay is not None and delay < context.values[Check.check_delay].get():
+            raise RefusedError(
+                "Keep this above the check delay.", field=Check.validation_delay
+            )
 ```
 
 The field is named by its attribute, by `Link(...)` for a column of a related model, or by its name
@@ -128,18 +130,29 @@ them are gone, and none runs if one of them was refused.
 The session is adminsite's wrapper, the same for async and sync engines, so a hook is written once:
 
 ```python
-await context.session.add(record)
-await context.session.get(Model, key)
-await context.session.scalar(select(func.count()).select_from(Model))
+class OrderView(ModelView[Order]):
+    async def after_save(self, context: SaveContext[Order]) -> None:
+        order = context.record
+        customer = await context.session.get(Customer, order.customer_id)
+        orders = await context.session.scalar(
+            select(func.count()).where(Order.customer_id == order.customer_id)
+        )
+        if customer is not None and orders == 1:
+            await context.session.add(Notification(order_id=order.id))
 ```
 
 For work that needs a plain SQLAlchemy `Session`, such as lazy loading, use `run`:
 
 ```python
-def count_lines(session):
-    order = session.get(Order, key)
-    return len(order.items)
+from sqlalchemy.orm import Session
 
 
-total = await context.session.run(count_lines)
+class OrderView(ModelView[Order]):
+    async def before_delete(self, context: DeleteContext[Order]) -> None:
+        def count_lines(session: Session) -> int:
+            order = session.get(Order, context.record.id)
+            return 0 if order is None else len(order.items)
+
+        if await context.session.run(count_lines) > 0:
+            raise RefusedError("Remove the order's lines first.")
 ```

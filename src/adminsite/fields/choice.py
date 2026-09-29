@@ -27,7 +27,9 @@ class EnumField(Field[Any]):
     values listed, or from `enum` or `choices` given here:
 
     ```python
-    EnumField(Order.status, tones={Status.PAID: "green", Status.FAILED: "rose"})
+    EnumField(
+        Order.status, tones={OrderStatus.PAID: "green", OrderStatus.FAILED: "rose"}
+    )
     EnumField(Product.size, choices=[("S", "Small"), ("L", "Large")])
     ```
 

@@ -85,26 +85,42 @@ plugins:
         - `Admin(engine, title=..., views=[...])` is the app. Options switch features on:
           `auth=` with `secret_key=` for signing in, `audit=True`, `saved_views=True`, `api=True`,
           `dashboard=[...]`, `pages=[...]`, `plugins=[...]`, `language="fa"`, `languages=[...]`.
-        - `class OrderView(ModelView, model=Order)` describes one model: `list_display`,
-          `search_fields`, `list_filter`, `ordering`, `form_fields`, `readonly_fields`,
-          `fields` (field objects that replace the defaults), `inlines`, `count_mode`,
-          `pagination`, `can_create`/`can_edit`/`can_delete`/`can_import`.
-        - Anything that depends on the user is a method taking the request: `get_list_display`,
-          `get_form_fields`, `scope_query` (row level), and `async def allows(action, *, request,
-          record)` with `Permission.VIEW`, `CREATE`, `EDIT`, `DELETE`, `EXPORT`, `IMPORT`,
-          `HISTORY`.
-        - Business rules go in `before_save`, `after_save`, `before_delete`, `after_delete`
-          hooks. They run inside the transaction; raise `RefusedError("...")` to refuse.
-        - Bulk actions are methods decorated with `@action("Label")` that take a `Selection`.
+        - `class OrderView(ModelView[Order])` describes one model. `fields` lists every field
+          once, in order, for every page: a column such as `Order.total`, a related model's
+          column such as `Link(Order.customer, Customer.email)`, or a field with options such as
+          `Field(Order.total, read_only=True)` or `EnumField(Order.status, tones=...)`. A page
+          leaves one off with `exclude_fields_from_list`, `_detail`, `_create`, `_edit` or
+          `_export`, and `hidden_in_list=True` keeps a column in the Columns menu only. The
+          other settings: `searchable_fields`, `sortable_fields`, `list_filters`,
+          `fields_default_sort` (`[Descending(Order.created_at)]`), `inlines`, `record_title`,
+          `page_size`, `count_mode`, `pagination`, `can_create`/`can_edit`/`can_delete`/
+          `can_import`.
+        - Anything that depends on the user is a method taking the request:
+          `can_access_field(request, field, action)`, `get_readonly_fields(request, record)`,
+          `get_searchable_fields`, `get_list_filters`, `get_actions`, `scope_query` (row level),
+          and `async def allows(action, *, request, record)` with `Permission.VIEW`, `CREATE`,
+          `EDIT`, `DELETE`, `EXPORT`, `IMPORT`, `HISTORY`.
+        - Business rules go in the `before_save`, `after_save`, `before_delete` and
+          `after_delete` hooks, which take a `SaveContext[Order]` or `DeleteContext[Order]` and
+          run inside the transaction; raise `RefusedError("...")` to refuse.
+          `after_save_committed` and `after_delete_committed` run after the commit.
+        - Actions are methods decorated with `@action("Label")`. They take a `Selection[Order]`,
+          or the record with `on="record"`, and ask for anything else through typed keyword
+          parameters, such as `carrier: Literal["DHL", "UPS"]`.
 
         Things agents often get wrong:
 
-        - Paths are dotted strings such as `"customer.name"`, not SQLAlchemy columns.
+        - Settings are lists of the model's attributes, `[Order.status, Order.total]`. A string
+          such as `"total"` works too, and `"customer.email"` for a related model's column.
+        - adminsite's names differ from Django's: `fields`, not `list_display`;
+          `searchable_fields`, not `search_fields`; `read_only=True` on a field, not
+          `readonly_fields`. The admin refuses the Django names when it starts.
         - `ModelView` is configured with class attributes and methods, never by passing options to
           its constructor. `views=[...]` takes the class; the admin builds it.
         - Signing in needs `secret_key`. `PasswordAuth` takes password hashes made with
           `adminsite.auth.hash_password`, never plain passwords.
-        - Hooks and `allows` are async; `get_*` methods and `scope_query` are not.
+        - Hooks and `allows` are async; `get_*` methods, `can_access_field` and `scope_query` are
+          not.
         - Extra routes added by plugins must start with `/-/`.
       sections:
         Start here:

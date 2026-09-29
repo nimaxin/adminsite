@@ -41,7 +41,10 @@ A card reads either a SQLAlchemy `select`, or an async function that receives th
 returns the value:
 
 ```python
-async def active_customers(session):
+from adminsite.backends.sqlalchemy import SessionAdapter
+
+
+async def active_customers(session: SessionAdapter) -> int:
     return await session.scalar(select(func.count()).where(Customer.is_active))
 
 
@@ -93,7 +96,9 @@ Subclass `Widget`, give it a template from your `template_dirs`, and return what
 `load`. The template gets `widget` and `data`:
 
 ```python
-from adminsite import Widget
+from starlette.requests import Request
+
+from adminsite import Admin, Widget
 
 
 class Weather(Widget):
@@ -101,7 +106,7 @@ class Weather(Widget):
     template = "cards/weather.html"
     width = 2
 
-    async def load(self, admin, request):
+    async def load(self, admin: Admin, request: Request) -> dict[str, float]:
         return await fetch_weather("Rotterdam")
 ```
 
@@ -120,7 +125,7 @@ Every card has `allows(admin, request)`. Override it to show a card only to some
 
 ```python
 class Margin(Stat):
-    async def allows(self, admin, request):
+    async def allows(self, admin: Admin, request: Request) -> bool:
         return request.state.user.is_manager
 ```
 

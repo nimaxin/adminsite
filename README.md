@@ -28,19 +28,23 @@ Add the driver your database needs, such as `asyncpg` or `aiosqlite`.
 ## Usage
 
 ```python
-from adminsite import Admin, ModelView
+from adminsite import Admin, Link, ModelView
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total")
-    searchable_fields = ("customer.name", "customer.email")
-    list_filters = ("status", "created_at")
+    fields = [Order.id, Order.customer, Order.status, Order.total]
+    searchable_fields = [
+        Link(Order.customer, Customer.name),
+        Link(Order.customer, Customer.email),
+    ]
+    list_filters = [Order.status, Order.created_at]
 
 
 app.mount("/admin", Admin(engine, views=[OrderView]))
 ```
 
-The labels, filters, form controls and validation come from your models.
+The settings name your models' own attributes, so a type checker catches a misspelt one. The
+labels, filters, form controls and validation come from your models.
 [Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a complete app, signing in included, in a few
 minutes.
 

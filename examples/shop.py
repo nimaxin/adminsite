@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 
 from fastapi import FastAPI
 from sqlalchemy import (
@@ -232,22 +233,18 @@ class OrderView(ModelView[Order]):
         )
         return f"Today's orders come to €{total or 0}."
 
-    @action(
-        "Mark as shipped",
-        confirm="Mark the chosen orders as shipped?",
-        inputs=[
-            EnumField(
-                "carrier",
-                choices=(("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL")),
-                required=True,
-            ),
-        ],
-    )
-    async def ship(self, selection: Selection[Order], carrier: str) -> str:
+    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
+    async def ship(
+        self,
+        selection: Selection[Order],
+        *,
+        # Asked for in the dialog, as a select of these three.
+        carrier: Literal["DHL", "UPS", "PostNL"],
+    ) -> str:
         changed = await selection.update(
-            status=OrderStatus.SHIPPED, note=f"Sent with {carrier.upper()}"
+            status=OrderStatus.SHIPPED, note=f"Sent with {carrier}"
         )
-        return f"{changed} orders marked as shipped with {carrier.upper()}."
+        return f"{changed} orders marked as shipped with {carrier}."
 
 
 class ProductView(ModelView[Product]):

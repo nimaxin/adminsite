@@ -7,7 +7,7 @@ Importing is off until you switch it on for a view, since it writes many records
 
 ```python
 class CustomerView(ModelView[Customer]):
-    form_fields = ("name", "email", "region", "is_active")
+    fields = [Customer.name, Customer.email, Customer.region, Customer.is_active]
     can_import = True
 ```
 

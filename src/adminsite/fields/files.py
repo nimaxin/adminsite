@@ -61,7 +61,7 @@ class FileField(Field[str | None]):
     """An uploaded file, kept in a storage, its key kept in a string column.
 
     ```python
-    FileField(Order.invoice, storage=LocalStorage("uploads"), accept=".pdf")
+    FileField(Product.datasheet, storage=LocalStorage("uploads"), accept=".pdf")
     ```
     """
 

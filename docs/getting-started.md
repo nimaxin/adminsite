@@ -49,19 +49,19 @@ Describe how each one should appear, and mount the admin:
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, Link, ModelView
 
 engine = create_async_engine("postgresql+asyncpg://localhost/shop")
 
 
 class CustomerView(ModelView[Customer]):
-    list_display = ("name", "email")
-    searchable_fields = ("name", "email")
+    fields = [Customer.name, Customer.email]
+    searchable_fields = [Customer.name, Customer.email]
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "note")
-    searchable_fields = ("id", "customer.name")
+    fields = [Order.id, Order.customer, Order.note]
+    searchable_fields = [Order.id, Link(Order.customer, Customer.name)]
 
 
 app = FastAPI()
@@ -70,11 +70,13 @@ app.mount("/admin", admin)
 ```
 
 Run the app and open `/admin`. You get a list for each model, with search, sorting and paging, and
-pages to add, change and delete records. The order form offers a customer picker rather than a
-number box, because `customer_id` is a foreign key.
+pages to add, change and delete records. `fields` lists what each page shows, in order.
+`Order.customer` is a relationship, so the list names the customer and the form offers a picker
+for one. `Link(Order.customer, Customer.name)` is a column of the related model, here to search
+orders by their customer's name.
 
-A view with no settings at all still works: it shows every column. Settings only narrow and order
-what is shown.
+A view with no settings at all still works: it shows every column. See [Views](views.md) for what
+else a view can say.
 
 ## Mounting elsewhere
 
@@ -99,10 +101,11 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do.
 
     ```python
     from litestar import Litestar, asgi
+    from litestar.types import Receive, Scope, Send
 
 
     @asgi("/admin", is_mount=True)
-    async def admin_app(scope, receive, send) -> None:
+    async def admin_app(scope: Scope, receive: Receive, send: Send) -> None:
         await admin(scope, receive, send)
 
 

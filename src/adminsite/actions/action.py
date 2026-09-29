@@ -112,14 +112,18 @@ def action(
     """Mark a method as an action.
 
     ```python
-    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
-    async def ship(
-        self, selection: Selection[Order], *, carrier: Literal["DHL", "UPS"]
-    ) -> str:
-        orders = await selection.records()
-        for order in orders:
-            order.status = OrderStatus.SHIPPED
-        return f"{len(orders)} orders sent with {carrier}."
+    from typing import Literal
+
+
+    class OrderView(ModelView[Order]):
+        @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
+        async def ship(
+            self, selection: Selection[Order], *, carrier: Literal["DHL", "UPS"]
+        ) -> str:
+            orders = await selection.records()
+            for order in orders:
+                order.status = OrderStatus.SHIPPED
+            return f"{len(orders)} orders sent with {carrier}."
     ```
 
     Each parameter the method does not get handed is asked for in a

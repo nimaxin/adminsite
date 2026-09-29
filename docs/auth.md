@@ -39,7 +39,7 @@ from adminsite.auth import AuthProvider, SignInRefusedError, verify_password
 
 
 class StaffAuth(AuthProvider):
-    async def verify(self, username: str, password: str):
+    async def verify(self, username: str, password: str) -> User | None:
         async with session_factory() as session:
             user = await session.scalar(select(User).where(User.email == username))
         if user is None or not verify_password(password, user.password_hash):
@@ -48,10 +48,10 @@ class StaffAuth(AuthProvider):
             raise SignInRefusedError("Not a member of staff.", user=user)
         return user
 
-    def identity(self, user) -> str:
+    def identity(self, user: User) -> str:
         return str(user.id)
 
-    async def load_user(self, key: str):
+    async def load_user(self, key: str) -> User | None:
         async with session_factory() as session:
             return await session.get(User, int(key))
 ```
@@ -81,10 +81,14 @@ something else, and to do something about it. With the [audit log](audit.md) on,
 already written down; `sign_in_failed` is where an alert or a wait belongs:
 
 ```python
+from starlette.requests import Request
+
+
 class StaffAuth(AuthProvider):
-    async def sign_in_failed(self, request, username: str) -> str:
-        await note_attempt(username, request.client.host)
-        if await too_many_lately(request.client.host):
+    async def sign_in_failed(self, request: Request, username: str) -> str:
+        address = request.client.host if request.client else ""
+        await note_attempt(username, address)
+        if await too_many_lately(address):
             return "Too many tries. Wait a minute and try again."
         return await super().sign_in_failed(request, username)
 ```
@@ -102,11 +106,15 @@ press Sign in:
 
 ```python
 class DemoAuth(PasswordAuth):
-    async def sign_in_values(self, request):
+    async def sign_in_values(self, request: Request) -> dict[str, str]:
         return {"username": "admin", "password": "admin"}
 
 
-admin = Admin(engine, auth=DemoAuth({"admin": hash_password("admin")}), ...)
+admin = Admin(
+    engine,
+    auth=DemoAuth({"admin": hash_password("admin")}),
+    secret_key=settings.admin_secret_key,
+)
 ```
 
 !!! warning "Only for a demo"
@@ -140,7 +148,11 @@ and the cookie is never sent over plain HTTP:
 
 ```python
 admin = Admin(
-    engine, auth=auth, secret_key=..., session_https_only=True, session_max_age=8 * 3600
+    engine,
+    auth=auth,
+    secret_key=settings.admin_secret_key,
+    session_https_only=True,
+    session_max_age=8 * 3600,
 )
 ```
 

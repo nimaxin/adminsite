@@ -107,9 +107,6 @@ that is what it reads back.
 A label you give is used as it stands. Without one, a column of a related model names the relation
 as well, so `Link(Order.customer, Customer.name)` reads Customer name.
 
-`FieldOptions("name", label="Product name")`, the way to write these before, still works, and
-0.1.0a10 will refuse it.
-
 ## Badge colours
 
 A status, any other choice, and a yes or no are drawn as a coloured badge. By default a choice
@@ -191,6 +188,9 @@ The order has to live somewhere, so the relationship needs one of its own. A lin
 serial id, read in the order of that id, is the usual way:
 
 ```python
+from sqlalchemy import Column, ForeignKey, Integer, Table
+from sqlalchemy.orm import Mapped, relationship
+
 config_proxies = Table(
     "config_proxies",
     Base.metadata,
@@ -322,7 +322,7 @@ row per setting, give a function instead. It is given the record and returns its
 for a record that has none, whose value is then edited in the code box:
 
 ```python
-SCHEMAS = {"delivery": Delivery, "maintenance": Maintenance}
+SCHEMAS: dict[str, type[BaseModel]] = {"delivery": Delivery, "maintenance": Maintenance}
 
 
 def schema_for(setting: Setting) -> type[BaseModel] | None:
@@ -380,7 +380,7 @@ from adminsite.fields import IntegerField, ListField
 class ProductView(ModelView[Product]):
     fields = [
         Product.name,
-        ListField(Product.tags),
+        ListField(Product.keywords),
         ListField(Product.sizes, item=IntegerField("sizes")),
     ]
 ```
@@ -418,16 +418,22 @@ the page, which answers with each record's value by its primary key. It runs onc
 however many rows the page holds:
 
 ```python
+from collections.abc import Sequence
+
 from sqlalchemy import func, select
 
+from adminsite.backends.sqlalchemy import SessionAdapter
 
-async def member_counts(session, groups):
+
+async def member_counts(
+    session: SessionAdapter, groups: Sequence[Group]
+) -> dict[int, int]:
     rows = await session.execute(
         select(Member.group_id, func.count())
         .where(Member.group_id.in_([group.id for group in groups]))
         .group_by(Member.group_id)
     )
-    return dict(rows.all())
+    return {group_id: count for group_id, count in rows.all()}
 
 
 class GroupView(ModelView[Group]):
@@ -488,15 +494,21 @@ A form-only field starts empty. To start it from somewhere else, answer `form_on
 which is given the session and the record, or None on the form for a new one:
 
 ```python
-from sqlalchemy import delete, select
+from typing import Any
 
+from sqlalchemy import delete, select
+from starlette.requests import Request
+
+from adminsite.backends.sqlalchemy import SessionAdapter
 from adminsite.fields import JSONField
 
 
 class GroupView(ModelView[Group]):
     fields = [Group.name, JSONField("settings", form_only=True)]
 
-    async def form_only_values(self, session, record, *, request):
+    async def form_only_values(
+        self, session: SessionAdapter, record: Group | None, *, request: Request
+    ) -> dict[str, Any]:
         if record is None:
             return {}
         rows = await session.scalars(
@@ -529,8 +541,13 @@ currency, and a status reads differently when a second column says the check was
 Override `text_for` instead, which gets the record:
 
 ```python
+from decimal import Decimal
+
+from adminsite.fields import DecimalField
+
+
 class Money(DecimalField):
-    def text_for(self, record, value):
+    def text_for(self, record: Order, value: Decimal | None) -> str:
         if value is None:
             return ""
         return f"{value:,.2f} {record.currency}"
@@ -643,11 +660,11 @@ class PercentField(Field[float | None]):
     python_type = float
     error_message = "Enter a percentage, for example 12.5."
 
-    def display(self, value):
+    def display(self, value: float | None) -> str:
         return "" if value is None else f"{value:.1f}%"
 
-    def to_python(self, text):
-        number = super().to_python(text.rstrip("%"))
+    def to_python(self, text: str) -> float:
+        number: float = super().to_python(text.rstrip("%"))
         if not 0 <= number <= 100:
             raise FieldValidationError(self.name, "Enter a value between 0 and 100.")
         return number

@@ -86,8 +86,8 @@ class BaseField:
         super().__init_subclass__(**kwargs)
         if "blank_keeps" in vars(cls):
             raise AdminSiteError(
-                f"{cls.__name__} sets blank_keeps, which is called "
-                "keeps_value_when_blank now. Rename it to keeps_value_when_blank."
+                f"{cls.__name__} sets blank_keeps, which adminsite calls "
+                "keeps_value_when_blank. Rename it to keeps_value_when_blank."
             )
 
     def __post_init__(self) -> None:

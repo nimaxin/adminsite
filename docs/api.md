@@ -40,8 +40,8 @@ filters by name such as `status=SHIPPED`, `page`, and `limit` up to 500.
 }
 ```
 
-A record carries the paths of `list_display`, then those of the form. Links come as the key of the
-linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
+A record carries the fields the list shows, then those of the form, each under its name. A
+relationship comes as the key of the linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
 cents are lost, dates and times in ISO format, and files as their name and address. With
 [keyset pagination](views.md#large-tables), `page` is null and `next` and `previous` are cursors to
 pass back as `after` and `before`.
@@ -68,7 +68,7 @@ A hook that refuses, or a delete other records depend on, answers 409 with the r
 POST /admin/-/api/orders/actions/ship?status=PAID
 Content-Type: application/json
 
-{"keys": ["12", "13"], "inputs": {"carrier": "dhl"}}
+{"keys": ["12", "13"], "inputs": {"carrier": "DHL"}}
 ```
 
 Send `"everything": true` instead of keys to run the action over every record the query matches,
@@ -91,11 +91,17 @@ Without `auth` the API is as open as the admin. With `auth`, a request needs one
   until your auth provider says who a token belongs to:
 
 ```python
+from sqlalchemy import select
+
+from adminsite.auth import AuthProvider
+
+
 class StaffAuth(AuthProvider):
-    async def authenticate_token(self, token):
-        async with Session() as session:
-            key = await session.scalar(select(ApiKey).where(ApiKey.token == token))
-            return key.user if key and key.active else None
+    async def authenticate_token(self, token: str) -> User | None:
+        async with session_factory() as session:
+            return await session.scalar(
+                select(User).join(ApiKey).where(ApiKey.token == token, ApiKey.active)
+            )
 ```
 
 A request without either gets a 401. Anything refused by a permission gets a 403 in JSON, never a

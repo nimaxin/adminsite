@@ -98,7 +98,9 @@ class Stat(Widget):
     Stat(
         "Revenue this month",
         select(func.sum(Order.total)).where(Order.created_at >= month_start),
-        previous=select(func.sum(Order.total)).where(...last month...),
+        previous=select(func.sum(Order.total)).where(
+            Order.created_at >= last_month_start, Order.created_at < month_start
+        ),
         format="€{:,.2f}",
     )
     ```

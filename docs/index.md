@@ -4,22 +4,27 @@ An admin panel for SQLAlchemy models. Mount it into Starlette, FastAPI or Litest
 gets pages to search, filter, read and change your data.
 
 ```python
-from adminsite import Admin, ModelView
+from adminsite import Admin, Descending, Link, ModelView
 
 
 class OrderView(ModelView[Order]):
-    list_display = ("id", "customer.name", "status", "total", "created_at")
-    searchable_fields = ("id", "customer.name", "customer.email")
-    list_filters = ("status", "total", "created_at")
-    fields_default_sort = ("-created_at",)
+    fields = [Order.id, Order.customer, Order.status, Order.total, Order.created_at]
+    searchable_fields = [
+        Order.id,
+        Link(Order.customer, Customer.name),
+        Link(Order.customer, Customer.email),
+    ]
+    list_filters = [Order.status, Order.total, Order.created_at]
+    fields_default_sort = [Descending(Order.created_at)]
 
 
 admin = Admin(engine, title="Acme", views=[OrderView])
 app.mount("/admin", admin)
 ```
 
-That is a working admin. The columns, labels, filters, form controls and validation all come
-from your models.
+That is a working admin. The settings name your models' own attributes, so a type checker
+catches a misspelt one before you run anything. The labels, filters, form controls and validation
+all come from your models.
 
 !!! tip "Try it"
     [The live demo](https://adminsite.duckdns.org) runs the example shop, and a Field gallery with
@@ -35,7 +40,7 @@ from your models.
 - **Pages worked out from your models.** Column types pick the right controls, `created_at` reads
   "Created at", an enum becomes a select, and a foreign key becomes a picker for the record it
   points at.
-- **No N+1 queries.** Showing `customer.name` loads the customers with the page. Tests count the
+- **No N+1 queries.** Showing an order's customer loads the customers with the page. Tests count the
   statements so it stays that way.
 - **Fast on large tables.** Counting can be switched off per view, which makes a page one query.
 - **Filters you can write yourself**, next to the built-in ones.

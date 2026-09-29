@@ -54,13 +54,18 @@ class ComputedField(BaseField, Generic[M, V]):
     out gets `default`.
 
     ```python
-    async def order_counts(session, customers):
+    from collections.abc import Sequence
+
+
+    async def order_counts(
+        session: SessionAdapter, customers: Sequence[Customer]
+    ) -> dict[int, int]:
         rows = await session.execute(
             select(Order.customer_id, func.count())
             .where(Order.customer_id.in_([customer.id for customer in customers]))
             .group_by(Order.customer_id)
         )
-        return dict(rows.all())
+        return {customer_id: count for customer_id, count in rows.all()}
 
 
     ComputedField("orders", load=order_counts, default=0)
