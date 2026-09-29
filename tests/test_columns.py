@@ -113,7 +113,7 @@ class TestSettingsNameColumnsByAttribute:
                 "customer.email",
             ]
             list_columns = [Order.note]
-            search_fields = [Order.id, Link(Order.customer, Customer.email)]
+            searchable_fields = [Order.id, Link(Order.customer, Customer.email)]
             form_fields = [Order.customer, Order.status, Order.note]
             readonly_fields = [Order.status]
             deferred_fields = [Order.note]
@@ -126,11 +126,11 @@ class TestSettingsNameColumnsByAttribute:
             "status",
             "customer.email",
         )
-        assert view.get_column_choices()[-1] == "note"
-        assert view.get_search_fields() == ("id", "customer.email")
+        assert view._column_choices()[-1] == "note"
+        assert view._search_paths(None) == ("id", "customer.email")
         assert view.get_form_fields() == ("customer", "status", "note")
-        assert view.readonly_paths()[0] == "status"
-        assert view.get_deferred_fields() == ("note",)
+        assert view._readonly_paths()[0] == "status"
+        assert view._deferred_fields == ("note",)
 
     def test_a_link_can_go_through_several_relations(self) -> None:
         class ItemView(ModelView[OrderItem]):
@@ -150,9 +150,9 @@ class TestSettingsNameColumnsByAttribute:
 
     def test_a_filter_can_be_named_by_attribute_or_link(self) -> None:
         class OrderView(ModelView[Order]):
-            list_filter = [Order.status, Link(Order.customer, Customer.region)]
+            list_filters = [Order.status, Link(Order.customer, Customer.region)]
 
-        paths = [item.path for item in OrderView().get_filters()]
+        paths = [item.path for item in OrderView()._list_filters(None)]
 
         assert paths == ["status", "customer.region"]
 
@@ -160,14 +160,14 @@ class TestSettingsNameColumnsByAttribute:
 class TestSorts:
     def test_descending_and_a_minus_sort_down(self) -> None:
         class OrderView(ModelView[Order]):
-            ordering = [
+            fields_default_sort = [
                 Descending(Order.created_at),
                 "-total",
                 Order.id,
                 Descending(Link(Order.customer, Customer.name)),
             ]
 
-        assert OrderView().get_ordering() == (
+        assert OrderView()._default_sort(None) == (
             Sort("created_at", descending=True),
             Sort("total", descending=True),
             Sort("id"),
@@ -197,13 +197,13 @@ class TestMistakesStopTheView:
 
     def test_a_link_that_leads_elsewhere(self) -> None:
         class OrderView(ModelView[Order]):
-            search_fields = [Link(Order.customer, Product.name)]
+            searchable_fields = [Link(Order.customer, Product.name)]
 
         with pytest.raises(AdminSiteError) as caught:
             OrderView()
 
         message = str(caught.value)
-        assert "OrderView.search_fields" in message
+        assert "OrderView.searchable_fields" in message
         assert "Order.customer leads to Customer" in message
         assert "Product.name is a column of Product" in message
 
@@ -223,18 +223,18 @@ class TestMistakesStopTheView:
 
     def test_one_string_where_a_list_belongs(self) -> None:
         class OrderView(ModelView[Order]):
-            search_fields = "note"
+            searchable_fields = "note"
 
         with pytest.raises(AdminSiteError) as caught:
             OrderView()
 
         message = str(caught.value)
-        assert 'OrderView.search_fields is the string "note"' in message
-        assert 'search_fields = ["note"]' in message
+        assert 'OrderView.searchable_fields is the string "note"' in message
+        assert 'searchable_fields = ["note"]' in message
 
     def test_something_that_is_not_a_column(self) -> None:
         class OrderView(ModelView[Order]):
-            search_fields = [42]  # type: ignore[list-item]
+            searchable_fields = [42]  # type: ignore[list-item]
 
         with pytest.raises(AdminSiteError, match="42 is not a column"):
             OrderView()
@@ -250,16 +250,16 @@ class TestMistakesStopTheView:
 
     def test_a_sort_by_a_column_of_another_model(self) -> None:
         class OrderView(ModelView[Order]):
-            ordering = [Descending(Customer.name)]
+            fields_default_sort = [Descending(Customer.name)]
 
-        with pytest.raises(AdminSiteError, match=r"OrderView\.ordering"):
+        with pytest.raises(AdminSiteError, match=r"OrderView\.fields_default_sort"):
             OrderView()
 
 
 class LinkedOrders(ModelView[Order]):
     list_display = [Order.id, Link(Order.customer, Customer.name), Order.total]
-    search_fields = [Link(Order.customer, Customer.email)]
-    ordering = [Descending(Order.total)]
+    searchable_fields = [Link(Order.customer, Customer.email)]
+    fields_default_sort = [Descending(Order.total)]
 
 
 @pytest.fixture

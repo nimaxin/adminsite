@@ -69,7 +69,7 @@ class TestTheName:
 
     def test_the_old_name_still_names_it(self) -> None:
         class Named(ModelView[OrderItem]):
-            display_template = "{quantity} pieces"
+            record_title = "{quantity} pieces"
 
         assert Named().get_record_title(OrderItem(id=1, quantity=2)) == "2 pieces"
 

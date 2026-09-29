@@ -6,9 +6,9 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, Computed, ModelView
+from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
-from adminsite.fields import Field
+from adminsite.fields import ComputedField, Field
 from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
 
@@ -30,13 +30,13 @@ class OrderView(ModelView[Order]):
     form_fields = ("status", "note")
     fields = (
         Money("total", label="Total"),
-        Computed(
+        ComputedField(
             "lines",
             lambda order: len(order.items),
             label="Lines",
             needs=("items", "customer"),
         ),
-        Computed(
+        ComputedField(
             "biggest",
             lambda order: max((item.quantity for item in order.items), default=0),
             label="Biggest line",
@@ -49,7 +49,7 @@ class StatusView(ModelView[Order]):
     name = "statuses"
     list_display = ("id", "state")
     fields = (
-        Computed(
+        ComputedField(
             "state",
             lambda order: (
                 "waiting" if order.status is OrderStatus.PENDING else order.status.value
@@ -78,7 +78,7 @@ class TestAFieldThatReadsTheRecord:
     def test_the_text_comes_from_both_columns(self) -> None:
         view = OrderView()
 
-        assert view.field_for("total").text_for(FakeOrder(), 12) == "12 (DE)"
+        assert view._field_for("total").text_for(FakeOrder(), 12) == "12 (DE)"
 
     async def test_the_list_and_the_page_use_it(
         self, client: httpx.AsyncClient

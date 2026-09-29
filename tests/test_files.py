@@ -296,7 +296,7 @@ class TestAFailedSave:
         async with database.session() as session:
             record = await session.get(Product, 1)
             with pytest.raises(RefusedError):
-                await view.save(
+                await view._save(
                     session,
                     {"description": NewFile(upload("a.png", PNG, "image/png"))},
                     record=record,

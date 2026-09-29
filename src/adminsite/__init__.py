@@ -1,4 +1,5 @@
 from importlib.metadata import version
+from typing import TYPE_CHECKING
 
 from adminsite.admin import Admin
 from adminsite.backends.sqlalchemy.repository import Statement
@@ -12,8 +13,9 @@ from adminsite.exceptions import (
     RecordNotFoundError,
     RefusedError,
     UnknownFieldError,
+    renamed_names,
 )
-from adminsite.fields import BaseField, Computed, Field, FieldOptions
+from adminsite.fields import BaseField, Field, FieldOptions
 from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
@@ -46,7 +48,6 @@ __all__ = [
     "BaseField",
     "Chart",
     "ColumnReference",
-    "Computed",
     "CountMode",
     "DeleteContext",
     "Descending",
@@ -87,3 +88,9 @@ __all__ = [
     "Widget",
     "__version__",
 ]
+
+
+if not TYPE_CHECKING:
+    # The names 0.1.0a10 changed, refused with the name each has now. Hidden
+    # from type checkers, which report an old name as missing.
+    __getattr__ = renamed_names(__name__, {"Computed": "ComputedField"})

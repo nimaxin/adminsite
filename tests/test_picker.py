@@ -147,8 +147,8 @@ class TestALinkThatSearches:
         self, big_database: Database
     ) -> None:
         class OrderView(ModelView[Order]):
-            display_template = "Order #{id}"
-            search_fields = ("note",)
+            record_title = "Order #{id}"
+            searchable_fields = ("note",)
 
         admin = Admin(big_database, views=[CustomerView, OrderView])
         app = Starlette()
@@ -239,8 +239,8 @@ class TestTheBox:
         self, big_database: Database
     ) -> None:
         class OrderView(ModelView[Order]):
-            display_template = "Order #{id}"
-            search_fields = ("note",)
+            record_title = "Order #{id}"
+            searchable_fields = ("note",)
 
         admin = Admin(big_database, views=[CustomerView, OrderView])
         app = Starlette()

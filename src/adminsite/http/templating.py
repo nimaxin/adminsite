@@ -22,6 +22,16 @@ from adminsite.security.csrf import hidden_input
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "TEMPLATE_ROOT",
+    "NavItem",
+    "Templates",
+    "add_message",
+    "current_key",
+    "navigation",
+    "read_messages",
+]
+
 TEMPLATE_ROOT = "adminsite"
 
 

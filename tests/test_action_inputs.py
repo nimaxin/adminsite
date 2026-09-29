@@ -12,7 +12,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
-from adminsite.fields import BooleanField, ChoiceField
+from adminsite.fields import BooleanField, EnumField
 from tests.models import Order
 
 CATEGORIES = (("paper", "Paper"), ("card", "Card"), ("film", "Film"))
@@ -22,19 +22,19 @@ seen: dict[str, Any] = {}
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status")
-    ordering = ("id",)
+    fields_default_sort = ("id",)
 
     @action(
         "Download",
         inputs=(
-            ChoiceField(
+            EnumField(
                 "categories",
                 choices=CATEGORIES,
                 multiple=True,
                 default=("paper", "film"),
             ),
             BooleanField("with_totals", label="With totals", default=True),
-            ChoiceField("shape", choices=(("csv", "CSV"), ("pdf", "PDF"))),
+            EnumField("shape", choices=(("csv", "CSV"), ("pdf", "PDF"))),
         ),
     )
     async def download(self, selection: Selection[Order], **values: Any) -> str:
@@ -49,7 +49,7 @@ class PerRequestView(ModelView[Order]):
     name = "live_orders"
     list_display = ("id",)
 
-    @action("Move", inputs=(ChoiceField("target", choices=()),))
+    @action("Move", inputs=(EnumField("target", choices=()),))
     async def move(self, selection: Selection[Order], **values: Any) -> str:
         seen.clear()
         seen.update(values)
@@ -60,7 +60,7 @@ class PerRequestView(ModelView[Order]):
         choices = (("north", "North"), ("south", "South"))
         return tuple(
             dataclasses.replace(
-                item, inputs=(ChoiceField("target", choices=choices, default="south"),)
+                item, inputs=(EnumField("target", choices=choices, default="south"),)
             )
             for item in found
         )

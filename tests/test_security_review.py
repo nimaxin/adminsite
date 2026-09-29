@@ -13,7 +13,7 @@ from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
-from adminsite.fields import ChoiceField
+from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderItem, Product, Setting
 from tests.support import spare_product
 
@@ -44,14 +44,14 @@ def order_of_rows(page: httpx.Response) -> list[str]:
 class GermanCustomers(ModelView[Customer]):
     """Only German customers may be seen, and so only they may be linked."""
 
-    display_template = "{name}"
+    record_title = "{name}"
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "DE")
 
 
 class OneProduct(ModelView[Product]):
-    display_template = "{name}"
+    record_title = "{name}"
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Product.id == 1)
@@ -60,7 +60,7 @@ class OneProduct(ModelView[Product]):
 class OrderView(ModelView[Order]):
     list_display = ("id", "status")
     # A default order, so an ignored sort falls back to something definite.
-    ordering = ("id",)
+    fields_default_sort = ("id",)
     exclude = ("note",)
     form_fields = ("customer", "status")
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
@@ -369,7 +369,7 @@ class TestTheApiWritesAMultiSelect:
         class SettingView(ModelView[Setting]):
             form_fields = ("name", "notes")
             fields = (
-                ChoiceField(
+                EnumField(
                     "notes",
                     choices=(("a", "A"), ("b", "B"), ("c", "C")),
                     multiple=True,

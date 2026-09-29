@@ -8,15 +8,15 @@ from adminsite.backends.sqlalchemy import SQLAlchemyInspector
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import (
     BooleanField,
-    ChoiceField,
     DateField,
     DateTimeField,
     DecimalField,
+    EnumField,
     Field,
     IntegerField,
     RelationField,
     StringField,
-    TextField,
+    TextAreaField,
     TimeField,
     default_registry,
 )
@@ -109,7 +109,7 @@ class TestRoundTrip:
 class TestChoices:
     def test_options_come_from_the_enum(self, inspector: SQLAlchemyInspector) -> None:
         schema = inspector.inspect(Order).field_named("status")
-        field = ChoiceField("status").filled_from(schema)
+        field = EnumField("status").filled_from(schema)
 
         assert field.choices == (
             ("PENDING", "Pending"),
@@ -121,7 +121,7 @@ class TestChoices:
     def test_the_label_is_shown_not_the_stored_value(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField("status").filled_from(
+        field = EnumField("status").filled_from(
             inspector.inspect(Order).field_named("status")
         )
 
@@ -130,7 +130,7 @@ class TestChoices:
     def test_parsing_gives_back_the_enum_member(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField("status").filled_from(
+        field = EnumField("status").filled_from(
             inspector.inspect(Order).field_named("status")
         )
 
@@ -140,7 +140,7 @@ class TestChoices:
     def test_a_value_outside_the_list_is_refused(
         self, inspector: SQLAlchemyInspector
     ) -> None:
-        field = ChoiceField("status").filled_from(
+        field = EnumField("status").filled_from(
             inspector.inspect(Order).field_named("status")
         )
 
@@ -201,7 +201,7 @@ class TestRegistry:
             default_registry.build(order.field_named("created_at")), DateTimeField
         )
         assert isinstance(
-            default_registry.build(order.field_named("status")), ChoiceField
+            default_registry.build(order.field_named("status")), EnumField
         )
         assert isinstance(
             default_registry.build(customer.field_named("is_active")), BooleanField
@@ -210,7 +210,7 @@ class TestRegistry:
             default_registry.build(customer.field_named("name")), StringField
         )
         assert isinstance(
-            default_registry.build(product.field_named("description")), TextField
+            default_registry.build(product.field_named("description")), TextAreaField
         )
 
     def test_a_long_column_is_edited_in_a_box(
@@ -240,7 +240,7 @@ class TestRegistry:
 
 class TestChoiceTones:
     def test_a_tone_follows_the_place_among_the_choices(self) -> None:
-        field = ChoiceField("size", choices=(("s", "Small"), ("m", "Medium")))
+        field = EnumField("size", choices=(("s", "Small"), ("m", "Medium")))
 
         assert field.tone_of("s") == 0
         assert field.tone_of("m") == 1
@@ -248,7 +248,7 @@ class TestChoiceTones:
         assert field.tone_of("xl") == NEUTRAL
 
     def test_an_enum_member_finds_its_value(self) -> None:
-        field = ChoiceField(
+        field = EnumField(
             "status",
             enum=OrderStatus,
             choices=tuple((member.value, member.name) for member in OrderStatus),
@@ -258,7 +258,7 @@ class TestChoiceTones:
         assert field.tone_of(OrderStatus.PAID) == 1
 
     def test_past_the_sixth_the_tones_start_over(self) -> None:
-        field = ChoiceField("n", choices=tuple((str(n), str(n)) for n in range(8)))
+        field = EnumField("n", choices=tuple((str(n), str(n)) for n in range(8)))
 
         assert field.tone_of("6") == 0
         assert field.tone_of(None) == NEUTRAL

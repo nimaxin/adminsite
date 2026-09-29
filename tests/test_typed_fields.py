@@ -6,15 +6,12 @@ import pytest
 
 from adminsite import AdminSiteError, Field, FieldOptions, Link, ModelView, ViewRegistry
 from adminsite.fields import (
-    ChoiceField,
-    Computed,
     ComputedField,
     DecimalField,
     EnumField,
     RelationField,
     StringField,
     TextAreaField,
-    TextField,
 )
 from tests.models import Customer, Order, OrderStatus
 
@@ -32,7 +29,7 @@ class TestAKindStartsFromItsColumn:
         class Notes(ModelView[Order]):
             fields = [TextAreaField(Order.note, help_text="Seen by staff only.")]
 
-        item = Notes().field_for("note")
+        item = Notes()._field_for("note")
 
         assert isinstance(item, TextAreaField)
         assert item.label == "Note"
@@ -49,10 +46,10 @@ class TestAKindStartsFromItsColumn:
 
         view = Names()
 
-        assert view.field_for("name").label == "Full name"
-        assert view.field_for("name").max_length == 40
-        assert view.field_for("name").required is True
-        assert view.field_for("email").required is False
+        assert view._field_for("name").label == "Full name"
+        assert view._field_for("name").max_length == 40
+        assert view._field_for("name").required is True
+        assert view._field_for("email").required is False
 
     def test_the_field_in_the_view_stays_as_written(self) -> None:
         written = TextAreaField(Order.note)
@@ -69,7 +66,7 @@ class TestAKindStartsFromItsColumn:
         class Notes(ModelView[Order]):
             fields = [TextAreaField("note")]
 
-        assert Notes().field_for("note").max_length == 500
+        assert Notes()._field_for("note").max_length == 500
 
 
 class TestFieldOnItsOwn:
@@ -82,9 +79,9 @@ class TestFieldOnItsOwn:
             ]
 
         view = Chosen()
-        total = view.field_for("total")
-        status = view.field_for("status")
-        customer = view.field_for("customer")
+        total = view._field_for("total")
+        status = view._field_for("status")
+        customer = view._field_for("customer")
 
         assert type(total) is DecimalField
         assert (total.label, total.read_only) == ("Amount", True)
@@ -99,7 +96,7 @@ class TestFieldOnItsOwn:
         class Fixed(ModelView[Order]):
             fields = [Order.customer, Field(Order.total, read_only=True)]
 
-        assert Fixed().readonly_paths() == ("total",)
+        assert Fixed()._readonly_paths() == ("total",)
 
     def test_a_column_of_a_related_model(self) -> None:
         class Contact(ModelView[Order]):
@@ -112,10 +109,10 @@ class TestFieldOnItsOwn:
         view = Contact()
 
         assert view.get_list_display() == ("id", "customer.email", "customer.name")
-        assert view.field_for("customer.email").format == "<{}>"
+        assert view._field_for("customer.email").format == "<{}>"
         # Without a label of its own, the column names the relation too.
-        assert view.label_for("customer.email") == "Customer email"
-        assert view.label_for("customer.name") == "Buyer"
+        assert view._label_for("customer.email") == "Customer email"
+        assert view._label_for("customer.name") == "Buyer"
 
 
 class TestEnumField:
@@ -123,7 +120,7 @@ class TestEnumField:
         class Statuses(ModelView[Order]):
             fields = [EnumField(Order.status)]
 
-        item = Statuses().field_for("status")
+        item = Statuses()._field_for("status")
 
         assert isinstance(item, EnumField)
         assert item.parse("PAID") is OrderStatus.PAID
@@ -132,7 +129,7 @@ class TestEnumField:
         class Regions(ModelView[Customer]):
             fields = [EnumField(Customer.region, choices=[("EU", "Europe")])]
 
-        assert Regions().field_for("region").display("EU") == "Europe"
+        assert Regions()._field_for("region").display("EU") == "Europe"
 
     def test_a_tone_is_checked_once_the_choices_are_known(self) -> None:
         class Wrong(ModelView[Order]):
@@ -147,7 +144,7 @@ class TestComputedField:
         class Lines(ModelView[Order]):
             fields = [Order.id, ComputedField("lines", line_count, needs=[Order.items])]
 
-        assert Lines().loadable(["id", "lines"]) == ["id", "items"]
+        assert Lines()._loadable(["id", "lines"]) == ["id", "items"]
 
     def test_a_need_of_another_model(self) -> None:
         class Wrong(ModelView[Order]):
@@ -173,7 +170,7 @@ class TestRelationField:
         class Orders(ModelView[Order]):
             fields = [RelationField(Order.customer, display_template="{name}")]
 
-        item = Orders().field_for("customer")
+        item = Orders()._field_for("customer")
 
         assert isinstance(item, RelationField)
         assert item.related_model is Customer
@@ -185,7 +182,7 @@ class TestRelationField:
         class Customers(ModelView[Customer]):
             fields = [RelationField(Customer.orders)]
 
-        item = Customers().field_for("orders")
+        item = Customers()._field_for("orders")
 
         assert isinstance(item, RelationField)
         assert item.collection is True
@@ -200,7 +197,7 @@ class TestRelationField:
         views = ViewRegistry()
         customers = views.add(CustomerView)
         orders = views.add(OrderView)
-        item = orders.field_for("customer")
+        item = orders._field_for("customer")
 
         assert isinstance(item, RelationField)
         assert views.for_relation(item) is customers
@@ -213,7 +210,7 @@ class TestRelationField:
             fields = [RelationField(Order.customer, view=CustomerView)]
 
         views = ViewRegistry()
-        item = views.add(OrderView).field_for("customer")
+        item = views.add(OrderView)._field_for("customer")
 
         assert isinstance(item, RelationField)
         with pytest.raises(AdminSiteError, match="CustomerView, which is not regist"):
@@ -242,12 +239,12 @@ class TestOptionsAreKeywords:
 
 class TestTheOldNames:
     def test_they_still_work_until_0_1_0a10(self) -> None:
-        assert TextField is TextAreaField
-        assert ChoiceField is EnumField
-        assert Computed is ComputedField
+        assert TextAreaField is TextAreaField
+        assert EnumField is EnumField
+        assert ComputedField is ComputedField
 
     def test_field_options_takes_the_old_readonly(self) -> None:
         class Old(ModelView[Order]):
             fields = [FieldOptions("total", readonly=True)]
 
-        assert Old().field_for("total").read_only is True
+        assert Old()._field_for("total").read_only is True

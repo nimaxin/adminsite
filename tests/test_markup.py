@@ -4,8 +4,9 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, Computed, Html, ModelView
+from adminsite import Admin, Html, ModelView
 from adminsite.backends.sqlalchemy import Database
+from adminsite.fields import ComputedField
 from tests.models import Customer, Product
 
 
@@ -20,16 +21,16 @@ class ProductView(ModelView[Product]):
     list_display = ("id", "name", "shop", "warning")
     detail_fields = ("name", "shop")
     fields = (
-        Computed("shop", shop_link, needs=("id", "name")),
+        ComputedField("shop", shop_link, needs=("id", "name")),
         # Plain text, so the page shows the tags rather than obeying them.
-        Computed("warning", lambda product: "<b>handle with care</b>"),
+        ComputedField("warning", lambda product: "<b>handle with care</b>"),
     )
 
 
 class CustomerView(ModelView[Customer]):
     list_display = ("id", "name", "mail")
     fields = (
-        Computed(
+        ComputedField(
             "mail",
             lambda customer: Html('<a href="mailto:{}">Write</a>').format(
                 customer.email

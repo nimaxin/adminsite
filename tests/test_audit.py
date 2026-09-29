@@ -38,7 +38,7 @@ from adminsite.audit import (
 from adminsite.auth import AuthProvider, PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
-from adminsite.fields import ChoiceField
+from adminsite.fields import EnumField
 from adminsite.views.writing import SaveContext
 from tests.models import Order, OrderStatus, Product
 from tests.support import spare_product
@@ -49,14 +49,14 @@ class ProductView(ModelView[Product]):
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order {id}"
+    record_title = "Order {id}"
     list_display = ("id", "customer.name", "status", "total")
-    list_filter = ("status",)
+    list_filters = ("status",)
     form_fields = ("customer", "status", "note", "created_at")
 
     @action(
         "Mark as shipped",
-        inputs=[ChoiceField("carrier", choices=(("dhl", "DHL"),), required=True)],
+        inputs=[EnumField("carrier", choices=(("dhl", "DHL"),), required=True)],
     )
     async def ship(self, selection: Selection[Order], carrier: str) -> str:
         changed = await selection.update(status=OrderStatus.SHIPPED)

@@ -39,7 +39,7 @@ from adminsite import (
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import SessionAdapter
-from adminsite.fields import ChoiceField, ImageField, RelationField
+from adminsite.fields import EnumField, ImageField, RelationField
 from adminsite.files import LocalStorage
 
 
@@ -156,11 +156,11 @@ class CustomerView(ModelView[Customer]):
         '<path d="M16 4.5a3.5 3.5 0 0 1 0 7"/>'
         '<path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>'
     )
-    display_template = "{name} ({email})"
+    record_title = "{name} ({email})"
     list_display = ("name", "email", "region", "is_active")
-    search_fields = ("name", "email")
-    list_filter = ("region", "is_active")
-    ordering = ("name",)
+    searchable_fields = ("name", "email")
+    list_filters = ("region", "is_active")
+    fields_default_sort = ("name",)
     can_import = True
 
 
@@ -169,12 +169,12 @@ class OrderView(ModelView[Order]):
     icon = outline(
         '<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/>'
     )
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     list_display = ("id", "customer.name", "status", "total", "created_at")
     list_columns = ("customer.email", "note")
-    search_fields = ("id", "customer.name", "customer.email")
-    list_filter = ("status", "total", "created_at")
-    ordering = ("-created_at",)
+    searchable_fields = ("id", "customer.name", "customer.email")
+    list_filters = ("status", "total", "created_at")
+    fields_default_sort = ("-created_at",)
     readonly_fields = ("total",)
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
     fields = (
@@ -222,7 +222,7 @@ class OrderView(ModelView[Order]):
         "Mark as shipped",
         confirm="Mark the chosen orders as shipped?",
         inputs=[
-            ChoiceField(
+            EnumField(
                 "carrier",
                 choices=(("dhl", "DHL Express"), ("ups", "UPS"), ("postnl", "PostNL")),
                 required=True,
@@ -248,8 +248,8 @@ class ProductView(ModelView[Product]):
         ImageField("photo", storage=LocalStorage("shop_uploads")),
         FieldOptions("price", format=EUROS),
     )
-    search_fields = ("name", "description")
-    list_filter = ("price",)
+    searchable_fields = ("name", "description")
+    list_filters = ("price",)
 
 
 class TagView(ModelView[Tag]):
@@ -258,9 +258,9 @@ class TagView(ModelView[Tag]):
         '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/>'
         '<circle cx="7.5" cy="7.5" r="1.5"/>'
     )
-    display_template = "{name}"
-    search_fields = ("name",)
-    ordering = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
+    fields_default_sort = ("name",)
 
 
 engine = create_async_engine("sqlite+aiosqlite:///shop.db")
@@ -284,7 +284,7 @@ dashboard = [
         .order_by(order_day),
         format=EUROS,
     ),
-    RecentRecords("Latest orders", "orders", sort="-created_at", detail="total"),
+    RecentRecords("Latest orders", "orders", sort="-created_at", value="total"),
 ]
 
 

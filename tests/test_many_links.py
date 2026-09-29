@@ -34,7 +34,7 @@ class ArticleView(ModelView[Article]):
 
 
 class TagView(ModelView[Tag]):
-    display_template = "{name}"
+    record_title = "{name}"
 
 
 @pytest.fixture

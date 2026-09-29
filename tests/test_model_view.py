@@ -11,7 +11,7 @@ from adminsite.backends.sqlalchemy import (
     RelationFilter,
 )
 from adminsite.exceptions import AdminSiteError
-from adminsite.fields import ChoiceField, DecimalField, RelationField
+from adminsite.fields import DecimalField, EnumField, RelationField
 from adminsite.filters import FilterValue
 from adminsite.query import CountMode, Sort
 from adminsite.views import ModelView, ViewRegistry
@@ -21,11 +21,11 @@ from tests.models import Customer, Order, OrderItem, OrderStatus, Product
 class OrderView(ModelView[Order]):
     group = "Sales"
     list_display = ("id", "customer.name", "status", "total", "created_at")
-    search_fields = ("id", "customer.name", "customer.email")
-    list_filter = ("status", "total", "created_at", "customer")
-    ordering = ("-created_at",)
+    searchable_fields = ("id", "customer.name", "customer.email")
+    list_filters = ("status", "total", "created_at", "customer")
+    fields_default_sort = ("-created_at",)
     page_size = 3
-    display_template = "Order {id}"
+    record_title = "Order {id}"
     fields = (
         RelationField("customer", target=Customer, display_template="{name} ({email})"),
     )
@@ -95,15 +95,15 @@ class TestColumns:
         assert view.get_list_display() == ("id", "name", "price")
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
-        assert orders.label_for("created_at") == "Created at"
-        assert orders.label_for("customer.name") == "Customer name"
+        assert orders._label_for("created_at") == "Created at"
+        assert orders._label_for("customer.name") == "Customer name"
 
     def test_each_column_gets_the_field_that_fits(self, orders: OrderView) -> None:
-        assert isinstance(orders.field_for("total"), DecimalField)
-        assert isinstance(orders.field_for("status"), ChoiceField)
+        assert isinstance(orders._field_for("total"), DecimalField)
+        assert isinstance(orders._field_for("status"), EnumField)
 
     def test_a_field_can_be_replaced(self, orders: OrderView) -> None:
-        field = orders.field_for("customer")
+        field = orders._field_for("customer")
 
         assert isinstance(field, RelationField)
         assert field.display_template == "{name} ({email})"
@@ -113,10 +113,10 @@ class TestReadingValues:
     def test_a_value_is_read_through_a_link(self, orders: OrderView) -> None:
         order = Order(id=1, customer=Customer(name="Lena Fischer"))
 
-        assert orders.value_at(order, "customer.name") == "Lena Fischer"
+        assert orders._value_at(order, "customer.name") == "Lena Fischer"
 
     def test_a_missing_link_reads_as_nothing(self, orders: OrderView) -> None:
-        assert orders.value_at(Order(id=1), "customer.name") is None
+        assert orders._value_at(Order(id=1), "customer.name") is None
 
     def test_many_records_read_as_a_list(self) -> None:
         class ItemsView(ModelView[Order]):
@@ -124,19 +124,19 @@ class TestReadingValues:
 
         order = Order(items=[OrderItem(quantity=2), OrderItem(quantity=3)])
 
-        assert ItemsView().value_at(order, "items.quantity") == [2, 3]
+        assert ItemsView()._value_at(order, "items.quantity") == [2, 3]
 
     def test_cells_are_formatted_by_the_field(self, orders: OrderView) -> None:
         order = Order(id=1, total=Decimal("1234.5"), status=OrderStatus.SHIPPED)
 
-        assert orders.display(order, "total") == "1,234.50"
-        assert orders.display(order, "status") == "Shipped"
-        assert orders.display(order, "created_at") == ""
+        assert orders._display(order, "total") == "1,234.50"
+        assert orders._display(order, "status") == "Shipped"
+        assert orders._display(order, "created_at") == ""
 
 
 class TestFilters:
     def test_a_filter_is_built_for_each_listed_path(self, orders: OrderView) -> None:
-        kinds = [type(item) for item in orders.get_filters()]
+        kinds = [type(item) for item in orders._list_filters(None)]
 
         assert kinds == [
             ChoiceFilter,
@@ -149,13 +149,13 @@ class TestFilters:
         mine = ChoiceFilter("status", choices=(("PAID", "Paid"),))
 
         class WithFilter(ModelView[Order]):
-            list_filter = (mine,)
+            list_filters = (mine,)
 
-        assert WithFilter().get_filters() == (mine,)
+        assert WithFilter()._list_filters(None) == (mine,)
 
     def test_anything_else_in_list_filter_is_refused(self) -> None:
         class Wrong(ModelView[Order]):
-            list_filter = (42,)  # type: ignore[assignment]
+            list_filters = (42,)  # type: ignore[assignment]
 
         with pytest.raises(AdminSiteError, match="takes columns or"):
             Wrong()
@@ -163,42 +163,42 @@ class TestFilters:
 
 class TestBuildingAQuery:
     def test_the_query_asks_for_what_the_list_shows(self, orders: OrderView) -> None:
-        spec = orders.build_spec()
+        spec = orders._build_spec()
 
         assert spec.paths == orders.get_list_display()
-        assert spec.search_paths == orders.get_search_fields()
+        assert spec.search_paths == orders._search_paths(None)
         assert spec.limit == 3
         assert spec.count is CountMode.EXACT
 
     def test_the_view_ordering_is_used_unless_asked_otherwise(
         self, orders: OrderView
     ) -> None:
-        assert orders.build_spec().sort == (Sort("created_at", descending=True),)
-        assert orders.build_spec(sort=[Sort("total")]).sort == (Sort("total"),)
+        assert orders._build_spec().sort == (Sort("created_at", descending=True),)
+        assert orders._build_spec(sort=[Sort("total")]).sort == (Sort("total"),)
 
     def test_pages_move_the_offset(self, orders: OrderView) -> None:
-        assert orders.build_spec(page=1).offset == 0
-        assert orders.build_spec(page=3).offset == 6
+        assert orders._build_spec(page=1).offset == 0
+        assert orders._build_spec(page=3).offset == 6
 
     async def test_the_query_reads_what_it_asked_for(
         self, database: Database, orders: OrderView
     ) -> None:
         async with database.session() as session:
-            spec = orders.build_spec(
+            spec = orders._build_spec(
                 search="lena",
                 filters=[FilterValue("status", ("SHIPPED",))],
             )
-            page = await orders.repository.list(session, spec)
+            page = await orders._repository.list(session, spec)
 
             assert len(page) == 1
             assert page.rows[0].status is OrderStatus.SHIPPED
-            assert orders.display(page.rows[0], "customer.name") == "Lena Fischer"
+            assert orders._display(page.rows[0], "customer.name") == "Lena Fischer"
 
     async def test_the_page_size_is_the_one_the_view_set(
         self, database: Database, orders: OrderView
     ) -> None:
         async with database.session() as session:
-            page = await orders.repository.list(session, orders.build_spec())
+            page = await orders._repository.list(session, orders._build_spec())
 
             assert len(page) == 3
             assert page.total == 7
@@ -230,7 +230,7 @@ class TestForms:
         class PlainOrders(ModelView[Order]):
             pass
 
-        assert isinstance(PlainOrders().field_for("customer"), RelationField)
+        assert isinstance(PlainOrders()._field_for("customer"), RelationField)
 
     def test_excluded_fields_stay_out_of_both(self) -> None:
         view = ProductView()
@@ -242,7 +242,7 @@ class TestForms:
         assert CustomerView().get_form_fields() == ("name", "email", "region")
 
     def test_readonly_fields_are_reported(self) -> None:
-        assert CustomerView().readonly_paths() == ("email",)
+        assert CustomerView()._readonly_paths() == ("email",)
 
 
 class TestOverriding:

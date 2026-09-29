@@ -13,7 +13,7 @@ from tests.models import Order, OrderItem, Product
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order {id}"
+    record_title = "Order {id}"
     form_fields = ("customer", "status", "note", "created_at")
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
 
@@ -75,13 +75,13 @@ class TestDeclaring:
             name = "everything"
             inlines = (Inline("items"),)
 
-        fields = Everything().inline_view("items").get_form_fields()
+        fields = Everything()._inline_view("items").get_form_fields()
 
         assert "order" not in fields
         assert "product" in fields
 
     def test_the_children_are_loaded_with_the_record(self, view: OrderView) -> None:
-        paths = view.get_load_paths()
+        paths = view._load_paths()
 
         assert "items" in paths
         assert "items.product" in paths
@@ -89,7 +89,7 @@ class TestDeclaring:
 
 class TestReadingTheForm:
     def test_each_row_comes_back_converted(self, view: OrderView) -> None:
-        result = view.parse_form(
+        result = view._parse_form(
             {
                 **EDIT_FORM,
                 **lines(
@@ -104,7 +104,7 @@ class TestReadingTheForm:
         assert row.values["unit_price"] == Decimal("24.00")
 
     def test_a_blank_row_is_skipped(self, view: OrderView) -> None:
-        result = view.parse_form(
+        result = view._parse_form(
             {
                 **EDIT_FORM,
                 **lines({"key": "", "product": "", "quantity": "", "unit_price": ""}),
@@ -115,7 +115,7 @@ class TestReadingTheForm:
         assert result.ok
 
     def test_a_bad_value_is_reported_for_its_row(self, view: OrderView) -> None:
-        result = view.parse_form(
+        result = view._parse_form(
             {
                 **EDIT_FORM,
                 **lines(
@@ -127,7 +127,7 @@ class TestReadingTheForm:
         assert result.errors == {"items-0-quantity": "Enter a whole number."}
 
     def test_a_row_marked_for_removal_skips_its_values(self, view: OrderView) -> None:
-        result = view.parse_form(
+        result = view._parse_form(
             {
                 **EDIT_FORM,
                 **lines({"key": "1", "delete": "on", "quantity": "nonsense"}),
@@ -142,10 +142,10 @@ class TestReadingTheForm:
 class TestSaving:
     async def test_a_line_is_changed(self, database: Database, view: OrderView) -> None:
         async with database.session() as session:
-            order = await view.fetch_record(session, 1, paths=view.get_load_paths())
+            order = await view._fetch_record(session, 1, paths=view._load_paths())
             assert order is not None
             first = order.items[0]
-            result = view.parse_form(
+            result = view._parse_form(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -159,7 +159,7 @@ class TestSaving:
                 }
             )
 
-            await view.save(
+            await view._save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -168,9 +168,9 @@ class TestSaving:
     async def test_a_line_is_added(self, database: Database, view: OrderView) -> None:
         before = len(await items_of(database, 1))
         async with database.session() as session:
-            order = await view.fetch_record(session, 1, paths=view.get_load_paths())
+            order = await view._fetch_record(session, 1, paths=view._load_paths())
             assert order is not None
-            result = view.parse_form(
+            result = view._parse_form(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -184,7 +184,7 @@ class TestSaving:
                 }
             )
 
-            await view.save(
+            await view._save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -195,13 +195,13 @@ class TestSaving:
     async def test_a_line_is_removed(self, database: Database, view: OrderView) -> None:
         existing = await items_of(database, 1)
         async with database.session() as session:
-            order = await view.fetch_record(session, 1, paths=view.get_load_paths())
+            order = await view._fetch_record(session, 1, paths=view._load_paths())
             assert order is not None
-            result = view.parse_form(
+            result = view._parse_form(
                 {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
             )
 
-            await view.save(
+            await view._save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -213,7 +213,7 @@ class TestSaving:
         self, database: Database, view: OrderView
     ) -> None:
         async with database.session() as session:
-            result = view.parse_form(
+            result = view._parse_form(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -233,7 +233,7 @@ class TestSaving:
                 }
             )
 
-            order = await view.save(
+            order = await view._save(
                 session, result.values, inline_rows=result.inline_rows
             )
             key = order.id
@@ -245,9 +245,9 @@ class TestSaving:
     ) -> None:
         someone_elses = (await items_of(database, 2))[0]
         async with database.session() as session:
-            order = await view.fetch_record(session, 1, paths=view.get_load_paths())
+            order = await view._fetch_record(session, 1, paths=view._load_paths())
             assert order is not None
-            result = view.parse_form(
+            result = view._parse_form(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -262,7 +262,7 @@ class TestSaving:
             )
 
             with pytest.raises(RecordNotFoundError):
-                await view.save(
+                await view._save(
                     session,
                     result.values,
                     record=order,
@@ -295,7 +295,7 @@ class TestPages:
             await session.commit()
 
         class ProductView(ModelView[Product]):
-            display_template = "{name} at {price}"
+            record_title = "{name} at {price}"
 
         site = Admin(database, views=[OrderView, ProductView])
         app = Starlette()

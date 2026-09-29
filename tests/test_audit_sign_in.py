@@ -10,7 +10,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
-from adminsite.auth import AuthProvider, PasswordAuth, SignInRefused, hash_password
+from adminsite.auth import AuthProvider, PasswordAuth, SignInRefusedError, hash_password
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Order, Product
 
@@ -46,7 +46,7 @@ class SwitchedOff(AuthProvider):
     """Knows the account, and says why it may not come in."""
 
     async def verify(self, username: str, password: str) -> Any | None:
-        raise SignInRefused(
+        raise SignInRefusedError(
             "This account is switched off.", user=Account("42", "Lena Fischer")
         )
 

@@ -187,8 +187,8 @@ class TestDemo:
 
     def test_strangers_get_smaller_limits(self, tmp_path: Path) -> None:
         views = build_app(tmp_path, SECRET).state.admin.views
-        photo = views.get("products").field_for("photo")
-        uploads = [views.get("fields").field_for(name) for name in ("photo", "manual")]
+        photo = views.get("products")._field_for("photo")
+        uploads = [views.get("fields")._field_for(name) for name in ("photo", "manual")]
 
         assert views.get("customers").import_limit == 200
         assert isinstance(photo, ImageField)

@@ -11,6 +11,10 @@ from adminsite.text import snake_case
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "AdminPage",
+]
+
 
 class AdminPage:
     """A page of your own inside the admin, such as a report or a settings form.

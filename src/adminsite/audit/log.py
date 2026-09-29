@@ -12,6 +12,13 @@ from adminsite.backends.sqlalchemy.session import (
 )
 from adminsite.storage import Store
 
+__all__ = [
+    "BATCH_SIZE",
+    "DEFAULT_URL",
+    "AuditLog",
+    "matching",
+]
+
 DEFAULT_URL = "sqlite:///adminsite_audit.db"
 
 # Entries for a bulk action are written this many at a time.

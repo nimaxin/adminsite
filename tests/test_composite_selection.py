@@ -20,7 +20,7 @@ from tests.models import Shelf
 class ShelfView(ModelView[Shelf]):
     name = "shelves"
     list_display = ("aisle", "slot", "label")
-    ordering = ("aisle", "slot")
+    fields_default_sort = ("aisle", "slot")
 
     @action("Relabel")
     async def relabel(self, selection: Selection[Shelf]) -> str:
@@ -34,7 +34,7 @@ class ShelfView(ModelView[Shelf]):
 def chosen(
     view: ModelView[Shelf], session: SessionAdapter, *keys: str
 ) -> Selection[Shelf]:
-    return Selection(view=view, session=session, spec=view.build_spec(), keys=keys)
+    return Selection(view=view, session=session, spec=view._build_spec(), keys=keys)
 
 
 async def labels(session: SessionAdapter) -> dict[str, str]:
@@ -102,7 +102,7 @@ class TestWhatASelectionCovers:
         view = ShelfView()
         async with database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=view.build_spec(), everything=True
+                view=view, session=session, spec=view._build_spec(), everything=True
             )
 
             assert await selection.count() == 3

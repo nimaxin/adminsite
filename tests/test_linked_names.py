@@ -13,11 +13,11 @@ from tests.models import Customer, Order, Product
 
 
 class CustomerView(ModelView[Customer]):
-    display_template = "{name} ({email})"
+    record_title = "{name} ({email})"
 
 
 class ProductView(ModelView[Product]):
-    display_template = "{name} at {price}"
+    record_title = "{name} at {price}"
 
 
 class OrderView(ModelView[Order]):

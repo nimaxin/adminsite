@@ -25,6 +25,13 @@ from adminsite.fields.documents import (
 from adminsite.http.rows import Choice, FormRow, chosen_in_order
 from adminsite.i18n import gettext as _
 
+__all__ = [
+    "BLANK",
+    "DocumentEntry",
+    "DocumentRow",
+    "document_form",
+]
+
 # Stands for a row's number in the row "add" copies, until it is copied.
 BLANK = "__index__"
 

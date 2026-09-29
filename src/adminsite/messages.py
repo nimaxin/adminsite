@@ -3,6 +3,11 @@ from typing import Any
 
 from markupsafe import Markup
 
+__all__ = [
+    "Message",
+    "stored_message",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class Message:

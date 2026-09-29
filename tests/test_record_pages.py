@@ -20,11 +20,11 @@ class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
     form_fields = ("customer", "status", "total", "note", "created_at")
     readonly_fields = ("total",)
-    display_template = "Order {id}"
+    record_title = "Order {id}"
 
 
 class CustomerView(ModelView[Customer]):
-    display_template = "{name} ({email})"
+    record_title = "{name} ({email})"
     form_fields = ("name", "email", "region", "is_active")
 
 
@@ -62,7 +62,7 @@ class TestDetail:
         assert response.status_code == 200
         assert "Linen shirt" in response.text
 
-    async def test_the_heading_uses_the_display_template(
+    async def test_the_heading_uses_the_record_title(
         self, client: httpx.AsyncClient
     ) -> None:
         response = await client.get("/admin/orders/1")

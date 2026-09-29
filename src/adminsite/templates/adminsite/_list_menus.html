@@ -13,7 +13,7 @@
           <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
                  form="columns-{{ view.name }}" name="cols" value="{{ path }}"
                  {% if path in columns %}checked{% endif %}>
-          {{ view.label_for(path) }}
+          {{ view._label_for(path) }}
         </label>
       {% endfor %}
       <div class="mt-3 flex gap-2">

@@ -48,8 +48,8 @@ class TestTheField:
     def test_a_json_column_gets_it(self) -> None:
         view = SettingView()
 
-        assert isinstance(view.field_for("options"), JSONField)
-        assert view.field_for("options").widget == "json"
+        assert isinstance(view._field_for("options"), JSONField)
+        assert view._field_for("options").widget == "json"
 
     def test_it_is_chosen_by_the_registry(self) -> None:
         schema = FieldSchema(name="options", label="Options", python_type=dict)

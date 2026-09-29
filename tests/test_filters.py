@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -6,8 +7,9 @@ from typing import Any
 import httpx
 from sqlalchemy import ColumnElement, Select, func, select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, ColumnReference, ModelView
 from adminsite.backends.sqlalchemy import (
     BooleanFilter,
     ChoiceFilter,
@@ -359,13 +361,15 @@ class BigOrderFilter(SQLFilter[Order]):
 
 
 class OrdersWithAFilterPerRequest(ModelView[Order]):
-    """Adds a filter for this request only; list_filter does not name it."""
+    """Adds a filter for this request only; list_filters does not name it."""
 
     name = "orders"
     list_display = ("id", "total")
 
-    def get_filters(self, request: Any = None) -> tuple[SQLFilter[Any], ...]:
-        return (*super().get_filters(request), BigOrderFilter("big"))
+    def get_list_filters(
+        self, request: Request
+    ) -> Sequence[ColumnReference | SQLFilter[Order]]:
+        return [*super().get_list_filters(request), BigOrderFilter("big")]
 
 
 class TestFiltersAddedPerRequest:

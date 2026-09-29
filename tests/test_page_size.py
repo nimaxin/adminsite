@@ -12,11 +12,11 @@ from tests.models import Customer, Order
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
-    list_filter = ("status",)
-    search_fields = ("customer.name",)
-    ordering = ("id",)
+    list_filters = ("status",)
+    searchable_fields = ("customer.name",)
+    fields_default_sort = ("id",)
     page_size = 3
-    page_sizes = (3, 5, 100)
+    page_size_options = (3, 5, 100)
 
 
 class CustomerView(ModelView[Customer]):
@@ -45,15 +45,15 @@ def rows(page: httpx.Response) -> int:
 
 class TestChoosing:
     def test_the_views_own_size_is_among_them(self) -> None:
-        assert OrderView().get_page_sizes() == (3, 5, 100)
-        assert CustomerView().get_page_sizes() == ()
+        assert OrderView()._page_sizes() == (3, 5, 100)
+        assert CustomerView()._page_sizes() == ()
 
     def test_only_a_size_on_offer_counts(self) -> None:
         view = OrderView()
 
-        assert view.pick_page_size(5) == 5
-        assert view.pick_page_size(1000) == 3
-        assert view.pick_page_size(None) == 3
+        assert view._pick_page_size(5) == 5
+        assert view._pick_page_size(1000) == 3
+        assert view._pick_page_size(None) == 3
 
 
 class TestOnThePage:

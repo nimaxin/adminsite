@@ -94,7 +94,7 @@ class TestTheValues:
                 seen["price"] = assert_type(price, Decimal)
 
         async with database.session() as session:
-            await Reading().save(session, {"name": "Scarf", "price": Decimal("12.5")})
+            await Reading()._save(session, {"name": "Scarf", "price": Decimal("12.5")})
 
         assert seen["price"] == Decimal("12.5")
 
@@ -114,7 +114,7 @@ class TestTheValues:
         async with database.session() as session:
             record = await session.get(Product, 1)
             assert record is not None
-            await Reading().save(session, {"price": Decimal("1")}, record=record)
+            await Reading()._save(session, {"price": Decimal("1")}, record=record)
 
         assert seen["name"] == record.name
         assert seen["given"] == (False, True)
@@ -129,7 +129,7 @@ class TestTheValues:
                 seen["description"] = context.values[Product.description].get()
 
         async with database.session() as session:
-            await Reading().save(session, {"name": "Scarf", "price": Decimal(1)})
+            await Reading()._save(session, {"name": "Scarf", "price": Decimal(1)})
 
         assert seen["description"] is None
 
@@ -144,7 +144,7 @@ class TestTheValues:
                 context.values[Product.description].set(f"All about {name}")
 
         async with database.session() as session:
-            record = await Describing().save(
+            record = await Describing()._save(
                 session, {"name": "Scarf", "price": Decimal(1)}
             )
 
@@ -164,7 +164,7 @@ class TestTheValues:
                 context.values[Account.password_hash].set("hashed")
 
         async with database.session() as session:
-            await AccountView().save(session, {"email": "ana@example.com"})
+            await AccountView()._save(session, {"email": "ana@example.com"})
 
         assert seen == {"password": None, "given": False}
 
@@ -179,7 +179,7 @@ class TestTheValues:
 
         async with database.session() as session:
             with pytest.raises(AdminSiteError) as raised:
-                await Mixing().save(session, {"name": "Scarf", "price": Decimal(1)})
+                await Mixing()._save(session, {"name": "Scarf", "price": Decimal(1)})
 
         assert str(raised.value) == (
             "Customer.name is not a column of Product. A save stores the "
@@ -195,7 +195,7 @@ class TestTheValues:
 
         async with database.session() as session:
             with pytest.raises(AdminSiteError, match="Product has no column named"):
-                await Misspelling().save(
+                await Misspelling()._save(
                     session, {"name": "Scarf", "price": Decimal(1)}
                 )
 
@@ -212,7 +212,7 @@ class TestTheValues:
             record = await session.get(Order, 1)
             assert record is not None
             with pytest.raises(AdminSiteError) as raised:
-                await Reading().save(
+                await Reading()._save(
                     session, {"status": OrderStatus.PAID}, record=record
                 )
 
@@ -235,9 +235,9 @@ class TestTheValues:
 
         view = Reading()
         async with database.session() as session:
-            record = await view.fetch_record(session, 1, paths=["customer"])
+            record = await view._fetch_record(session, 1, paths=["customer"])
             assert record is not None
-            await view.save(session, {"status": OrderStatus.PAID}, record=record)
+            await view._save(session, {"status": OrderStatus.PAID}, record=record)
 
         assert isinstance(seen["customer"], Customer)
         assert seen["customer"].id == record.customer_id
@@ -262,7 +262,7 @@ class TestRefusedByAttribute:
 class TestCommittedHooks:
     async def test_a_save_reaches_it_once_committed(self, database: Database) -> None:
         async with database.session() as session:
-            await Watched().save(session, {"name": "Scarf", "price": Decimal(1)})
+            await Watched()._save(session, {"name": "Scarf", "price": Decimal(1)})
 
         assert events == [
             "before_save",
@@ -277,7 +277,7 @@ class TestCommittedHooks:
     ) -> None:
         async with database.session() as session:
             record = await session.get(Product, 1)
-            await Watched().save(session, {"price": Decimal(2)}, record=record)
+            await Watched()._save(session, {"price": Decimal(2)}, record=record)
 
         assert seen["created"] is False
 
@@ -289,7 +289,7 @@ class TestCommittedHooks:
 
         async with database.session() as session:
             with pytest.raises(RefusedError):
-                await Refusing().save(session, {"name": "Scarf", "price": Decimal(1)})
+                await Refusing()._save(session, {"name": "Scarf", "price": Decimal(1)})
 
         assert events == ["before_save", "after_save"]
 
@@ -302,7 +302,7 @@ class TestCommittedHooks:
 
         with caplog.at_level(logging.ERROR, logger="adminsite"):
             async with database.session() as session:
-                record = await Failing().save(
+                record = await Failing()._save(
                     session, {"name": "Scarf", "price": Decimal(1)}
                 )
 
@@ -311,11 +311,11 @@ class TestCommittedHooks:
 
     async def test_a_delete_reaches_it_once_committed(self, database: Database) -> None:
         async with database.session() as session:
-            record = await Watched().save(
+            record = await Watched()._save(
                 session, {"name": "Scarf", "price": Decimal(1)}
             )
             events.clear()
-            await Watched().delete(session, record)
+            await Watched()._delete(session, record)
 
         assert events == [
             "before_delete",
@@ -331,7 +331,7 @@ class TestCommittedHooks:
         view = Watched()
         async with database.session() as session:
             keys = [
-                str((await view.save(session, {"name": name, "price": Decimal(1)})).id)
+                str((await view._save(session, {"name": name, "price": Decimal(1)})).id)
                 for name in ("Scarf", "Hat")
             ]
             events.clear()
@@ -339,7 +339,7 @@ class TestCommittedHooks:
                 view=view, session=session, spec=QuerySpec(), keys=keys
             )
             async with session.transaction():
-                await view.delete_selected(selection)
+                await view._delete_selected(selection)
 
         assert events == [
             "before_delete",

@@ -4,21 +4,24 @@ import httpx
 import pytest
 from sqlalchemy import func, select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError, RefusedError
-from adminsite.fields import ChoiceField, StringField
+from adminsite.fields import EnumField, StringField
 from adminsite.query import QuerySpec
 from adminsite.security import Permission
 from tests.models import Order, OrderStatus, Product
 
+REQUEST = Request({"type": "http", "headers": []})
+
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
-    list_filter = ("status",)
-    search_fields = ("customer.name",)
+    list_filters = ("status",)
+    searchable_fields = ("customer.name",)
     page_size = 3
 
     @action("Mark as shipped", confirm="Mark these as shipped?")
@@ -45,7 +48,7 @@ class OrderView(ModelView[Order]):
         confirm="Add this note to the chosen orders?",
         inputs=[
             StringField("text", label="Note", required=True, max_length=200),
-            ChoiceField(
+            EnumField(
                 "urgency",
                 choices=(("low", "Low"), ("high", "High")),
                 required=True,
@@ -92,7 +95,7 @@ async def status_count(database: Database, status: OrderStatus) -> int:
 
 class TestDeclaringActions:
     def test_actions_are_found_on_the_view(self) -> None:
-        names = [item.name for item in OrderView().get_actions()]
+        names = [item.name for item in OrderView().get_actions(REQUEST)]
 
         assert set(names) == {
             "ship",
@@ -106,7 +109,7 @@ class TestDeclaringActions:
         assert names[-1] == "delete_selected"
 
     def test_an_action_with_inputs_opens_a_dialog(self) -> None:
-        found = OrderView().action_named("add_note")
+        found = OrderView()._action_named("add_note")
 
         assert found.needs_dialog is True
         assert [item.name for item in found.inputs] == ["text", "urgency"]
@@ -116,14 +119,14 @@ class TestDeclaringActions:
             action("Broken", inputs=[StringField("keys")])
 
     def test_an_action_carries_its_label_and_confirmation(self) -> None:
-        ship = OrderView().action_named("ship")
+        ship = OrderView()._action_named("ship")
 
         assert ship.label == "Mark as shipped"
         assert ship.needs_confirming is True
         assert ship.dangerous is False
 
     def test_a_label_is_made_from_the_name_when_none_is_given(self) -> None:
-        assert OrderView().action_named("one_by_one").label == "Count one by one"
+        assert OrderView()._action_named("one_by_one").label == "Count one by one"
 
 
 class TestRunningActions:
@@ -307,7 +310,7 @@ class TestSelection:
         self, database: Database
     ) -> None:
         view = OrderView()
-        spec = view.build_spec(search="lena")
+        spec = view._build_spec(search="lena")
         async with database.session() as session:
             selection = Selection(
                 view=view, session=session, spec=spec, everything=True

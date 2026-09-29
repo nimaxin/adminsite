@@ -14,6 +14,10 @@ from adminsite.query import QuerySpec
 if TYPE_CHECKING:
     from adminsite.views import ModelView
 
+__all__ = [
+    "Selection",
+]
+
 # The model of the view the rows belong to.
 M = TypeVar("M")
 
@@ -40,15 +44,15 @@ class Selection(Generic[M]):
     @property
     def repository(self) -> Any:
         """The repository of the view this selection belongs to."""
-        return self.view.repository
+        return self.view._repository
 
     def statement(self) -> Select[Any]:
         """A statement selecting the primary keys this covers."""
         columns = [
-            getattr(self.view.model, name) for name in self.view.schema.primary_key
+            getattr(self.view.model, name) for name in self.view._schema.primary_key
         ]
         rows: Select[Any] = select(*columns).select_from(self.view.model)
-        rows = self.view.scope_for(self.request)(rows)
+        rows = self.view._scope_for(self.request)(rows)
         rows = self.repository.narrow(rows, self.spec)
 
         if not self.everything:
@@ -72,7 +76,7 @@ class Selection(Generic[M]):
         on each record never waits on a query of its own.
         """
         statement = self.repository.base_statement(
-            self.view.scope_for(self.request)
+            self.view._scope_for(self.request)
         ).where(self._covered())
         if paths:
             statement = statement.options(
@@ -88,18 +92,18 @@ class Selection(Generic[M]):
         """
         if not values:
             return 0
-        if self.view.audit is not None:
+        if self.view._audit_log is not None:
             await self._remember(list(values), after=values)
         statement = update(self.view.model).where(self._covered()).values(**values)
         return await self._run(statement)
 
     async def delete(self) -> int:
         """Delete every row this covers, in one statement."""
-        if self.view.audit is not None:
+        if self.view._audit_log is not None:
             paths = [
                 path
                 for path in self.view.get_form_fields(self.request)
-                if path in self.view.schema.fields
+                if path in self.view._schema.fields
             ]
             await self._remember(paths, after=None)
         statement = delete(self.view.model).where(self._covered())
@@ -112,7 +116,7 @@ class Selection(Generic[M]):
 
         One query covers every row, whatever the size of the selection.
         """
-        names = [path for path in paths if path in self.view.schema.fields]
+        names = [path for path in paths if path in self.view._schema.fields]
         columns = [getattr(self.view.model, name) for name in names]
         key_columns = self._primary_key_columns()
         statement = select(*key_columns, *columns).where(self._covered())
@@ -121,7 +125,7 @@ class Selection(Generic[M]):
             key_parts, current = row[: len(key_columns)], row[len(key_columns) :]
             key = ",".join(str(part) for part in key_parts)
             before = {
-                name: self.view.field_for(name).display(value)
+                name: self.view._field_for(name).display(value)
                 for name, value in zip(names, current, strict=True)
             }
             if after is None:
@@ -132,7 +136,7 @@ class Selection(Generic[M]):
                 changes = diff(
                     before,
                     {
-                        name: self.view.field_for(name).display(after[name])
+                        name: self.view._field_for(name).display(after[name])
                         for name in names
                     },
                 )
@@ -144,7 +148,9 @@ class Selection(Generic[M]):
         return int(getattr(result, "rowcount", 0) or 0)
 
     def _primary_key_columns(self) -> list[Any]:
-        return [getattr(self.view.model, name) for name in self.view.schema.primary_key]
+        return [
+            getattr(self.view.model, name) for name in self.view._schema.primary_key
+        ]
 
     def _covered(self) -> Any:
         """A condition matching the rows this selection covers.
@@ -164,7 +170,8 @@ class Selection(Generic[M]):
         """Match the keys that were ticked, written as the URLs write them."""
         columns = self._primary_key_columns()
         fields = [
-            self.view.schema.field_named(name) for name in self.view.schema.primary_key
+            self.view._schema.field_named(name)
+            for name in self.view._schema.primary_key
         ]
         wanted = []
         for key in self.keys:

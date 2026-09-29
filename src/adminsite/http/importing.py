@@ -25,6 +25,18 @@ from adminsite.views import ModelView
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "MAX_BYTES",
+    "PREVIEW_PROBLEMS",
+    "PREVIEW_ROWS",
+    "preview",
+    "rows_to_show",
+    "run",
+    "show_form",
+    "summary",
+    "template_response",
+]
+
 MAX_BYTES = 20 * 1024 * 1024
 # The preview shows this many rows, plus every row with a problem.
 PREVIEW_ROWS = 50
@@ -35,8 +47,8 @@ async def show_form(
     admin: "Admin", request: Request, view: ModelView[Any], error: str = ""
 ) -> Response:
     """The page for choosing a file."""
-    await view.ensure(Permission.IMPORT, request=request)
-    columns = [(path, view.label_for(path)) for path in import_columns(view, request)]
+    await view._ensure(Permission.IMPORT, request=request)
+    columns = [(path, view._label_for(path)) for path in import_columns(view, request)]
     return await admin.render(
         "import.html",
         request,
@@ -58,7 +70,7 @@ async def preview(
     admin: "Admin", request: Request, view: ModelView[Any], form: dict[str, Any]
 ) -> Response:
     """Check an uploaded file and show what importing it would do."""
-    await view.ensure(Permission.IMPORT, request=request)
+    await view._ensure(Permission.IMPORT, request=request)
     upload = form.get("file")
     if not isinstance(upload, UploadFile) or not upload.filename:
         return await show_form(admin, request, view, _("Choose a file to import."))
@@ -102,7 +114,7 @@ def rows_to_show(plan: ImportPlan) -> list[Any]:
 
 async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Response:
     """Import the rows of a previewed file, each saved on its own."""
-    await view.ensure(Permission.IMPORT, request=request)
+    await view._ensure(Permission.IMPORT, request=request)
     urls = Urls(request)
     table = load_plan(request.path_params["token"], view, owner_of(admin, request))
     if table is None:
@@ -118,14 +130,14 @@ async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Respons
         for row in plan.ready:
             record = None
             if row.key:
-                record = await view.fetch_record(
+                record = await view._fetch_record(
                     session,
                     row.key,
-                    paths=view.get_load_paths(request),
+                    paths=view._load_paths(request),
                     request=request,
                 )
             try:
-                await view.save(session, row.values, record=record, request=request)
+                await view._save(session, row.values, record=record, request=request)
             except AdminSiteError as error:
                 failed.append(
                     _("row {number}: {reason}", number=row.number, reason=error)

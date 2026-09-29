@@ -28,7 +28,7 @@ from tests.models import Order, OrderStatus
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
-    list_filter = ("status",)
+    list_filters = ("status",)
     form_fields = ("status", "note")
 
     @action(

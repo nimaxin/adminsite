@@ -20,7 +20,8 @@
   `class OrderView(ModelView, model=Order)`, which now stops with the new form. `ModelView[Tag]` can
   be registered with no class of its own.
 - Settings name columns by attribute as well as by string: `list_display = [Order.id,
-  Link(Order.customer, Customer.name)]`, `ordering = [Descending(Order.created_at)]`. An attribute
+  Link(Order.customer, Customer.name)]`, `fields_default_sort = [Descending(Order.created_at)]`. An
+  attribute
   of another model, a link that leads elsewhere, or one string where a list belongs stops the admin
   with a message naming the setting.
 - `fields` lists a view's fields once, in order, for every page, as starlette-admin does. A page
@@ -29,7 +30,8 @@
   off the list until someone turns it on. Forms leave out columns of related models, computed
   fields and keys the database numbers by themselves. `searchable_fields`, `sortable_fields` and
   `fields_default_sort` join them, and `Inline` takes attributes too: `Inline(Order.items,
-  fields=[OrderItem.product])`. The old settings still work until 0.1.0a10.
+  fields=[OrderItem.product])`. `list_display`, `list_columns`, `form_fields`, `detail_fields` and
+  `exclude` still work until 0.1.0a10.
 - A key people type, such as a code or the two columns of a composite key, is now in the form of a
   view that names no form fields, so such records can be created there. A key the database numbers
   stays out.
@@ -43,8 +45,9 @@
 - A field written in a view without `required` now takes it from its column, as the field adminsite
   picks does, where it used to mean not required. Give `required=False` to keep a field optional.
 - `TextField`, `ChoiceField` and `Computed` are now `TextAreaField`, `EnumField` and
-  `ComputedField`, with starlette-admin's names, and `FieldOptions` is replaced by `Field`. The old
-  names still work until 0.1.0a10. `readonly=` on a field is `read_only=`, `enum_class=` is
+  `ComputedField`, with starlette-admin's names; importing an old name raises an error naming the
+  new one. `FieldOptions` is replaced by `Field`, and still works until 0.1.0a10. `readonly=` on a
+  field is `read_only=`, `enum_class=` is
   `enum=`, `ComputedField`'s `needs` takes attributes, and `RelationField(Order.customer,
   view=CustomerView)` names its view by class as well as by name.
 - A computed field's `format` is used; it was left out before.
@@ -66,8 +69,7 @@
   never read back from a form, and cannot be sorted by.
 - `get_readonly_fields(request, record)` takes attributes, `[Order.customer, Order.status]`, and a
   misspelt name it returns is refused rather than ignored. `can_view_detail` and
-  `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`, which still work until
-  0.1.0a10.
+  `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`.
 - A field worked out for a column of a related model is named by its path, `customer.email`, as
   one written in `fields` already was, rather than by the column alone.
 - An action asks for its values with typed parameters, as FastAPI does: `carrier: Literal["DHL",
@@ -97,6 +99,28 @@
   mypy's strict mode.
 - `SQLFilter[Order]` names the model a filter narrows, so its `condition` gets a
   `SQLAlchemyRepository[Order]`.
+- More of starlette-admin's names: `list_filter` is `list_filters`, `page_sizes` is
+  `page_size_options`, `bulk_delete` is `can_delete_selected`, `search_fields` is
+  `searchable_fields` and `ordering` is `fields_default_sort`. `get_filters`, `get_search_fields`
+  and `get_ordering` are `get_list_filters`, `get_searchable_fields` and `get_fields_default_sort`,
+  and `form_values` is `form_only_values`. A view that still sets an old name, `display_template`,
+  `title_of` or `can_detail` among them, stops the admin when it starts, with the name it has now.
+- The per-request methods answer with what their setting takes: columns by attribute or string
+  from `get_searchable_fields`, columns or filters from `get_list_filters`, and sorts such as
+  `Descending(Order.created_at)` from `get_fields_default_sort`, each checked like the setting.
+  They, `get_deferred_fields`, `get_inlines` and `get_actions` take a `Request`, never left out,
+  and `get_inlines` takes the record too.
+- A view's own machinery is private: `save`, `delete`, `fetch_page`, `display`, `field_for` and the
+  other methods adminsite calls itself start with an underscore, as do `schema`, `repository` and
+  `filters`. Completing a view's name offers its settings, its `get_` methods and its hooks, and an
+  action named `save` or `delete` no longer replaces adminsite's own. A method named
+  `delete_selected` no longer replaces the built-in delete of the chosen rows either, and stops
+  the admin: set `can_delete_selected = False` and add an action of your own.
+- `Inline(extra=1)` is `Inline(blank_rows=1)`, `Admin(fields=...)` is `Admin(field_registry=...)`,
+  `RecentRecords(detail="total")` is `RecentRecords(value="total")`, `SignInRefused` is
+  `SignInRefusedError`, and a field class's `blank_keeps` is `keeps_value_when_blank`.
+- Every module lists what it offers in `__all__`, so an editor completing `adminsite.files` no
+  longer offers `Path` or `re`.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

@@ -14,7 +14,7 @@ from adminsite.actions import Selection
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.exceptions import FieldValidationError, RefusedError
 from adminsite.fields import (
-    ChoiceField,
+    EnumField,
     FileField,
     JSONField,
     ListField,
@@ -31,6 +31,26 @@ from adminsite.views import ModelView
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+
+__all__ = [
+    "MAX_LIMIT",
+    "ApiError",
+    "action",
+    "api_paths",
+    "as_text",
+    "collection",
+    "create",
+    "error_response",
+    "find",
+    "index",
+    "item",
+    "json_value",
+    "read_body",
+    "read_key",
+    "read_values",
+    "save",
+    "to_json",
+]
 
 MAX_LIMIT = 500
 
@@ -83,23 +103,23 @@ def to_json(
     A form-only field, such as a password to set, is written and never read,
     so it is left out.
     """
-    body: dict[str, Any] = {"key": view.identity_of(record)}
+    body: dict[str, Any] = {"key": view._identity_of(record)}
     for path in paths:
-        if not view.field_for(path).form_only:
+        if not view._field_for(path).form_only:
             body[path] = json_value(view, path, record, urls)
     return body
 
 
 def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
     """A value as JSON: links as keys, files as a name and an address."""
-    item = view.field_for(path)
+    item = view._field_for(path)
     if not item.stored:
         # Worked out from the record, so there is no stored value to send.
         # Markup belongs on the page, so what goes out is its text.
         return plain(item.text_for(record, None))
-    value = view.value_at(record, path)
+    value = view._value_at(record, path)
     if isinstance(item, RelationField):
-        target = SQLAlchemyRepository(item.related_model, view.inspector)
+        target = SQLAlchemyRepository(item.related_model, view._inspector)
         if value is None:
             return None
         if isinstance(value, list | tuple | set):
@@ -145,7 +165,7 @@ def read_values(
     field. A new record needs every required field.
     """
     writable = set(view.get_form_fields(request, record)) - set(
-        view.readonly_paths(request, record)
+        view._readonly_paths(request, record)
     )
     values: dict[str, Any] = {}
     errors: dict[str, str] = {}
@@ -153,11 +173,15 @@ def read_values(
         if path not in writable:
             errors[path] = _("This field cannot be written.")
             continue
-        item = view.field_for(path)
+        item = view._field_for(path)
         if not (item.stored or item.form_only):
             errors[path] = _("This field cannot be written.")
             continue
-        if item.blank_keeps and record is not None and not (as_text(raw) or "").strip():
+        if (
+            item.keeps_value_when_blank
+            and record is not None
+            and not (as_text(raw) or "").strip()
+        ):
             # Sent empty for a record that exists: it keeps what it has.
             continue
         if isinstance(item, FileField):
@@ -177,7 +201,7 @@ def read_values(
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of keys."))
                 values[path] = item.parse_many([str(key) for key in raw])
-            elif isinstance(item, ChoiceField) and item.multiple:
+            elif isinstance(item, EnumField) and item.multiple:
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of options."))
                 values[path] = item.parse_many([str(one) for one in raw])
@@ -189,7 +213,7 @@ def read_values(
             errors[path] = error.message
     if record is None:
         for path in writable - set(body):
-            if view.field_for(path).required:
+            if view._field_for(path).required:
                 errors[path] = _("This field is required.")
     if errors:
         raise ApiError(422, _("Some fields need another look."), errors)
@@ -207,9 +231,9 @@ async def index(admin: "Admin", request: Request) -> Response:
                 "fields": [
                     {
                         "path": path,
-                        "label": view.label_for(path),
-                        "widget": view.field_for(path).widget,
-                        "required": bool(view.field_for(path).required),
+                        "label": view._label_for(path),
+                        "widget": view._field_for(path).widget,
+                        "required": bool(view._field_for(path).required),
                     }
                     for path in api_paths(view, request)
                 ],
@@ -231,7 +255,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
 
     read = read_list_request(request, view)
     paths = api_paths(view, request)
-    spec = view.build_spec(
+    spec = view._build_spec(
         request=request,
         search=read.search,
         filters=read.values,
@@ -249,8 +273,8 @@ async def collection(admin: "Admin", request: Request) -> Response:
 
     urls = Urls(request)
     async with admin.database.session() as session:
-        page = await view.fetch_page(session, spec, request=request)
-        await view.load_values(session, list(page), paths, request=request)
+        page = await view._fetch_page(session, spec, request=request)
+        await view._load_values(session, list(page), paths, request=request)
         items = [to_json(view, record, paths, urls) for record in page]
     return JSONResponse(
         {
@@ -267,17 +291,17 @@ async def collection(admin: "Admin", request: Request) -> Response:
 
 async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Response:
     """Add a record from a JSON object."""
-    await view.ensure(Permission.CREATE, request=request)
+    await view._ensure(Permission.CREATE, request=request)
     values = read_values(view, await read_body(request), request=request)
     urls = Urls(request)
     async with admin.database.session() as session:
         record = await save(view, session, values, None, request)
-        key = view.identity_of(record)
+        key = view._identity_of(record)
         paths = api_paths(view, request)
-        fresh = await view.fetch_record(
-            session, key, paths=view.loadable(paths), request=request
+        fresh = await view._fetch_record(
+            session, key, paths=view._loadable(paths), request=request
         )
-        await view.load_values(session, [fresh], paths, request=request)
+        await view._load_values(session, [fresh], paths, request=request)
         return JSONResponse(to_json(view, fresh, paths, urls), status_code=201)
 
 
@@ -285,10 +309,10 @@ async def item(admin: "Admin", request: Request) -> Response:
     """Read, change or delete one record."""
     view = find(admin, request)
     paths = api_paths(view, request)
-    load = tuple(dict.fromkeys((*view.get_load_paths(request), *view.loadable(paths))))
+    load = tuple(dict.fromkeys((*view._load_paths(request), *view._loadable(paths))))
     urls = Urls(request)
     async with admin.database.session() as session:
-        record = await view.fetch_record(
+        record = await view._fetch_record(
             session, read_key(request), paths=load, request=request
         )
         if record is None:
@@ -296,7 +320,7 @@ async def item(admin: "Admin", request: Request) -> Response:
 
         if request.method == "DELETE":
             try:
-                await view.delete(session, record, request=request)
+                await view._delete(session, record, request=request)
             except RefusedError as error:
                 raise ApiError(409, str(error)) from None
             except IntegrityError:
@@ -306,16 +330,16 @@ async def item(admin: "Admin", request: Request) -> Response:
             return Response(status_code=204)
 
         if request.method == "PATCH":
-            await view.ensure(Permission.EDIT, request=request, record=record)
+            await view._ensure(Permission.EDIT, request=request, record=record)
             values = read_values(
                 view, await read_body(request), record=record, request=request
             )
             await save(view, session, values, record, request)
-            record = await view.fetch_record(
+            record = await view._fetch_record(
                 session, read_key(request), paths=load, request=request
             )
 
-        await view.load_values(session, [record], paths, request=request)
+        await view._load_values(session, [record], paths, request=request)
         return JSONResponse(to_json(view, record, paths, urls))
 
 
@@ -328,7 +352,7 @@ async def save(
 ) -> Any:
     """Save through the view, turning refusals into API errors."""
     try:
-        return await view.save(session, values, record=record, request=request)
+        return await view._save(session, values, record=record, request=request)
     except RefusedError as error:
         if error.field:
             raise ApiError(
@@ -341,7 +365,7 @@ async def action(admin: "Admin", request: Request) -> Response:
     """Run a bulk action over some keys, or over everything that matches."""
     view = find(admin, request)
     try:
-        found = view.action_named(request.path_params["name"], request)
+        found = view._action_named(request.path_params["name"], request)
     except Exception:
         raise ApiError(404, _("No such action.")) from None
     body = await read_body(request)
@@ -350,7 +374,7 @@ async def action(admin: "Admin", request: Request) -> Response:
         raise ApiError(422, _("keys is a list."))
 
     raw_inputs = body.get("inputs", {})
-    inputs = view.parse_action_inputs(
+    inputs = view._parse_action_inputs(
         found,
         {
             name: [str(one) for one in value]
@@ -363,7 +387,7 @@ async def action(admin: "Admin", request: Request) -> Response:
         raise ApiError(422, _("Some values need another look."), inputs.errors)
 
     read = read_list_request(request, view)
-    spec = view.build_spec(
+    spec = view._build_spec(
         request=request, search=read.search, filters=read.values, sort=read.sort
     )
     async with admin.database.session() as session:
@@ -376,7 +400,7 @@ async def action(admin: "Admin", request: Request) -> Response:
             request=request,
         )
         try:
-            message = await view.run_action(
+            message = await view._run_action(
                 found, selection, request=request, values=inputs.values
             )
             await session.commit()

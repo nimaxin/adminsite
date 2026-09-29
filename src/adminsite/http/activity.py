@@ -9,6 +9,15 @@ from adminsite.audit import AuditEntry, AuditEvent, AuditQuery
 from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.i18n import gettext as _
 
+__all__ = [
+    "ACTIVITY_PAGE",
+    "ActivityFilters",
+    "event_choices",
+    "position_of",
+    "read_filters",
+    "read_position",
+]
+
 # How many entries one page of the Activity page shows.
 ACTIVITY_PAGE = 50
 

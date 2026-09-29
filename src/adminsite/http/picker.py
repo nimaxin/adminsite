@@ -12,6 +12,12 @@ from adminsite.views import ModelView
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "PICKER_LIMIT",
+    "RESULT_LIMIT",
+    "Picker",
+]
+
 # Above this many records a relation is searched rather than listed.
 PICKER_LIMIT = 100
 
@@ -55,7 +61,7 @@ class Picker:
         """
         view = self.view
         if view is not None:
-            named = view.get_search_fields(self.request)
+            named = view._search_paths(self.request)
             if named:
                 return named
         return self._named_in_label()
@@ -65,7 +71,7 @@ class Picker:
         view = self.view
         # Named by the link's own template first, as everywhere else.
         template = self.item.display_template or (
-            (view.record_title or view.display_template) if view is not None else ""
+            view.record_title if view is not None else ""
         )
         if not template:
             return ()
@@ -94,7 +100,7 @@ class Picker:
         )
         if view is None:
             return await self.repository.list(session, spec)
-        return await view.fetch_page(session, spec, request=self.request)
+        return await view._fetch_page(session, spec, request=self.request)
 
     async def offered(
         self, session: SessionAdapter, *, search: str = "", limit: int = PICKER_LIMIT
@@ -115,6 +121,6 @@ class Picker:
         if view is None:
             return await self.repository.get(session, key)
         try:
-            return await view.fetch_record(session, key, request=self.request)
+            return await view._fetch_record(session, key, request=self.request)
         except PermissionDeniedError:
             return None

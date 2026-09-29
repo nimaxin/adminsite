@@ -13,8 +13,8 @@ from tests.support import Backend, count_queries
 
 
 class CustomerView(ModelView[Customer]):
-    display_template = "{name}"
-    search_fields = ("name", "email")
+    record_title = "{name}"
+    searchable_fields = ("name", "email")
 
     def search_condition(
         self, term: str, *, request: Any = None
@@ -31,7 +31,7 @@ class CustomerView(ModelView[Customer]):
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     form_fields = ("customer", "status")
 
 

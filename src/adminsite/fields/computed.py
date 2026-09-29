@@ -7,6 +7,12 @@ from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import BaseField
 from adminsite.text import as_text
 
+__all__ = [
+    "LOADED",
+    "ComputedField",
+    "Loader",
+]
+
 M = TypeVar("M")
 V = TypeVar("V")
 
@@ -97,7 +103,3 @@ class ComputedField(BaseField, Generic[M, V]):
         if value is None:
             return ""
         return as_text(value)
-
-
-# The name ComputedField had until 0.1.0a10, which refuses it.
-Computed = ComputedField

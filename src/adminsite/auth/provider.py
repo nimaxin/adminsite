@@ -6,8 +6,14 @@ import anyio
 from starlette.requests import Request
 
 from adminsite.auth.passwords import hash_password, looks_hashed, verify_password
-from adminsite.exceptions import AdminSiteError, SignInRefused
+from adminsite.exceptions import AdminSiteError, SignInRefusedError
 from adminsite.i18n import gettext as _
+
+__all__ = [
+    "SESSION_KEY",
+    "AuthProvider",
+    "PasswordAuth",
+]
 
 SESSION_KEY = "adminsite_user"
 
@@ -24,7 +30,7 @@ class AuthProvider:
         """Return the user for these details, or nothing.
 
         To have the audit log say why an attempt failed, raise
-        `SignInRefused("This account is switched off.", user=account)`
+        `SignInRefusedError("This account is switched off.", user=account)`
         instead of returning nothing.
         """
         raise NotImplementedError
@@ -141,9 +147,9 @@ class PasswordAuth(AuthProvider):
             verify_password, password, stored if stored is not None else _no_one()
         )
         if stored is None:
-            raise SignInRefused(_("There is no such username."))
+            raise SignInRefusedError(_("There is no such username."))
         if not matched:
-            raise SignInRefused(_("The password was wrong."), user=username)
+            raise SignInRefusedError(_("The password was wrong."), user=username)
         return username
 
 

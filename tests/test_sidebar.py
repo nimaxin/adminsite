@@ -10,14 +10,14 @@ from tests.models import Customer, Order
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
 
 
 class CustomerView(ModelView[Customer]):
     """Customers, only ever opened from their orders."""
 
-    display_template = "{name}"
-    search_fields = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
     in_sidebar = False
 
 

@@ -21,6 +21,10 @@ from adminsite.schema import (
 )
 from adminsite.text import humanize, humanize_class, pluralize, snake_case
 
+__all__ = [
+    "SQLAlchemyInspector",
+]
+
 
 class SQLAlchemyInspector:
     """Describes SQLAlchemy models, the way `ModelInspector` asks for."""

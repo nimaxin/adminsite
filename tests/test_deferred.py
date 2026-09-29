@@ -14,7 +14,7 @@ from tests.support import Backend, count_queries
 class SettingView(ModelView[Setting]):
     """The payload is heavy and the list never shows it."""
 
-    display_template = "{name}"
+    record_title = "{name}"
     list_display = ("id", "name")
     deferred_fields = ("options", "notes")
 
@@ -31,7 +31,7 @@ class TitledView(ModelView[Setting]):
     """A column the record's name is built from is loaded too."""
 
     name = "titled_settings"
-    display_template = "{name} ({options})"
+    record_title = "{name} ({options})"
     list_display = ("id",)
     deferred_fields = ("name", "options")
 
@@ -53,15 +53,15 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
 
 class TestWhatTheQueryAsksFor:
     def test_the_named_columns_are_left_out(self) -> None:
-        spec = SettingView().build_spec()
+        spec = SettingView()._build_spec()
 
         assert spec.defer == ("options", "notes")
 
     def test_a_column_on_show_is_kept(self) -> None:
-        assert ShownView().build_spec().defer == ()
+        assert ShownView()._build_spec().defer == ()
 
     def test_a_column_the_name_needs_is_kept(self) -> None:
-        assert TitledView().build_spec().defer == ()
+        assert TitledView()._build_spec().defer == ()
 
     def test_a_column_that_does_not_exist_says_so(self) -> None:
         class Wrong(ModelView[Setting]):

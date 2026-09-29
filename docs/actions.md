@@ -47,8 +47,8 @@ It is all or none. When one record is refused, by a hook, by a permission, or be
 still point at it, nothing is deleted and the message names that record. One Delete removes at most
 1,000 records; narrow the list first for more.
 
-Switch it off for a view with `bulk_delete = False`, or give the view an action of its own named
-`delete_selected` to replace it. `can_delete = False` removes it along with every other delete.
+Switch it off for a view with `can_delete_selected = False`, and add an action of your own where the
+view needs a different one. `can_delete = False` removes it along with every other delete.
 
 ## Asking for values first
 
@@ -223,14 +223,14 @@ class OrderView(ModelView[Order]):
     @action("Move")
     async def move(self, selection: Selection[Order], *, warehouse: str) -> str: ...
 
-    def get_actions(self, request=None):
+    def get_actions(self, request):
         choices = warehouses_for(request.user)
-        return tuple(
+        return [
             dataclasses.replace(item, inputs=(EnumField("warehouse", choices=choices),))
             if item.name == "move"
             else item
             for item in super().get_actions(request)
-        )
+        ]
 ```
 
 The field takes the place of the input the parameter asked for, and its value still reaches

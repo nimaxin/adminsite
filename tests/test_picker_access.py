@@ -13,15 +13,15 @@ from tests.models import Customer, Order, OrderItem, Product
 class CustomerView(ModelView[Customer]):
     """Only German customers, and nobody may open the view itself."""
 
-    display_template = "{name}"
-    search_fields = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "DE")
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     form_fields = ("customer", "status")
 
 
@@ -29,7 +29,7 @@ class ClosedCustomers(ModelView[Customer]):
     """A view nobody may see at all."""
 
     name = "closed_customers"
-    display_template = "{name}"
+    record_title = "{name}"
 
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None
@@ -42,7 +42,7 @@ class ItemView(ModelView[OrderItem]):
 
 
 class ReadOnlyProducts(ModelView[Product]):
-    display_template = "{name}"
+    record_title = "{name}"
     can_create = False
     can_edit = False
 
@@ -165,7 +165,7 @@ class TestTheSourceView:
 class TestAnInlineCell:
     async def test_it_follows_the_target_view_as_well(self, database: Database) -> None:
         class ScopedProducts(ModelView[Product]):
-            display_template = "{name}"
+            record_title = "{name}"
 
             def scope_query(
                 self, statement: Statement, *, request: Any = None

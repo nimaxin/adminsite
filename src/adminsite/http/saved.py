@@ -14,6 +14,14 @@ from adminsite.views import ModelView
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "NAME_LIMIT",
+    "delete_view",
+    "owner_of",
+    "save_view",
+    "saved_for",
+]
+
 NAME_LIMIT = 100
 
 
@@ -45,7 +53,7 @@ async def save_view(
 ) -> Response:
     """Keep the list as it is now under a name."""
     store = _store_of(admin)
-    await view.ensure(Permission.VIEW, request=request)
+    await view._ensure(Permission.VIEW, request=request)
 
     name = str(form.get("name", "")).strip()[:NAME_LIMIT]
     query = clean_query(str(form.get("query", "")))

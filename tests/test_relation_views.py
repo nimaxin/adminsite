@@ -8,10 +8,10 @@ import pytest
 from sqlalchemy import select
 from starlette.applications import Starlette
 
-from adminsite import Admin, Computed, FieldOptions, ModelView, Statement
+from adminsite import Admin, FieldOptions, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
-from adminsite.fields import RelationField
+from adminsite.fields import ComputedField, RelationField
 from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
 
@@ -19,7 +19,7 @@ from tests.support import Backend, count_queries
 class CustomerView(ModelView[Customer]):
     """Every customer outside Sweden."""
 
-    display_template = "{name}"
+    record_title = "{name}"
     detail_fields = ("name", "email", "orders")
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
@@ -30,14 +30,14 @@ class NordicView(ModelView[Customer]):
     """The Swedish customers, the ones the first view leaves out."""
 
     name = "nordic"
-    display_template = "{name}"
+    record_title = "{name}"
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region == "SE")
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     form_fields = ("customer", "status")
 
 
@@ -45,7 +45,7 @@ class NordicOrderView(ModelView[Order]):
     """Orders whose customer is picked from, and linked to, the Nordic view."""
 
     name = "nordic_orders"
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     form_fields = ("customer", "status")
     fields = (FieldOptions("customer", view="nordic"),)
 
@@ -183,9 +183,11 @@ class CountedOrderView(ModelView[Order]):
     """A computed field that reads the items the page also lists."""
 
     name = "counted_orders"
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
     detail_fields = ("status", "items", "item_count")
-    fields = (Computed("item_count", lambda order: len(order.items), needs=("items",)),)
+    fields = (
+        ComputedField("item_count", lambda order: len(order.items), needs=("items",)),
+    )
 
 
 @pytest.fixture

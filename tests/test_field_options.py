@@ -69,19 +69,19 @@ class TestWhatTheyChange:
     def test_a_label_without_restating_the_field(self) -> None:
         view = ProductView()
 
-        assert view.label_for("name") == "Product name"
-        assert isinstance(view.field_for("name"), StringField)
+        assert view._label_for("name") == "Product name"
+        assert isinstance(view._field_for("name"), StringField)
 
     def test_a_line_of_help(self) -> None:
-        assert ProductView().field_for("description").help_text == (
+        assert ProductView()._field_for("description").help_text == (
             "Shown on the shop page."
         )
 
     def test_a_length_the_column_does_not_set(self) -> None:
-        assert ProductView().field_for("name").max_length == 10
+        assert ProductView()._field_for("name").max_length == 10
 
     def test_what_a_link_takes(self) -> None:
-        item = OrderView().field_for("customer")
+        item = OrderView()._field_for("customer")
 
         assert isinstance(item, RelationField)
         assert item.target is Customer
@@ -90,17 +90,17 @@ class TestWhatTheyChange:
         )
 
     def test_a_named_path_through_a_link_is_left_alone(self) -> None:
-        assert OrderView().label_for("customer.name") == "Bought by"
+        assert OrderView()._label_for("customer.name") == "Bought by"
 
     def test_a_path_nobody_named_still_names_the_link(self) -> None:
         class Plain(ModelView[Order]):
             name = "plain_orders"
             list_display = ("id", "customer.name")
 
-        assert Plain().label_for("customer.name") == "Customer name"
+        assert Plain()._label_for("customer.name") == "Customer name"
 
     def test_a_field_given_in_full_wins(self) -> None:
-        assert StatedView().label_for("name") == "Given in full"
+        assert StatedView()._label_for("name") == "Given in full"
 
 
 class TestOnThePage:
@@ -172,7 +172,7 @@ class TestAFormat:
             name = "priced_products"
             fields = (FieldOptions("price", format="€{:,.2f}"),)
 
-        item = Priced().field_for("price")
+        item = Priced()._field_for("price")
 
         assert item.text_for(None, Decimal("1234.5")) == "€1,234.50"
         assert item.text_for(None, None) == ""

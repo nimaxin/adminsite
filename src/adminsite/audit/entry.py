@@ -18,6 +18,17 @@ from sqlalchemy import (
     Text,
 )
 
+__all__ = [
+    "SIGN_IN_EVENTS",
+    "AuditEntry",
+    "AuditEvent",
+    "Change",
+    "as_json",
+    "audit_metadata",
+    "audit_table",
+    "diff",
+]
+
 # The table lives on its own metadata, so a project can add it to its
 # migrations without it ever mixing with the project's own models.
 audit_metadata = MetaData()

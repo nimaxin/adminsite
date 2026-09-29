@@ -26,7 +26,7 @@ from tests.models import Customer, Order, OrderStatus
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
+    record_title = "Order #{id}"
 
 
 class CustomerView(ModelView[Customer]):
@@ -208,9 +208,7 @@ class TestRecentRecords:
     ) -> None:
         text = await overview(
             database,
-            RecentRecords(
-                "Latest orders", "orders", sort="-created_at", detail="total"
-            ),
+            RecentRecords("Latest orders", "orders", sort="-created_at", value="total"),
         )
 
         assert "Latest orders" in text

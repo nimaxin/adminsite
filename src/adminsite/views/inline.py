@@ -6,6 +6,11 @@ from sqlalchemy.orm import QueryableAttribute
 
 from adminsite.columns import ColumnReference
 
+__all__ = [
+    "Inline",
+    "InlineRow",
+]
+
 
 @dataclass(frozen=True)
 class Inline:
@@ -30,7 +35,8 @@ class Inline:
     fields: Sequence[ColumnReference] = ()
     readonly_fields: Sequence[ColumnReference] = ()
     label: str = ""
-    extra: int = 1
+    # How many blank rows the table starts with while it has no rows yet.
+    blank_rows: int = 1
     can_delete: bool = True
     display_template: str = ""
 

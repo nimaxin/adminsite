@@ -63,7 +63,7 @@ class TestRowScope:
     async def test_the_list_only_shows_rows_in_scope(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view.fetch_page(session, view.build_spec())
+            page = await view._fetch_page(session, view._build_spec())
 
             assert len(page) == 2
             assert {row.customer.name for row in page} == {"Lena Fischer"}
@@ -73,14 +73,14 @@ class TestRowScope:
     ) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view.fetch_page(session, view.build_spec().replace(limit=1))
+            page = await view._fetch_page(session, view._build_spec().replace(limit=1))
 
             assert page.total == 2
 
     async def test_the_scope_follows_the_request(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view.fetch_page(session, view.build_spec(), request="IT")
+            page = await view._fetch_page(session, view._build_spec(), request="IT")
 
             assert {row.customer.name for row in page} == {"Marco Rossi"}
 
@@ -94,23 +94,23 @@ class TestRowScope:
             )
             assert italian is not None
 
-            assert await view.fetch_record(session, italian.id) is None
+            assert await view._fetch_record(session, italian.id) is None
 
     async def test_a_row_inside_the_scope_opens(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view.fetch_page(session, view.build_spec())
+            page = await view._fetch_page(session, view._build_spec())
             wanted = page.rows[0]
 
-            assert await view.fetch_record(session, wanted.id) is not None
+            assert await view._fetch_record(session, wanted.id) is not None
 
     async def test_the_scope_also_narrows_the_search(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            spec = view.build_spec(search="rossi")
+            spec = view._build_spec(search="rossi")
             spec = spec.replace(search_paths=("customer.name",))
 
-            page = await view.fetch_page(session, spec)
+            page = await view._fetch_page(session, spec)
 
             assert len(page) == 0
 
@@ -134,7 +134,7 @@ class TestActionPermissions:
         view = ReadOnlyOrders()
         async with database.session() as session:
             with pytest.raises(PermissionDeniedError, match="You cannot create"):
-                await view.save(session, {"note": "new"})
+                await view._save(session, {"note": "new"})
 
     async def test_deleting_is_refused(self, database: Database) -> None:
         view = ReadOnlyOrders()
@@ -143,7 +143,7 @@ class TestActionPermissions:
             assert record is not None
 
             with pytest.raises(PermissionDeniedError, match="You cannot delete"):
-                await view.delete(session, record)
+                await view._delete(session, record)
 
     async def test_permission_can_depend_on_the_user(self, database: Database) -> None:
         view = ByRole()
@@ -169,7 +169,7 @@ class TestActionPermissions:
             key = record.id
 
             with pytest.raises(PermissionDeniedError):
-                await view.delete(session, record, request="support")
+                await view._delete(session, record, request="support")
 
             assert await session.get(Order, key) is not None
 
@@ -190,7 +190,7 @@ class TestFieldPermissions:
     def test_a_locked_field_is_ignored_when_the_form_comes_back(self) -> None:
         view = HidesAColumn()
 
-        result = view.parse_form(
+        result = view._parse_form(
             {"name": "Lena", "email": "changed@example.com", "region": "DE"},
             request="support",
         )

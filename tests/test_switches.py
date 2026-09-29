@@ -20,7 +20,7 @@ REQUEST = Request({"type": "http", "headers": []})
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
-    search_fields = ("customer.name",)
+    searchable_fields = ("customer.name",)
     icon = ICON
 
 
@@ -29,7 +29,7 @@ class QuietView(ModelView[Customer]):
 
     name = "customers"
     list_display = ("name", "email")
-    search_fields = ("name",)
+    searchable_fields = ("name",)
     can_view_detail = False
     can_export = False
     icon = "icons/customers.svg"
@@ -144,22 +144,6 @@ class TestTheDetailPage:
         assert page.status_code == 200
 
 
-class TestTheOldName:
-    async def test_can_detail_still_switches_the_page_off(self) -> None:
-        class Quiet(ModelView[Customer]):
-            can_detail = False
-
-        view = Quiet()
-
-        assert (
-            await view.allows(Permission.VIEW_DETAIL, request=REQUEST, record=None)
-            is False
-        )
-        assert (
-            await view.allows(Permission.DETAIL, request=REQUEST, record=None) is False
-        )
-
-
 class TestIcons:
     async def test_inline_svg_is_drawn(self, client: httpx.AsyncClient) -> None:
         page = await client.get("/admin/orders")
@@ -185,7 +169,7 @@ class TestFacetCounts:
     ) -> None:
         class Orders(ModelView[Order]):
             name = "by_region"
-            list_filter = ("customer.region",)
+            list_filters = ("customer.region",)
 
         admin = Admin(database, views=[Orders])
         async with serve(admin) as client:

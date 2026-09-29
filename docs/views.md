@@ -30,7 +30,7 @@ class OrderView(ModelView[Order]):
     searchable_fields = [Order.id, Link(Order.customer, Customer.email)]
     sortable_fields = [Order.created_at, Order.total]
     fields_default_sort = [Descending(Order.created_at)]
-    list_filter = [Order.status, Order.total, Order.created_at]
+    list_filters = [Order.status, Order.total, Order.created_at]
     page_size = 50
 ```
 
@@ -97,11 +97,11 @@ class ProductView(ModelView[Product]):
 [Columns menu](#choosing-columns). A field hidden in the list and excluded from it at once asks for
 two different things, and stops the admin when it starts.
 
-`list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude`, `search_fields` and
-`ordering` still work, as do `FieldOptions`, `TextField`, `ChoiceField` and `Computed`, and 0.1.0a10
-will refuse them, naming what replaces each. A view that still sets `list_display`, `form_fields`
-or `detail_fields` reads `fields` as before: it changes the fields those settings name, and places
-none.
+`list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude` and `FieldOptions` still
+work, and 0.1.0a10 will refuse them, naming what replaces each. A view that still sets
+`list_display`, `form_fields` or `detail_fields` reads `fields` as before: it changes the fields
+those settings name, and places none. The other names 0.1.0a9 used, such as `search_fields`,
+`ordering` and `list_filter`, already stop the admin with the name each has now.
 
 ## Naming
 
@@ -145,9 +145,9 @@ The record is passed by position, so the parameter can be named after the model.
 | `searchable_fields` | The columns the search box looks in. Text matches anywhere in the value, numbers match exactly. |
 | `sortable_fields` | The columns people can sort the list by. Every stored column when left empty. |
 | `fields_default_sort` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. |
-| `list_filter` | Columns, or filters you built yourself. See [Filters](filters.md). |
+| `list_filters` | Columns, or filters you built yourself. See [Filters](filters.md). |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
-| `page_sizes` | The sizes people may switch between. Empty leaves the size fixed. |
+| `page_size_options` | The sizes people may switch between. Empty leaves the size fixed. |
 | `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
 | `deferred_fields` | Columns the list never shows, left out of its query. |
 | `global_search` | Whether the command palette searches this view. On by default. |
@@ -207,9 +207,8 @@ class OrderView(ModelView[Order]):
 
 The choice goes in the URL as `?cols=id&cols=total`, so it can be bookmarked and shared, and it is
 remembered in the session, so the list keeps those columns next time. The CSV export follows it
-too. Only columns on offer can be picked: a column you hide from some users in
-`get_list_display` stays hidden, whatever the URL says. Override `get_column_choices(request)` to
-offer different extras per user.
+too. Only columns on offer can be picked: a column `can_access_field` keeps from someone stays
+hidden from them, whatever the URL says.
 
 ### Rows per page
 
@@ -218,7 +217,7 @@ offer different extras per user.
 ```python
 class OrderView(ModelView[Order]):
     page_size = 25
-    page_sizes = (25, 100, 500)
+    page_size_options = (25, 100, 500)
 ```
 
 The choice goes in the URL as `?size=100`, stays while paging, sorting, searching and filtering,
@@ -272,7 +271,7 @@ from adminsite import CountMode, ModelView, Pagination
 
 
 class EventView(ModelView[Event]):
-    ordering = ("-created_at",)
+    fields_default_sort = ("-created_at",)
     count_mode = CountMode.ESTIMATED
     pagination = Pagination.KEYSET
 ```
@@ -370,7 +369,7 @@ the error next to the cell, and a list of every problem at the top of the form.
 | `fields` | The child's columns, in order. Defaults to every field except the link back to the parent. |
 | `readonly_fields` | Shown, not editable. |
 | `label` | The heading above the table. Defaults to the relationship's name. |
-| `extra` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
+| `blank_rows` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
 | `can_delete` | Whether rows can be removed. |
 | `display_template` | How a child is named, as on a view. |
 
@@ -450,9 +449,10 @@ class OrderView(ModelView[Order]):
         return []
 ```
 
-The methods are `get_search_fields`, `get_filters`, `get_ordering`, `get_readonly_fields`,
-`get_inlines` and `get_actions`. [Permissions](permissions.md#fields) says where a refused field
-is left out.
+The methods are `get_searchable_fields`, `get_list_filters`, `get_fields_default_sort`,
+`get_deferred_fields`, `get_readonly_fields`, `get_inlines` and `get_actions`. Each answers with
+what its setting takes, and is checked the same way. [Permissions](permissions.md#fields) says
+where a refused field is left out.
 
 ## Several views of one model
 

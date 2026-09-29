@@ -9,7 +9,7 @@ from adminsite import Admin, ModelView
 from adminsite.auth import (
     AuthProvider,
     PasswordAuth,
-    SignInRefused,
+    SignInRefusedError,
     hash_password,
     verify_password,
 )
@@ -346,9 +346,9 @@ class TestAnUnknownName:
         monkeypatch.setattr(provider, "verify_password", counting)
         auth = PasswordAuth({"nima": hash_password("letmein")})
 
-        with pytest.raises(SignInRefused, match="no such username"):
+        with pytest.raises(SignInRefusedError, match="no such username"):
             await auth.verify("nobody", "x")
-        with pytest.raises(SignInRefused, match="password was wrong"):
+        with pytest.raises(SignInRefusedError, match="password was wrong"):
             await auth.verify("nima", "x")
 
         assert len(checked) == 2

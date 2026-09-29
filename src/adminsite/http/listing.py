@@ -13,6 +13,28 @@ from adminsite.query import QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
 
+__all__ = [
+    "COLUMNS_KEY",
+    "COLUMNS_PARAM",
+    "SIZE_KEY",
+    "SIZE_PARAM",
+    "FilterPanel",
+    "ListRequest",
+    "active_chips",
+    "active_view",
+    "as_context",
+    "build_panels",
+    "export_params",
+    "read_columns",
+    "read_list_request",
+    "read_page",
+    "read_page_size",
+    "read_sort",
+    "sort_value",
+    "total_text",
+    "wants_partial",
+]
+
 COLUMNS_PARAM = "cols"
 COLUMNS_KEY = "adminsite_columns"
 SIZE_PARAM = "size"
@@ -70,7 +92,7 @@ def read_list_request(request: Request, view: ModelView[Any]) -> ListRequest:
         search=params.get("q", "").strip(),
         sort=read_sort(params.get("sort", ""), view, request),
         page=read_page(params.get("page", "1")),
-        values=parse_filters(view.get_filters(request), grouped),
+        values=parse_filters(view._list_filters(request), grouped),
         after=params.get("after", ""),
         before=params.get("before", ""),
         columns=read_columns(request, view),
@@ -88,7 +110,7 @@ def read_sort(raw: str, view: ModelView[Any], request: Request) -> tuple[Sort, .
     if not raw:
         return ()
     sort = Sort.parse(raw)
-    if sort.path in view.readable_paths(request) and view.sortable(sort.path):
+    if sort.path in view._readable_paths(request) and view._sortable(sort.path):
         return (sort,)
     return ()
 
@@ -109,11 +131,11 @@ def read_page_size(request: Request, view: ModelView[Any]) -> int:
             picked = int(request.query_params[SIZE_PARAM])
         except ValueError:
             picked = None
-        if session is not None and picked in view.get_page_sizes(request):
+        if session is not None and picked in view._page_sizes(request):
             session[SIZE_KEY] = {**remembered, view.name: picked}
     else:
         picked = remembered.get(view.name)
-    return view.pick_page_size(picked, request)
+    return view._pick_page_size(picked, request)
 
 
 def read_columns(request: Request, view: ModelView[Any]) -> tuple[str, ...]:
@@ -146,7 +168,7 @@ def read_columns(request: Request, view: ModelView[Any]) -> tuple[str, ...]:
             session[COLUMNS_KEY] = remembered
     else:
         picked = remembered.get(view.name, [])
-    return view.pick_columns(picked, request)
+    return view._pick_columns(picked, request)
 
 
 def read_page(raw: str) -> int:
@@ -165,10 +187,10 @@ async def build_panels(
 ) -> list[FilterPanel]:
     """Build each filter's control, with counts where it offers them."""
     chosen = {value.name: value for value in spec.filters}
-    context = SQLFilterContext(session, view.repository, spec)
+    context = SQLFilterContext(session, view._repository, spec)
 
     panels = []
-    for item in view.get_filters(request):
+    for item in view._list_filters(request):
         panels.append(
             FilterPanel(
                 filter=item,
@@ -244,8 +266,8 @@ def as_context(
         "total_text": total_text(page),
         "columns": read.columns,
         "page_size": read.size,
-        "page_sizes": view.get_page_sizes(request),
-        "column_choices": view.get_column_choices(request),
+        "page_sizes": view._page_sizes(request),
+        "column_choices": view._column_choices(request),
         "columns_changed": read.columns != view.get_list_display(request),
         "current_query": clean_query(request.url.query),
         "panels": panels,
@@ -254,7 +276,7 @@ def as_context(
         "sort": sort_value(spec),
         "spec": spec,
         "export_params": export_params(request),
-        "actions": view.actions_on("selection", request),
-        "record_actions": view.actions_on("record", request),
-        "view_actions": view.actions_on("view", request),
+        "actions": view._actions_on("selection", request),
+        "record_actions": view._actions_on("record", request),
+        "view_actions": view._actions_on("view", request),
     }

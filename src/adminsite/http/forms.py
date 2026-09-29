@@ -22,6 +22,15 @@ from adminsite.views.naming import name_linked
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "build_rows",
+    "fill_document",
+    "rows_for_actions",
+    "rows_for_inputs",
+    "title_for",
+    "written_again",
+]
+
 
 async def build_rows(
     admin: "Admin",
@@ -39,26 +48,26 @@ async def build_rows(
     `submitted` holds the values that were read; `typed` holds the text they
     were read from, which is what a field that failed shows again.
     """
-    readonly = set(view.readonly_paths(request, record))
+    readonly = set(view._readonly_paths(request, record))
     errors = errors or {}
     submitted = submitted or {}
     typed = typed or {}
     if record is not None:
         # A computed value on the form, read only, may come from a loader.
-        await view.load_values(
+        await view._load_values(
             session, [record], view.get_form_fields(request, record), request=request
         )
 
-    starting = await view.form_values(session, record, request=request)
+    starting = await view.form_only_values(session, record, request=request)
     draft: Any = None
 
     rows = []
     for path in view.get_form_fields(request, record):
-        item = view.field_for(path)
+        item = view._field_for(path)
         if item.form_only:
             stored = starting.get(path)
         else:
-            stored = view.value_at(record, path) if record is not None else None
+            stored = view._value_at(record, path) if record is not None else None
         # A file cannot be put back into a file input, so after a failed
         # submit the field shows what is stored, not what was sent.
         current = (
@@ -80,7 +89,7 @@ async def build_rows(
             ),
             error=errors.get(path, ""),
             readonly=path in readonly,
-            keeps_when_blank=item.blank_keeps and record is not None,
+            keeps_when_blank=item.keeps_value_when_blank and record is not None,
         )
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
@@ -95,7 +104,7 @@ async def build_rows(
                 # A new record's schema may follow what the form holds, as
                 # a setting's key decides the shape of its value.
                 if draft is None:
-                    draft = view.draft_record(typed, request)
+                    draft = view._draft_record(typed, request)
                 owner = draft
                 row.redraw_url = f"{Urls(request).document(view, path)}?show=form"
             fill_document(row, item, owner, current, typed, errors)

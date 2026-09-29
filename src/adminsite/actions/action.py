@@ -10,6 +10,20 @@ if TYPE_CHECKING:
     from adminsite.actions.parameters import ActionCall
     from adminsite.fields import BaseField
 
+__all__ = [
+    "MARKER",
+    "ON_RECORD",
+    "ON_SELECTION",
+    "ON_VIEW",
+    "RESERVED_INPUTS",
+    "TARGETS",
+    "Action",
+    "ActionTarget",
+    "Handler",
+    "action",
+    "action_of",
+]
+
 MARKER = "__adminsite_action__"
 
 # What an action acts on.

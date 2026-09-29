@@ -4,6 +4,14 @@ from typing import Any, Protocol
 
 from adminsite.text import humanize
 
+__all__ = [
+    "Filter",
+    "FilterContext",
+    "FilterOption",
+    "FilterValue",
+    "parse_filters",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class FilterOption:
@@ -20,7 +28,7 @@ class FilterValue:
 
     name: str
     values: tuple[str, ...]
-    # The filter these were read for, so one that get_filters adds for a
+    # The filter these were read for, so one that get_list_filters adds for a
     # single request is applied by the query that request makes.
     source: Any = field(default=None, compare=False, repr=False)
 

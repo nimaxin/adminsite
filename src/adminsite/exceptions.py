@@ -1,7 +1,21 @@
-from typing import TYPE_CHECKING
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
     from adminsite.columns import ColumnReference
+
+__all__ = [
+    "AdminSiteError",
+    "FieldValidationError",
+    "InvalidPathError",
+    "NotAModelError",
+    "PermissionDeniedError",
+    "RecordNotFoundError",
+    "RefusedError",
+    "SignInRefusedError",
+    "UnknownFieldError",
+    "renamed_names",
+]
 
 
 class AdminSiteError(Exception):
@@ -96,7 +110,7 @@ class InvalidPathError(AdminSiteError):
         self.path = path
 
 
-class SignInRefused(AdminSiteError):
+class SignInRefusedError(AdminSiteError):
     """Raise this from `AuthProvider.verify` to refuse a sign in, saying why.
 
     The reason goes to the audit log, never to the person signing in, who
@@ -108,3 +122,28 @@ class SignInRefused(AdminSiteError):
         super().__init__(reason)
         self.reason = reason
         self.user = user
+
+
+def renamed_names(module: str, renamed: Mapping[str, str]) -> Callable[[str], NoReturn]:
+    """A module's `__getattr__` that names what an old name is called now.
+
+    It raises ImportError rather than AttributeError, whose message Python
+    replaces with its own when the name is imported.
+    """
+
+    def __getattr__(name: str) -> NoReturn:
+        if name in renamed:
+            raise ImportError(
+                f"{module}.{name} is called {renamed[name]} now. "
+                f"Import {renamed[name]} instead.",
+                name=module,
+            )
+        raise AttributeError(f"module {module!r} has no attribute {name!r}")
+
+    return __getattr__
+
+
+if not TYPE_CHECKING:
+    # Hidden from type checkers, so they go on reporting the old name as
+    # missing rather than as a function that raises.
+    __getattr__ = renamed_names(__name__, {"SignInRefused": "SignInRefusedError"})

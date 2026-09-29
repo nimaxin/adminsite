@@ -3,6 +3,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "Plugin",
+]
+
 
 class Plugin:
     """Something that adds to an admin, packaged so it can be shared.

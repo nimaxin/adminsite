@@ -19,7 +19,7 @@ seen: dict[str, Any] = {}
 
 
 class ProductView(ModelView[Product]):
-    search_fields = ("name",)
+    searchable_fields = ("name",)
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         # The scarf is off the shelves, so nobody may pick it.
@@ -28,7 +28,7 @@ class ProductView(ModelView[Product]):
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "note")
-    ordering = ("id",)
+    fields_default_sort = ("id",)
 
     @action(
         "Assign to product",

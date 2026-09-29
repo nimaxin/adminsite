@@ -7,9 +7,10 @@ import pytest
 from sqlalchemy import func, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, Computed, ModelView
+from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import SessionAdapter
 from adminsite.exceptions import AdminSiteError
+from adminsite.fields import ComputedField
 from tests.models import Customer, Order
 from tests.support import Backend, count_queries
 
@@ -33,12 +34,14 @@ CELL = r"\s*<td[^>]*>\s*<span[^>]*>"
 
 
 class CustomerView(ModelView[Customer]):
-    display_template = "{name}"
+    record_title = "{name}"
     list_display = ("name", "orders_placed")
     form_fields = ("name", "email", "orders_placed")
-    ordering = ("name",)
+    fields_default_sort = ("name",)
     fields = (
-        Computed("orders_placed", load=order_counts, label="Orders placed", default=0),
+        ComputedField(
+            "orders_placed", load=order_counts, label="Orders placed", default=0
+        ),
     )
 
 
@@ -138,6 +141,6 @@ class TestAValueFromTheDatabase:
 class TestDeclaringOne:
     def test_it_takes_one_way_of_working_the_value_out(self) -> None:
         with pytest.raises(AdminSiteError, match="one of the two"):
-            Computed("orders_placed")
+            ComputedField("orders_placed")
         with pytest.raises(AdminSiteError, match="one of the two"):
-            Computed("orders_placed", lambda customer: 1, load=order_counts)
+            ComputedField("orders_placed", lambda customer: 1, load=order_counts)

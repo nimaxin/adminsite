@@ -1,5 +1,11 @@
 from enum import StrEnum
 
+__all__ = [
+    "Permission",
+    "RequestAction",
+    "permission_name",
+]
+
 
 class Permission(StrEnum):
     """The things a user can be allowed to do with a view."""
@@ -12,8 +18,6 @@ class Permission(StrEnum):
     # Opening one record's page. A view whose list says everything can
     # switch it off.
     VIEW_DETAIL = "detail"
-    # The name VIEW_DETAIL replaces, read until 0.1.0a10 refuses it.
-    DETAIL = "detail"
     IMPORT = "import"
     # Reading the audit log: a record's History tab, and the view's entries
     # on the Activity page.

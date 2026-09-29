@@ -6,6 +6,13 @@ from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 
+__all__ = [
+    "RelationTree",
+    "build_defer_options",
+    "build_load_options",
+    "build_relation_tree",
+]
+
 RelationTree = dict[str, "RelationTree"]
 
 

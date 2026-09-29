@@ -10,6 +10,7 @@ import httpx
 import pytest
 from sqlalchemy import select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, FieldOptions, ModelView, RefusedError
 from adminsite.audit import AuditEntry, AuditLog, AuditQuery
@@ -49,8 +50,8 @@ class CustomerView(ModelView[Customer]):
         FieldOptions("email", secret=True),
     )
 
-    async def form_values(
-        self, session: SessionAdapter, record: Any, *, request: Any = None
+    async def form_only_values(
+        self, session: SessionAdapter, record: Customer | None, *, request: Request
     ) -> Mapping[str, Any]:
         if record is None:
             return {}

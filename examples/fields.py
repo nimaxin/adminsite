@@ -417,7 +417,7 @@ class ShowcaseView(ModelView[Showcase]):
         '<rect x="3.5" y="14" width="7" height="7" rx="1.2"/>'
         '<circle cx="17.5" cy="17.5" r="3.5"/>'
     )
-    display_template = "{name}"
+    record_title = "{name}"
     list_display = (
         "name",
         "photo",
@@ -450,8 +450,8 @@ class ShowcaseView(ModelView[Showcase]):
         "stock_value",
         "created_at",
     )
-    search_fields = ("name", "email", "summary")
-    list_filter = (
+    searchable_fields = ("name", "email", "summary")
+    list_filters = (
         "status",
         "in_stock",
         "flagged",
@@ -461,7 +461,7 @@ class ShowcaseView(ModelView[Showcase]):
         "released_on",
         "updated_at",
     )
-    ordering = ("id",)
+    fields_default_sort = ("id",)
     readonly_fields = ("created_at",)
     form_fields = (
         "name",
@@ -534,7 +534,7 @@ class SettingView(ModelView[Setting]):
         '<circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/>'
         '<circle cx="17" cy="18" r="2"/>'
     )
-    display_template = "{key}"
+    record_title = "{key}"
     list_display = ("key", "value")
     form_fields = ("key", "value")
     fields = (
@@ -560,7 +560,7 @@ class CustomerGroupView(ModelView[CustomerGroup]):
         '<path d="M3 20c.6-3.4 3-5.5 6-5.5s5.4 2.1 6 5.5"/>'
         '<path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.8c1.6.7 2.7 2.4 3 5.2"/>'
     )
-    display_template = "{name}"
+    record_title = "{name}"
     list_display = ("name", "overrides")
     form_fields = ("name", "overrides")
     fields = (
@@ -579,8 +579,8 @@ class CategoryView(ModelView[Category]):
         '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5'
         'a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>'
     )
-    display_template = "{name}"
-    search_fields = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
 
 
 class SupplierView(ModelView[Supplier]):
@@ -590,17 +590,17 @@ class SupplierView(ModelView[Supplier]):
         '<path d="M9 17h6"/><circle cx="7" cy="17.5" r="2"/>'
         '<circle cx="17" cy="17.5" r="2"/>'
     )
-    display_template = "{name} ({country})"
+    record_title = "{name} ({country})"
     list_display = ("name", "country")
-    search_fields = ("name", "country")
-    list_filter = ("country",)
+    searchable_fields = ("name", "country")
+    list_filters = ("country",)
 
 
 class LabelView(ModelView[Label]):
     group = GROUP
     icon = outline('<path d="M6 3h12v18l-6-4-6 4z"/>')
-    display_template = "{name}"
-    search_fields = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
 
 
 class ServerView(ModelView[Server]):
@@ -610,8 +610,8 @@ class ServerView(ModelView[Server]):
         '<rect x="3" y="14" width="18" height="7" rx="1.5"/>'
         '<path d="M7 6.5h.01M7 17.5h.01"/>'
     )
-    display_template = "{name}"
-    search_fields = ("name",)
+    record_title = "{name}"
+    searchable_fields = ("name",)
 
 
 VIEWS: list[type[ModelView[Any]]] = [

@@ -13,7 +13,7 @@ from adminsite.actions import Selection, action
 from adminsite.audit import AuditLog
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
-from adminsite.fields import ChoiceField
+from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderStatus
 
 CARRIERS = (("dhl", "DHL"), ("ups", "UPS"))
@@ -21,7 +21,7 @@ CARRIERS = (("dhl", "DHL"), ("ups", "UPS"))
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
-    list_filter = ("status",)
+    list_filters = ("status",)
 
     @action("Confirm", on="record")
     async def confirm(self, record: Order, session: SessionAdapter) -> str:
@@ -32,7 +32,7 @@ class OrderView(ModelView[Order]):
         "Ship",
         on="record",
         confirm="Send this order?",
-        inputs=[ChoiceField("carrier", choices=CARRIERS, required=True)],
+        inputs=[EnumField("carrier", choices=CARRIERS, required=True)],
     )
     async def ship(self, record: Order, session: SessionAdapter, carrier: str) -> str:
         record.status = OrderStatus.SHIPPED
@@ -55,7 +55,7 @@ class OrderView(ModelView[Order]):
         "Export a summary",
         on="view",
         permission=Permission.VIEW,
-        inputs=[ChoiceField("group", choices=(("day", "Day"),), required=True)],
+        inputs=[EnumField("group", choices=(("day", "Day"),), required=True)],
     )
     async def summary(self, session: SessionAdapter, group: str) -> Response:
         return PlainTextResponse(f"summary by {group}")
@@ -122,14 +122,14 @@ class TestDeclaring:
     def test_an_action_runs_on_one_of_three_things(self) -> None:
         view = OrderView()
 
-        assert [item.name for item in view.actions_on("record")] == [
+        assert [item.name for item in view._actions_on("record")] == [
             "confirm",
             "download",
             "refuse",
             "ship",
         ]
-        assert [item.name for item in view.actions_on("view")] == ["summary", "sync"]
-        assert [item.name for item in view.actions_on("selection")] == [
+        assert [item.name for item in view._actions_on("view")] == ["summary", "sync"]
+        assert [item.name for item in view._actions_on("selection")] == [
             "note",
             "delete_selected",
         ]

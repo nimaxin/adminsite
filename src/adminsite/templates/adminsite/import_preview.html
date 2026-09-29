@@ -51,7 +51,7 @@
           <th class="sticky top-0 z-10 h-10 w-16 border-b border-base-300 bg-subtle ps-4 pe-3 text-start text-[12.5px] font-medium text-muted lg:ps-7">{{ _('Row') }}</th>
           <th class="sticky top-0 z-10 h-10 w-24 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium text-muted">{{ _('Does') }}</th>
           {% for path in plan.columns %}
-            <th class="sticky top-0 z-10 h-10 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium whitespace-nowrap text-muted">{{ view.label_for(path) }}</th>
+            <th class="sticky top-0 z-10 h-10 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium whitespace-nowrap text-muted">{{ view._label_for(path) }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -78,7 +78,7 @@
             <tr class="bg-error/5">
               <td class="border-b border-line"></td>
               <td colspan="{{ plan.columns|length + 1 }}" class="border-b border-line px-3 py-2 text-xs text-error">
-                {% for path in missing %}{{ view.label_for(path) }}: {{ row.errors[path] }}{% if not loop.last %} · {% endif %}{% endfor %}
+                {% for path in missing %}{{ view._label_for(path) }}: {{ row.errors[path] }}{% if not loop.last %} · {% endif %}{% endfor %}
               </td>
             </tr>
           {% endif %}

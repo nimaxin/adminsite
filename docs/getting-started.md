@@ -56,12 +56,12 @@ engine = create_async_engine("postgresql+asyncpg://localhost/shop")
 
 class CustomerView(ModelView[Customer]):
     list_display = ("name", "email")
-    search_fields = ("name", "email")
+    searchable_fields = ("name", "email")
 
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "note")
-    search_fields = ("id", "customer.name")
+    searchable_fields = ("id", "customer.name")
 
 
 app = FastAPI()

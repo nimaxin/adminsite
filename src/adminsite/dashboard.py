@@ -17,6 +17,28 @@ from adminsite.security import Permission
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "ROUND_TOPS",
+    "Chart",
+    "ChartData",
+    "CountItem",
+    "LoadedWidget",
+    "ModelCounts",
+    "Point",
+    "RecentItem",
+    "RecentRecords",
+    "Source",
+    "Stat",
+    "StatData",
+    "Tick",
+    "Widget",
+    "label_text",
+    "load_dashboard",
+    "read_rows",
+    "read_value",
+    "round_axis",
+]
+
 logger = logging.getLogger("adminsite")
 
 # Where a widget's numbers come from: a select, or a function given the
@@ -271,14 +293,14 @@ class RecentItem:
 
     title: str
     url: str
-    detail: str = ""
+    value: str = ""
 
 
 class RecentRecords(Widget):
     """The latest records of a view, linking to each.
 
     ```python
-    RecentRecords("Latest orders", "orders", sort="-created_at", detail="total")
+    RecentRecords("Latest orders", "orders", sort="-created_at", value="total")
     ```
 
     It reads through the view, so the view's permissions and scope apply.
@@ -292,14 +314,14 @@ class RecentRecords(Widget):
         view: str,
         *,
         sort: str = "",
-        detail: str = "",
+        value: str = "",
         limit: int = 5,
         width: int = 2,
     ) -> None:
         self.title = title
         self.view = view
         self.sort = sort
-        self.detail = detail
+        self.value = value
         self.limit = limit
         self.width = width
 
@@ -316,7 +338,7 @@ class RecentRecords(Widget):
         if view is None:
             return []
         sort = (Sort.parse(self.sort),) if self.sort else ()
-        spec = view.build_spec(request=request, sort=sort).replace(
+        spec = view._build_spec(request=request, sort=sort).replace(
             limit=self.limit, offset=0, count=CountMode.NONE, keyset=False
         )
         urls = Urls(request)
@@ -324,14 +346,14 @@ class RecentRecords(Widget):
             Permission.VIEW_DETAIL, request=request, record=None
         )
         async with admin.database.session() as session:
-            page = await view.fetch_page(session, spec, request=request)
+            page = await view._fetch_page(session, spec, request=request)
             return [
                 RecentItem(
                     view.get_record_title(record),
-                    urls.detail(view, view.identity_of(record))
+                    urls.detail(view, view._identity_of(record))
                     if opens_detail
-                    else urls.edit(view, view.identity_of(record)),
-                    view.display(record, self.detail) if self.detail else "",
+                    else urls.edit(view, view._identity_of(record)),
+                    view._display(record, self.value) if self.value else "",
                 )
                 for record in page
             ]
@@ -361,7 +383,7 @@ class ModelCounts(Widget):
             for view in await admin.views_allowing(request):
                 if not view.in_sidebar:
                     continue
-                statement = view.repository.base_statement(view.scope_for(request))
+                statement = view._repository.base_statement(view._scope_for(request))
                 total = await session.scalar(
                     select(func.count()).select_from(statement.subquery())
                 )

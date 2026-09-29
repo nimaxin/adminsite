@@ -12,6 +12,16 @@ from adminsite.security import Permission
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "MIN_SEARCH",
+    "PER_VIEW",
+    "PaletteItem",
+    "PaletteSection",
+    "pages_matching",
+    "palette",
+    "records_matching",
+]
+
 # Records are only looked up once this much has been typed.
 MIN_SEARCH = 2
 PER_VIEW = 5
@@ -79,7 +89,7 @@ async def records_matching(
     sections = []
     async with admin.database.session() as session:
         for view in await admin.views_allowing(request):
-            if not view.global_search or not view.get_search_fields(request):
+            if not view.global_search or not view._search_paths(request):
                 continue
             # A view with no record page opens the form instead.
             opens_detail = await view.allows(
@@ -89,19 +99,19 @@ async def records_matching(
                 Permission.EDIT, request=request, record=None
             ):
                 continue
-            spec = view.build_spec(request=request, search=term).replace(
+            spec = view._build_spec(request=request, search=term).replace(
                 limit=PER_VIEW, offset=0, count=CountMode.NONE, keyset=False
             )
-            page = await view.fetch_page(session, spec, request=request)
+            page = await view._fetch_page(session, spec, request=request)
             sections.append(
                 PaletteSection(
                     view.label_plural,
                     [
                         PaletteItem(
                             view.get_record_title(record),
-                            urls.detail(view, view.identity_of(record))
+                            urls.detail(view, view._identity_of(record))
                             if opens_detail
-                            else urls.edit(view, view.identity_of(record)),
+                            else urls.edit(view, view._identity_of(record)),
                         )
                         for record in page
                     ],

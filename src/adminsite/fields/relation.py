@@ -10,6 +10,10 @@ from adminsite.text import RecordValues
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
+__all__ = [
+    "RelationField",
+]
+
 
 @dataclass(eq=False, repr=False)
 class RelationField(Field[Any]):

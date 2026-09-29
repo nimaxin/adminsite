@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, FieldOptions, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
-from adminsite.fields import BooleanField, ChoiceField
+from adminsite.fields import BooleanField, EnumField
 from adminsite.fields.tones import NEUTRAL, TONE_NAMES
 from tests.models import Customer, Order, OrderStatus
 
@@ -18,7 +18,7 @@ GREEN = TONE_NAMES.index("green")
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "status")
-    ordering = ("id",)
+    fields_default_sort = ("id",)
     fields = (
         FieldOptions(
             "status",
@@ -114,7 +114,7 @@ class TestAFlagWhoseYesIsTheBadCase:
 
 class TestTheField:
     def test_a_value_is_found_by_its_member_or_its_stored_value(self) -> None:
-        field = ChoiceField(
+        field = EnumField(
             "status",
             enum=OrderStatus,
             tones={OrderStatus.PAID: "blue", "Refunded": "rose"},
@@ -125,7 +125,7 @@ class TestTheField:
         assert field.tone_of(OrderStatus.PENDING) == NEUTRAL
 
     def test_none_draws_no_badge(self) -> None:
-        field = ChoiceField(
+        field = EnumField(
             "size", choices=(("s", "Small"), ("m", "Medium")), tones={"s": None}
         )
 
@@ -145,12 +145,12 @@ class TestAMistake:
         # A type checker already refuses "red"; this is the check for code
         # that has none, such as FieldOptions.
         with pytest.raises(AdminSiteError, match="amber, blue, green, grey"):
-            ChoiceField("size", choices=(("s", "Small"),), tones={"s": "red"})  # type: ignore[dict-item]
+            EnumField("size", choices=(("s", "Small"),), tones={"s": "red"})  # type: ignore[dict-item]
 
     def test_a_value_that_is_not_a_choice_names_the_choices(self) -> None:
         # Checked when the view is built, once the column has given its
         # choices, so a view module still imports and the message names it.
-        field = ChoiceField(
+        field = EnumField(
             "size", choices=(("s", "Small"), ("m", "Medium")), tones={"xl": "rose"}
         )
 

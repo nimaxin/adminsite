@@ -13,9 +13,28 @@ from typing import Any
 
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import AdminSiteError, FieldValidationError
-from adminsite.fields import ChoiceField, FileField, ListField, RelationField
+from adminsite.fields import EnumField, FileField, ListField, RelationField
 from adminsite.i18n import gettext as _
 from adminsite.views import ModelView
+
+__all__ = [
+    "PLAN_FOLDER",
+    "PLAN_LIFETIME",
+    "YES_OR_NO",
+    "ImportPlan",
+    "ImportProblem",
+    "ImportRow",
+    "build_plan",
+    "cell_text",
+    "check_row",
+    "import_columns",
+    "load_plan",
+    "match_headers",
+    "normalize",
+    "read_table",
+    "save_plan",
+    "template_csv",
+]
 
 # Files waiting between the preview and the import are kept this long.
 PLAN_LIFETIME = 60 * 60
@@ -129,21 +148,21 @@ class ImportPlan:
 
 def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The paths a file can fill: the key, then the form's own fields."""
-    readonly = set(view.readonly_paths(request))
+    readonly = set(view._readonly_paths(request))
     fields = tuple(
         path
         for path in view.get_form_fields(request)
         if path not in readonly
-        and view.field_for(path).stored
-        and not isinstance(view.field_for(path), FileField)
+        and view._field_for(path).stored
+        and not isinstance(view._field_for(path), FileField)
         and not _is_collection(view, path)
     )
-    key = view.schema.primary_key
+    key = view._schema.primary_key
     return (key[0], *fields) if len(key) == 1 and key[0] not in fields else fields
 
 
 def _is_collection(view: ModelView[Any], path: str) -> bool:
-    item = view.field_for(path)
+    item = view._field_for(path)
     return isinstance(item, RelationField) and item.collection
 
 
@@ -154,7 +173,7 @@ def match_headers(
     known: dict[str, str] = {}
     for path in import_columns(view, request):
         known[path.lower()] = path
-        known[view.label_for(path).strip().lower()] = path
+        known[view._label_for(path).strip().lower()] = path
     matched: list[str | None] = []
     ignored = []
     for header in headers:
@@ -193,7 +212,7 @@ async def build_plan(
         }
         rows.append(ImportRow(number=offset + 2, raw=raw))
 
-    key_name = view.schema.primary_key[0] if len(view.schema.primary_key) == 1 else ""
+    key_name = view._schema.primary_key[0] if len(view._schema.primary_key) == 1 else ""
     existing = await _existing(view, session, rows, key_name, request)
     for row in rows:
         check_row(view, row, key_name, existing, request)
@@ -211,7 +230,7 @@ async def _existing(
     if not key_name:
         return {}
     column = getattr(view.model, key_name)
-    python_type = view.schema.field_named(key_name).python_type
+    python_type = view._schema.field_named(key_name).python_type
     wanted = []
     for key in {row.raw[key_name] for row in rows if row.raw.get(key_name)}:
         try:
@@ -219,9 +238,9 @@ async def _existing(
         except ValueError:
             continue
     found: dict[str, Any] = {}
-    scope = view.scope_for(request)
+    scope = view._scope_for(request)
     for start in range(0, len(wanted), 500):
-        statement = view.repository.base_statement(scope).where(
+        statement = view._repository.base_statement(scope).where(
             column.in_(wanted[start : start + 500])
         )
         for record in (await session.scalars(statement)).all():
@@ -251,7 +270,7 @@ def check_row(
     for path, text in row.raw.items():
         if path == key_name:
             continue
-        item = view.field_for(path)
+        item = view._field_for(path)
         try:
             row.values[path] = item.parse(normalize(item, text))
         except FieldValidationError as error:
@@ -261,7 +280,7 @@ def check_row(
         for path in import_columns(view, request):
             if path == key_name or path in row.raw:
                 continue
-            if view.field_for(path).required:
+            if view._field_for(path).required:
                 row.errors[path] = _("Missing, and a new record needs it.")
 
 
@@ -273,7 +292,7 @@ def normalize(item: Any, text: str) -> str:
     """
     if item.widget == "checkbox" and text.lower() not in YES_OR_NO:
         raise FieldValidationError(item.name, _("Write yes or no."))
-    if isinstance(item, ChoiceField):
+    if isinstance(item, EnumField):
         for value, label in item.choices:
             if text.lower() == label.lower():
                 return value

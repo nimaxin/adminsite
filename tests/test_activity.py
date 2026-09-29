@@ -19,7 +19,7 @@ MONDAY = datetime(2026, 9, 14)
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order {id}"
+    record_title = "Order {id}"
 
 
 class ProductView(ModelView[Product]):

@@ -11,6 +11,13 @@ from adminsite.text import humanize
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "ChangeLine",
+    "GivenLine",
+    "HistoryItem",
+    "describe",
+]
+
 _WHEN = DateTimeField("occurred_at")
 
 
@@ -98,7 +105,7 @@ def _verb(entry: AuditEntry, view: object) -> str:
 
 
 def _label(view: object, name: str) -> str:
-    label_for = getattr(view, "label_for", None)
+    label_for = getattr(view, "_label_for", None)
     if label_for is None:
         return humanize(name)
     try:

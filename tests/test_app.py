@@ -11,9 +11,9 @@ from tests.models import Customer, Order, Product
 class OrderView(ModelView[Order]):
     group = "Sales"
     list_display = ("id", "customer.name", "status", "total", "created_at")
-    ordering = ("-created_at",)
+    fields_default_sort = ("-created_at",)
     page_size = 3
-    display_template = "Order {id}"
+    record_title = "Order {id}"
 
 
 class CustomerView(ModelView[Customer]):

@@ -35,7 +35,7 @@ For anything more than a handful of people, subclass `AuthProvider` and check yo
 ```python
 from sqlalchemy import select
 
-from adminsite.auth import AuthProvider, SignInRefused, verify_password
+from adminsite.auth import AuthProvider, SignInRefusedError, verify_password
 
 
 class StaffAuth(AuthProvider):
@@ -45,7 +45,7 @@ class StaffAuth(AuthProvider):
         if user is None or not verify_password(password, user.password_hash):
             return None
         if not user.is_staff:
-            raise SignInRefused("Not a member of staff.", user=user)
+            raise SignInRefusedError("Not a member of staff.", user=user)
         return user
 
     def identity(self, user) -> str:
@@ -58,14 +58,14 @@ class StaffAuth(AuthProvider):
 
 | Method | What it does |
 |---|---|
-| `verify(username, password)` | Returns the user for these details, or `None`, or raises `SignInRefused`. |
+| `verify(username, password)` | Returns the user for these details, or `None`, or raises `SignInRefusedError`. |
 | `identity(user)` | The short string kept in the session cookie. |
 | `load_user(key)` | Turns that string back into a user on each request. |
 | `sign_in_failed(request, username)` | Runs when a sign in fails, and returns what to say. |
 | `sign_in_values(request)` | What the sign in form starts with. Nothing unless you say. |
 | `may_read_sign_ins(request, reads_everything=...)` | Whether this person sees sign ins on the Activity page. |
 
-`SignInRefused(reason, user=...)` refuses a sign in and says why. The reason goes to the
+`SignInRefusedError(reason, user=...)` refuses a sign in and says why. The reason goes to the
 [audit log](audit.md), filed under that user, and the person signing in is told only what
 `sign_in_failed` returns. `PasswordAuth` gives "There is no such username." or "The password was
 wrong."

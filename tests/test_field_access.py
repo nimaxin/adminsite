@@ -63,8 +63,8 @@ class TestEachPage:
         view = Orders()
 
         assert "total" not in view.get_form_fields("staff", Order(id=1))
-        assert view.exported(["id", "total"], "staff") == ("id",)
-        assert view.exported(["id", "total"], "manager") == ("id", "total")
+        assert view._exported(["id", "total"], "staff") == ("id",)
+        assert view._exported(["id", "total"], "manager") == ("id", "total")
 
     def test_each_page_is_named_to_it(self) -> None:
         asked: list[tuple[str, RequestAction]] = []
@@ -83,7 +83,7 @@ class TestEachPage:
         view.get_detail_fields()
         view.get_form_fields()
         view.get_form_fields(record=Order(id=1))
-        view.exported(["id"])
+        view._exported(["id"])
 
         assert {action for _name, action in asked} == set(RequestAction)
 
@@ -109,19 +109,19 @@ class TestEachPage:
 
         view = Offered()
 
-        assert view.get_column_choices("staff") == ("id",)
-        assert view.get_column_choices("manager") == ("id", "total")
+        assert view._column_choices("staff") == ("id",)
+        assert view._column_choices("manager") == ("id", "total")
 
     def test_the_list_cannot_be_sorted_by_it(self) -> None:
         view = Orders()
 
-        assert "total" not in view.readable_paths("staff")
-        assert "total" in view.readable_paths("manager")
+        assert "total" not in view._readable_paths("staff")
+        assert "total" in view._readable_paths("manager")
 
     def test_the_form_does_not_read_it_back(self) -> None:
         submitted = {"customer": "1", "status": "paid", "total": "0", "note": ""}
 
-        result = Orders().parse_form(submitted, record=Order(id=1), request="staff")
+        result = Orders()._parse_form(submitted, record=Order(id=1), request="staff")
 
         assert "total" not in result.values
         assert result.values["status"] == OrderStatus.PAID
@@ -187,9 +187,9 @@ class TestGetReadonlyFields:
         shipped = Order(id=1, status=OrderStatus.SHIPPED)
         pending = Order(id=2, status=OrderStatus.PENDING)
 
-        assert view.readonly_paths(None, shipped) == ("customer", "status")
-        assert view.readonly_paths(None, pending) == ()
-        result = view.parse_form(
+        assert view._readonly_paths(None, shipped) == ("customer", "status")
+        assert view._readonly_paths(None, pending) == ()
+        result = view._parse_form(
             {"customer": "2", "status": "paid", "note": "Gift"}, record=shipped
         )
         assert result.values == {"note": "Gift"}
@@ -198,7 +198,7 @@ class TestGetReadonlyFields:
         class Fixed(ModelView[Order]):
             fields = [Order.status, Field(Order.total, read_only=True)]
 
-        assert Fixed().readonly_paths(None, Order(id=1)) == ("total",)
+        assert Fixed()._readonly_paths(None, Order(id=1)) == ("total",)
 
     def test_a_misspelt_name_is_refused(self) -> None:
         class Misspelt(ModelView[Order]):
@@ -208,7 +208,7 @@ class TestGetReadonlyFields:
                 return ["stauts"]
 
         with pytest.raises(AdminSiteError) as raised:
-            Misspelt().readonly_paths()
+            Misspelt()._readonly_paths()
 
         assert str(raised.value).startswith(
             "Misspelt.get_readonly_fields: Order has no column or relationship "

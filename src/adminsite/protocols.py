@@ -2,6 +2,10 @@ from typing import Any, Protocol
 
 from adminsite.schema import FieldPath, ModelSchema
 
+__all__ = [
+    "ModelInspector",
+]
+
 
 class ModelInspector(Protocol):
     """Reads models of one ORM and describes them the same way for everyone."""

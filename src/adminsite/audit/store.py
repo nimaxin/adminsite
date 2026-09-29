@@ -7,6 +7,13 @@ from typing import Protocol, runtime_checkable
 from adminsite.audit.entry import AuditEntry, AuditEvent
 from adminsite.backends.sqlalchemy.session import Database
 
+__all__ = [
+    "AuditQuery",
+    "AuditStore",
+    "lives_in",
+    "record_or_warn",
+]
+
 logger = logging.getLogger("adminsite")
 
 

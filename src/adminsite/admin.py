@@ -40,6 +40,16 @@ from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 from adminsite.views.model_view import view_class
 
+__all__ = [
+    "HEADINGS",
+    "LANGUAGE_COOKIE",
+    "RESERVED_PAGES",
+    "SAFE_METHODS",
+    "STATIC_DIR",
+    "Admin",
+    "Endpoint",
+]
+
 STATIC_DIR = Path(__file__).parent / "static"
 
 HEADINGS = {403: "Not allowed", 404: "Not found"}
@@ -70,7 +80,7 @@ class Admin:
         banner: str = "",
         views: Sequence[ModelView[Any] | type[ModelView[Any]]] = (),
         inspector: SQLAlchemyInspector | None = None,
-        fields: FieldRegistry | None = None,
+        field_registry: FieldRegistry | None = None,
         template_dirs: Sequence[str | Path] = (),
         auth: AuthProvider | None = None,
         secret_key: str = "",
@@ -97,7 +107,7 @@ class Admin:
         # that this copy is a staging one. Escaped, unless given as Html.
         self.banner = banner
         self.inspector = inspector or SQLAlchemyInspector()
-        self.fields = fields or default_registry
+        self.field_registry = field_registry or default_registry
         self.views = ViewRegistry()
         self.templates = Templates(template_dirs)
         self.auth = auth
@@ -142,13 +152,13 @@ class Admin:
         built = (
             view
             if isinstance(view, ModelView)
-            else view_class(view)(self.inspector, self.fields)
+            else view_class(view)(self.inspector, self.field_registry)
         )
-        built.check_database(self.database.is_async)
-        if built.audit is None:
-            built.audit = self.audit
-        if built.audit is not None:
-            built.audit_with_changes = lives_in(built.audit, self.database)
+        built._check_database(self.database.is_async)
+        if built._audit_log is None:
+            built._audit_log = self.audit
+        if built._audit_log is not None:
+            built._audit_with_changes = lives_in(built._audit_log, self.database)
         return self.views.add(built)
 
     def add_page(self, page: AdminPage | type[AdminPage]) -> AdminPage:

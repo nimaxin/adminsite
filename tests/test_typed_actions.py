@@ -198,7 +198,7 @@ async def order_status(database: Database, key: int) -> OrderStatus:
 
 
 def inputs_of(name: str) -> dict[str, Any]:
-    return {item.name: item for item in OrderView().action_named(name).inputs}
+    return {item.name: item for item in OrderView()._action_named(name).inputs}
 
 
 class TestWhatTheDialogAsksFor:
@@ -271,7 +271,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        asked = Notes().action_named("note").inputs
+        asked = Notes()._action_named("note").inputs
 
         assert [(item.label, item.required) for item in asked] == [
             ("Inside", False),
@@ -290,7 +290,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        carriers, customers = Offers().action_named("offer").inputs
+        carriers, customers = Offers()._action_named("offer").inputs
 
         assert isinstance(carriers, EnumField)
         assert carriers.multiple is True

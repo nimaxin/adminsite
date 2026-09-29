@@ -13,10 +13,12 @@ the module is imported, so it never reaches a running admin.
 """
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
 
-from adminsite import ModelView, SaveContext, Statement
+from adminsite import Admin, Inline, ModelView, RecentRecords, SaveContext, Statement
 from adminsite.actions import Selection, action
+from adminsite.fields import default_registry
 from tests.reference.models import Customer, Order
 
 
@@ -36,3 +38,14 @@ class WrongActions(ModelView[Order]):
     @action("Oops", on="records")  # type: ignore[arg-type]  # no such target
     async def oops(self, selection: Selection[Order]) -> str:
         return ""
+
+
+def old_names(engine: AsyncEngine) -> None:
+    """Keywords and classes 0.1.0a10 renamed, written the old way."""
+    from adminsite.auth import SignInRefused  # type: ignore[attr-defined]
+    from adminsite.fields import ChoiceField, TextField  # type: ignore[attr-defined]
+
+    Inline(Order.items, extra=1)  # type: ignore[call-arg]
+    RecentRecords("Latest", "orders", detail="total")  # type: ignore[call-arg]
+    Admin(engine, fields=default_registry)  # type: ignore[call-arg]
+    print(SignInRefused, ChoiceField, TextField)

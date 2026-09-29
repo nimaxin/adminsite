@@ -1,5 +1,9 @@
 from typing import Any
 
+__all__ = [
+    "FieldOptions",
+]
+
 
 class FieldOptions:
     """Changes to the field adminsite worked out for a path.

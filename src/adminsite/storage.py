@@ -6,6 +6,11 @@ from sqlalchemy.schema import CreateColumn
 
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
 
+__all__ = [
+    "Store",
+    "add_missing",
+]
+
 
 class Store:
     """Tables adminsite keeps for itself, such as the audit log.

@@ -1,6 +1,10 @@
 from decimal import InvalidOperation
 from typing import Any
 
+__all__ = [
+    "to_column_type",
+]
+
 
 def to_column_type(python_type: type[Any], value: Any) -> Any:
     """Convert text from a URL or a form to the type a column holds.

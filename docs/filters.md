@@ -5,11 +5,11 @@ the URL, so a filtered list can be bookmarked or sent to someone.
 
 ## Built in
 
-Name a path in `list_filter` and adminsite picks the filter that fits the column:
+Name a path in `list_filters` and adminsite picks the filter that fits the column:
 
 ```python
 class OrderView(ModelView[Order]):
-    list_filter = ("status", "total", "created_at", "customer", "customer.region")
+    list_filters = ("status", "total", "created_at", "customer", "customer.region")
 ```
 
 | Column | Filter | In the URL |
@@ -34,7 +34,7 @@ from adminsite.backends.sqlalchemy import ChoiceFilter
 
 
 class OrderView(ModelView[Order]):
-    list_filter = (
+    list_filters = (
         ChoiceFilter(
             "status",
             choices=(("PAID", "Paid"), ("SHIPPED", "Shipped")),
@@ -71,7 +71,7 @@ class DeliveryFilter(SQLFilter[Order]):
 
 
 class OrderView(ModelView[Order]):
-    list_filter = ("status", DeliveryFilter("delivery", label="Delivery"))
+    list_filters = ("status", DeliveryFilter("delivery", label="Delivery"))
 ```
 
 `SQLFilter[Order]` is a filter of orders, so `repository` reads orders. `value.first` is the
@@ -102,8 +102,8 @@ class BigSpenders(SQLFilter[Customer]):
         return statement.where(Customer.id.in_(spent))
 ```
 
-A filter can also depend on who is asking: return it from `get_filters(request)` instead of naming
-it in `list_filter`, and it is offered and applied for that request alone.
+A filter can also depend on who is asking: return it from `get_list_filters(request)` instead of
+naming it in `list_filters`, and it is offered and applied for that request alone.
 
 ## One place for every read
 

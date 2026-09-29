@@ -10,6 +10,11 @@ from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import humanize
 
+__all__ = [
+    "TONES",
+    "EnumField",
+]
+
 # How many badge tones the stylesheet has; choices past the sixth start over.
 TONES = 6
 
@@ -206,7 +211,3 @@ def _written(value: Any) -> str:
     if isinstance(value, Enum):
         return f"{type(value).__name__}.{value.name}"
     return repr(value)
-
-
-# The name EnumField had until 0.1.0a10, which refuses it.
-ChoiceField = EnumField

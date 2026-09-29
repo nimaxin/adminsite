@@ -170,10 +170,10 @@ here as on any other page. A user who may see only their own region's customers 
 the picker, and a view nobody may open offers nothing at all. Where the other model has no view of
 its own, there is nothing to ask and its records are read directly.
 
-The search looks in the target view's `search_fields`. Where it names none, it looks in the text
+The search looks in the target view's `searchable_fields`. Where it names none, it looks in the text
 columns the records are named by, which the picker is already showing. So a column a view keeps off
 its pages cannot be read a letter at a time through a picker, and a target with neither
-`search_fields` nor a `record_title` cannot be narrowed at all.
+`searchable_fields` nor a `record_title` cannot be narrowed at all.
 
 ### When the order means something
 
@@ -484,8 +484,8 @@ a `PATCH` the same way, and never sends it back. As one of an
 
 ### A value kept somewhere else
 
-A form-only field starts empty. To start it from somewhere else, answer `form_values`, which is
-given the session and the record, or None on the form for a new one:
+A form-only field starts empty. To start it from somewhere else, answer `form_only_values`,
+which is given the session and the record, or None on the form for a new one:
 
 ```python
 from sqlalchemy import delete, select
@@ -496,7 +496,7 @@ from adminsite.fields import JSONField
 class GroupView(ModelView[Group]):
     fields = [Group.name, JSONField("settings", form_only=True)]
 
-    async def form_values(self, session, record, *, request=None):
+    async def form_only_values(self, session, record, *, request):
         if record is None:
             return {}
         rows = await session.scalars(

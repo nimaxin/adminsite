@@ -27,7 +27,7 @@ admin = Admin(
             .order_by(order_day),
             format="€{:,.2f}",
         ),
-        RecentRecords("Latest orders", "orders", sort="-created_at", detail="total"),
+        RecentRecords("Latest orders", "orders", sort="-created_at", value="total"),
     ],
 )
 ```
@@ -79,7 +79,7 @@ The latest records of a view, each linking to its page. It reads through the vie
 | Option | What it does |
 |---|---|
 | `sort` | The order, such as `"-created_at"`. The view's own ordering if left out. |
-| `detail` | A path shown at the right of each record, such as `"total"`. |
+| `value` | A path shown at the right of each record, such as `"total"`. |
 | `limit` | How many records. Five unless you say. |
 
 ### ModelCounts

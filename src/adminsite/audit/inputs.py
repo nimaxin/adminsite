@@ -6,6 +6,15 @@ from starlette.datastructures import UploadFile
 
 from adminsite.audit.entry import as_json
 
+__all__ = [
+    "HIDDEN",
+    "SECRET_KEYS",
+    "SECRET_WORDS",
+    "looks_secret",
+    "recorded_inputs",
+    "recorded_value",
+]
+
 # A name holding one of these words, such as "password_hash", holds a
 # secret. A field says otherwise with `secret=`.
 SECRET_WORDS = frozenset(

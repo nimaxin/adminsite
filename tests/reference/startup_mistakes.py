@@ -7,6 +7,7 @@ message naming the view, the setting and the words in `EXPECTED`.
 from typing import Any
 
 from pydantic import BaseModel
+from starlette.requests import Request
 
 from adminsite import Field, Link, ModelView
 from adminsite.actions import Selection, action
@@ -74,6 +75,68 @@ class InputNobodyCanDraw(ModelView[Order]):
         return ""
 
 
+# Names 0.1.0a10 changed, each written the old way. Python takes an old name
+# as one more attribute, which adminsite would never read.
+
+
+class OldListFilter(ModelView[Order]):
+    list_filter = [Order.status]
+
+
+class OldPageSizes(ModelView[Order]):
+    page_sizes = [25, 50]
+
+
+class OldBulkDelete(ModelView[Order]):
+    bulk_delete = False
+
+
+class OldSearchFields(ModelView[Order]):
+    search_fields = [Order.note]
+
+
+class OldOrdering(ModelView[Order]):
+    ordering = ["-created_at"]
+
+
+class OldDisplayTemplate(ModelView[Order]):
+    display_template = "Order #{id}"
+
+
+class OldCanDetail(ModelView[Order]):
+    can_detail = False
+
+
+class OldGetFilters(ModelView[Order]):
+    def get_filters(self, request: Request) -> list[str]:
+        return ["status"]
+
+
+class OldGetSearchFields(ModelView[Order]):
+    def get_search_fields(self, request: Request) -> list[str]:
+        return ["note"]
+
+
+class OldGetOrdering(ModelView[Order]):
+    def get_ordering(self, request: Request) -> list[str]:
+        return ["-created_at"]
+
+
+class OldTitleOf(ModelView[Order]):
+    def title_of(self, record: Order) -> str:
+        return f"Order #{record.id}"
+
+
+class OldFormValues(ModelView[Order]):
+    async def form_values(self, session: Any, record: Any, *, request: Any) -> Any:
+        return {}
+
+
+class OldDeleteSelected(ModelView[Order]):
+    async def delete_selected(self, selection: Selection[Order]) -> str:
+        return "Nothing deleted."
+
+
 # The words each refusal must contain, besides the view's name. Views of
 # different models share the dict, which is the boundary where Any belongs.
 EXPECTED: dict[type[ModelView[Any]], list[str]] = {
@@ -88,4 +151,17 @@ EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     ChoicesMissing: ["region", "choices"],
     ToneForUnknownValue: ['"US"', "tones"],
     InputNobodyCanDraw: ["carrier", "Carrier"],
+    OldListFilter: ["list_filter", "list_filters"],
+    OldPageSizes: ["page_sizes", "page_size_options"],
+    OldBulkDelete: ["bulk_delete", "can_delete_selected"],
+    OldSearchFields: ["search_fields", "searchable_fields"],
+    OldOrdering: ["ordering", "fields_default_sort"],
+    OldDisplayTemplate: ["display_template", "record_title"],
+    OldCanDetail: ["can_detail", "can_view_detail"],
+    OldGetFilters: ["get_filters", "get_list_filters"],
+    OldGetSearchFields: ["get_search_fields", "get_searchable_fields"],
+    OldGetOrdering: ["get_ordering", "get_fields_default_sort"],
+    OldTitleOf: ["title_of", "get_record_title"],
+    OldFormValues: ["form_values", "form_only_values"],
+    OldDeleteSelected: ["delete_selected", "can_delete_selected = False"],
 }

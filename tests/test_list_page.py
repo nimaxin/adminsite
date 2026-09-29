@@ -12,16 +12,16 @@ from tests.models import Customer, Order
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total", "created_at")
-    search_fields = ("id", "customer.name", "customer.email")
-    list_filter = ("status", "total", "created_at")
-    ordering = ("-created_at",)
+    searchable_fields = ("id", "customer.name", "customer.email")
+    list_filters = ("status", "total", "created_at")
+    fields_default_sort = ("-created_at",)
     page_size = 5
 
 
 class CustomerView(ModelView[Customer]):
     list_display = ("name", "email", "region", "is_active")
-    search_fields = ("name", "email")
-    list_filter = ("region", "is_active")
+    searchable_fields = ("name", "email")
+    list_filters = ("region", "is_active")
 
 
 @pytest.fixture

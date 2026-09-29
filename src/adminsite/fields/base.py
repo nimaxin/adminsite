@@ -6,10 +6,15 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import QueryableAttribute
 
 from adminsite.columns import Link, describe, written_path
-from adminsite.exceptions import FieldValidationError
+from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import as_text, humanize
+
+__all__ = [
+    "BaseField",
+    "Field",
+]
 
 V = TypeVar("V")
 
@@ -75,7 +80,15 @@ class BaseField:
     stored = True
     # Whether leaving the input empty on an existing record keeps what the
     # record has, instead of clearing it, as for a password.
-    blank_keeps = False
+    keeps_value_when_blank = False
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "blank_keeps" in vars(cls):
+            raise AdminSiteError(
+                f"{cls.__name__} sets blank_keeps, which is called "
+                "keeps_value_when_blank now. Rename it to keeps_value_when_blank."
+            )
 
     def __post_init__(self) -> None:
         self.labelled = bool(self.label)

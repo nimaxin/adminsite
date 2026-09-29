@@ -7,6 +7,10 @@ from adminsite.views.model_view import ModelView, view_class
 if TYPE_CHECKING:
     from adminsite.fields import RelationField
 
+__all__ = [
+    "ViewRegistry",
+]
+
 
 class ViewRegistry:
     """Holds the views of one admin, in the order they were added."""
@@ -23,10 +27,10 @@ class ViewRegistry:
                 f"Two views are called {built.name!r}. "
                 "Give one of them a different name."
             )
-        built.views = self
+        built._views = self
         # The rows an inline edits name their links as this admin's views do.
         for inline in built.inlines:
-            built.inline_view(inline.name).views = self
+            built._inline_view(inline.name)._views = self
         self._views.append(built)
         self._by_name[built.name] = built
         return built

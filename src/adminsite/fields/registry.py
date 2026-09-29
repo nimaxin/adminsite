@@ -20,6 +20,13 @@ from adminsite.fields.scalars import (
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 from adminsite.schema import FieldSchema
 
+__all__ = [
+    "TEXTAREA_LENGTH",
+    "FieldRegistry",
+    "build_default_registry",
+    "default_registry",
+]
+
 # Above this length a string is edited in a box instead of on one line.
 TEXTAREA_LENGTH = 255
 

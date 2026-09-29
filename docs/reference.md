@@ -23,15 +23,16 @@ The classes you use most, with their signatures and docstrings.
     options:
       members:
         - get_list_display
-        - get_search_fields
-        - get_filters
-        - get_ordering
+        - get_searchable_fields
+        - get_list_filters
+        - get_fields_default_sort
         - get_form_fields
         - get_readonly_fields
         - can_access_field
         - get_actions
+        - get_deferred_fields
         - get_inlines
-        - get_column_choices
+        - form_only_values
         - allows
         - scope_query
         - search_condition

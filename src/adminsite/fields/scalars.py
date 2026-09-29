@@ -9,6 +9,18 @@ from adminsite.fields.base import Field
 from adminsite.fields.tones import NEUTRAL, TONE_NAMES, Tone, tone_number
 from adminsite.i18n import gettext as _
 
+__all__ = [
+    "TRUE_VALUES",
+    "BooleanField",
+    "DecimalField",
+    "EmailField",
+    "FloatField",
+    "IntegerField",
+    "StringField",
+    "TextAreaField",
+    "UUIDField",
+]
+
 TRUE_VALUES = frozenset({"1", "true", "on", "yes"})
 
 
@@ -26,10 +38,6 @@ class TextAreaField(StringField):
     """A longer piece of text, edited in a box."""
 
     widget = "textarea"
-
-
-# The name TextAreaField had until 0.1.0a10, which refuses it.
-TextField = TextAreaField
 
 
 @dataclass(eq=False, repr=False)

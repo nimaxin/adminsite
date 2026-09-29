@@ -11,27 +11,27 @@ from tests.models import Customer, Order, Product
 
 
 class CustomerView(ModelView[Customer]):
-    display_template = "{name} ({email})"
-    search_fields = ("name", "email")
+    record_title = "{name} ({email})"
+    searchable_fields = ("name", "email")
 
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
 
 
 class OrderView(ModelView[Order]):
-    display_template = "Order #{id}"
-    search_fields = ("customer.name",)
+    record_title = "Order #{id}"
+    searchable_fields = ("customer.name",)
     can_create = False
 
 
 class ProductView(ModelView[Product]):
-    search_fields = ("name",)
+    searchable_fields = ("name",)
     global_search = False
 
 
 class SecretView(ModelView[Product]):
     name = "secrets"
-    search_fields = ("name",)
+    searchable_fields = ("name",)
 
     async def allows(
         self, action: Permission | str, *, request: Any = None, record: Any = None

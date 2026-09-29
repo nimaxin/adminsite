@@ -5,6 +5,14 @@ from typing import Any
 
 from adminsite.exceptions import UnknownFieldError
 
+__all__ = [
+    "FieldPath",
+    "FieldSchema",
+    "ModelSchema",
+    "RelationDirection",
+    "RelationSchema",
+]
+
 
 class RelationDirection(StrEnum):
     """How a relationship joins two models."""

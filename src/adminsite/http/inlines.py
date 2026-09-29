@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.fields import ChoiceField, RelationField
+from adminsite.fields import EnumField, RelationField
 from adminsite.http.forms import title_for
 from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.http.rows import Choice, FormRow
@@ -12,6 +12,14 @@ from adminsite.views import Inline, ModelView
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+
+__all__ = [
+    "BLANK_INDEX",
+    "InlineTable",
+    "InlineTableRow",
+    "build_inline_tables",
+    "child_tables",
+]
 
 # Stands in for the row number in the blank row that "add another" copies.
 BLANK_INDEX = "__index__"
@@ -62,7 +70,7 @@ class _CellMaker:
     def __call__(
         self, index: int | str, path: str, current: Any, raw: Any = None
     ) -> FormRow:
-        item = self.child.field_for(path)
+        item = self.child._field_for(path)
         name = self.inline.input_name(index, path)
         row = FormRow(
             path=name,
@@ -78,7 +86,7 @@ class _CellMaker:
             # A linked record is named as the form names it, not by its bare
             # text, which for a model is only its class and address.
             row.display = title_for(self.admin, item, current)
-        if isinstance(item, ChoiceField):
+        if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = (row.value,) if row.value else ()
         elif isinstance(item, RelationField) and path in self.options:
@@ -110,20 +118,20 @@ async def build_inline_tables(
     errors = errors or {}
     tables = []
     for inline in view.get_inlines(request, record):
-        child = view.inline_view(inline.name)
+        child = view._inline_view(inline.name)
         paths = child.get_form_fields(request)
-        readonly = set(child.readonly_paths(request))
+        readonly = set(child._readonly_paths(request))
         options = {
             path: await _relation_options(
-                admin, session, child.field_for(path), request
+                admin, session, child._field_for(path), request
             )
             for path in paths
-            if isinstance(child.field_for(path), RelationField)
+            if isinstance(child._field_for(path), RelationField)
         }
         table = InlineTable(
             inline=inline,
-            label=inline.label or view.label_for(inline.name),
-            headers=[child.label_for(path) for path in paths],
+            label=inline.label or view._label_for(inline.name),
+            headers=[child._label_for(path) for path in paths],
         )
 
         cell = _CellMaker(
@@ -142,16 +150,16 @@ async def build_inline_tables(
             for index, found in enumerate(children):
                 table.rows.append(
                     InlineTableRow(
-                        key=child.identity_of(found),
+                        key=child._identity_of(found),
                         cells=[
-                            cell(index, path, child.value_at(found, path))
+                            cell(index, path, child._value_at(found, path))
                             for path in paths
                         ],
                     )
                 )
             # Blank rows only where there are no rows yet: a record that has
             # its children needs no empty line under them, only a way to add one.
-            for extra in range(0 if children else inline.extra):
+            for extra in range(0 if children else inline.blank_rows):
                 index = len(children) + extra
                 table.rows.append(
                     InlineTableRow(
@@ -232,16 +240,19 @@ def child_tables(
     """The children of a record, read only, for its detail page."""
     tables = []
     for inline in view.get_inlines(request, record):
-        child = view.inline_view(inline.name)
+        child = view._inline_view(inline.name)
         paths = child.get_form_fields(request)
         children = list(getattr(record, inline.name, None) or [])
         tables.append(
             {
-                "label": inline.label or view.label_for(inline.name),
-                "headers": [child.label_for(path) for path in paths],
-                "numeric": [child.field_for(path).widget == "number" for path in paths],
+                "label": inline.label or view._label_for(inline.name),
+                "headers": [child._label_for(path) for path in paths],
+                "numeric": [
+                    child._field_for(path).widget == "number" for path in paths
+                ],
                 "rows": [
-                    [child.display(found, path) for path in paths] for found in children
+                    [child._display(found, path) for path in paths]
+                    for found in children
                 ],
             }
         )

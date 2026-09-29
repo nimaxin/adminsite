@@ -17,6 +17,20 @@ from functools import cache
 from importlib import resources
 from typing import Any
 
+__all__ = [
+    "DEFAULT_LANGUAGE",
+    "NATIVE_NAMES",
+    "RIGHT_TO_LEFT",
+    "activate",
+    "built_in",
+    "current_language",
+    "direction",
+    "gettext",
+    "native_name",
+    "negotiate",
+    "shipped_languages",
+]
+
 DEFAULT_LANGUAGE = "en"
 
 # Languages written right to left, so the page is mirrored.

@@ -16,8 +16,8 @@ from tests.models import Order
 class OrderView(ModelView[Order]):
     list_display = ("id", "status", "total")
     list_columns = ("note", "created_at")
-    search_fields = ("customer.name",)
-    list_filter = ("status",)
+    searchable_fields = ("customer.name",)
+    list_filters = ("status",)
 
 
 @pytest.fixture
@@ -96,22 +96,22 @@ class TestPickingColumns:
     def test_only_columns_on_offer_count(self) -> None:
         view = OrderView()
 
-        assert view.pick_columns(["total", "secret", "note"]) == ("total", "note")
+        assert view._pick_columns(["total", "secret", "note"]) == ("total", "note")
 
     def test_the_order_follows_the_picker(self) -> None:
         view = OrderView()
 
-        assert view.pick_columns(["note", "id"]) == ("id", "note")
+        assert view._pick_columns(["note", "id"]) == ("id", "note")
 
     def test_picking_nothing_gives_the_default(self) -> None:
         view = OrderView()
 
-        assert view.pick_columns([]) == ("id", "status", "total")
+        assert view._pick_columns([]) == ("id", "status", "total")
 
     def test_the_extras_follow_the_list_columns(self) -> None:
         view = OrderView()
 
-        assert view.get_column_choices() == (
+        assert view._column_choices() == (
             "id",
             "status",
             "total",

@@ -87,14 +87,15 @@ class TestAName:
             fields = ["lines", Order.id, ComputedField("lines", line_count)]
             exclude_fields_from_export = ["lines"]
 
-        assert Excluded().exported(["id", "lines"]) == ("id",)
+        assert Excluded()._exported(["id", "lines"]) == ("id",)
 
     def test_a_filter_is_checked(self) -> None:
         class Filtered(ModelView[Order]):
-            list_filter = ["stauts"]
+            list_filters = ["stauts"]
 
-        assert 'Filtered.list_filter: Order has no column or relationship "stauts"' in (
-            refusal(Filtered)
+        assert (
+            'Filtered.list_filters: Order has no column or relationship "stauts"'
+            in (refusal(Filtered))
         )
 
     def test_what_a_computed_field_needs_is_checked(self) -> None:
@@ -147,14 +148,6 @@ class TestARecordTitle:
         order = Order(id=3, customer=Customer(name="Lena"))
 
         assert Titled().get_record_title(order) == "Lena, #3"
-
-    def test_the_old_name_is_checked_the_same_way(self) -> None:
-        class Titled(ModelView[Order]):
-            display_template = "{nmae}"
-
-        assert refusal(Titled).startswith(
-            'Titled.display_template: "{nmae}" reads {nmae}, and Order has no '
-        )
 
     def test_an_inline_s_is_checked_against_its_model(self) -> None:
         class WithLines(ModelView[Order]):
@@ -238,4 +231,4 @@ class TestAField:
         class Statuses(ModelView[Order]):
             fields = [EnumField(Order.status)]
 
-        assert Statuses().field_for("status").display("PAID") == "Paid"
+        assert Statuses()._field_for("status").display("PAID") == "Paid"

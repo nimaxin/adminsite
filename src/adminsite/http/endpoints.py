@@ -19,7 +19,7 @@ from adminsite.exceptions import (
     FieldValidationError,
     PermissionDeniedError,
     RefusedError,
-    SignInRefused,
+    SignInRefusedError,
 )
 from adminsite.fields import FileField, JSONField, RelationField
 from adminsite.fields.documents import DocumentError
@@ -63,6 +63,59 @@ from adminsite.views.writing import FormResult
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "HISTORY_LIMIT",
+    "MANY_LINKS_SHOWN",
+    "LinkedRecord",
+    "action_lookup",
+    "activity",
+    "after_save",
+    "back_from_action",
+    "back_to_list",
+    "choose_language",
+    "computed_needs",
+    "create_form",
+    "create_record",
+    "custom_page",
+    "delete_list_view",
+    "delete_record",
+    "detail",
+    "document",
+    "edit_form",
+    "edit_record",
+    "export_records",
+    "field_or_404",
+    "find_view",
+    "form_again",
+    "form_context",
+    "import_form",
+    "import_preview",
+    "import_records",
+    "import_template",
+    "index",
+    "key_of",
+    "key_text",
+    "linked_records",
+    "list_query",
+    "list_records",
+    "load_or_404",
+    "login",
+    "login_form",
+    "logout",
+    "looked_up",
+    "lookup",
+    "many_links",
+    "many_links_text",
+    "note_sign_in",
+    "perform",
+    "read_form",
+    "read_key",
+    "run_action",
+    "save_list_view",
+    "stored_file",
+    "view_that_opens",
+]
+
 # How many entries a record's History tab shows before sending the rest
 # to the Activity page, which pages through them.
 HISTORY_LIMIT = 20
@@ -79,7 +132,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     view = find_view(admin, request)
     read = read_list_request(request, view)
 
-    spec = view.build_spec(
+    spec = view._build_spec(
         request=request,
         search=read.search,
         filters=read.values,
@@ -91,8 +144,8 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         size=read.size,
     )
     async with admin.database.session() as session:
-        page = await view.fetch_page(session, spec, request=request)
-        await view.load_values(
+        page = await view._fetch_page(session, spec, request=request)
+        await view._load_values(
             session,
             list(page),
             read.columns or view.get_list_display(request),
@@ -142,7 +195,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     )
     # A record action can be refused for one record and allowed for the next.
     context["row_actions"] = {
-        view.identity_of(record): [
+        view._identity_of(record): [
             item
             for item in record_actions
             if await view.allows(item.permission, request=request, record=record)
@@ -162,7 +215,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
 async def stored_file(admin: "Admin", request: Request) -> Response:
     """A file kept by one of a view's file fields, for whoever may open the view."""
     view = find_view(admin, request)
-    await view.ensure(Permission.VIEW, request=request)
+    await view._ensure(Permission.VIEW, request=request)
     item = field_or_404(view, request.path_params["path"])
     if not isinstance(item, FileField):
         raise HTTPException(status_code=404, detail=_("No such file."))
@@ -213,7 +266,7 @@ async def import_form(admin: "Admin", request: Request) -> Response:
 async def import_template(admin: "Admin", request: Request) -> Response:
     """An empty CSV with the columns an import takes."""
     view = find_view(admin, request)
-    await view.ensure(Permission.IMPORT, request=request)
+    await view._ensure(Permission.IMPORT, request=request)
     return importing.template_response(view, request)
 
 
@@ -248,7 +301,7 @@ async def delete_list_view(admin: "Admin", request: Request) -> Response:
 async def create_form(admin: "Admin", request: Request) -> Response:
     """The empty form for adding a record."""
     view = find_view(admin, request)
-    await view.ensure(Permission.CREATE, request=request)
+    await view._ensure(Permission.CREATE, request=request)
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, request=request)
@@ -262,17 +315,17 @@ async def create_form(admin: "Admin", request: Request) -> Response:
 async def create_record(admin: "Admin", request: Request) -> Response:
     """Save a new record, or show the form again with what went wrong."""
     view = find_view(admin, request)
-    await view.ensure(Permission.CREATE, request=request)
+    await view._ensure(Permission.CREATE, request=request)
 
     submitted = await read_form(request)
-    result = view.parse_form(submitted, request=request)
+    result = view._parse_form(submitted, request=request)
     async with admin.database.session() as session:
         if not result.ok:
             return await form_again(
                 admin, view, session, request, result, submitted=submitted
             )
         try:
-            record = await view.save(
+            record = await view._save(
                 session,
                 result.values,
                 request=request,
@@ -284,7 +337,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, error, submitted=submitted
             )
 
-        key = view.identity_of(record)
+        key = view._identity_of(record)
 
     add_message(request, _("{thing} created.", thing=view.label))
     return RedirectResponse(await after_save(admin, view, request, key), 303)
@@ -293,7 +346,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
 async def detail(admin: "Admin", request: Request) -> Response:
     """One record, read only."""
     view = find_view(admin, request)
-    await view.ensure(Permission.VIEW_DETAIL, request=request)
+    await view._ensure(Permission.VIEW_DETAIL, request=request)
     # A to-many link is read a few records at a time below, never loaded
     # whole: an invoice may cover thousands of records.
     counted = many_links(view, view.get_detail_fields(request), request)
@@ -307,14 +360,14 @@ async def detail(admin: "Admin", request: Request) -> Response:
         request,
         paths=[
             path
-            for path in view.get_load_paths(request)
+            for path in view._load_paths(request)
             if path not in counted or path in needed
         ],
     )
 
     paths = view.get_detail_fields(request, record)
     async with admin.database.session() as session:
-        await view.load_values(session, [record], paths, request=request)
+        await view._load_values(session, [record], paths, request=request)
     links = await linked_records(admin, view, record, paths, request)
     beside = {link.path for link in links}
     shown = await many_links_text(admin, view, record, counted, request)
@@ -323,17 +376,17 @@ async def detail(admin: "Admin", request: Request) -> Response:
     rows = [
         (
             path,
-            view.label_for(path),
-            shown[path] if path in shown else view.display(record, path),
+            view._label_for(path),
+            shown[path] if path in shown else view._display(record, path),
         )
         for path in paths
         if path not in beside
     ]
-    key = view.identity_of(record)
+    key = view._identity_of(record)
 
     allowed_actions = [
         item
-        for item in view.actions_on("record", request)
+        for item in view._actions_on("record", request)
         if await view.allows(item.permission, request=request, record=record)
     ]
 
@@ -389,12 +442,12 @@ def many_links(
 
     A child table the view edits inline is left alone: it is shown whole.
     """
-    inlines = {inline.name for inline in view.get_inlines(request)}
+    inlines = {inline.name for inline in view.get_inlines(request, None)}
     found = set()
     for path in paths:
-        if "." in path or path in inlines or path not in view.schema.relations:
+        if "." in path or path in inlines or path not in view._schema.relations:
             continue
-        item = view.field_for(path)
+        item = view._field_for(path)
         if isinstance(item, RelationField) and item.collection:
             found.add(path)
     return found
@@ -405,7 +458,7 @@ def computed_needs(view: ModelView[Any], paths: Sequence[str]) -> set[str]:
     return {
         needed
         for path in paths
-        for needed in getattr(view.field_for(path), "needs", ())
+        for needed in getattr(view._field_for(path), "needs", ())
     }
 
 
@@ -422,13 +475,13 @@ async def many_links_text(
     shown = {}
     async with admin.database.session() as session:
         for path in sorted(paths):
-            item = view.field_for(path)
+            item = view._field_for(path)
             if not isinstance(item, RelationField):
                 continue
-            records, total = await view.fetch_related(
+            records, total = await view._fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
-            names = ", ".join(view.name_linked(item, one) for one in records)
+            names = ", ".join(view._name_linked(item, one) for one in records)
             rest = total - len(records)
             if rest > 0:
                 names += _(" and {count} more", count=f"{rest:,}")
@@ -468,16 +521,18 @@ async def linked_records(
     urls = Urls(request)
     found = []
     for path in paths:
-        item = view.field_for(path)
+        item = view._field_for(path)
         if not isinstance(item, RelationField) or item.collection or "." in path:
             continue
-        value = view.value_at(record, path)
+        value = view._value_at(record, path)
         if value is None:
             continue
         target = await view_that_opens(admin, item, value, request)
-        opens = urls.detail(target, target.identity_of(value)) if target else ""
+        opens = urls.detail(target, target._identity_of(value)) if target else ""
         found.append(
-            LinkedRecord(path, view.label_for(path), view.display(record, path), opens)
+            LinkedRecord(
+                path, view._label_for(path), view._display(record, path), opens
+            )
         )
     return found
 
@@ -510,8 +565,8 @@ async def view_that_opens(
     async with admin.database.session() as session:
         for candidate in allowed:
             try:
-                found = await candidate.fetch_record(
-                    session, key_of(candidate.identity_of(value)), request=request
+                found = await candidate._fetch_record(
+                    session, key_of(candidate._identity_of(value)), request=request
                 )
             except PermissionDeniedError:
                 continue
@@ -592,7 +647,7 @@ async def edit_form(admin: "Admin", request: Request) -> Response:
     """The form for changing a record."""
     view = find_view(admin, request)
     record = await load_or_404(admin, view, request)
-    await view.ensure(Permission.EDIT, request=request, record=record)
+    await view._ensure(Permission.EDIT, request=request, record=record)
 
     async with admin.database.session() as session:
         rows = await build_rows(admin, view, session, record=record, request=request)
@@ -615,20 +670,20 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
     submitted = await read_form(request)
 
     async with admin.database.session() as session:
-        record = await view.fetch_record(
-            session, key, paths=view.get_load_paths(request), request=request
+        record = await view._fetch_record(
+            session, key, paths=view._load_paths(request), request=request
         )
         if record is None:
             raise HTTPException(status_code=404, detail=_("No such record."))
-        await view.ensure(Permission.EDIT, request=request, record=record)
+        await view._ensure(Permission.EDIT, request=request, record=record)
 
-        result = view.parse_form(submitted, record=record, request=request)
+        result = view._parse_form(submitted, record=record, request=request)
         if not result.ok:
             return await form_again(
                 admin, view, session, request, result, None, record, submitted
             )
         try:
-            await view.save(
+            await view._save(
                 session,
                 result.values,
                 record=record,
@@ -639,8 +694,8 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
         except AdminSiteError as error:
             # The rollback expired the record, and the form is about to
             # read it again, which an async session cannot do on the fly.
-            record = await view.fetch_record(
-                session, key, paths=view.get_load_paths(request), request=request
+            record = await view._fetch_record(
+                session, key, paths=view._load_paths(request), request=request
             )
             return await form_again(
                 admin, view, session, request, result, error, record, submitted
@@ -656,17 +711,17 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
     await read_form(request)
 
     async with admin.database.session() as session:
-        record = await view.fetch_record(
+        record = await view._fetch_record(
             session,
             read_key(request),
-            paths=view.get_load_paths(request),
+            paths=view._load_paths(request),
             request=request,
         )
         if record is None:
             raise HTTPException(status_code=404, detail=_("No such record."))
-        await view.ensure(Permission.DELETE, request=request, record=record)
+        await view._ensure(Permission.DELETE, request=request, record=record)
         try:
-            await view.delete(session, record, request=request)
+            await view._delete(session, record, request=request)
             await session.commit()
         except RefusedError as error:
             add_message(request, str(error), kind="error")
@@ -685,7 +740,7 @@ async def lookup(admin: "Admin", request: Request) -> Response:
     """
     view = find_view(admin, request)
     if not await view.allows(Permission.CREATE, request=request, record=None):
-        await view.ensure(Permission.EDIT, request=request)
+        await view._ensure(Permission.EDIT, request=request)
 
     path = request.path_params["path"]
     item = field_or_404(view, path)
@@ -715,19 +770,19 @@ async def document(admin: "Admin", request: Request) -> Response:
     record = None
     if "key" in request.path_params:
         record = await load_or_404(admin, view, request)
-        await view.ensure(Permission.EDIT, request=request, record=record)
+        await view._ensure(Permission.EDIT, request=request, record=record)
     else:
-        await view.ensure(Permission.CREATE, request=request)
+        await view._ensure(Permission.CREATE, request=request)
     # Only a field this user edits on this form, so no other is read back.
     editable = set(view.get_form_fields(request, record)) - set(
-        view.readonly_paths(request, record)
+        view._readonly_paths(request, record)
     )
     if path not in editable:
         raise HTTPException(
             status_code=404, detail=_("No field at {path}.", path=repr(path))
         )
     if record is None and item.schema_from_record:
-        record = view.draft_record(submitted, request)
+        record = view._draft_record(submitted, request)
 
     if request.query_params.get("show") == "form":
         row = FormRow(path=path, field=item)
@@ -764,10 +819,10 @@ async def action_lookup(admin: "Admin", request: Request) -> Response:
     """
     view = find_view(admin, request)
     try:
-        found = view.action_named(request.path_params["name"], request)
+        found = view._action_named(request.path_params["name"], request)
     except AdminSiteError:
         raise HTTPException(status_code=404, detail=_("No such action.")) from None
-    await view.ensure(found.permission, request=request)
+    await view._ensure(found.permission, request=request)
 
     name = request.path_params["input"]
     item = next((one for one in found.inputs if one.name == name), None)
@@ -815,7 +870,7 @@ def form_context(
     """What both the create form and the edit form need."""
     urls = Urls(request)
     editing = record is not None
-    key = view.identity_of(record) if editing else ""
+    key = view._identity_of(record) if editing else ""
     return {
         "view": view,
         "rows": rows,
@@ -903,10 +958,10 @@ async def load_or_404(
 ) -> Any:
     """Load the record the URL names, or raise a 404."""
     async with admin.database.session() as session:
-        record = await view.fetch_record(
+        record = await view._fetch_record(
             session,
             read_key(request),
-            paths=view.get_load_paths(request) if paths is None else paths,
+            paths=view._load_paths(request) if paths is None else paths,
             request=request,
         )
     if record is None:
@@ -928,7 +983,7 @@ def find_view(admin: "Admin", request: Request) -> ModelView[Any]:
 def field_or_404(view: ModelView[Any], path: str) -> Any:
     """The field a path in the URL names, or a 404 when it names none."""
     try:
-        return view.field_for(path)
+        return view._field_for(path)
     except AdminSiteError:
         raise HTTPException(
             status_code=404, detail=_("No field at {path}.", path=repr(path))
@@ -983,7 +1038,7 @@ async def login(admin: "Admin", request: Request) -> Response:
         user = await admin.auth.sign_in(
             request, username, str(submitted.get("password", ""))
         )
-    except SignInRefused as refused:
+    except SignInRefusedError as refused:
         await note_sign_in(
             admin,
             request,
@@ -1059,12 +1114,12 @@ async def run_action(admin: "Admin", request: Request) -> Response:
     """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
     try:
-        found = view.action_named(request.path_params["name"], request)
+        found = view._action_named(request.path_params["name"], request)
     except AdminSiteError:
         raise HTTPException(status_code=404, detail=_("No such action.")) from None
 
     submitted = await read_form(request)
-    inputs = view.parse_action_inputs(found, submitted)
+    inputs = view._parse_action_inputs(found, submitted)
     if not inputs.ok:
         problems = "; ".join(
             f"{item.label}: {inputs.errors[item.name]}"
@@ -1128,7 +1183,7 @@ async def perform(
 ) -> Any:
     """Run one action, whatever it acts on."""
     if found.on_view:
-        return await view.run_view_action(
+        return await view._run_view_action(
             found, session, request=request, values=values
         )
 
@@ -1138,20 +1193,20 @@ async def perform(
     if found.on_record:
         record = None
         if chosen:
-            record = await view.fetch_record(
+            record = await view._fetch_record(
                 session,
                 key_of(chosen[0]),
-                paths=view.get_load_paths(request),
+                paths=view._load_paths(request),
                 request=request,
             )
         if record is None:
             raise HTTPException(status_code=404, detail=_("No such record."))
-        return await view.run_record_action(
+        return await view._run_record_action(
             found, record, session, request=request, values=values
         )
 
     read = read_list_request(request, view)
-    spec = view.build_spec(
+    spec = view._build_spec(
         request=request, search=read.search, filters=read.values, sort=read.sort
     )
     selection = Selection(
@@ -1162,7 +1217,7 @@ async def perform(
         everything=submitted.get("everything") == "1",
         request=request,
     )
-    return await view.run_action(found, selection, request=request, values=values)
+    return await view._run_action(found, selection, request=request, values=values)
 
 
 def back_from_action(
@@ -1175,7 +1230,7 @@ def back_from_action(
     """Where an action lands: the record it ran on, or the list it came from."""
     keys = submitted.get("keys", [])
     chosen = keys if isinstance(keys, list) else [keys]
-    if found.on_record and chosen and view.can_view_detail and view.can_detail:
+    if found.on_record and chosen and view.can_view_detail:
         return RedirectResponse(Urls(request).detail(view, str(chosen[0])), 303)
     return back_to_list(request, view)
 
@@ -1183,10 +1238,10 @@ def back_from_action(
 async def export_records(admin: "Admin", request: Request) -> Response:
     """Stream the current list as CSV, filters and all."""
     view = find_view(admin, request)
-    await view.ensure(Permission.EXPORT, request=request)
+    await view._ensure(Permission.EXPORT, request=request)
 
     read = read_list_request(request, view)
-    spec = view.build_spec(
+    spec = view._build_spec(
         request=request,
         search=read.search,
         filters=read.values,

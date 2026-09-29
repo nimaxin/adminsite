@@ -21,7 +21,7 @@ from tests.models import Product
 
 class ProductView(ModelView[Product]):
     list_display = ("id", "name")
-    search_fields = ("name",)
+    searchable_fields = ("name",)
 
     async def before_delete(self, context: DeleteContext[Product]) -> None:
         if context.record.name == "Keep me":
@@ -46,7 +46,7 @@ class ReadOnlyProducts(ModelView[Product]):
 
 class OneAtATime(ModelView[Product]):
     name = "one_at_a_time"
-    bulk_delete = False
+    can_delete_selected = False
 
 
 class OwnDelete(ModelView[Product]):

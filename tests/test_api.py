@@ -10,19 +10,19 @@ from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
-from adminsite.fields import ChoiceField
+from adminsite.fields import EnumField
 from tests.models import Customer, Order, Product
 
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
-    list_filter = ("status",)
-    search_fields = ("customer.name",)
+    list_filters = ("status",)
+    searchable_fields = ("customer.name",)
     form_fields = ("customer", "status", "total", "note", "created_at")
 
     @action(
         "Add a note",
-        inputs=[ChoiceField("tone", choices=(("kind", "Kind"),), required=True)],
+        inputs=[EnumField("tone", choices=(("kind", "Kind"),), required=True)],
     )
     async def add_note(self, selection: Selection[Order], tone: str) -> str:
         changed = await selection.update(note=f"A {tone} note")

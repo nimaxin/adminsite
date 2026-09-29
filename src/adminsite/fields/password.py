@@ -3,6 +3,10 @@ from typing import Any
 
 from adminsite.fields.scalars import StringField
 
+__all__ = [
+    "PasswordField",
+]
+
 
 @dataclass(eq=False, repr=False)
 class PasswordField(StringField):
@@ -32,7 +36,7 @@ class PasswordField(StringField):
     secret: bool | None = True
 
     widget = "password"
-    blank_keeps = True
+    keeps_value_when_blank = True
 
     def parse(self, raw: str | None) -> Any:
         """The password as typed. Spaces around it are part of it.

@@ -33,8 +33,8 @@ from adminsite import Admin, ModelView
 
 class OrderView(ModelView[Order]):
     list_display = ("id", "customer.name", "status", "total")
-    search_fields = ("customer.name", "customer.email")
-    list_filter = ("status", "created_at")
+    searchable_fields = ("customer.name", "customer.email")
+    list_filters = ("status", "created_at")
 
 
 app.mount("/admin", Admin(engine, views=[OrderView]))

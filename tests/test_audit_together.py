@@ -86,7 +86,7 @@ class TestInYourOwnDatabase:
     ) -> None:
         admin = Admin(database, views=[OrderView], audit=kept, secret_key="s")
 
-        assert admin.views.get("orders").audit_with_changes
+        assert admin.views.get("orders")._audit_with_changes
 
     async def test_a_change_and_its_entry_are_saved_together(
         self, database: Database, kept: AuditLog
@@ -123,7 +123,7 @@ class TestInASeparateDatabase:
         async with serve(admin) as client:
             answer = await change_note(client, "Gift wrap")
 
-        assert not admin.views.get("orders").audit_with_changes
+        assert not admin.views.get("orders")._audit_with_changes
         assert answer.status_code == 303
         assert await note_of(database) == "Gift wrap"
         assert "could not be written: updated orders 1." in caplog.text

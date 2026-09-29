@@ -13,6 +13,15 @@ from adminsite.views import ModelView
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+__all__ = [
+    "BATCH_SIZE",
+    "FORMULA_STARTS",
+    "as_cell",
+    "csv_header",
+    "csv_rows",
+    "stream_csv",
+]
+
 # Rows are read and written in batches, so a large table never has to fit
 # in memory at either end.
 BATCH_SIZE = 500
@@ -23,7 +32,7 @@ def csv_rows(view: ModelView[Any], records: Sequence[Any], paths: Sequence[str])
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for record in records:
-        writer.writerow([as_cell(plain(view.display(record, path))) for path in paths])
+        writer.writerow([as_cell(plain(view._display(record, path))) for path in paths])
     return buffer.getvalue()
 
 
@@ -53,7 +62,7 @@ def csv_header(view: ModelView[Any], paths: Sequence[str]) -> str:
     """Write the heading row."""
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="\n").writerow(
-        [view.label_for(path) for path in paths]
+        [view._label_for(path) for path in paths]
     )
     return buffer.getvalue()
 
@@ -70,20 +79,20 @@ async def stream_csv(
     The columns are what the file holds; the spec says what to load, which
     is not the same, since a computed column loads whatever it reads.
     """
-    paths = view.exported(tuple(columns) or view.get_list_display(request), request)
+    paths = view._exported(tuple(columns) or view.get_list_display(request), request)
     yield csv_header(view, paths)
 
     offset = 0
     async with admin.database.session() as session:
         while True:
-            batch = await view.fetch_page(
+            batch = await view._fetch_page(
                 session,
                 spec.replace(limit=BATCH_SIZE, offset=offset),
                 request=request,
             )
             if not len(batch):
                 return
-            await view.load_values(session, list(batch), paths, request=request)
+            await view._load_values(session, list(batch), paths, request=request)
             yield csv_rows(view, list(batch.rows), paths)
             if len(batch) < BATCH_SIZE:
                 return

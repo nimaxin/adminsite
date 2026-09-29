@@ -10,6 +10,11 @@ from adminsite.text import names_itself
 if TYPE_CHECKING:
     from adminsite.views.registry import ViewRegistry
 
+__all__ = [
+    "name_all_linked",
+    "name_linked",
+]
+
 
 def name_linked(
     item: RelationField,
