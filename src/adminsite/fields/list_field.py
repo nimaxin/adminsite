@@ -46,6 +46,11 @@ class ListField(Field[Sequence[Any] | None]):
         """The field each value is read and shown by."""
         return self.item if self.item is not None else StringField(self.name)
 
+    def check_options(self) -> None:
+        """Check the field each value is read by as well."""
+        super().check_options()
+        self.reader.check_options()
+
     def hint(self) -> str:
         """How to fill the input in."""
         return _("One value per line.")

@@ -5,7 +5,7 @@ from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import QueryableAttribute
 
-from adminsite.columns import Link, written_path
+from adminsite.columns import Link, describe, written_path
 from adminsite.exceptions import FieldValidationError
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
@@ -151,8 +151,15 @@ class BaseField:
         filled.labelled = self.labelled
         return filled
 
+    def check_options(self) -> None:
+        """Refuse options that do not fit together, once the column filled its part.
+
+        The view calls it for every field it is given, when it is built, so a
+        mistake stops the admin starting rather than the page that shows it.
+        """
+
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.name!r})"
+        return f"{type(self).__name__}({describe(self.name)})"
 
 
 @dataclass(eq=False, repr=False)
@@ -202,3 +209,6 @@ class Field(BaseField, Generic[V]):
         if self.max_length is None:
             options["max_length"] = schema.max_length
         return options
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({describe(self.column)})"

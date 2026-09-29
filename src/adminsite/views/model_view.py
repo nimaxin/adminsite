@@ -1,5 +1,6 @@
 import types
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from string import Formatter
 from typing import (
@@ -40,6 +41,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.columns import (
     ColumnReference,
     Descending,
+    describe,
     is_column,
     path_of,
     sort_of,
@@ -48,6 +50,7 @@ from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
     InvalidPathError,
+    NotAModelError,
     PermissionDeniedError,
     RecordNotFoundError,
     RefusedError,
@@ -97,6 +100,11 @@ T = TypeVar("T")
 
 # The pages a field can be left off.
 PageName: TypeAlias = Literal["list", "detail", "create", "edit", "export"]
+
+# What a setting may name: any field of the view, a column or relationship
+# of the model, a column, a column the list can be sorted by, or a column of
+# the model itself.
+Takes: TypeAlias = Literal["fields", "paths", "columns", "sortable", "own columns"]
 
 
 class ModelView(Generic[M]):
@@ -237,7 +245,15 @@ class ModelView(Generic[M]):
             )
         self.inspector = inspector or SQLAlchemyInspector()
         self.registry = registry or default_registry
-        self.schema = self.inspector.inspect(self.model)
+        try:
+            self.schema = self.inspector.inspect(self.model)
+        except NotAModelError:
+            view = type(self).__name__
+            raise AdminSiteError(
+                f"{view} shows {getattr(self.model, '__name__', self.model)}, "
+                "which is not a mapped SQLAlchemy model. Name a mapped class: "
+                f"class {view}(ModelView[YourModel])."
+            ) from None
 
         self.name = self.name or pluralize(snake_case(self.model.__name__))
         self.label = self.label or self.schema.label
@@ -247,37 +263,43 @@ class ModelView(Generic[M]):
         self._overrides: dict[str, BaseField] = {}
         self._changes: dict[str, dict[str, Any]] = {}
         self._placed = self._read_fields()
-        self._excluded: dict[PageName, tuple[str, ...]] = {
-            "list": self._paths(
-                "exclude_fields_from_list", self.exclude_fields_from_list
-            ),
-            "detail": self._paths(
-                "exclude_fields_from_detail", self.exclude_fields_from_detail
-            ),
-            "create": self._paths(
-                "exclude_fields_from_create", self.exclude_fields_from_create
-            ),
-            "edit": self._paths(
-                "exclude_fields_from_edit", self.exclude_fields_from_edit
-            ),
-            "export": self._paths(
-                "exclude_fields_from_export", self.exclude_fields_from_export
-            ),
+        exclusions: dict[PageName, Sequence[ColumnReference]] = {
+            "list": self.exclude_fields_from_list,
+            "detail": self.exclude_fields_from_detail,
+            "create": self.exclude_fields_from_create,
+            "edit": self.exclude_fields_from_edit,
+            "export": self.exclude_fields_from_export,
+        }
+        self._excluded = {
+            page: self._paths(f"exclude_fields_from_{page}", entries, takes="fields")
+            for page, entries in exclusions.items()
         }
         self._search_fields = self._paths(
-            "searchable_fields", self.searchable_fields
-        ) or self._paths("search_fields", self.search_fields)
-        self._sortable_fields = self._paths("sortable_fields", self.sortable_fields)
+            "searchable_fields", self.searchable_fields, takes="columns"
+        ) or self._paths("search_fields", self.search_fields, takes="columns")
+        self._sortable_fields = self._paths(
+            "sortable_fields", self.sortable_fields, takes="sortable"
+        )
         self._ordering = self._sorts(
             "fields_default_sort", self.fields_default_sort
         ) or self._sorts("ordering", self.ordering)
-        self._list_display = self._paths("list_display", self.list_display)
-        self._list_columns = self._paths("list_columns", self.list_columns)
-        self._form_fields = self._paths("form_fields", self.form_fields)
-        self._detail_fields = self._paths("detail_fields", self.detail_fields)
-        self._readonly_fields = self._paths("readonly_fields", self.readonly_fields)
-        self._exclude = self._paths("exclude", self.exclude)
-        self._deferred_fields = self._paths("deferred_fields", self.deferred_fields)
+        self._list_display = self._paths(
+            "list_display", self.list_display, takes="fields"
+        )
+        self._list_columns = self._paths(
+            "list_columns", self.list_columns, takes="fields"
+        )
+        self._form_fields = self._paths("form_fields", self.form_fields, takes="fields")
+        self._detail_fields = self._paths(
+            "detail_fields", self.detail_fields, takes="fields"
+        )
+        self._readonly_fields = self._paths(
+            "readonly_fields", self.readonly_fields, takes="fields"
+        )
+        self._exclude = self._paths("exclude", self.exclude, takes="fields")
+        self._deferred_fields = self._paths(
+            "deferred_fields", self.deferred_fields, takes="own columns"
+        )
         # A key the database numbers, or one the parent record's key fills
         # in, is never typed into a form. A key people choose, such as a
         # code, is.
@@ -299,13 +321,13 @@ class ModelView(Generic[M]):
         self.filters: tuple[SQLFilter, ...] = self._build_filters()
         self.repository = SQLAlchemyRepository(self.model, self.inspector, self.filters)
         self._fields: dict[str, BaseField] = {}
-        # Built now, so a mistake such as a column that does not exist, or a
-        # tone that does not exist, stops the admin starting rather than the
-        # page that shows it.
+        # Built now, so a mistake such as a tone for a value the field does
+        # not have stops the admin starting rather than the page that shows it.
         for path in (*self._placed, *self._changes):
             try:
                 self.field_for(path)
-            except (InvalidPathError, UnknownFieldError) as error:
+                self._check_list_flags(path)
+            except AdminSiteError as error:
                 raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
 
     # Reading the configuration. Override these when the answer depends on
@@ -517,6 +539,7 @@ class ModelView(Generic[M]):
 
     def _build_inline_view(self, inline: Inline, setting: str) -> "ModelView[Any]":
         self._converted(setting, inline.relation, path_of)
+        self._check_path(setting, inline.name, self.model, "paths")
         relation = self.schema.relation_named(inline.name)
         if not relation.collection:
             raise AdminSiteError(
@@ -623,8 +646,8 @@ class ModelView(Generic[M]):
         """
         if isinstance(entries, str):
             raise AdminSiteError(
-                f"{type(self).__name__}.{setting} is the string {entries!r}. "
-                f"Make it a list: {setting} = [{entries!r}]."
+                f"{type(self).__name__}.{setting} is the string {describe(entries)}. "
+                f"Make it a list: {setting} = [{describe(entries)}]."
             )
         return entries
 
@@ -650,21 +673,106 @@ class ModelView(Generic[M]):
         setting: str,
         entries: Sequence[ColumnReference],
         model: type[Any] | None = None,
+        *,
+        takes: Takes = "paths",
     ) -> tuple[str, ...]:
-        """The paths a setting names, such as `customer.email`."""
-        return tuple(
-            self._converted(setting, entry, path_of, model)
-            for entry in self._entries(setting, entries)
-        )
+        """The paths a setting names, such as `customer.email`, each checked."""
+        paths = []
+        for entry in self._entries(setting, entries):
+            path = self._converted(setting, entry, path_of, model)
+            self._check_path(setting, path, model or self.model, takes)
+            paths.append(path)
+        return tuple(paths)
 
     def _sorts(
         self, setting: str, entries: Sequence[ColumnReference | Descending]
     ) -> tuple[Sort, ...]:
         """The sorts a setting asks for, in order."""
-        return tuple(
-            self._converted(setting, entry, sort_of)
-            for entry in self._entries(setting, entries)
+        sorts = []
+        for entry in self._entries(setting, entries):
+            sort = self._converted(setting, entry, sort_of)
+            self._check_path(setting, sort.path, self.model, "sortable")
+            sorts.append(sort)
+        return tuple(sorts)
+
+    def _check_path(
+        self, setting: str, path: str, model: type[Any], takes: Takes
+    ) -> None:
+        """Refuse a path the setting cannot take, saying what it can.
+
+        A type checker sees an attribute; only this sees a string, and what
+        the setting does with the path, such as sorting through a
+        relationship holding many records, which no query can.
+        """
+        view = type(self).__name__
+        own = self._own_fields() if model is self.model else {}
+        if path in own:
+            if takes == "fields":
+                return
+            wanted = "columns and relationships" if takes == "paths" else "columns"
+            raise AdminSiteError(
+                f"{view}.{setting}: {own[path]!r} is a field of the view, not a "
+                f"column of {model.__name__}, and {setting} takes {wanted}."
+            )
+        try:
+            resolved = self.inspector.resolve(model, path)
+        except UnknownFieldError as error:
+            listed = own if takes == "fields" else {}
+            raise AdminSiteError(
+                f"{view}.{setting}: {self._missing(path, error, listed)}"
+            ) from None
+        except InvalidPathError as error:
+            raise AdminSiteError(f"{view}.{setting}: {error}") from None
+        if takes in ("columns", "sortable") and resolved.field is None:
+            target = self.inspector.inspect(resolved.relations[-1].target)
+            texts = [
+                name
+                for name, found in target.fields.items()
+                if found.python_type is str
+            ]
+            example = f"{path}.{(texts or list(target.fields))[0]}"
+            raise AdminSiteError(
+                f"{view}.{setting}: {describe(path)} is a relationship, and "
+                f"{setting} takes columns. Name a column of "
+                f"{target.model.__name__}, such as {describe(example)}."
+            )
+        if takes == "sortable" and resolved.crosses_collection:
+            raise AdminSiteError(
+                f"{view}.{setting}: {describe(path)} goes through a relationship "
+                "holding many records, so no list can be sorted by it."
+            )
+        if takes == "own columns" and (resolved.relations or resolved.field is None):
+            raise AdminSiteError(
+                f"{view}.{setting}: {describe(path)} is not a column of "
+                f"{model.__name__} itself, and {setting} takes the model's own "
+                "columns."
+            )
+
+    def _missing(
+        self, path: str, error: UnknownFieldError, own: Mapping[str, BaseField]
+    ) -> str:
+        """Say which name does not exist, and list the names that do."""
+        schema = self.inspector.inspect(error.model)
+        said = (
+            f"{error.model.__name__} has no column or relationship "
+            f"{describe(error.name)}."
         )
+        if error.name != path:
+            said = f"{describe(path)}: {said}"
+        said += f" Its columns: {', '.join(schema.fields)}."
+        if schema.relations:
+            said += f" Its relationships: {', '.join(schema.relations)}."
+        if own and error.name == path:
+            said += f" The view's own fields: {', '.join(own)}."
+        return said
+
+    def _own_fields(self) -> dict[str, BaseField]:
+        """The fields in `fields` that are no column, such as a computed one."""
+        return {
+            path: item
+            for path, item in self._overrides.items()
+            if not isinstance(item, Field) or item.form_only
+        }
 
     def _read_fields(self) -> tuple[str, ...]:
         """The paths `fields` places, in order, keeping the fields it sets.
@@ -674,13 +782,19 @@ class ModelView(Generic[M]):
         twice keeps its first place.
         """
         placed: dict[str, None] = {}
+        # The columns named, checked once the view's own fields are known,
+        # so a name may come before the field it refers to.
+        named: dict[str, Takes] = {}
         for index, entry in enumerate(self._entries("fields", self.fields)):
             if isinstance(entry, FieldOptions):
                 path = entry.name
                 self._changes[path] = entry.changes
+                named[path] = "paths"
             elif isinstance(entry, Field):
                 path = self._converted("fields", entry.column, path_of)
                 self._overrides[path] = entry
+                if not entry.form_only:
+                    named[path] = "paths"
             elif isinstance(entry, BaseField):
                 path = entry.name
                 self._overrides[path] = entry
@@ -688,8 +802,33 @@ class ModelView(Generic[M]):
                     self._paths(f"fields[{index}].needs", entry.needs)
             else:
                 path = self._converted("fields", entry, path_of)
+                named.setdefault(path, "fields")
             placed.setdefault(path)
+        for path, takes in named.items():
+            self._check_path("fields", path, self.model, takes)
         return tuple(placed)
+
+    def _check_list_flags(self, path: str) -> None:
+        """Refuse a field both hidden in the list and left off it."""
+        item = self.field_for(path)
+        if not item.hidden_in_list:
+            return
+        written = self._overrides.get(path, item)
+        if item.exclude_from_list:
+            both = (
+                f"{written!r} has both hidden_in_list=True and exclude_from_list=True."
+            )
+        elif path in self._excluded["list"]:
+            both = (
+                f"{written!r} has hidden_in_list=True, and exclude_fields_from_list "
+                "names it."
+            )
+        else:
+            return
+        raise AdminSiteError(
+            f"{both} hidden_in_list offers it among the columns people can add to "
+            "the list; excluding it keeps it off the list altogether. Keep one."
+        )
 
     # Turning paths into fields and values.
 
@@ -711,45 +850,62 @@ class ModelView(Generic[M]):
         column, with the options it was given.
         """
         if not isinstance(given, Field) or given.form_only:
+            given.check_options()
             return given
-        path = path_of(given.column, self.model)
-        resolved = self.inspector.resolve(self.model, path)
+        resolved = self.inspector.resolve(self.model, path_of(given.column, self.model))
+        completed: BaseField
         if type(given) is Field:
             if resolved.field is not None:
-                return self.registry.build(resolved.field, **given.given_options())
-            return RelationField.from_relation(
-                resolved.relations[-1], **given.given_options()
+                completed = self.registry.build(resolved.field, **given.given_options())
+            else:
+                completed = RelationField.from_relation(
+                    resolved.relations[-1], **given.given_options()
+                )
+        elif resolved.field is not None:
+            completed = self.registry.fill(given, resolved.field)
+        elif isinstance(given, RelationField):
+            completed = given.filled_from_relation(resolved.relations[-1])
+        else:
+            raise AdminSiteError(
+                f"{given!r} names a relationship. Show it with RelationField, or "
+                "name it in fields without a field."
             )
-        if resolved.field is not None:
-            return self.registry.fill(given, resolved.field)
-        if isinstance(given, RelationField):
-            return given.filled_from_relation(resolved.relations[-1])
-        raise AdminSiteError(
-            f"{type(self).__name__}.fields: {type(given).__name__}({path!r}) names "
-            "a relationship. Show it with RelationField, or name it in fields "
-            "without a field."
-        )
+        completed.check_options()
+        return completed
 
     def _built_field(self, path: str) -> BaseField:
         """The field adminsite works out for a path, with FieldOptions' changes."""
         resolved = self.inspector.resolve(self.model, path)
         changes = self._changes.get(path, {})
+        if changes:
+            kind = (
+                RelationField
+                if resolved.field is None
+                else self.registry.field_class_for(resolved.field)
+            )
+            taken = [
+                option.name
+                for option in dataclass_fields(kind)
+                if option.init and option.name != "column"
+            ]
+            unknown = [name for name in changes if name not in taken]
+            if unknown:
+                raise AdminSiteError(
+                    f"FieldOptions({describe(path)}) gives {', '.join(unknown)}, "
+                    f"which {kind.__name__} does not take. It takes "
+                    f"{', '.join(taken)}."
+                )
         try:
             if resolved.field is not None:
                 built: BaseField = self.registry.build(resolved.field, **changes)
             else:
                 built = RelationField.from_relation(resolved.relations[-1], **changes)
-        except TypeError as error:
-            raise AdminSiteError(
-                f"FieldOptions({path!r}) in {type(self).__name__}.fields holds "
-                f"something the field does not take: {error}"
-            ) from error
         except AdminSiteError as error:
             if not changes:
                 raise
-            raise AdminSiteError(
-                f"FieldOptions({path!r}) in {type(self).__name__}.fields: {error}"
-            ) from error
+            raise AdminSiteError(f"FieldOptions({describe(path)}): {error}") from error
+        if changes:
+            built.check_options()
         return built
 
     async def form_values(
@@ -1906,6 +2062,7 @@ class ModelView(Generic[M]):
                 built.append(item)
             elif is_column(item):
                 path = self._converted("list_filter", item, path_of)
+                self._check_path("list_filter", path, self.model, "paths")
                 built.append(filter_for(repository, path))
             else:
                 raise AdminSiteError(

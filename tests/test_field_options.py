@@ -159,9 +159,11 @@ class TestAnOptionThatDoesNotExist:
             fields = (FieldOptions("name", colour="red"),)
 
         with pytest.raises(AdminSiteError) as raised:
-            Wrong().field_for("name")
+            Wrong()
 
-        assert "FieldOptions('name') in Wrong.fields" in str(raised.value)
+        message = str(raised.value)
+        assert 'Wrong.fields: FieldOptions("name") gives colour' in message
+        assert "which StringField does not take. It takes label, help_text" in message
 
 
 class TestAFormat:

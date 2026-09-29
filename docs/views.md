@@ -46,9 +46,20 @@ Customer.name))`.
 A sort takes the same, and `Descending(Order.created_at)`, or the string `"-created_at"`, sorts from
 the highest value down, so newest first.
 
-An attribute of another model, a link whose relation does not lead to its column, or one string
-where a list belongs, such as `searchable_fields = "note"`, stops the admin when it starts, with a
-message that names the view and the setting.
+A type checker checks an attribute; the admin checks a string when it starts. A name the model
+does not have stops it with a message that names the view and the setting, and lists what the
+model has:
+
+```text
+OrderView.fields: Order has no column or relationship "totl". Its columns: id, customer_id,
+status, total, note, created_at. Its relationships: customer, items.
+```
+
+So does an attribute of another model, a link whose relation does not lead to its column, one
+string where a list belongs, such as `searchable_fields = "note"`, and a name a setting cannot use:
+a relationship or a computed field in `searchable_fields`, `sortable_fields` or
+`fields_default_sort`, a sort through a relationship holding many records, or a related model's
+column in `deferred_fields`.
 
 ## Fields
 
@@ -83,7 +94,8 @@ class ProductView(ModelView[Product]):
 ```
 
 `hidden_in_list=True` keeps a column off the list until someone turns it on in the
-[Columns menu](#choosing-columns).
+[Columns menu](#choosing-columns). A field hidden in the list and excluded from it at once asks for
+two different things, and stops the admin when it starts.
 
 `list_display`, `list_columns`, `form_fields`, `detail_fields`, `exclude`, `search_fields` and
 `ordering` still work, as do `FieldOptions`, `TextField`, `ChoiceField` and `Computed`, and 0.1.0a10

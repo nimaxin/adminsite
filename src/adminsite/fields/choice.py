@@ -113,24 +113,40 @@ class EnumField(Field[Any]):
                 return index % TONES
         return NEUTRAL
 
+    def check_options(self) -> None:
+        """Refuse a field with nothing to choose from, or a tone for a value it lacks.
+
+        Checked once the column has filled in its choices, since an Enum
+        column brings its own.
+        """
+        super().check_options()
+        if not self.choices:
+            raise AdminSiteError(
+                f"{self!r} has nothing to choose from. Give it "
+                "choices=[(value, label), ...] or enum=, or use it on a column "
+                "whose type is an Enum."
+            )
+        if self.tones is None or isinstance(self.tones, str):
+            return
+        known = {option.lower() for option, _label in self.choices}
+        for value in self.tones:
+            if not self._spellings(value) & known:
+                listed = ", ".join(option for option, _label in self.choices)
+                raise AdminSiteError(
+                    f"{self!r}: its tones give a colour to {_written(value)}, "
+                    f"which is not one of its choices: {listed}."
+                )
+
     def _read_tones(self, tones: Tones | None) -> int | dict[str, int | None] | None:
         """The tones worked out once: one for every value, one each, or none."""
         if tones is None:
             return None
         if isinstance(tones, str):
             return tone_number(self.name, tones)
-        known = {option.lower() for option, _label in self.choices}
         read: dict[str, int | None] = {}
         for value, tone in tones.items():
-            spellings = self._spellings(value)
-            if known and not spellings & known:
-                listed = ", ".join(option for option, _label in self.choices)
-                raise AdminSiteError(
-                    f"The field {self.name!r} gives a tone to {value!r}, which is "
-                    f"not one of its choices: {listed}."
-                )
             number = None if tone is None else tone_number(self.name, tone)
-            for spelling in spellings:
+            for spelling in self._spellings(value):
                 read[spelling] = number
         return read
 
@@ -181,6 +197,15 @@ class EnumField(Field[Any]):
             if option.lower() == lowered:
                 return option
         return None
+
+
+def _written(value: Any) -> str:
+    """A value as code writes it, for a message: "US" or Region.US."""
+    if isinstance(value, str):
+        return f'"{value}"'
+    if isinstance(value, Enum):
+        return f"{type(value).__name__}.{value.name}"
+    return repr(value)
 
 
 # The name EnumField had until 0.1.0a10, which refuses it.

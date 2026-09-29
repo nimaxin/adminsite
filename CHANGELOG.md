@@ -48,6 +48,14 @@
   `enum=`, `ComputedField`'s `needs` takes attributes, and `RelationField(Order.customer,
   view=CustomerView)` names its view by class as well as by name.
 - A computed field's `format` is used; it was left out before.
+- Every name in a view's settings is checked when the admin starts, strings as well as attributes:
+  one the model does not have stops the admin with a message naming the view and the setting and
+  listing the model's columns and relationships. So do a relationship or a computed field in
+  `searchable_fields`, `sortable_fields` or `fields_default_sort`, a sort through a relationship
+  holding many records, a field both hidden in the list and excluded from it, a choice field with
+  nothing to choose from, and a class that is not a mapped model.
+- A tone given for a value a choice field does not have is refused when the view is built, once
+  the column has given its choices, rather than when the field is written.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
   2.0 too.
 

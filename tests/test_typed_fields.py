@@ -223,7 +223,10 @@ class TestRelationField:
         class Wrong(ModelView[Order]):
             fields = [StringField("customer")]
 
-        with pytest.raises(AdminSiteError, match=r"Wrong\.fields: StringField\('cus"):
+        with pytest.raises(
+            AdminSiteError,
+            match=r'Wrong\.fields: StringField\("customer"\) names a rel',
+        ):
             Wrong()
 
 

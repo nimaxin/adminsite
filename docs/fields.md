@@ -81,6 +81,10 @@ label, the length of a `String(80)`, whether the value may be empty, an enum's c
 model a relationship links to. So choosing a kind never means saying those again, and an option you
 give wins over the column.
 
+`EnumField` on a string column takes its options from `choices=[("S", "Small"), ("L", "Large")]`,
+or from an Enum given as `enum=`. A choice field with none of them, on a column that is not an
+Enum, has nothing to offer, and stops the admin when it starts.
+
 The column is named by its attribute, by a [`Link`](views.md#naming-columns) for a column of a
 related model, or by its name as a string. Options are keywords, each with its type, so a type
 checker refuses `Field(Order.note, lable="Note")`, `Field(Order.note, "Note")` and

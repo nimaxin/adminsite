@@ -234,8 +234,13 @@ class TestMistakesStopTheView:
         class Misspelt(ModelView[Order]):
             fields = [Order.id, "totl"]
 
-        with pytest.raises(AdminSiteError, match=r"Misspelt\.fields: .*'totl'"):
+        with pytest.raises(AdminSiteError) as raised:
             Misspelt()
+
+        message = str(raised.value)
+        assert 'Misspelt.fields: Order has no column or relationship "totl".' in message
+        assert "Its columns: id, customer_id, status, total, note" in message
+        assert "Its relationships: customer, items." in message
 
     def test_a_column_of_another_model(self) -> None:
         class Elsewhere(ModelView[Order]):
@@ -248,7 +253,7 @@ class TestMistakesStopTheView:
         class OneString(ModelView[Order]):
             searchable_fields = "note"
 
-        with pytest.raises(AdminSiteError, match=r"searchable_fields = \['note'\]"):
+        with pytest.raises(AdminSiteError, match=r'searchable_fields = \["note"\]'):
             OneString()
 
 

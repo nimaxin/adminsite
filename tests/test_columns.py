@@ -229,8 +229,8 @@ class TestMistakesStopTheView:
             OrderView()
 
         message = str(caught.value)
-        assert "OrderView.search_fields is the string 'note'" in message
-        assert "search_fields = ['note']" in message
+        assert 'OrderView.search_fields is the string "note"' in message
+        assert 'search_fields = ["note"]' in message
 
     def test_something_that_is_not_a_column(self) -> None:
         class OrderView(ModelView[Order]):

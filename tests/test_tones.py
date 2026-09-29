@@ -148,10 +148,14 @@ class TestAMistake:
             ChoiceField("size", choices=(("s", "Small"),), tones={"s": "red"})  # type: ignore[dict-item]
 
     def test_a_value_that_is_not_a_choice_names_the_choices(self) -> None:
-        with pytest.raises(AdminSiteError, match="not one of its choices: s, m"):
-            ChoiceField(
-                "size", choices=(("s", "Small"), ("m", "Medium")), tones={"xl": "rose"}
-            )
+        # Checked when the view is built, once the column has given its
+        # choices, so a view module still imports and the message names it.
+        field = ChoiceField(
+            "size", choices=(("s", "Small"), ("m", "Medium")), tones={"xl": "rose"}
+        )
+
+        with pytest.raises(AdminSiteError, match='"xl", which is not one of its c'):
+            field.check_options()
 
     def test_a_yes_or_no_takes_true_and_false(self) -> None:
         with pytest.raises(AdminSiteError, match="takes True and False"):
@@ -167,5 +171,6 @@ class TestAMistake:
         with pytest.raises(AdminSiteError) as raised:
             Wrong()
 
-        assert "FieldOptions('status') in Wrong.fields" in str(raised.value)
-        assert "'lost'" in str(raised.value)
+        message = str(raised.value)
+        assert 'Wrong.fields: EnumField("status"): its tones give a colour' in message
+        assert '"lost", which is not one of its choices: PENDING' in message

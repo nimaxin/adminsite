@@ -69,9 +69,11 @@ class TestWhatTheQueryAsksFor:
             deferred_fields = ("payload",)
 
         with pytest.raises(AdminSiteError) as raised:
-            Wrong().build_spec()
+            Wrong()
 
-        assert "deferred_fields names 'payload'" in str(raised.value)
+        assert "Wrong.deferred_fields" in str(raised.value)
+        assert 'no column or relationship "payload"' in str(raised.value)
+        assert "Its columns: id, name, options, notes." in str(raised.value)
 
 
 class TestOnThePage:
