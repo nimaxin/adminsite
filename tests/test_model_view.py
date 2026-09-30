@@ -24,7 +24,7 @@ class OrderView(ModelView[Order]):
     fields = [
         "id",
         "customer.name",
-        RelationField("customer", target=Customer, display_template="{name} ({email})"),
+        RelationField("customer", target=Customer, record_title="{name} ({email})"),
         "status",
         "total",
         "note",
@@ -111,7 +111,7 @@ class TestColumns:
         field = orders._field_for("customer")
 
         assert isinstance(field, RelationField)
-        assert field.display_template == "{name} ({email})"
+        assert field.record_title == "{name} ({email})"
 
 
 class TestReadingValues:

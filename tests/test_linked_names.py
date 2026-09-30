@@ -31,7 +31,7 @@ class OrderView(ModelView[Order]):
 
 class EmailedOrderView(ModelView[Order]):
     name = "emailed_orders"
-    fields = ["id", RelationField("customer", display_template="{email}"), "status"]
+    fields = ["id", RelationField("customer", record_title="{email}"), "status"]
     exclude_fields_from_list = ["status"]
 
 

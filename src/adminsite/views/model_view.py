@@ -702,11 +702,11 @@ class ModelView(Generic[M]):
                 f"{type(self).__name__}.inlines names {inline.name!r}, which "
                 "holds one record. An inline needs a relationship holding many."
             )
-        if inline.display_template:
+        if inline.record_title:
             self._check_title(
-                f"{type(self).__name__}.{setting}.display_template: "
-                f"{describe(inline.display_template)}",
-                inline.display_template,
+                f"{type(self).__name__}.{setting}.record_title: "
+                f"{describe(inline.record_title)}",
+                inline.record_title,
                 relation.target,
             )
         # The link back to the parent is set by the relationship itself, so
@@ -717,23 +717,25 @@ class ModelView(Generic[M]):
             for name, found in target.relations.items()
             if found.target is self.model and not found.collection
         ]
-        readonly = self._paths(
-            f"{setting}.readonly_fields", inline.readonly_fields, relation.target
+        # Checked here, so a mistake names the parent's setting. The child view
+        # takes the entries as they are, fields with their options included.
+        entries = self._entries(f"{setting}.fields", inline.fields)
+        self._paths(
+            f"{setting}.fields",
+            [
+                entry.column if isinstance(entry, Field) else entry
+                for entry in entries
+                if not (isinstance(entry, Field) and entry.form_only)
+            ],
+            relation.target,
         )
-
-        def get_readonly_fields(
-            child: ModelView[Any], request: Request, record: Any
-        ) -> Sequence[ColumnReference]:
-            return readonly
-
         namespace: dict[str, Any] = {
             "model": relation.target,
             "name": f"{self.name}__{inline.name}",
-            "fields": self._paths(f"{setting}.fields", inline.fields, relation.target),
+            "fields": list(entries),
             "exclude_fields_from_create": back_links,
             "exclude_fields_from_edit": back_links,
-            "get_readonly_fields": get_readonly_fields,
-            "record_title": inline.display_template,
+            "record_title": inline.record_title,
         }
         child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
         built: ModelView[Any] = child_class(self._inspector, self._registry)
@@ -941,11 +943,11 @@ class ModelView(Generic[M]):
                 )
 
     def _check_link_title(self, item: BaseField, written: str) -> None:
-        """Refuse a link's display_template that reads what its model lacks."""
-        if isinstance(item, RelationField) and item.display_template:
+        """Refuse a link's record_title that reads what its model lacks."""
+        if isinstance(item, RelationField) and item.record_title:
             self._check_title(
-                f"{written}: its display_template {describe(item.display_template)}",
-                item.display_template,
+                f"{written}: its record_title {describe(item.record_title)}",
+                item.record_title,
                 item.related_model,
             )
 

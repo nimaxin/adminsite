@@ -29,7 +29,7 @@ class OrderView(ModelView[Order]):
     fields = [
         Order.id,
         Field(Link(Order.customer, Customer.name), label="Bought by"),
-        RelationField(Order.customer, display_template="{name} <{email}>"),
+        RelationField(Order.customer, record_title="{name} <{email}>"),
         Order.status,
     ]
     exclude_fields_from_list = [Order.customer, Order.status]

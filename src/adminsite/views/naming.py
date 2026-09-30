@@ -25,13 +25,13 @@ def name_linked(
 ) -> str:
     """Name a record a link points at, the same way wherever it shows.
 
-    The link's own `display_template` comes first. Then the view that shows
+    The link's own `record_title` comes first. Then the view that shows
     the other model names it, as it does on its own pages. Without one, the
     model's own `__str__`, or else its name and key: "Customer #3".
     """
     if record is None:
         return ""
-    if item.display_template is not None:
+    if item.record_title is not None:
         return item.label_for(record)
     target = views.for_relation(item) if views is not None else None
     if target is not None:

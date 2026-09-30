@@ -1,10 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import QueryableAttribute
 
-from adminsite.columns import ColumnReference
+if TYPE_CHECKING:
+    from adminsite.columns import ColumnReference
+    from adminsite.fields import Field
 
 __all__ = [
     "Inline",
@@ -32,13 +34,15 @@ class Inline:
     """
 
     relation: str | QueryableAttribute[Any]
-    fields: Sequence[ColumnReference] = ()
-    readonly_fields: Sequence[ColumnReference] = ()
+    # The child's fields, in order, as a view's fields are written:
+    # Field(OrderItem.unit_price, read_only=True) shows a value it never edits.
+    fields: Sequence["ColumnReference | Field[Any]"] = ()
     label: str = ""
     # How many blank rows the table starts with while it has no rows yet.
     blank_rows: int = 1
     can_delete: bool = True
-    display_template: str = ""
+    # How a child is named, as a view's record_title.
+    record_title: str = ""
 
     @property
     def name(self) -> str:

@@ -26,7 +26,7 @@ class CustomerView(ModelView[Customer]):
             "orders",
             target=Order,
             collection=True,
-            display_template="Order #{id}",
+            record_title="Order #{id}",
         ),
     ]
 
@@ -37,7 +37,7 @@ class OrderItemView(ModelView[OrderItem]):
     fields = [
         # Not required, though its column is, so the box can be cleared.
         RelationField(
-            "order", target=Order, display_template="Order #{id}", required=False
+            "order", target=Order, record_title="Order #{id}", required=False
         ),
         "quantity",
     ]
@@ -211,7 +211,7 @@ class TestTheBox:
             name = "required_items"
             fields = [
                 RelationField(
-                    "order", target=Order, display_template="Order #{id}", required=True
+                    "order", target=Order, record_title="Order #{id}", required=True
                 ),
                 "quantity",
             ]

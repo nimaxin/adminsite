@@ -5,8 +5,9 @@ import pytest
 from sqlalchemy import func, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, Inline, ModelView
+from adminsite import Admin, Field, Inline, ModelView
 from adminsite.backends.sqlalchemy import Database
+from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
 from adminsite.http.picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
@@ -387,3 +388,100 @@ class TestPages:
         assert "Items" in response.text
         assert "Linen shirt" in response.text
         assert "59.00" in response.text
+
+
+class PricedOrderView(ModelView[Order]):
+    """Orders whose lines keep the price they were sold at."""
+
+    fields = ["customer", "status", "note", "created_at"]
+    inlines = [
+        Inline(
+            Order.items,
+            fields=[
+                OrderItem.product,
+                OrderItem.quantity,
+                Field(OrderItem.unit_price, read_only=True),
+            ],
+        )
+    ]
+
+
+class TestAReadOnlyField:
+    async def test_the_form_shows_the_price_without_an_input(
+        self, database: Database
+    ) -> None:
+        site = Admin(database, title="Shop", views=[PricedOrderView])
+        app = Starlette()
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.get("/admin/orders/1/edit")
+
+        assert response.status_code == 200
+        assert 'name="items-0-quantity"' in response.text
+        assert 'name="items-0-unit_price"' not in response.text
+        assert "59.00" in response.text
+
+    async def test_a_line_keeps_its_price_whatever_the_form_sends(
+        self, database: Database
+    ) -> None:
+        view = PricedOrderView()
+        async with database.session() as session:
+            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            assert order is not None
+            first = order.items[0]
+            price = first.unit_price
+            result = view._parse_form(
+                {
+                    **EDIT_FORM,
+                    **lines(
+                        {
+                            "key": str(first.id),
+                            "product": str(first.product_id),
+                            "quantity": "9",
+                            "unit_price": "0.01",
+                        }
+                    ),
+                }
+            )
+            await view._save(
+                session, result.values, record=order, inline_rows=result.inline_rows
+            )
+
+        saved = (await items_of(database, 1))[0]
+        assert saved.quantity == 9
+        assert saved.unit_price == price
+
+
+class TestCommitting:
+    async def test_a_save_through_the_form_commits_once(
+        self,
+        client: httpx.AsyncClient,
+        database: Database,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        rows = [
+            {
+                "key": str(item.id),
+                "product": str(item.product_id),
+                "quantity": str(item.quantity),
+                "unit_price": str(item.unit_price),
+            }
+            for item in await items_of(database, 1)
+        ]
+        commits: list[SessionAdapter] = []
+        commit = SessionAdapter.commit
+
+        async def counted(session: SessionAdapter) -> None:
+            commits.append(session)
+            await commit(session)
+
+        monkeypatch.setattr(SessionAdapter, "commit", counted)
+
+        response = await client.post(
+            "/admin/orders/1/edit", data={**EDIT_FORM, **lines(*rows)}
+        )
+
+        assert response.status_code == 303
+        assert len(commits) == 1

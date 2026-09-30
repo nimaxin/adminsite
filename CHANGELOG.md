@@ -133,6 +133,16 @@
 - The guides, the README and the docstrings write views this way, and CI type-checks every example
   in them under mypy's strict mode. Examples that could not have run are fixed: the audit log is
   read through the `AuditLog` given to the admin, and a SQLite listener goes on a sync engine.
+- `Inline(fields=...)` takes fields as a view's `fields` does, so `Field(OrderItem.unit_price,
+  read_only=True)` shows a value the row never edits; `readonly_fields=` is gone. `Inline` and
+  `RelationField` take `record_title` in place of `display_template`, as a view does.
+- A `ComputedField` loader is typed as taking a `SessionAdapter`, so an editor completes
+  `session.execute` in it.
+- A key with the wrong number of parts, such as `/shelves/A` for a key of two columns, answers "not
+  found" rather than a server error, and a link's key with a part too many is refused rather than
+  cut short.
+- A save or a delete from the pages commits once. It committed a second time, with nothing left to
+  commit.
 - A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
   words for someone who never used an older adminsite: "OrderView sets list_display, a setting
   adminsite does not have."

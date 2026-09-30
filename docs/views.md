@@ -127,7 +127,7 @@ dataclass prints every column.
 `record_title` is also used wherever another model links to this one: in its list cells, on
 its record pages, in its export, in its audit log and in its pickers. A customer then reads
 `Lena Fischer (lena@fischer.de)` on every order, not just the name. A link given its own
-`display_template` keeps it.
+`record_title`, as `RelationField(Order.customer, record_title="{email}")`, keeps it.
 
 Each name in braces is checked against the model when the admin starts, so
 `record_title = "Order #{nmae}"` stops it with a message listing the columns the model has.
@@ -374,12 +374,11 @@ the error next to the cell, and a list of every problem at the top of the form.
 
 | Option | What it does |
 |---|---|
-| `fields` | The child's columns, in order. Defaults to every field except the link back to the parent. |
-| `readonly_fields` | Shown, not editable. |
+| `fields` | The child's fields, in order, written as a view's are, so `Field(OrderItem.unit_price, read_only=True)` is shown and not edited. Defaults to every field except the link back to the parent. |
 | `label` | The heading above the table. Defaults to the relationship's name. |
 | `blank_rows` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
 | `can_delete` | Whether rows can be removed. |
-| `display_template` | How a child is named, as on a view. |
+| `record_title` | How a child is named, as on a view. |
 
 The relationship has to hold a list. Blank rows that stay empty are ignored, and a required field
 only counts once something else in the row is filled in. The detail page lists the children too.

@@ -30,7 +30,7 @@ class RelationField(Field[Any]):
     # The model of the linked records. Left out, the relationship's.
     target: type[Any] | None = None
     collection: bool = False
-    display_template: str | None = None
+    record_title: str | None = None
     view: "type[ModelView[Any]] | str | None" = None
     # For a link to many whose order means something, such as servers tried
     # in turn: the form can put its records in order, and saving writes the
@@ -79,12 +79,12 @@ class RelationField(Field[Any]):
         return self.target
 
     def label_for(self, record: Any) -> str:
-        """Name a single related record, using the display template if set."""
+        """Name a single related record, using the record title if set."""
         if record is None:
             return ""
-        if self.display_template is None:
+        if self.record_title is None:
             return str(record)
-        return self.display_template.format_map(RecordValues(record))
+        return self.record_title.format_map(RecordValues(record))
 
     def display(self, value: Any) -> str:
         """Name the related record, or list them when there are many."""

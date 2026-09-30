@@ -70,7 +70,7 @@ class Picker:
         """The text columns the picker's own labels are built from."""
         view = self.view
         # Named by the link's own template first, as everywhere else.
-        template = self.item.display_template or (
+        template = self.item.record_title or (
             view.record_title if view is not None else ""
         )
         if not template:

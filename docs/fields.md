@@ -72,7 +72,7 @@ class CustomerView(ModelView[Customer]):
 class OrderView(ModelView[Order]):
     fields = [
         Order.id,
-        RelationField(Order.customer, display_template="{name} ({email})"),
+        RelationField(Order.customer, record_title="{name} ({email})"),
     ]
 ```
 

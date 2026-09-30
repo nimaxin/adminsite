@@ -519,10 +519,9 @@ class SQLAlchemyRepository(Generic[M]):
         columns = self._primary_key_columns()
         values = key if isinstance(key, tuple) else (key,)
         if len(values) != len(columns):
-            raise InvalidPathError(
-                str(key),
-                f"{self.model.__name__} needs {len(columns)} key values.",
-            )
+            # A key with the wrong number of parts, such as /orders/1,2 for a
+            # single key, names no record, so the caller answers "not found".
+            return false()
         try:
             converted = [
                 to_column_type(self.schema.field_named(name).python_type, value)
@@ -565,10 +564,12 @@ class SQLAlchemyRepository(Generic[M]):
 
     def _as_key(self, target: ModelSchema, key: Any) -> Any:
         values = key if isinstance(key, tuple) else (key,)
+        if len(values) != len(target.primary_key):
+            raise RecordNotFoundError(target.model, key)
         try:
             converted = [
                 to_column_type(target.field_named(name).python_type, value)
-                for name, value in zip(target.primary_key, values, strict=False)
+                for name, value in zip(target.primary_key, values, strict=True)
             ]
         except ValueError:
             raise RecordNotFoundError(target.model, key) from None

@@ -18,7 +18,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, Inline, ModelView, RecentRecords, SaveContext, Statement
 from adminsite.actions import Selection, action
-from adminsite.fields import default_registry
+from adminsite.fields import RelationField, default_registry
 from tests.reference.models import Customer, Order
 
 
@@ -47,6 +47,9 @@ def old_names(engine: AsyncEngine) -> None:
     from adminsite.fields import ChoiceField, TextField  # type: ignore[attr-defined]
 
     Inline(Order.items, extra=1)  # type: ignore[call-arg]
+    Inline(Order.items, readonly_fields=["unit_price"])  # type: ignore[call-arg]
+    Inline(Order.items, display_template="{quantity}")  # type: ignore[call-arg]
+    RelationField(Order.customer, display_template="{name}")  # type: ignore[call-arg]
     RecentRecords("Latest", "orders", detail="total")  # type: ignore[call-arg]
     Admin(engine, fields=default_registry)  # type: ignore[call-arg]
     print(FieldOptions, SignInRefused, ChoiceField, TextField)

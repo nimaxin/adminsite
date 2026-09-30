@@ -158,3 +158,14 @@ class TestTheLog:
 
         assert [entry.record_key for entry in entries] == ["A,2"]
         assert entries[0].changes["label"] == ("Scarves", "Moved")
+
+
+class TestAKeyOfTheWrongShape:
+    @pytest.mark.parametrize("key", ["A", "A,1,2"])
+    async def test_the_record_page_is_not_found(
+        self, client: httpx.AsyncClient, key: str
+    ) -> None:
+        """A key with too few or too many parts names no record."""
+        response = await client.get(f"/admin/shelves/{key}")
+
+        assert response.status_code == 404

@@ -311,12 +311,12 @@ class TestSingleRecords:
                 assert len(found.items) >= 1
             assert queries.count == 0
 
-    async def test_the_wrong_number_of_key_values_is_refused(
+    async def test_the_wrong_number_of_key_values_finds_nothing(
         self, database: Database, orders: SQLAlchemyRepository[Order]
     ) -> None:
+        """Such a key names no record, so a page answers "not found"."""
         async with database.session() as session:
-            with pytest.raises(InvalidPathError, match="needs 1 key values"):
-                await orders.get(session, (1, 2))
+            assert await orders.get(session, (1, 2)) is None
 
     async def test_a_record_can_name_its_own_key(
         self, database: Database, orders: SQLAlchemyRepository[Order]

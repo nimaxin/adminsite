@@ -1,11 +1,14 @@
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from adminsite.columns import ColumnReference
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import BaseField
 from adminsite.text import as_text
+
+if TYPE_CHECKING:
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "LOADED",
@@ -22,7 +25,7 @@ LOADED = "_adminsite_loaded"
 
 # Given the session and the records on a page, a loader answers with each
 # record's value by its primary key: a tuple of values for a composite key.
-Loader = Callable[[Any, Sequence[M]], Awaitable[Mapping[Any, V]]]
+Loader = Callable[["SessionAdapter", Sequence[M]], Awaitable[Mapping[Any, V]]]
 
 
 @dataclass(eq=False, repr=False)

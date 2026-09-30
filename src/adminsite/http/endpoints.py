@@ -331,7 +331,6 @@ async def create_record(admin: "Admin", request: Request) -> Response:
                 request=request,
                 inline_rows=result.inline_rows,
             )
-            await session.commit()
         except AdminSiteError as error:
             return await form_again(
                 admin, view, session, request, result, error, submitted=submitted
@@ -690,7 +689,6 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
                 request=request,
                 inline_rows=result.inline_rows,
             )
-            await session.commit()
         except AdminSiteError as error:
             # The rollback expired the record, and the form is about to
             # read it again, which an async session cannot do on the fly.
@@ -722,7 +720,6 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
         await view._ensure(Permission.DELETE, request=request, record=record)
         try:
             await view._delete(session, record, request=request)
-            await session.commit()
         except RefusedError as error:
             add_message(request, str(error), kind="error")
             return RedirectResponse(Urls(request).list(view), status_code=303)

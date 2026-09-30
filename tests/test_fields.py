@@ -157,13 +157,11 @@ class TestRelations:
 
         assert field.display(Customer(name="Lena Fischer")) == "Lena Fischer"
 
-    def test_a_display_template_decides_what_is_shown(
+    def test_a_record_title_decides_what_is_shown(
         self, inspector: SQLAlchemyInspector
     ) -> None:
         relation = inspector.inspect(Order).relation_named("customer")
-        field = RelationField.from_relation(
-            relation, display_template="{name} ({email})"
-        )
+        field = RelationField.from_relation(relation, record_title="{name} ({email})")
         customer = Customer(name="Lena Fischer", email="lena@fischer.de")
 
         assert field.display(customer) == "Lena Fischer (lena@fischer.de)"

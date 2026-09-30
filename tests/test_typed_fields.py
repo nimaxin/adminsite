@@ -170,7 +170,7 @@ class TestComputedField:
 class TestRelationField:
     def test_the_relationship_says_what_it_links_to(self) -> None:
         class Orders(ModelView[Order]):
-            fields = [RelationField(Order.customer, display_template="{name}")]
+            fields = [RelationField(Order.customer, record_title="{name}")]
 
         item = Orders()._field_for("customer")
 
@@ -178,7 +178,7 @@ class TestRelationField:
         assert item.related_model is Customer
         assert item.collection is False
         assert item.required is True
-        assert item.display_template == "{name}"
+        assert item.record_title == "{name}"
 
     def test_a_link_to_many(self) -> None:
         class Customers(ModelView[Customer]):

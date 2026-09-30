@@ -151,10 +151,10 @@ class TestARecordTitle:
 
     def test_an_inline_s_is_checked_against_its_model(self) -> None:
         class WithLines(ModelView[Order]):
-            inlines = [Inline("items", display_template="{qty}")]
+            inlines = [Inline("items", record_title="{qty}")]
 
         assert refusal(WithLines).startswith(
-            'WithLines.inlines[0].display_template: "{qty}" reads {qty}, and '
+            'WithLines.inlines[0].record_title: "{qty}" reads {qty}, and '
             'OrderItem has no column or relationship "qty".'
         )
 
@@ -162,11 +162,11 @@ class TestARecordTitle:
         class Linked(ModelView[Order]):
             fields = [
                 Order.id,
-                RelationField(Order.customer, display_template="{nmae}"),
+                RelationField(Order.customer, record_title="{nmae}"),
             ]
 
         assert refusal(Linked).startswith(
-            "Linked.fields: RelationField(Order.customer): its display_template "
+            "Linked.fields: RelationField(Order.customer): its record_title "
             '"{nmae}" reads {nmae}, and Customer has no column or relationship '
             '"nmae".'
         )

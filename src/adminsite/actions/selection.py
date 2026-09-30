@@ -42,7 +42,7 @@ class Selection(Generic[M]):
     changes: dict[str, dict[str, Change]] = field(default_factory=dict)
 
     @property
-    def repository(self) -> Any:
+    def _repository(self) -> Any:
         """The repository of the view this selection belongs to."""
         return self.view._repository
 
@@ -53,7 +53,7 @@ class Selection(Generic[M]):
         ]
         rows: Select[Any] = select(*columns).select_from(self.view.model)
         rows = self.view._scope_for(self.request)(rows)
-        rows = self.repository.narrow(rows, self.spec)
+        rows = self._repository.narrow(rows, self.spec)
 
         if not self.everything:
             rows = rows.where(self._key_condition())
@@ -75,12 +75,12 @@ class Selection(Generic[M]):
         `paths` names links to load with them, such as `customer`, so work
         on each record never waits on a query of its own.
         """
-        statement = self.repository.base_statement(
+        statement = self._repository.base_statement(
             self.view._scope_for(self.request)
         ).where(self._covered())
         if paths:
             statement = statement.options(
-                *build_load_options(self.repository.inspector, self.view.model, paths)
+                *build_load_options(self._repository.inspector, self.view.model, paths)
             )
         return list((await self.session.scalars(statement)).unique().all())
 
