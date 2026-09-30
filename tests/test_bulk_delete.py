@@ -57,6 +57,14 @@ class OwnDelete(ModelView[Product]):
         return f"{await selection.count()} archived."
 
 
+class InOneStatement(ModelView[Product]):
+    name = "one_statement"
+
+    @action("Remove")
+    async def remove(self, selection: Selection[Product]) -> str:
+        return f"{await selection.delete()} removed."
+
+
 @pytest.fixture
 def log(tmp_path: Path) -> Iterator[AuditLog]:
     audit = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
@@ -68,7 +76,14 @@ def log(tmp_path: Path) -> Iterator[AuditLog]:
 async def client(database: Database, log: AuditLog) -> AsyncIterator[httpx.AsyncClient]:
     site = Admin(
         database,
-        views=[ProductView, LockedProducts, ReadOnlyProducts, OneAtATime, OwnDelete],
+        views=[
+            ProductView,
+            LockedProducts,
+            ReadOnlyProducts,
+            OneAtATime,
+            OwnDelete,
+            InOneStatement,
+        ],
         audit=log,
         secret_key="for-the-session",
     )
@@ -172,6 +187,27 @@ class TestWhenOneIsRefused:
         assert (
             "Nothing was deleted, because other records still refer to Linen shirt."
             in page.text
+        )
+        assert {"Spare A", "Linen shirt"} <= await names_left(database)
+
+    async def test_an_action_the_database_refuses_changes_nothing(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        keys = await add_products(database, "Spare A")
+        page = await client.get("/admin/one_statement")
+        token = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+        assert token is not None
+
+        # Its own statement deletes, and order lines point at the first product.
+        page = await client.post(
+            "/admin/one_statement/action/remove",
+            data={"_csrf": token.group(1), "keys": ["1", *keys]},
+            follow_redirects=True,
+        )
+
+        assert (
+            "Remove was not done, because other records still refer to some of "
+            "these." in page.text
         )
         assert {"Spare A", "Linen shirt"} <= await names_left(database)
 

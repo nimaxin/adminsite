@@ -5,9 +5,9 @@ from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, Generic, TypeVar
 
-from sqlalchemy import ColumnElement, Select, false, func, select
+from sqlalchemy import ColumnElement, Select, false, func
 
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError
@@ -316,11 +316,16 @@ class TextFilter(SQLFilter[Any]):
 
 @dataclass
 class SQLFilterContext:
-    """Lets a filter ask the database what to offer, and how often."""
+    """Lets a filter ask the database what to offer, and how often.
+
+    Both stay inside the view's scope, so a filter never counts or offers a
+    record the list itself would not show.
+    """
 
     session: SessionAdapter
     repository: SQLAlchemyRepository[Any]
     spec: QuerySpec
+    scope: Scope | None = None
 
     async def count_by(self, path: str) -> Mapping[str, int]:
         """Count matching records grouped by the value at this path.
@@ -334,7 +339,8 @@ class SQLFilterContext:
             column = self._own_column(path)
         except InvalidPathError:
             return {}
-        statement = select(column, func.count()).group_by(column)
+        statement = self._rows().with_only_columns(column, func.count())
+        statement = statement.group_by(column)
         condition = self.repository.search_clause(self.spec)
         if condition is not None:
             statement = statement.where(condition)
@@ -345,8 +351,14 @@ class SQLFilterContext:
     async def distinct(self, path: str, limit: int = DISTINCT_LIMIT) -> Sequence[Any]:
         """List the values that appear at this path."""
         column = self._own_column(path)
-        statement = select(column).distinct().limit(limit)
+        statement = self._rows().with_only_columns(column).distinct().limit(limit)
         return list((await self.session.scalars(statement)).all())
+
+    def _rows(self) -> Select[Any]:
+        """The records the list may show, in no order."""
+        # A scope may sort, and a count grouped by value cannot be sorted by
+        # a column it does not group by.
+        return self.repository.base_statement(self.scope).order_by(None)
 
     def _own_column(self, path: str) -> Any:
         if "." in path:

@@ -23,7 +23,7 @@ from adminsite.backends.sqlalchemy.loader import (
     build_defer_options,
     build_load_options,
 )
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.backends.sqlalchemy.session import SessionAdapter, database_refusals
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
 from adminsite.query import DEFAULT_PAGE_SIZE, CountMode, Page, QuerySpec
@@ -394,26 +394,32 @@ class SQLAlchemyRepository(Generic[M]):
         total = await session.scalar(counting)
         return records, int(total or 0)
 
+    # A write may be refused by the database, at its own flush or at one that
+    # loading a linked record sets off, and says so with adminsite's error.
+
     async def create(self, session: SessionAdapter, values: Mapping[str, Any]) -> Any:
         """Build a record from the given values and put it in the session."""
         record = self.model()
-        await self.apply_values(session, record, values)
-        await session.add(record)
-        await session.flush()
+        with database_refusals():
+            await self.apply_values(session, record, values)
+            await session.add(record)
+            await session.flush()
         return record
 
     async def update(
         self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
     ) -> Any:
         """Change a record, leaving anything not given as it was."""
-        await self.apply_values(session, record, values)
-        await session.flush()
+        with database_refusals():
+            await self.apply_values(session, record, values)
+            await session.flush()
         return record
 
     async def delete(self, session: SessionAdapter, record: Any) -> None:
         """Remove a record."""
-        await session.delete(record)
-        await session.flush()
+        with database_refusals():
+            await session.delete(record)
+            await session.flush()
 
     async def apply_values(
         self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
@@ -537,8 +543,7 @@ class SQLAlchemyRepository(Generic[M]):
 
     def identity_of(self, record: Any) -> str:
         """Write the primary key of a record as one string, for a URL."""
-        values = [str(getattr(record, name)) for name in self.schema.primary_key]
-        return ",".join(values)
+        return self.schema.identity_of(record)
 
     async def _linked(
         self, session: SessionAdapter, relation: RelationSchema, value: Any

@@ -19,7 +19,6 @@ from uuid import uuid4
 from markupsafe import Markup
 from sqlalchemy import ColumnElement
 from sqlalchemy import inspect as sqlalchemy_inspect
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
 from starlette.requests import Request
 from starlette.responses import Response
@@ -40,7 +39,11 @@ from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
 from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
 from adminsite.audit.store import record_or_warn
-from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
+from adminsite.backends.sqlalchemy.filters import (
+    SQLFilter,
+    SQLFilterContext,
+    filter_for,
+)
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import (
     Scope,
@@ -59,6 +62,7 @@ from adminsite.columns import (
 from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
+    IntegrityError,
     InvalidPathError,
     NotAModelError,
     PermissionDeniedError,
@@ -79,7 +83,7 @@ from adminsite.fields import (
 from adminsite.fields.computed import LOADED
 from adminsite.fields.documents import DocumentError
 from adminsite.fields.files import UNCHANGED, FileField, NewFile, UploadField
-from adminsite.filters import FilterValue
+from adminsite.filters import FilterOption, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
@@ -1725,6 +1729,22 @@ class ModelView(Generic[M]):
         return await self._repository.get(
             session, key, tuple(paths), self._scope_for(request)
         )
+
+    async def _filter_options(
+        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
+    ) -> list[tuple[SQLFilter[Any], Sequence[FilterOption]]]:
+        """Each filter beside the list, with the choices it offers.
+
+        Counted within the scope, so a count never gives away how many
+        records the user may not see.
+        """
+        await self._ensure(Permission.VIEW, request=request)
+        context = SQLFilterContext(
+            session, self._repository, spec, self._scope_for(request)
+        )
+        return [
+            (item, await item.options(context)) for item in self._list_filters(request)
+        ]
 
     async def _fetch_related(
         self,

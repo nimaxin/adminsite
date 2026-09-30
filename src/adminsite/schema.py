@@ -99,6 +99,10 @@ class ModelSchema:
         """Whether the model has a field or relationship with this name."""
         return name in self.fields or name in self.relations
 
+    def identity_of(self, record: Any) -> str:
+        """Write the primary key of a record as one string, for a URL."""
+        return ",".join(str(getattr(record, name)) for name in self.primary_key)
+
 
 @dataclass(frozen=True, slots=True)
 class FieldPath:

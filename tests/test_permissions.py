@@ -28,6 +28,10 @@ class GermanOrders(ModelView[Order]):
         return statement.where(Order.customer.has(Customer.region == region))
 
 
+class GermanOrdersByStatus(GermanOrders):
+    list_filters = [Order.status]
+
+
 class ReadOnlyOrders(ModelView[Order]):
     can_create = False
     can_edit = False
@@ -104,6 +108,24 @@ class TestRowScope:
             wanted = page.rows[0]
 
             assert await view._fetch_record(session, wanted.id) is not None
+
+    async def test_filter_counts_only_count_rows_in_scope(
+        self, database: Database
+    ) -> None:
+        """A count of every row would say how many the user may not see."""
+        view = GermanOrdersByStatus()
+        async with database.session() as session:
+            ((_status, options),) = await view._filter_options(
+                session, view._build_spec()
+            )
+
+            counts = {option.value: option.count for option in options}
+            assert counts == {
+                "PENDING": None,
+                "PAID": 1,
+                "SHIPPED": 1,
+                "REFUNDED": None,
+            }
 
     async def test_the_scope_also_narrows_the_search(self, database: Database) -> None:
         view = GermanOrders()

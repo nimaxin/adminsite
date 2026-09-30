@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, exc, func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -10,7 +10,7 @@ from adminsite.backends.sqlalchemy import (
     Database,
     SyncSessionAdapter,
 )
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, IntegrityError
 from tests.models import Customer, Order, Product
 from tests.support import spare_product
 
@@ -163,6 +163,37 @@ class TestTransaction:
             )
 
             assert count == 0
+
+
+class TestRefusedChanges:
+    async def test_a_refusal_in_a_transaction_is_adminsites_own_error(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            with pytest.raises(IntegrityError) as raised:
+                async with session.transaction():
+                    await session.add(Customer(name="Twin", email="lena@fischer.de"))
+                    await session.flush()
+
+            assert isinstance(raised.value.__cause__, exc.IntegrityError)
+
+    async def test_a_refused_commit_is_rolled_back(self, database: Database) -> None:
+        rolled_back: list[str] = []
+
+        async def note() -> None:
+            rolled_back.append("done")
+
+        async with database.session() as session:
+            session.after_rollback(note)
+            await session.add(Customer(name="Twin", email="lena@fischer.de"))
+
+            with pytest.raises(IntegrityError):
+                await session.commit()
+
+            # Rolled back, so the session reads again and the work ran.
+            count = await session.scalar(select(func.count()).select_from(Customer))
+            assert count == 4
+            assert rolled_back == ["done"]
 
 
 class TestEscapeHatch:

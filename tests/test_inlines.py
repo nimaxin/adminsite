@@ -9,7 +9,7 @@ from adminsite import Admin, Field, Inline, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
-from adminsite.http.picker import PICKER_LIMIT
+from adminsite.views.picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
 
 

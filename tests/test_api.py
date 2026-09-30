@@ -54,6 +54,10 @@ class ProductView(ModelView[Product]):
             return False
         return await super().allows(action, request=request, record=record)
 
+    @action("Remove", permission=Permission.DELETE)
+    async def remove(self, selection: Selection[Product]) -> str:
+        return f"{await selection.delete()} removed."
+
 
 def serve(admin: Admin) -> httpx.AsyncClient:
     app = Starlette()
@@ -223,6 +227,17 @@ class TestActions:
         )
 
         assert answer.json() == {"message": "2 orders noted."}
+
+    async def test_a_change_the_database_refuses_is_a_conflict(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        # Order lines still point at the first product.
+        answer = await client.post(
+            "/admin/-/api/products/actions/remove", json={"keys": ["1"]}
+        )
+
+        assert answer.status_code == 409
+        assert answer.json() == {"error": "Other records still refer to some of these."}
 
     async def test_missing_inputs_are_named(self, client: httpx.AsyncClient) -> None:
         answer = await client.post(

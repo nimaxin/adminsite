@@ -143,6 +143,12 @@
   cut short.
 - A save or a delete from the pages commits once. It committed a second time, with nothing left to
   commit.
+- The counts beside a list's filters count only the rows `scope_query` lets the user see. They
+  counted every row in the table, which told a user how many records they may not open.
+- A change the database refuses, such as a second customer with the same email, raises
+  `adminsite.exceptions.IntegrityError` from `SessionAdapter.transaction()`, `commit()` and the
+  view's saves and deletes, with SQLAlchemy's error as its cause. A commit that fails is rolled
+  back.
 - A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
   words for someone who never used an older adminsite: "OrderView sets list_display, a setting
   adminsite does not have."

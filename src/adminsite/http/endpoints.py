@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl
 
-from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response, StreamingResponse
@@ -12,11 +11,11 @@ from adminsite.actions import Selection
 from adminsite.audit import AuditEntry, AuditEvent, AuditQuery, actor_of
 from adminsite.audit.actor import NAME_LIMIT
 from adminsite.audit.store import record_or_warn
-from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
+    IntegrityError,
     PermissionDeniedError,
     RefusedError,
     SignInRefusedError,
@@ -47,7 +46,6 @@ from adminsite.http.listing import (
     read_list_request,
     wants_partial,
 )
-from adminsite.http.picker import RESULT_LIMIT, Picker
 from adminsite.http.rows import Choice, FormRow
 from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
@@ -58,10 +56,12 @@ from adminsite.saved_views import clean_query
 from adminsite.security import Permission
 from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.views import ModelView
+from adminsite.views.picker import RESULT_LIMIT, Picker
 from adminsite.views.writing import FormResult
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "HISTORY_LIMIT",
@@ -834,7 +834,7 @@ async def looked_up(
     admin: "Admin", request: Request, view: ModelView[Any], item: RelationField
 ) -> Response:
     """The records a link offers for what was typed, as a list to pick from."""
-    picker = Picker(admin, item, request)
+    picker = Picker(admin.views, admin.inspector, item, request)
     async with admin.database.session() as session:
         page = await picker.page(
             session,
@@ -842,10 +842,7 @@ async def looked_up(
             limit=RESULT_LIMIT,
         )
         choices = [
-            Choice(
-                picker.repository.identity_of(record),
-                title_for(admin, item, record),
-            )
+            Choice(picker.key_of(record), title_for(admin, item, record))
             for record in page.rows
         ]
 
@@ -889,7 +886,7 @@ def form_context(
 async def form_again(
     admin: "Admin",
     view: ModelView[Any],
-    session: SessionAdapter,
+    session: "SessionAdapter",
     request: Request,
     result: FormResult,
     error: Exception | None = None,
@@ -1136,16 +1133,16 @@ async def run_action(admin: "Admin", request: Request) -> Response:
 
     async with admin.database.session() as session:
         try:
-            answer = await perform(
-                admin, request, view, found, session, submitted, inputs.values
-            )
-            await session.commit()
+            # Anything that fails rolls the action back before the error page,
+            # so the audit log can write the attempt down as failed.
+            async with session.transaction():
+                answer = await perform(
+                    admin, request, view, found, session, submitted, inputs.values
+                )
         except RefusedError as error:
-            await session.rollback()
             add_message(request, str(error), kind="error")
             return back_from_action(admin, request, view, found, submitted)
         except IntegrityError:
-            await session.rollback()
             add_message(
                 request,
                 _(
@@ -1156,11 +1153,6 @@ async def run_action(admin: "Admin", request: Request) -> Response:
                 kind="error",
             )
             return back_from_action(admin, request, view, found, submitted)
-        except Exception:
-            # Undone before the error page, so the audit log can write the
-            # attempt down as failed.
-            await session.rollback()
-            raise
         # An action that answers with a file or JSON sends it as it is.
         if isinstance(answer, Response):
             return answer
@@ -1174,7 +1166,7 @@ async def perform(
     request: Request,
     view: ModelView[Any],
     found: Any,
-    session: SessionAdapter,
+    session: "SessionAdapter",
     submitted: Mapping[str, Any],
     values: Mapping[str, Any],
 ) -> Any:

@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 __all__ = [
     "AdminSiteError",
     "FieldValidationError",
+    "IntegrityError",
     "InvalidPathError",
     "NotAModelError",
     "PermissionDeniedError",
@@ -108,6 +109,16 @@ class InvalidPathError(AdminSiteError):
     def __init__(self, path: str, reason: str) -> None:
         super().__init__(f"Cannot resolve {path!r}: {reason}")
         self.path = path
+
+
+class IntegrityError(AdminSiteError):
+    """Raised when the database refuses a change.
+
+    A value that must be unique is already taken, or other records still
+    refer to the one being deleted. `SessionAdapter.transaction()` and
+    `commit()` raise this, and so do the view's saves and deletes, in place
+    of SQLAlchemy's own error, which stays attached as the cause.
+    """
 
 
 class SignInRefusedError(AdminSiteError):

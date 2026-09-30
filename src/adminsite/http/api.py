@@ -5,14 +5,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from pydantic_core import to_jsonable_python
-from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from adminsite.actions import Selection
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.exceptions import FieldValidationError, RefusedError
+from adminsite.exceptions import FieldValidationError, IntegrityError, RefusedError
 from adminsite.fields import (
     EnumField,
     FileField,
@@ -31,6 +29,7 @@ from adminsite.views import ModelView
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "MAX_LIMIT",
@@ -119,7 +118,7 @@ def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
         return plain(item.text_for(record, None))
     value = view._value_at(record, path)
     if isinstance(item, RelationField):
-        target = SQLAlchemyRepository(item.related_model, view._inspector)
+        target = view._inspector.inspect(item.related_model)
         if value is None:
             return None
         if isinstance(value, list | tuple | set):
@@ -323,10 +322,6 @@ async def item(admin: "Admin", request: Request) -> Response:
                 await view._delete(session, record, request=request)
             except RefusedError as error:
                 raise ApiError(409, str(error)) from None
-            except IntegrityError:
-                raise ApiError(
-                    409, _("Other records still refer to this one.")
-                ) from None
             return Response(status_code=204)
 
         if request.method == "PATCH":
@@ -345,7 +340,7 @@ async def item(admin: "Admin", request: Request) -> Response:
 
 async def save(
     view: ModelView[Any],
-    session: Any,
+    session: "SessionAdapter",
     values: dict[str, Any],
     record: Any,
     request: Any,
@@ -400,12 +395,13 @@ async def action(admin: "Admin", request: Request) -> Response:
             request=request,
         )
         try:
-            message = await view._run_action(
-                found, selection, request=request, values=inputs.values
-            )
-            await session.commit()
+            # Anything that fails is rolled back first, so the audit log can
+            # write the attempt down.
+            async with session.transaction():
+                message = await view._run_action(
+                    found, selection, request=request, values=inputs.values
+                )
         except RefusedError as error:
-            await session.rollback()
             if error.field:
                 # About one of the values sent, as a form's refusal is.
                 raise ApiError(
@@ -413,14 +409,9 @@ async def action(admin: "Admin", request: Request) -> Response:
                 ) from None
             raise ApiError(409, str(error)) from None
         except IntegrityError:
-            await session.rollback()
             raise ApiError(
                 409, _("Other records still refer to some of these.")
             ) from None
-        except Exception:
-            # Undone first, so the audit log can write the attempt down.
-            await session.rollback()
-            raise
     if isinstance(message, Message):
         return JSONResponse(message.as_json())
     return JSONResponse({"message": str(message)})

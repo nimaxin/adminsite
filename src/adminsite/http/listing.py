@@ -1,17 +1,18 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
-from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.filters import FilterOption, FilterValue, parse_filters
+from adminsite.filters import Filter, FilterOption, FilterValue, parse_filters
 from adminsite.http.urls import PAGING_KEYS
 from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
+
+if TYPE_CHECKING:
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "COLUMNS_KEY",
@@ -45,7 +46,7 @@ SIZE_KEY = "adminsite_page_size"
 class FilterPanel:
     """One filter as the page needs it: the control, and what is chosen."""
 
-    filter: SQLFilter[Any]
+    filter: Filter
     options: Sequence[FilterOption] = ()
     value: FilterValue | None = None
 
@@ -181,24 +182,17 @@ def read_page(raw: str) -> int:
 
 async def build_panels(
     view: ModelView[Any],
-    session: SessionAdapter,
+    session: "SessionAdapter",
     spec: QuerySpec,
     request: Request,
 ) -> list[FilterPanel]:
     """Build each filter's control, with counts where it offers them."""
     chosen = {value.name: value for value in spec.filters}
-    context = SQLFilterContext(session, view._repository, spec)
-
-    panels = []
-    for item in view._list_filters(request):
-        panels.append(
-            FilterPanel(
-                filter=item,
-                options=await item.options(context),
-                value=chosen.get(item.name),
-            )
-        )
-    return panels
+    offered = await view._filter_options(session, spec, request=request)
+    return [
+        FilterPanel(filter=item, options=options, value=chosen.get(item.name))
+        for item, options in offered
+    ]
 
 
 def wants_partial(request: Request) -> bool:

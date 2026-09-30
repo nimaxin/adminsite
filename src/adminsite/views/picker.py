@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.fields import RelationField
 from adminsite.query import CountMode, Page, QuerySpec
 from adminsite.text import template_names
-from adminsite.views import ModelView
+from adminsite.views.model_view import ModelView
 
 if TYPE_CHECKING:
-    from adminsite.admin import Admin
+    from adminsite.views.registry import ViewRegistry
 
 __all__ = [
     "PICKER_LIMIT",
@@ -36,19 +37,37 @@ class Picker:
     the model is read directly.
     """
 
-    admin: "Admin"
+    views: "ViewRegistry"
+    inspector: SQLAlchemyInspector
     item: RelationField
     request: Any = None
 
     @property
     def view(self) -> ModelView[Any] | None:
         """The view registered for the model this link points at."""
-        return self.admin.views.for_relation(self.item)
+        return self.views.for_relation(self.item)
 
-    @property
-    def repository(self) -> SQLAlchemyRepository[Any]:
-        """The target model's repository, for naming and keys."""
-        return SQLAlchemyRepository(self.item.related_model, self.admin.inspector)
+    def key_of(self, record: Any) -> str:
+        """A linked record's key, as a form sends it back."""
+        return self.inspector.inspect(self.item.related_model).identity_of(record)
+
+    def keys_of(self, current: Any) -> list[str]:
+        """The keys of what the link holds, however many records that is.
+
+        After a failed submit the values are the keys that were picked, not
+        records, so they are already what the picker needs.
+        """
+        if current is None or current == "":
+            return []
+        found = current if isinstance(current, list | tuple | set) else [current]
+        model = self.item.related_model
+        return [
+            self.key_of(one) if isinstance(one, model) else str(one) for one in found
+        ]
+
+    def _repository(self) -> SQLAlchemyRepository[Any]:
+        """The target model's own repository, for a model no view shows."""
+        return SQLAlchemyRepository(self.item.related_model, self.inspector)
 
     def search_paths(self) -> tuple[str, ...]:
         """Where a search looks: what the target view says, or the names.
@@ -75,7 +94,7 @@ class Picker:
         )
         if not template:
             return ()
-        fields = self.admin.inspector.inspect(self.item.related_model).fields
+        fields = self.inspector.inspect(self.item.related_model).fields
         return tuple(
             name
             for name in template_names(template)
@@ -99,7 +118,7 @@ class Picker:
             count=CountMode.NONE,
         )
         if view is None:
-            return await self.repository.list(session, spec)
+            return await self._repository().list(session, spec)
         return await view._fetch_page(session, spec, request=self.request)
 
     async def offered(
@@ -119,7 +138,7 @@ class Picker:
         """One record the link already holds, if the user may see it."""
         view = self.view
         if view is None:
-            return await self.repository.get(session, key)
+            return await self._repository().get(session, key)
         try:
             return await view._fetch_record(session, key, request=self.request)
         except PermissionDeniedError:

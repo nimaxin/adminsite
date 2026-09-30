@@ -80,9 +80,10 @@ class OrderView(ModelView[Order]):
 Returning a new `select(Order)` in its place is a type error: it would drop what the view had
 already asked for, such as the page's filters.
 
-It is applied to the list, its count, opening one record, the CSV export and bulk actions. A row
-outside the scope cannot be seen, opened, changed or deleted, and guessing its key in the URL gives
-a "not found". There is no path through the admin that forgets to check.
+It is applied to the list, its count, the counts beside its filters, opening one record, the CSV
+export and bulk actions. A row outside the scope cannot be seen, opened, changed or deleted, and
+guessing its key in the URL gives a "not found". There is no path through the admin that forgets to
+check.
 
 That includes a picker on someone else's form. When an order links to a customer, the picker reads
 through `CustomerView`, so it offers only the customers this user may see, and offers none at all

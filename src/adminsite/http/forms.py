@@ -2,8 +2,6 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from adminsite.actions.action import Action
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import (
     BaseField,
     EnumField,
@@ -13,14 +11,15 @@ from adminsite.fields import (
 )
 from adminsite.fields.documents import DRAWN
 from adminsite.http.documents import document_form
-from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.http.rows import Choice, FormRow, chosen_in_order
 from adminsite.http.urls import Urls
 from adminsite.views import ModelView
 from adminsite.views.naming import name_linked
+from adminsite.views.picker import PICKER_LIMIT, Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "build_rows",
@@ -35,7 +34,7 @@ __all__ = [
 async def build_rows(
     admin: "Admin",
     view: ModelView[Any],
-    session: SessionAdapter,
+    session: "SessionAdapter",
     *,
     record: Any = None,
     submitted: Mapping[str, Any] | None = None,
@@ -152,15 +151,15 @@ def written_again(
 
 async def _fill_relation(
     admin: "Admin",
-    session: SessionAdapter,
+    session: "SessionAdapter",
     row: FormRow,
     item: RelationField,
     current: Any,
     request: Any = None,
 ) -> None:
     """Give a relation field either a list of records or a search box."""
-    picker = Picker(admin, item, request)
-    row.selected = tuple(_keys_of(picker.repository, current))
+    picker = Picker(admin.views, admin.inspector, item, request)
+    row.selected = tuple(picker.keys_of(current))
     row.value = row.selected[0] if row.selected else ""
 
     # One page plus a probe row: enough to list them, or to know there are
@@ -178,7 +177,7 @@ async def _fill_relation(
         return
 
     row.choices = [
-        Choice(picker.repository.identity_of(found), title_for(admin, item, found))
+        Choice(picker.key_of(found), title_for(admin, item, found))
         for found in page.rows
     ]
     if item.collection:
@@ -187,7 +186,7 @@ async def _fill_relation(
 
 async def _picked(
     admin: "Admin",
-    session: SessionAdapter,
+    session: "SessionAdapter",
     picker: Picker,
     item: RelationField,
     current: Any,
@@ -198,32 +197,15 @@ async def _picked(
     records are read back to name them, through the target's own view.
     """
     found = current if isinstance(current, list | tuple | set) else [current]
-    repository = picker.repository
     chosen: list[Choice] = []
     for one in found:
         record = one
-        if record is not None and not isinstance(record, repository.model):
+        if record is not None and not isinstance(record, item.related_model):
             record = await picker.get(session, str(one))
         if record is None:
             continue
-        chosen.append(
-            Choice(repository.identity_of(record), title_for(admin, item, record))
-        )
+        chosen.append(Choice(picker.key_of(record), title_for(admin, item, record)))
     return chosen
-
-
-def _keys_of(repository: SQLAlchemyRepository[Any], current: Any) -> list[str]:
-    if current is None or current == "":
-        return []
-    items = current if isinstance(current, list | tuple | set) else [current]
-    # After a failed submit the values are the keys that were picked, not
-    # records, so they are already what the picker needs.
-    return [
-        repository.identity_of(item)
-        if isinstance(item, repository.model)
-        else str(item)
-        for item in items
-    ]
 
 
 def title_for(admin: "Admin", item: RelationField, record: Any) -> str:

@@ -2,16 +2,15 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.fields import EnumField, RelationField
 from adminsite.http.forms import title_for
-from adminsite.http.picker import PICKER_LIMIT, Picker
 from adminsite.http.rows import Choice, FormRow
 from adminsite.views import Inline, ModelView
+from adminsite.views.picker import PICKER_LIMIT, Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.backends.sqlalchemy.session import SessionAdapter
 
 __all__ = [
     "BLANK_INDEX",
@@ -94,10 +93,8 @@ class _CellMaker:
             row.choices = found.choices
             row.searchable = found.searchable
             if raw is None and current is not None:
-                repository = SQLAlchemyRepository(
-                    item.related_model, self.admin.inspector
-                )
-                row.value = repository.identity_of(current)
+                picker = Picker(self.admin.views, self.admin.inspector, item)
+                row.value = picker.key_of(current)
                 row.picked_label = row.display
                 row.picked = (Choice(row.value, row.picked_label),)
             row.selected = (row.value,) if row.value else ()
@@ -107,7 +104,7 @@ class _CellMaker:
 async def build_inline_tables(
     admin: "Admin",
     view: ModelView[Any],
-    session: SessionAdapter,
+    session: "SessionAdapter",
     *,
     record: Any = None,
     submitted: Mapping[str, Any] | None = None,
@@ -206,10 +203,10 @@ def _rows_from_form(
 
 
 async def _relation_options(
-    admin: "Admin", session: SessionAdapter, item: Any, request: Any = None
+    admin: "Admin", session: "SessionAdapter", item: Any, request: Any = None
 ) -> _RelationOptions:
     """Load a link's choices once, for every row of the table to share."""
-    picker = Picker(admin, item, request)
+    picker = Picker(admin.views, admin.inspector, item, request)
     page = await picker.offered(session, limit=PICKER_LIMIT)
     if page is None:
         # The user may see none of these records: an empty picker, not a
@@ -219,7 +216,7 @@ async def _relation_options(
         return _RelationOptions(choices=[], searchable=True)
     return _RelationOptions(
         choices=[
-            Choice(picker.repository.identity_of(found), title_for(admin, item, found))
+            Choice(picker.key_of(found), title_for(admin, item, found))
             for found in page.rows
         ],
         searchable=False,

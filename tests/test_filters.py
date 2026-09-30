@@ -135,6 +135,21 @@ class TestChoiceFilter:
 
             assert sum(option.count or 0 for option in options) == 2
 
+    async def test_counts_and_values_stay_inside_the_scope(
+        self, database: Database
+    ) -> None:
+        def scope(statement: Select[Any]) -> Select[Any]:
+            # A scope may sort too, which a grouped count must not trip on.
+            return statement.where(Order.status == OrderStatus.PAID).order_by(
+                Order.created_at
+            )
+
+        async with database.session() as session:
+            context = SQLFilterContext(session, orders_with(), QuerySpec(), scope)
+
+            assert await context.count_by("status") == {"PAID": 2}
+            assert await context.distinct("status") == [OrderStatus.PAID]
+
     async def test_counts_can_be_switched_off(self, database: Database) -> None:
         status = ChoiceFilter("status", choices=(("PAID", "Paid"),), show_counts=False)
         async with database.session() as session:

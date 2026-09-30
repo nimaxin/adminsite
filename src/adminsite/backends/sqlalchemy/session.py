@@ -2,18 +2,18 @@ import asyncio
 import logging
 import os
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from typing import Any, TypeVar
 
-from sqlalchemy import Engine, Result
+from sqlalchemy import Engine, Result, exc
 from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Executable
 
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, IntegrityError
 
 __all__ = [
     "AsyncSessionAdapter",
@@ -21,6 +21,7 @@ __all__ = [
     "SessionAdapter",
     "SessionSource",
     "SyncSessionAdapter",
+    "database_refusals",
 ]
 
 T = TypeVar("T")
@@ -35,6 +36,15 @@ SessionSource = (
 )
 
 logger = logging.getLogger("adminsite")
+
+
+@contextmanager
+def database_refusals() -> Iterator[None]:
+    """Raise a change the database refuses as adminsite's IntegrityError."""
+    try:
+        yield
+    except exc.IntegrityError as error:
+        raise IntegrityError(str(error.orig)) from error
 
 
 async def _run_after(moment: str, work: Callable[[], Awaitable[None]]) -> None:
@@ -86,15 +96,21 @@ class SessionAdapter(ABC):
         self._after_rollback.append(work)
 
     async def commit(self) -> None:
-        """Commit the open transaction, then run the work waiting on it."""
+        """Commit the open transaction, then run the work waiting on it.
+
+        If the work before it or the commit itself fails, everything is
+        rolled back, so what waits on a rollback runs. A change the database
+        refuses raises adminsite's IntegrityError.
+        """
         waiting, self._before_commit = self._before_commit, []
         try:
-            for work in waiting:
-                await work()
+            with database_refusals():
+                for work in waiting:
+                    await work()
+                await self._commit()
         except BaseException:
             await self.rollback()
             raise
-        await self._commit()
         self._after_rollback = []
         waiting, self._after_commit = self._after_commit, []
         for work in waiting:
@@ -180,9 +196,15 @@ class SessionAdapter(ABC):
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator["SessionAdapter"]:
-        """Commit when the block ends, or roll back if it raises."""
+        """Commit when the block ends, or roll back if it raises.
+
+        A change the database refuses, in the block or at the commit, raises
+        adminsite's IntegrityError, whether adminsite made it or the code in
+        the block did.
+        """
         try:
-            yield self
+            with database_refusals():
+                yield self
         except BaseException:
             await self.rollback()
             raise

@@ -66,7 +66,10 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 - **Every control has an accessible name**: a `<label for>`, `aria-label` or `aria-labelledby`.
   `tests/test_accessibility.py` checks the main pages.
 - **Reads go through the view**, so `scope_query` and `allows` always apply. Never query a model
-  directly from an endpoint.
+  directly from an endpoint. Nothing under `http/` imports SQLAlchemy or `adminsite.backends` when
+  it runs, only `SessionAdapter` under `TYPE_CHECKING` for annotations; `tests/test_web_layer.py`
+  fails otherwise. Catch `adminsite.exceptions.IntegrityError`, which the backend raises for a
+  change the database refuses, never SQLAlchemy's.
 - **No N+1 queries.** Load what a page shows with the page; the tests count statements.
 - **Code must work on SQLite, Postgres and MySQL.** Convert keys read from URLs with
   `to_column_type`. MySQL refuses a `LIMIT` straight inside `IN (...)`.
