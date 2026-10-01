@@ -106,6 +106,7 @@ from adminsite.views.checks import (
 )
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.naming import name_all_linked, name_linked
+from adminsite.views.renamed import refuse_old_names
 from adminsite.views.writing import (
     DeleteContext,
     FormData,
@@ -128,64 +129,6 @@ DELETE_ACTION = "delete_selected"
 # The most records one Delete removes, each loaded and run through the
 # hooks inside a single transaction.
 BULK_DELETE_LIMIT = 1000
-
-# Settings and methods under the names other admins give them, or adminsite
-# did before 0.1.0a10, with the name adminsite uses. Python would take one as a
-# new attribute that adminsite never reads, so a view setting one is refused.
-_RENAMED = {
-    "list_filter": "list_filters",
-    "get_filters": "get_list_filters",
-    "page_sizes": "page_size_options",
-    "bulk_delete": "can_delete_selected",
-    "search_fields": "searchable_fields",
-    "get_search_fields": "get_searchable_fields",
-    "ordering": "fields_default_sort",
-    "get_ordering": "get_fields_default_sort",
-    "display_template": "record_title",
-    "title_of": "get_record_title",
-    "can_detail": "can_view_detail",
-    "form_values": "form_only_values",
-}
-
-# Settings and methods adminsite has nothing by that name for, as other
-# admins do, each with what to write instead.
-_REPLACED = {
-    "list_display": (
-        "List the view's fields in fields, and leave one off the list with "
-        "exclude_fields_from_list."
-    ),
-    "list_columns": "Give each of those fields hidden_in_list=True in fields.",
-    "form_fields": (
-        "List the view's fields in fields, and leave one off the forms with "
-        "exclude_fields_from_create and exclude_fields_from_edit."
-    ),
-    "detail_fields": (
-        "List the view's fields in fields, and leave one off the record page "
-        "with exclude_fields_from_detail."
-    ),
-    "exclude": "List the fields to show in fields, leaving those out.",
-    "readonly_fields": (
-        "Give each of those fields read_only=True in fields, or name them in "
-        "get_readonly_fields."
-    ),
-    "get_list_display": (
-        "Decide who sees a field with can_access_field(request, field, action)."
-    ),
-    "get_form_fields": (
-        "Decide who sees a field with can_access_field(request, field, action)."
-    ),
-    "get_detail_fields": (
-        "Decide who sees a field with can_access_field(request, field, action)."
-    ),
-    "get_column_choices": (
-        "Give a field hidden_in_list=True to offer it in the Columns menu, and "
-        "decide who sees one with can_access_field(request, field, action)."
-    ),
-    "get_page_sizes": (
-        "List the sizes in page_size_options; the view's page_size is offered "
-        "with them."
-    ),
-}
 
 # The pages an inline's rows are on: a new row's form, an existing one's, and
 # the parent's record page.
@@ -333,7 +276,7 @@ class ModelView(Generic[M]):
                 f"{type(self).__name__} needs a model: "
                 f"class {type(self).__name__}(ModelView[YourModel])."
             )
-        self._refuse_old_names()
+        refuse_old_names(type(self), base=ModelView, delete_action=DELETE_ACTION)
         self._inspector = inspector or SQLAlchemyInspector()
         self._registry = registry or default_registry
         try:
@@ -420,36 +363,6 @@ class ModelView(Generic[M]):
                 )
             except AdminSiteError as error:
                 raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
-
-    def _refuse_old_names(self) -> None:
-        """Refuse a setting or method written under the name it had before."""
-        view = type(self).__name__
-        for owner in type(self).__mro__:
-            if owner is ModelView:
-                return
-            written = vars(owner)
-            for old, new in _RENAMED.items():
-                if old in written:
-                    verb = "defines" if callable(written[old]) else "sets"
-                    raise AdminSiteError(
-                        f"{view} {verb} {old}, which adminsite calls {new}. "
-                        f"Rename it to {new}."
-                    )
-            for old, instead in _REPLACED.items():
-                if old not in written:
-                    continue
-                if callable(written[old]):
-                    said = f"{view} defines {old}, a method adminsite does not call."
-                else:
-                    said = f"{view} sets {old}, a setting adminsite does not have."
-                raise AdminSiteError(f"{said} {instead}")
-            replaced = written.get(DELETE_ACTION)
-            if replaced is not None and action_of(replaced) is None:
-                raise AdminSiteError(
-                    f"{view}.{DELETE_ACTION} does not replace the built-in delete "
-                    "of the chosen rows. Set can_delete_selected = False and add "
-                    "an action of your own."
-                )
 
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
