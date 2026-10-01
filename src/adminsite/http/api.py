@@ -395,7 +395,7 @@ async def action(admin: "Admin", request: Request) -> Response:
         raw_inputs = {}
     elif not isinstance(raw_inputs, dict):
         raise ApiError(422, _("inputs is an object."))
-    inputs = view._parse_action_inputs(
+    inputs = view._forms.parse_action_inputs(
         found,
         {
             name: [str(one) for one in value]

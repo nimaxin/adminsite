@@ -109,7 +109,7 @@ class TestDeclaring:
 
 class TestReadingTheForm:
     def test_each_row_comes_back_converted(self, view: OrderView) -> None:
-        result = view._parse_form(
+        result = view._forms.parse(
             {
                 **EDIT_FORM,
                 **lines(
@@ -124,7 +124,7 @@ class TestReadingTheForm:
         assert row.values["unit_price"] == Decimal("24.00")
 
     def test_a_blank_row_is_skipped(self, view: OrderView) -> None:
-        result = view._parse_form(
+        result = view._forms.parse(
             {
                 **EDIT_FORM,
                 **lines({"key": "", "product": "", "quantity": "", "unit_price": ""}),
@@ -135,7 +135,7 @@ class TestReadingTheForm:
         assert result.ok
 
     def test_a_bad_value_is_reported_for_its_row(self, view: OrderView) -> None:
-        result = view._parse_form(
+        result = view._forms.parse(
             {
                 **EDIT_FORM,
                 **lines(
@@ -147,7 +147,7 @@ class TestReadingTheForm:
         assert result.errors == {"items-0-quantity": "Enter a whole number."}
 
     def test_a_row_marked_for_removal_skips_its_values(self, view: OrderView) -> None:
-        result = view._parse_form(
+        result = view._forms.parse(
             {
                 **EDIT_FORM,
                 **lines({"key": "1", "delete": "on", "quantity": "nonsense"}),
@@ -167,7 +167,7 @@ class TestSaving:
             )
             assert order is not None
             first = order.items[0]
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -194,7 +194,7 @@ class TestSaving:
                 session, 1, paths=view._pages.load_paths()
             )
             assert order is not None
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -223,7 +223,7 @@ class TestSaving:
                 session, 1, paths=view._pages.load_paths()
             )
             assert order is not None
-            result = view._parse_form(
+            result = view._forms.parse(
                 {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
             )
 
@@ -239,7 +239,7 @@ class TestSaving:
         self, database: Database, view: OrderView
     ) -> None:
         async with database.session() as session:
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -275,7 +275,7 @@ class TestSaving:
                 session, 1, paths=view._pages.load_paths()
             )
             assert order is not None
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     **EDIT_FORM,
                     **lines(
@@ -461,7 +461,7 @@ class TestAReadOnlyField:
             assert order is not None
             first = order.items[0]
             price = first.unit_price
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     **EDIT_FORM,
                     **lines(

@@ -151,7 +151,7 @@ class TestEachPage:
     def test_the_form_does_not_read_it_back(self) -> None:
         submitted = {"customer": "1", "status": "paid", "total": "0", "note": ""}
 
-        result = Orders()._parse_form(submitted, record=Order(id=1), request="staff")
+        result = Orders()._forms.parse(submitted, record=Order(id=1), request="staff")
 
         assert "total" not in result.values
         assert result.values["status"] == OrderStatus.PAID
@@ -571,7 +571,7 @@ class TestGetReadonlyFields:
 
         assert view._pages.readonly_paths(None, shipped) == ("customer", "status")
         assert view._pages.readonly_paths(None, pending) == ()
-        result = view._parse_form(
+        result = view._forms.parse(
             {"customer": "2", "status": "paid", "note": "Gift"}, record=shipped
         )
         assert result.values == {"note": "Gift"}
@@ -588,7 +588,7 @@ class TestGetReadonlyFields:
 
         view = Locked()
         shelf = Shelf(aisle="A", slot=1)
-        result = view._parse_form(
+        result = view._forms.parse(
             {"aisle": "Z", "slot": "2", "label": "Linen"}, record=shelf
         )
 

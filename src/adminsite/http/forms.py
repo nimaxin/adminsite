@@ -98,7 +98,7 @@ async def build_rows(
                 # A new record's schema may follow what the form holds, as
                 # a setting's key decides the shape of its value.
                 if draft is None:
-                    draft = view._draft_record(typed, request)
+                    draft = view._forms.draft_record(typed, request)
                 owner = draft
                 row.redraw_url = f"{Urls(request).document(view, path)}?show=form"
             fill_document(row, item, owner, current, typed, errors)

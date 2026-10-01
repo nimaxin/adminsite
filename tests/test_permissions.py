@@ -217,7 +217,7 @@ class TestFieldPermissions:
     def test_a_locked_field_is_ignored_when_the_form_comes_back(self) -> None:
         view = HidesAColumn()
 
-        result = view._parse_form(
+        result = view._forms.parse(
             {"name": "Lena", "email": "changed@example.com", "region": "DE"},
             request="support",
         )

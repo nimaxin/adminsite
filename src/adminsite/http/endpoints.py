@@ -317,7 +317,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
     await view._ensure(Permission.CREATE, request=request)
 
     submitted = await read_form(request)
-    result = view._parse_form(submitted, request=request)
+    result = view._forms.parse(submitted, request=request)
     async with admin.database.session() as session:
         if not result.ok:
             return await form_again(
@@ -681,7 +681,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             raise HTTPException(status_code=404, detail=_("No such record."))
         await view._ensure(Permission.EDIT, request=request, record=record)
 
-        result = view._parse_form(submitted, record=record, request=request)
+        result = view._forms.parse(submitted, record=record, request=request)
         if not result.ok:
             return await form_again(
                 admin, view, session, request, result, None, record, submitted
@@ -786,7 +786,7 @@ async def document(admin: "Admin", request: Request) -> Response:
             status_code=404, detail=_("No field at {path}.", path=repr(path))
         )
     if record is None and item.schema_from_record:
-        record = view._draft_record(submitted, request)
+        record = view._forms.draft_record(submitted, request)
 
     if request.query_params.get("show") == "form":
         row = FormRow(path=path, field=item)
@@ -1116,7 +1116,7 @@ async def run_action(admin: "Admin", request: Request) -> Response:
         raise HTTPException(status_code=404, detail=_("No such action."))
 
     submitted = await read_form(request)
-    inputs = view._parse_action_inputs(found, submitted)
+    inputs = view._forms.parse_action_inputs(found, submitted)
     if not inputs.ok:
         problems = "; ".join(
             f"{found.input_label(item)}: {inputs.errors[item.name]}"

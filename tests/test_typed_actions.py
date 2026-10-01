@@ -486,7 +486,7 @@ class TestWhatTheDialogAsksFor:
                 return ""
 
         view = Offers()
-        read = view._parse_action_inputs(view._action_named("offer"), {})
+        read = view._forms.parse_action_inputs(view._action_named("offer"), {})
 
         assert read.errors == {"customers": "This field is required."}
 

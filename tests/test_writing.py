@@ -44,7 +44,7 @@ def orders() -> OrderView:
 
 class TestReadingAForm:
     def test_values_come_back_converted(self, products: ProductView) -> None:
-        result = products._parse_form(
+        result = products._forms.parse(
             {"name": "Felt hat", "price": "42.50", "description": ""}
         )
 
@@ -56,20 +56,20 @@ class TestReadingAForm:
         }
 
     def test_a_bad_value_becomes_a_message(self, products: ProductView) -> None:
-        result = products._parse_form({"name": "Hat", "price": "free"})
+        result = products._forms.parse({"name": "Hat", "price": "free"})
 
         assert result.ok is False
         assert result.errors == {"price": "Enter an amount, for example 12.50."}
 
     def test_a_missing_required_value_is_reported(self, products: ProductView) -> None:
-        result = products._parse_form({"name": "", "price": "10.00"})
+        result = products._forms.parse({"name": "", "price": "10.00"})
 
         assert result.errors == {"name": "This field is required."}
 
     def test_read_only_fields_are_not_read_from_the_form(
         self, orders: OrderView
     ) -> None:
-        result = orders._parse_form(
+        result = orders._forms.parse(
             {
                 "customer": "1",
                 "status": "PAID",
@@ -84,7 +84,7 @@ class TestReadingAForm:
         class CustomerWithOrders(ModelView[Customer]):
             fields = ["name", "email", "orders"]
 
-        result = CustomerWithOrders()._parse_form(
+        result = CustomerWithOrders()._forms.parse(
             {"name": "Lena", "email": "lena@example.com", "orders": ["1", "2"]}
         )
 
@@ -439,7 +439,7 @@ class TestRoundTrip:
     ) -> None:
         view = CustomerView()
         async with database.session() as session:
-            result = view._parse_form(
+            result = view._forms.parse(
                 {
                     "name": "Mara Svensson",
                     "email": "mara@example.com",
