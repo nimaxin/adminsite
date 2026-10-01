@@ -106,7 +106,7 @@ class ViewRegistry:
             ]
             for setting, owner in owners:
                 for path in owner._settings.placed:
-                    item = owner._field_for(path)
+                    item = owner._fields.field_for(path)
                     if not isinstance(item, RelationField) or item.view is None:
                         continue
                     try:

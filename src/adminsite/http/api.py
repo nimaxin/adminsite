@@ -103,21 +103,21 @@ def to_json(
     A form-only field, such as a password to set, is written and never read,
     so it is left out.
     """
-    body: dict[str, Any] = {"key": view._identity_of(record)}
+    body: dict[str, Any] = {"key": view._fields.identity_of(record)}
     for path in paths:
-        if not view._field_for(path).form_only:
+        if not view._fields.field_for(path).form_only:
             body[path] = json_value(view, path, record, urls)
     return body
 
 
 def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
     """A value as JSON: links as keys, files as a name and an address."""
-    item = view._field_for(path)
+    item = view._fields.field_for(path)
     if not item.stored:
         # Worked out from the record, so there is no stored value to send.
         # Markup belongs on the page, so what goes out is its text.
         return plain(item.text_for(record, None))
-    value = view._value_at(record, path)
+    value = view._fields.value_at(record, path)
     if "." in path and view._inspector.resolve(view.model, path).crosses_collection:
         # Read through a link to many, it holds a value for each record.
         return [_one_value(view, path, item, one, urls) for one in value or ()]
@@ -180,7 +180,7 @@ def read_values(
         if path not in writable:
             errors[path] = _("This field cannot be written.")
             continue
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         if (
             item.keeps_value_when_blank
             and record is not None
@@ -217,7 +217,7 @@ def read_values(
             errors[path] = error.message
     if record is None:
         for path in writable - set(body):
-            if view._field_for(path).required:
+            if view._fields.field_for(path).required:
                 errors[path] = _("This field is required.")
     if errors:
         raise ApiError(422, _("Some fields need another look."), errors)
@@ -239,9 +239,9 @@ async def index(admin: "Admin", request: Request) -> Response:
                 "fields": [
                     {
                         "path": path,
-                        "label": view._label_for(path),
-                        "widget": view._field_for(path).widget,
-                        "required": bool(view._field_for(path).required),
+                        "label": view._fields.label_for(path),
+                        "widget": view._fields.field_for(path).widget,
+                        "required": bool(view._fields.field_for(path).required),
                     }
                     for path in paths
                 ],
@@ -304,7 +304,7 @@ async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Resp
     urls = Urls(request)
     async with admin.database.session() as session:
         record = await save(view, session, values, None, request)
-        key = view._identity_of(record)
+        key = view._fields.identity_of(record)
         paths = api_paths(view, request)
         fresh = await view._fetch_record(
             session, key, paths=view._loadable(paths), request=request
@@ -343,7 +343,7 @@ async def item(admin: "Admin", request: Request) -> Response:
             )
             await save(view, session, values, record, request)
             # A hook may have changed the key, so it is read again by the new one.
-            key = view._identity_of(record)
+            key = view._fields.identity_of(record)
             record = await view._fetch_record(session, key, paths=load, request=request)
             if record is None:
                 # Saved outside what scope_query lets this user read.

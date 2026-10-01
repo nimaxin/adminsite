@@ -48,7 +48,9 @@ async def show_form(
 ) -> Response:
     """The page for choosing a file."""
     await view._ensure(Permission.IMPORT, request=request)
-    columns = [(path, view._label_for(path)) for path in import_columns(view, request)]
+    columns = [
+        (path, view._fields.label_for(path)) for path in import_columns(view, request)
+    ]
     return await admin.render(
         "import.html",
         request,

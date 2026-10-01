@@ -264,8 +264,8 @@ class TestWhichKeysAreTyped:
         view = CountryView()
 
         assert view._form_fields() == ("code", "name")
-        assert view._field_for("code").required
-        assert ShelfView()._field_for("slot").required
+        assert view._fields.field_for("code").required
+        assert ShelfView()._fields.field_for("slot").required
 
     def test_it_is_fixed_once_the_record_exists(self) -> None:
         view = ShelfView()
@@ -280,7 +280,7 @@ class TestWhichKeysAreTyped:
         view = ProfileView()
 
         assert view._form_fields() == ("member", "bio")
-        assert view._field_for("member").required
+        assert view._fields.field_for("member").required
         assert view._readonly_paths() == ()
         assert view._readonly_paths(None, Profile(member_id=1)) == ("member",)
 
@@ -663,7 +663,7 @@ class TestAKeyOfTwoColumnsWrittenAsText:
         self, database: Database, views: list[type[ModelView[Box] | ModelView[Shelf]]]
     ) -> None:
         admin = Admin(database, views=views)
-        item = BoxView()._field_for("shelf")
+        item = BoxView()._fields.field_for("shelf")
         assert isinstance(item, RelationField)
         picker = Picker(views=admin.views, inspector=SQLAlchemyInspector(), item=item)
 

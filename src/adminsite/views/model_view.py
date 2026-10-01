@@ -36,7 +36,7 @@ from adminsite.actions.parameters import (
 from adminsite.actions.selection import Selection
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
-from adminsite.audit.inputs import HIDDEN, looks_secret, recorded_inputs
+from adminsite.audit.inputs import HIDDEN, recorded_inputs
 from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.filters import (
     SQLFilter,
@@ -92,15 +92,12 @@ from adminsite.text import (
     template_names,
 )
 from adminsite.views.checks import (
-    check_kind,
-    check_link_title,
-    check_list_flags,
-    check_options_used,
     check_title,
 )
 from adminsite.views.inline import Inline, InlineRow
-from adminsite.views.naming import name_all_linked, name_linked
+from adminsite.views.naming import name_all_linked
 from adminsite.views.settings import SettingsReader, default_paths
+from adminsite.views.view_fields import ViewFields
 from adminsite.views.writing import (
     DeleteContext,
     FormData,
@@ -290,21 +287,9 @@ class ModelView(Generic[M]):
         self._repository = SQLAlchemyRepository(
             self.model, self._inspector, self._settings.list_filters
         )
-        self._fields: dict[str, BaseField] = {}
-        # Built now, so a mistake such as a tone for a value the field does
-        # not have stops the admin starting rather than the page that shows it.
-        for path in self._settings.placed:
-            try:
-                item = self._field_for(path)
-                check_list_flags(
-                    item,
-                    self._settings.overrides.get(path, item),
-                    excluded_by_list=(
-                        path in self._settings.excluded[RequestAction.LIST]
-                    ),
-                )
-            except AdminSiteError as error:
-                raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
+        self._fields = ViewFields(
+            self, self._settings, self._inspector, self._registry, self._repository
+        )
 
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
@@ -329,7 +314,7 @@ class ModelView(Generic[M]):
         return tuple(
             path
             for path in paths
-            if self.can_access_field(request, self._field_for(path), action)
+            if self.can_access_field(request, self._fields.field_for(path), action)
         )
 
     def _can_access_path(self, request: Any, path: str, action: RequestAction) -> bool:
@@ -340,7 +325,7 @@ class ModelView(Generic[M]):
         wrote it down.
         """
         try:
-            field = self._field_for(path)
+            field = self._fields.field_for(path)
         except AdminSiteError:
             return True
         return self.can_access_field(request, field, action)
@@ -348,7 +333,9 @@ class ModelView(Generic[M]):
     def _list_fields(self, request: Any = None) -> tuple[str, ...]:
         """The columns the list shows, for this user."""
         shown = [
-            path for path in self._listed() if not self._field_for(path).hidden_in_list
+            path
+            for path in self._listed()
+            if not self._fields.field_for(path).hidden_in_list
         ]
         return self._accessible(request, shown, RequestAction.LIST)
 
@@ -372,7 +359,9 @@ class ModelView(Generic[M]):
     def _column_choices(self, request: Any = None) -> tuple[str, ...]:
         """The columns the picker offers: the list's own, then the hidden ones."""
         hidden = [
-            path for path in self._listed() if self._field_for(path).hidden_in_list
+            path
+            for path in self._listed()
+            if self._fields.field_for(path).hidden_in_list
         ]
         return self._list_fields(request) + self._accessible(
             request, hidden, RequestAction.LIST
@@ -502,7 +491,7 @@ class ModelView(Generic[M]):
         shown = [
             path
             for path in self._candidates()
-            if not self._field_for(path).form_only
+            if not self._fields.field_for(path).form_only
             and not self._excluded_from(RequestAction.DETAIL, path)
         ]
         return self._accessible(request, shown, RequestAction.DETAIL)
@@ -557,7 +546,7 @@ class ModelView(Generic[M]):
         depend on it. So is a link made only of key columns, such as the
         customer of a profile keyed by its customer.
         """
-        if self._field_for(path).read_only:
+        if self._fields.field_for(path).read_only:
             return True
         if not saved:
             return False
@@ -640,20 +629,14 @@ class ModelView(Generic[M]):
         """
         wanted: list[str] = []
         for path in paths:
-            item = self._field_for(path)
+            item = self._fields.field_for(path)
             if item.stored:
                 wanted.append(path)
                 continue
-            for needed in self._needs_of(item):
+            for needed in self._fields.needs_of(item):
                 if needed not in wanted:
                     wanted.append(needed)
         return wanted
-
-    def _needs_of(self, item: BaseField) -> list[str]:
-        """The paths a computed field reads, checked when the view is built."""
-        if not isinstance(item, ComputedField):
-            return list(getattr(item, "needs", ()))
-        return [path_of(needed, self.model) for needed in item.needs]
 
     def _sortable(self, path: str) -> bool:
         """Whether a list can be sorted by this column.
@@ -663,7 +646,7 @@ class ModelView(Generic[M]):
         """
         if self._settings.sortable_fields is not None:
             return path in self._settings.sortable_fields
-        if not self._field_for(path).stored:
+        if not self._fields.field_for(path).stored:
             return False
         resolved = self._inspector.resolve(self.model, path)
         return resolved.field is not None and not resolved.crosses_collection
@@ -774,7 +757,7 @@ class ModelView(Generic[M]):
         return tuple(
             path
             for path in self._candidates()
-            if not self._field_for(path).form_only
+            if not self._fields.field_for(path).form_only
             and not self._excluded_from(RequestAction.LIST, path)
         )
 
@@ -782,14 +765,14 @@ class ModelView(Generic[M]):
         """Whether a path can be an input in a form."""
         if "." in path or path in self._settings.filled_keys:
             return False
-        item = self._field_for(path)
+        item = self._fields.field_for(path)
         return item.stored or item.form_only
 
     def _excluded_from(self, page: RequestAction, path: str) -> bool:
         """Whether the field is left off a page, by its flag or the view's list."""
         if path in self._settings.excluded[page]:
             return True
-        item = self._field_for(path)
+        item = self._fields.field_for(path)
         return {
             RequestAction.LIST: item.exclude_from_list,
             RequestAction.DETAIL: item.exclude_from_detail,
@@ -799,72 +782,6 @@ class ModelView(Generic[M]):
         }[page]
 
     # Turning paths into fields and values.
-
-    def _field_for(self, path: str) -> BaseField:
-        """The field used to show and edit whatever the path points at."""
-        known = self._fields.get(path)
-        if known is not None:
-            return known
-        given = self._settings.overrides.get(path)
-        built = self._built_field(path) if given is None else self._completed(given)
-        self._fields[path] = built
-        return built
-
-    def _completed(self, given: BaseField) -> BaseField:
-        """A field from `fields`, with what its column says for options left out.
-
-        A computed or form-only field has no column, so it is used as it is.
-        `Field(...)` on its own becomes the field adminsite picks for the
-        column, with the options it was given. A kind that does not fit its
-        column, or an option the kind never reads, is refused.
-        """
-        if not isinstance(given, Field) or given.form_only:
-            check_options_used(given, given)
-            given.check_options()
-            return given
-        path = path_of(given.column, self.model)
-        resolved = self._inspector.resolve(self.model, path)
-        completed: BaseField
-        # Built under the path, so a column of a related model is named
-        # customer.email rather than email.
-        if type(given) is Field:
-            if resolved.field is not None:
-                completed = self._registry.build(
-                    replace(resolved.field, name=path), **given.given_options()
-                )
-            else:
-                completed = RelationField.from_relation(
-                    replace(resolved.relations[-1], name=path),
-                    **given.given_options(),
-                )
-        elif resolved.field is not None:
-            check_kind(
-                given,
-                resolved.field,
-                resolved,
-                self.model,
-                registry=self._registry,
-                inspector=self._inspector,
-            )
-            completed = self._registry.fill(given, resolved.field)
-        elif isinstance(given, RelationField):
-            completed = given.filled_from_relation(resolved.relations[-1])
-        else:
-            raise AdminSiteError(
-                f"{given!r} names a relationship. Show it with RelationField, or "
-                "name it in fields without a field."
-            )
-        check_options_used(given, completed)
-        completed.check_options()
-        check_link_title(completed, repr(given), self._inspector)
-        return completed
-
-    def _built_field(self, path: str) -> BaseField:
-        """The field adminsite works out for a path nobody gave a field for."""
-        resolved = self._inspector.resolve(self.model, path)
-        if resolved.field is not None:
-            return self._registry.build(replace(resolved.field, name=path))
-        return RelationField.from_relation(replace(resolved.relations[-1], name=path))
 
     async def form_only_values(
         self, session: SessionAdapter, record: M | None, *, request: Request
@@ -877,13 +794,6 @@ class ModelView(Generic[M]):
         """
         return {}
 
-    def _form_only(self, path: str) -> bool:
-        """Whether a path is a form-only field of this view."""
-        try:
-            return self._field_for(path).form_only
-        except AdminSiteError:
-            return False
-
     def _masked(self, changes: Mapping[str, Change]) -> dict[str, Change]:
         """Changes as the audit log keeps them: a secret's values as ***.
 
@@ -893,64 +803,11 @@ class ModelView(Generic[M]):
         """
         kept = {}
         for path, (before, after) in changes.items():
-            if self._secret(path):
+            if self._fields.secret(path):
                 before = HIDDEN if before not in (None, "") else before
                 after = HIDDEN if after not in (None, "") else after
             kept[path] = (before, after)
         return kept
-
-    def _secret(self, path: str) -> bool:
-        try:
-            chosen = self._field_for(path).secret
-        except AdminSiteError:
-            chosen = None
-        return looks_secret(path.rsplit(".", 1)[-1]) if chosen is None else chosen
-
-    def _label_for(self, path: str) -> str:
-        """The column heading for a path.
-
-        A path through a link names the link as well, so `customer.name`
-        reads Customer name rather than a bare Name.
-        """
-        item = self._field_for(path)
-        label = item.label
-        if item.labelled or "." not in path:
-            return label
-        resolved = self._inspector.resolve(self.model, path)
-        if resolved.field is None:
-            return label
-        owner = resolved.relations[-1].label
-        return f"{owner} {label[:1].lower()}{label[1:]}"
-
-    def _value_at(self, record: Any, path: str) -> Any:
-        """Read the value a path points at, following links as it goes.
-
-        Past a link to many it reads a value for each record, in one flat
-        list, so orders.items.quantity holds the quantity of every item.
-        """
-        value: Any = record
-        parts = path.split(".")
-        for position, part in enumerate(parts):
-            if value is None:
-                return None
-            if not isinstance(value, list | tuple | set):
-                value = getattr(value, part, None)
-                continue
-            # A link to many is read through, while a column holding a list is
-            # one record's value.
-            through = (
-                position < len(parts) - 1
-                or self._inspector.resolve(self.model, path).points_at_relation
-            )
-            found: list[Any] = []
-            for item in value:
-                one = getattr(item, part, None)
-                if through and isinstance(one, list | tuple | set):
-                    found.extend(one)
-                else:
-                    found.append(one)
-            value = found
-        return value
 
     def _draft_record(self, data: FormData, request: Any = None) -> Any:
         """An unsaved record holding the plain values a form holds so far.
@@ -964,7 +821,7 @@ class ModelView(Generic[M]):
         # Made without the model's own __init__, which may ask for values.
         draft = class_mapper(self.model).class_manager.new_instance()
         for path in self._form_fields(request):
-            item = self._field_for(path)
+            item = self._fields.field_for(path)
             if "." in path or not item.stored:
                 continue
             if isinstance(item, RelationField | FileField | JSONField):
@@ -1000,7 +857,7 @@ class ModelView(Generic[M]):
             if "." in path:
                 continue
             try:
-                item = self._field_for(path)
+                item = self._fields.field_for(path)
             except AdminSiteError:
                 continue
             if not isinstance(item, ComputedField) or item.load is None:
@@ -1008,34 +865,9 @@ class ModelView(Generic[M]):
             found = await item.load(session, records)
             for record in records:
                 waiting = vars(record).setdefault(LOADED, {})
-                waiting[item.name] = found.get(self._key_value(record), item.default)
-
-    def _key_value(self, record: Any) -> Any:
-        """A record's primary key as its columns hold it: a tuple when composite."""
-        identity: tuple[Any, ...] = sqlalchemy_inspect(record).identity or ()
-        return identity[0] if len(identity) == 1 else tuple(identity)
-
-    def _display(self, record: Any, path: str) -> str:
-        """The text shown in a cell."""
-        item = self._field_for(path)
-        if item.form_only:
-            # Never read from the record, so there is nothing to show.
-            return ""
-        value = self._value_at(record, path)
-        if isinstance(item, RelationField):
-            # A linked record reads here as it does everywhere else.
-            return name_all_linked(
-                item, value, views=self._views, inspector=self._inspector
-            )
-        if "." in path and self._inspector.resolve(self.model, path).crosses_collection:
-            # Read through a link to many, it holds a value for each record.
-            shown = (item.text_for(record, one) for one in value or ())
-            return ", ".join(text for text in shown if text)
-        return item.text_for(record, value)
-
-    def _name_linked(self, item: RelationField, record: Any) -> str:
-        """Name a record one of this view's links points at."""
-        return name_linked(item, record, views=self._views, inspector=self._inspector)
+                waiting[item.name] = found.get(
+                    self._fields.key_value(record), item.default
+                )
 
     def get_record_title(self, record: M, /) -> str:
         """Name a record, for a heading, a link to it and the history.
@@ -1048,11 +880,9 @@ class ModelView(Generic[M]):
             return self._settings.record_title.format_map(RecordValues(record))
         if names_itself(record):
             return str(record)
-        return _("{thing} #{key}", thing=self.label, key=self._identity_of(record))
-
-    def _identity_of(self, record: Any) -> str:
-        """The key of a record, as it appears in a URL."""
-        return self._repository.identity_of(record)
+        return _(
+            "{thing} #{key}", thing=self.label, key=self._fields.identity_of(record)
+        )
 
     # Building a read.
 
@@ -1226,7 +1056,7 @@ class ModelView(Generic[M]):
             found,
             request,
             values,
-            self._identity_of(record),
+            self._fields.identity_of(record),
             self.get_record_title(record),
         )
         auditing = self._audit_log is not None
@@ -1626,7 +1456,7 @@ class ModelView(Generic[M]):
         from this user. A model no view shows is read directly.
         """
         await self._ensure(Permission.VIEW_DETAIL, request=request, record=record)
-        item = self._field_for(path)
+        item = self._fields.field_for(path)
         target = (
             self._views.for_relation(item)
             if self._views is not None and isinstance(item, RelationField)
@@ -1655,7 +1485,7 @@ class ModelView(Generic[M]):
         draft: Any = None
 
         for path in self._form_fields(request, record):
-            item = self._field_for(path)
+            item = self._fields.field_for(path)
             if path in readonly:
                 continue
             raw = data.get(path)
@@ -1668,7 +1498,7 @@ class ModelView(Generic[M]):
                         raw,
                         remove=data.get(f"{path}-remove") is not None,
                         has_file=bool(
-                            record is not None and self._value_at(record, path)
+                            record is not None and self._fields.value_at(record, path)
                         ),
                     )
                     if choice is not UNCHANGED:
@@ -1715,7 +1545,7 @@ class ModelView(Generic[M]):
         child = self._inline_view(inline.name)
         locked = self._inline_readonly(inline, request, record)
         children = {
-            child._identity_of(found): found
+            child._fields.identity_of(found): found
             for found in getattr(record, inline.name, None) or ()
         }
         try:
@@ -1741,7 +1571,7 @@ class ModelView(Generic[M]):
             row = InlineRow(key=key, delete=delete, index=index)
             if not delete:
                 for path in paths:
-                    item = child._field_for(path)
+                    item = child._fields.field_for(path)
                     try:
                         row.values[path] = item.parse(_as_text(raw[path]))
                     except FieldValidationError as error:
@@ -1779,7 +1609,7 @@ class ModelView(Generic[M]):
                 context = SaveContext(
                     session=session,
                     record=target,
-                    values=SaveValues(target, values, form_only=self._form_only),
+                    values=SaveValues(target, values, form_only=self._fields.form_only),
                     created=created,
                     request=request,
                 )
@@ -1789,7 +1619,7 @@ class ModelView(Generic[M]):
                 values = {
                     path: value
                     for path, value in stored_values(context.values).items()
-                    if not self._form_only(path)
+                    if not self._fields.form_only(path)
                 }
 
                 auditing = self._audit_log is not None
@@ -1843,7 +1673,7 @@ class ModelView(Generic[M]):
         """
         cleared = False
         for path, value in values.items():
-            item = self._field_for(path)
+            item = self._fields.field_for(path)
             if not isinstance(item, RelationField) or not item.ordered:
                 continue
             target = SQLAlchemyRepository(item.related_model, self._inspector)
@@ -1878,14 +1708,16 @@ class ModelView(Generic[M]):
         stored: list[tuple[FileField, str]] = []
         try:
             for path, value in values.items():
-                item = self._field_for(path)
+                item = self._fields.field_for(path)
                 if not isinstance(item, FileField):
                     continue
                 if isinstance(value, NewFile):
                     key = await item.storage.save(value.upload)
                     stored.append((item, key))
                     ready[path] = key
-                old = self._value_at(record, path) if record is not None else None
+                old = (
+                    self._fields.value_at(record, path) if record is not None else None
+                )
                 if old and old != ready[path]:
                     session.after_commit(_deleting(item, old))
         except BaseException:
@@ -1937,7 +1769,7 @@ class ModelView(Generic[M]):
             if auditing
             else {}
         )
-        key, title = self._identity_of(record), self.get_record_title(record)
+        key, title = self._fields.identity_of(record), self.get_record_title(record)
         # What the hooks left unwritten goes first, so that a refusal of the
         # delete itself is the only one put down to the records referring.
         await session.flush()
@@ -2027,7 +1859,9 @@ class ModelView(Generic[M]):
                 continue
             child_view = self._inline_view(inline.name)
             children = getattr(parent, inline.name)
-            by_key = {child_view._identity_of(child): child for child in children}
+            by_key = {
+                child_view._fields.identity_of(child): child for child in children
+            }
             for row in rows:
                 if row.is_new:
                     if not row.delete:
@@ -2086,7 +1920,7 @@ class ModelView(Generic[M]):
         owner = fields_of or self
         resolved = dict(values)
         for path, value in values.items():
-            item = owner._field_for(path)
+            item = owner._fields.field_for(path)
             if not isinstance(item, RelationField):
                 continue
             if value is None or value == "" or value == []:
@@ -2128,9 +1962,10 @@ class ModelView(Generic[M]):
         state = sqlalchemy_inspect(record, raiseerr=False)
         unloaded = state.unloaded if state is not None else set()
         return {
-            path: self._display(record, path)
+            path: self._fields.display(record, path)
             for path in paths
-            if path.split(".", 1)[0] not in unloaded and not self._form_only(path)
+            if path.split(".", 1)[0] not in unloaded
+            and not self._fields.form_only(path)
         }
 
     def _audit_save(
@@ -2158,7 +1993,7 @@ class ModelView(Generic[M]):
             [
                 AuditEntry(
                     view=self.name,
-                    record_key=self._identity_of(record),
+                    record_key=self._fields.identity_of(record),
                     record_title=self.get_record_title(record),
                     event=AuditEvent.CREATED if created else AuditEvent.UPDATED,
                     changes=changes,

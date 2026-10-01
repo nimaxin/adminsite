@@ -57,11 +57,11 @@ async def build_rows(
 
     rows = []
     for path in view._form_fields(request, record):
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         if item.form_only:
             stored = starting.get(path)
         else:
-            stored = view._value_at(record, path) if record is not None else None
+            stored = view._fields.value_at(record, path) if record is not None else None
         # A file cannot be put back into a file input, so after a failed
         # submit the field shows what is stored, not what was sent.
         current = (

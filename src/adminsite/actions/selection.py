@@ -136,7 +136,7 @@ class Selection(Generic[M]):
             key_parts, current = row[: len(key_columns)], row[len(key_columns) :]
             key = ",".join(str(part) for part in key_parts)
             before = {
-                name: self.view._field_for(name).display(value)
+                name: self.view._fields.field_for(name).display(value)
                 for name, value in zip(names, current, strict=True)
             }
             if after is None:
@@ -147,7 +147,7 @@ class Selection(Generic[M]):
                 changes = diff(
                     before,
                     {
-                        name: self.view._field_for(name).display(after[name])
+                        name: self.view._fields.field_for(name).display(after[name])
                         for name in names
                     },
                 )

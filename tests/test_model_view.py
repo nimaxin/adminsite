@@ -100,15 +100,15 @@ class TestColumns:
         assert view._list_fields() == ("id", "name", "price", "description")
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
-        assert orders._label_for("created_at") == "Created at"
-        assert orders._label_for("customer.name") == "Customer name"
+        assert orders._fields.label_for("created_at") == "Created at"
+        assert orders._fields.label_for("customer.name") == "Customer name"
 
     def test_each_column_gets_the_field_that_fits(self, orders: OrderView) -> None:
-        assert isinstance(orders._field_for("total"), DecimalField)
-        assert isinstance(orders._field_for("status"), EnumField)
+        assert isinstance(orders._fields.field_for("total"), DecimalField)
+        assert isinstance(orders._fields.field_for("status"), EnumField)
 
     def test_a_field_can_be_replaced(self, orders: OrderView) -> None:
-        field = orders._field_for("customer")
+        field = orders._fields.field_for("customer")
 
         assert isinstance(field, RelationField)
         assert field.record_title == "{name} ({email})"
@@ -118,10 +118,10 @@ class TestReadingValues:
     def test_a_value_is_read_through_a_link(self, orders: OrderView) -> None:
         order = Order(id=1, customer=Customer(name="Lena Fischer"))
 
-        assert orders._value_at(order, "customer.name") == "Lena Fischer"
+        assert orders._fields.value_at(order, "customer.name") == "Lena Fischer"
 
     def test_a_missing_link_reads_as_nothing(self, orders: OrderView) -> None:
-        assert orders._value_at(Order(id=1), "customer.name") is None
+        assert orders._fields.value_at(Order(id=1), "customer.name") is None
 
     def test_many_records_read_as_a_list(self) -> None:
         class ItemsView(ModelView[Order]):
@@ -129,14 +129,14 @@ class TestReadingValues:
 
         order = Order(items=[OrderItem(quantity=2), OrderItem(quantity=3)])
 
-        assert ItemsView()._value_at(order, "items.quantity") == [2, 3]
+        assert ItemsView()._fields.value_at(order, "items.quantity") == [2, 3]
 
     def test_cells_are_formatted_by_the_field(self, orders: OrderView) -> None:
         order = Order(id=1, total=Decimal("1234.5"), status=OrderStatus.SHIPPED)
 
-        assert orders._display(order, "total") == "1,234.50"
-        assert orders._display(order, "status") == "Shipped"
-        assert orders._display(order, "created_at") == ""
+        assert orders._fields.display(order, "total") == "1,234.50"
+        assert orders._fields.display(order, "status") == "Shipped"
+        assert orders._fields.display(order, "created_at") == ""
 
 
 class TestFilters:
@@ -197,7 +197,9 @@ class TestBuildingAQuery:
 
             assert len(page) == 1
             assert page.rows[0].status is OrderStatus.SHIPPED
-            assert orders._display(page.rows[0], "customer.name") == "Lena Fischer"
+            assert (
+                orders._fields.display(page.rows[0], "customer.name") == "Lena Fischer"
+            )
 
     async def test_the_page_size_is_the_one_the_view_set(
         self, database: Database, orders: OrderView
@@ -235,7 +237,7 @@ class TestForms:
         class PlainOrders(ModelView[Order]):
             pass
 
-        assert isinstance(PlainOrders()._field_for("customer"), RelationField)
+        assert isinstance(PlainOrders()._fields.field_for("customer"), RelationField)
 
     def test_a_column_left_out_of_fields_is_on_no_page(self) -> None:
         class ShortProducts(ModelView[Product]):

@@ -83,7 +83,7 @@ class TestAFieldThatReadsTheRecord:
     def test_the_text_comes_from_both_columns(self) -> None:
         view = OrderView()
 
-        assert view._field_for("total").text_for(FakeOrder(), 12) == "12 (DE)"
+        assert view._fields.field_for("total").text_for(FakeOrder(), 12) == "12 (DE)"
 
     async def test_the_list_and_the_page_use_it(
         self, client: httpx.AsyncClient

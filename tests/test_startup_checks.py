@@ -431,7 +431,7 @@ class TestAField:
         class Statuses(ModelView[Order]):
             fields = [EnumField(Order.status)]
 
-        assert Statuses()._field_for("status").display("PAID") == "Paid"
+        assert Statuses()._fields.field_for("status").display("PAID") == "Paid"
 
     def test_one_in_an_inline_names_the_view_and_the_setting(self) -> None:
         class WithLines(ModelView[Order]):
@@ -496,7 +496,7 @@ class TestAKindFitsItsColumn:
 
         view = Orders(SQLAlchemyInspector())
 
-        assert isinstance(view._field_for("created_at"), BooleanField)
+        assert isinstance(view._fields.field_for("created_at"), BooleanField)
 
     def test_a_narrower_type_or_a_kind_for_any_value_fits(self) -> None:
         class Orders(ModelView[Order]):
@@ -508,8 +508,8 @@ class TestAKindFitsItsColumn:
 
         view = Orders()
 
-        assert isinstance(view._field_for("created_at"), DateField)
-        assert isinstance(view._field_for("note"), EnumField)
+        assert isinstance(view._fields.field_for("created_at"), DateField)
+        assert isinstance(view._fields.field_for("note"), EnumField)
 
 
 class TestAColumnOfATypeOfItsOwn:
@@ -518,7 +518,7 @@ class TestAColumnOfATypeOfItsOwn:
     def kinds(self, view: type[ModelView[Any]]) -> dict[str, str]:
         built = view(SQLAlchemyInspector())
         return {
-            path: type(built._field_for(path)).__name__
+            path: type(built._fields.field_for(path)).__name__
             for path in ("starts_at", "token", "ends_at", "ticket")
         }
 
@@ -595,4 +595,4 @@ class TestAnOptionTheKindNeverReads:
         class Orders(ModelView[Order]):
             fields = [Order.id, ComputedField("lines", line_count, read_only=False)]
 
-        assert not Orders()._field_for("lines").read_only
+        assert not Orders()._fields.field_for("lines").read_only

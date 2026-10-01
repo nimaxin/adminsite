@@ -194,7 +194,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     )
     # A record action can be refused for one record and allowed for the next.
     context["row_actions"] = {
-        view._identity_of(record): [
+        view._fields.identity_of(record): [
             item
             for item in record_actions
             if await view.allows(item.permission, request=request, record=record)
@@ -335,7 +335,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, error, submitted=submitted
             )
 
-        key = view._identity_of(record)
+        key = view._fields.identity_of(record)
 
     add_message(request, _("{thing} created.", thing=view.label))
     return RedirectResponse(await after_save(admin, view, request, key), 303)
@@ -374,13 +374,13 @@ async def detail(admin: "Admin", request: Request) -> Response:
     rows = [
         (
             path,
-            view._label_for(path),
-            shown[path] if path in shown else view._display(record, path),
+            view._fields.label_for(path),
+            shown[path] if path in shown else view._fields.display(record, path),
         )
         for path in paths
         if path not in beside
     ]
-    key = view._identity_of(record)
+    key = view._fields.identity_of(record)
 
     allowed_actions = [
         item
@@ -445,7 +445,7 @@ def many_links(
     for path in paths:
         if "." in path or path in inlines or path not in view._schema.relations:
             continue
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         if isinstance(item, RelationField) and item.collection:
             found.add(path)
     return found
@@ -455,7 +455,9 @@ def computed_needs(view: ModelView[Any], paths: Sequence[str]) -> set[str]:
     """What the computed fields among these paths read from the record, as paths."""
     # A need may be written as an attribute, Order.items, which is not "items".
     return {
-        needed for path in paths for needed in view._needs_of(view._field_for(path))
+        needed
+        for path in paths
+        for needed in view._fields.needs_of(view._fields.field_for(path))
     }
 
 
@@ -472,13 +474,13 @@ async def many_links_text(
     shown = {}
     async with admin.database.session() as session:
         for path in sorted(paths):
-            item = view._field_for(path)
+            item = view._fields.field_for(path)
             if not isinstance(item, RelationField):
                 continue
             records, total = await view._fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
-            names = ", ".join(view._name_linked(item, one) for one in records)
+            names = ", ".join(view._fields.name_linked(item, one) for one in records)
             rest = total - len(records)
             if rest > 0:
                 names += _(" and {count} more", count=f"{rest:,}")
@@ -518,17 +520,20 @@ async def linked_records(
     urls = Urls(request)
     found = []
     for path in paths:
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         if not isinstance(item, RelationField) or item.collection or "." in path:
             continue
-        value = view._value_at(record, path)
+        value = view._fields.value_at(record, path)
         if value is None:
             continue
         target = await view_that_opens(admin, item, value, request)
-        opens = urls.detail(target, target._identity_of(value)) if target else ""
+        opens = urls.detail(target, target._fields.identity_of(value)) if target else ""
         found.append(
             LinkedRecord(
-                path, view._label_for(path), view._display(record, path), opens
+                path,
+                view._fields.label_for(path),
+                view._fields.display(record, path),
+                opens,
             )
         )
     return found
@@ -563,7 +568,9 @@ async def view_that_opens(
         for candidate in allowed:
             try:
                 found = await candidate._fetch_record(
-                    session, key_of(candidate._identity_of(value)), request=request
+                    session,
+                    key_of(candidate._fields.identity_of(value)),
+                    request=request,
                 )
             except PermissionDeniedError:
                 continue
@@ -697,7 +704,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, error, record, submitted
             )
         # A hook may have changed the key, so the page follows the record.
-        saved = view._identity_of(record)
+        saved = view._fields.identity_of(record)
 
     add_message(request, _("{thing} saved.", thing=view.label))
     return RedirectResponse(await after_save(admin, view, request, saved), 303)
@@ -863,7 +870,7 @@ def form_context(
     """What both the create form and the edit form need."""
     urls = Urls(request)
     editing = record is not None
-    key = view._identity_of(record) if editing else ""
+    key = view._fields.identity_of(record) if editing else ""
     return {
         "view": view,
         "rows": rows,
@@ -979,7 +986,7 @@ def find_view(admin: "Admin", request: Request) -> ModelView[Any]:
 def field_or_404(view: ModelView[Any], path: str) -> Any:
     """The field a path in the URL names, or a 404 when it names none."""
     try:
-        return view._field_for(path)
+        return view._fields.field_for(path)
     except AdminSiteError:
         raise HTTPException(
             status_code=404, detail=_("No field at {path}.", path=repr(path))

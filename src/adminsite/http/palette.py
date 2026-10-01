@@ -109,9 +109,9 @@ async def records_matching(
                     [
                         PaletteItem(
                             view.get_record_title(record),
-                            urls.detail(view, view._identity_of(record))
+                            urls.detail(view, view._fields.identity_of(record))
                             if opens_detail
-                            else urls.edit(view, view._identity_of(record)),
+                            else urls.edit(view, view._fields.identity_of(record)),
                         )
                         for record in page
                     ],

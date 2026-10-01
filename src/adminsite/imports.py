@@ -165,8 +165,8 @@ def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]
         path
         for path in view._candidates()
         if path in wanted
-        and view._field_for(path).stored
-        and not isinstance(view._field_for(path), FileField)
+        and view._fields.field_for(path).stored
+        and not isinstance(view._fields.field_for(path), FileField)
         and not _is_collection(view, path)
     )
     key = view._schema.primary_key
@@ -174,7 +174,7 @@ def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]
 
 
 def _is_collection(view: ModelView[Any], path: str) -> bool:
-    item = view._field_for(path)
+    item = view._fields.field_for(path)
     return isinstance(item, RelationField) and item.collection
 
 
@@ -185,7 +185,7 @@ def match_headers(
     known: dict[str, str] = {}
     for path in import_columns(view, request):
         known[path.lower()] = path
-        known[view._label_for(path).strip().lower()] = path
+        known[view._fields.label_for(path).strip().lower()] = path
     matched: list[str | None] = []
     ignored = []
     for header in headers:
@@ -332,7 +332,7 @@ def check_row(
             ):
                 row.errors[path] = _("This field cannot be changed.")
             continue
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         try:
             row.values[path] = item.parse(normalize(item, text))
         except FieldValidationError as error:
@@ -342,22 +342,22 @@ def check_row(
         for path in import_columns(view, request):
             if path in row.raw or path not in writable:
                 continue
-            if view._field_for(path).required:
+            if view._fields.field_for(path).required:
                 row.errors[path] = _("Missing, and a new record needs it.")
 
 
 def _unchanged(view: ModelView[Any], record: Any, path: str, text: str) -> bool:
     """Whether a cell holds what the record has, as a value or as exported."""
-    shown = view._display(record, path)
+    shown = view._fields.display(record, path)
     # The export marks text that reads as a formula, and the import trims cells.
     if text in (shown, as_cell(plain(shown)).strip()):
         return True
-    item = view._field_for(path)
+    item = view._fields.field_for(path)
     try:
         value = item.parse(normalize(item, text))
     except FieldValidationError:
         return False
-    held = view._value_at(record, path)
+    held = view._fields.value_at(record, path)
     if isinstance(item, RelationField) and held is not None:
         # A link is written as its record's key.
         held = view._inspector.inspect(item.related_model).identity_of(held)

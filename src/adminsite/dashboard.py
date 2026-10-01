@@ -361,10 +361,10 @@ class RecentRecords(Widget):
             return [
                 RecentItem(
                     view.get_record_title(record),
-                    urls.detail(view, view._identity_of(record))
+                    urls.detail(view, view._fields.identity_of(record))
                     if opens_detail
-                    else urls.edit(view, view._identity_of(record)),
-                    view._display(record, self.value) if shows_value else "",
+                    else urls.edit(view, view._fields.identity_of(record)),
+                    view._fields.display(record, self.value) if shows_value else "",
                 )
                 for record in page
             ]

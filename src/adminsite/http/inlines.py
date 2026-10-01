@@ -91,7 +91,7 @@ class _CellMaker:
             readonly = path in row.readonly
             current = None
             if row.found is not None:
-                current = self.child._value_at(row.found, path)
+                current = self.child._fields.value_at(row.found, path)
             raw = None
             if row.typed is not None and not readonly:
                 raw = _text(row.typed.get(self.inline.input_name(row.index, path)))
@@ -107,7 +107,7 @@ class _CellMaker:
         *,
         readonly: bool = False,
     ) -> FormRow:
-        item = self.child._field_for(path)
+        item = self.child._fields.field_for(path)
         name = self.inline.input_name(index, path)
         row = FormRow(
             path=name,
@@ -159,7 +159,7 @@ async def build_inline_tables(
             rows = _rows_from_form(inline, child, children, submitted)
         else:
             rows = [
-                _Row(index, child._identity_of(found), found)
+                _Row(index, child._fields.identity_of(found), found)
                 for index, found in enumerate(children)
             ]
             # Blank rows only where there are no rows yet: a record that has
@@ -179,15 +179,15 @@ async def build_inline_tables(
 
         options = {
             path: await _relation_options(
-                admin, session, child._field_for(path), request
+                admin, session, child._fields.field_for(path), request
             )
             for path in paths
-            if isinstance(child._field_for(path), RelationField)
+            if isinstance(child._fields.field_for(path), RelationField)
         }
         table = InlineTable(
             inline=inline,
-            label=inline.label or view._label_for(inline.name),
-            headers=[child._label_for(path) for path in paths],
+            label=inline.label or view._fields.label_for(inline.name),
+            headers=[child._fields.label_for(path) for path in paths],
         )
         cell = _CellMaker(
             admin=admin,
@@ -213,7 +213,7 @@ def _rows_from_form(
         count = int(_text(submitted.get(f"{inline.name}-count")) or 0)
     except ValueError:
         count = 0
-    by_key = {child._identity_of(found): found for found in children}
+    by_key = {child._fields.identity_of(found): found for found in children}
     rows = []
     for index in range(count):
         key = _text(submitted.get(inline.input_name(index, "key")))
@@ -269,13 +269,13 @@ def child_tables(
         children = list(getattr(record, inline.name, None) or [])
         tables.append(
             {
-                "label": inline.label or view._label_for(inline.name),
-                "headers": [child._label_for(path) for path in paths],
+                "label": inline.label or view._fields.label_for(inline.name),
+                "headers": [child._fields.label_for(path) for path in paths],
                 "numeric": [
-                    child._field_for(path).widget == "number" for path in paths
+                    child._fields.field_for(path).widget == "number" for path in paths
                 ],
                 "rows": [
-                    [child._display(found, path) for path in paths]
+                    [child._fields.display(found, path) for path in paths]
                     for found in children
                 ],
             }

@@ -32,7 +32,9 @@ def csv_rows(view: ModelView[Any], records: Sequence[Any], paths: Sequence[str])
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for record in records:
-        writer.writerow([as_cell(plain(view._display(record, path))) for path in paths])
+        writer.writerow(
+            [as_cell(plain(view._fields.display(record, path))) for path in paths]
+        )
     return buffer.getvalue()
 
 
@@ -62,7 +64,7 @@ def csv_header(view: ModelView[Any], paths: Sequence[str]) -> str:
     """Write the heading row."""
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="\n").writerow(
-        [view._label_for(path) for path in paths]
+        [view._fields.label_for(path) for path in paths]
     )
     return buffer.getvalue()
 

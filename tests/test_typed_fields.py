@@ -30,7 +30,7 @@ class TestAKindStartsFromItsColumn:
         class Notes(ModelView[Order]):
             fields = [TextAreaField(Order.note, help_text="Seen by staff only.")]
 
-        item = Notes()._field_for("note")
+        item = Notes()._fields.field_for("note")
 
         assert isinstance(item, TextAreaField)
         assert item.label == "Note"
@@ -47,10 +47,10 @@ class TestAKindStartsFromItsColumn:
 
         view = Names()
 
-        assert view._field_for("name").label == "Full name"
-        assert view._field_for("name").max_length == 40
-        assert view._field_for("name").required is True
-        assert view._field_for("email").required is False
+        assert view._fields.field_for("name").label == "Full name"
+        assert view._fields.field_for("name").max_length == 40
+        assert view._fields.field_for("name").required is True
+        assert view._fields.field_for("email").required is False
 
     def test_the_field_in_the_view_stays_as_written(self) -> None:
         written = TextAreaField(Order.note)
@@ -67,7 +67,7 @@ class TestAKindStartsFromItsColumn:
         class Notes(ModelView[Order]):
             fields = [TextAreaField("note")]
 
-        assert Notes()._field_for("note").max_length == 500
+        assert Notes()._fields.field_for("note").max_length == 500
 
 
 class TestFieldOnItsOwn:
@@ -80,9 +80,9 @@ class TestFieldOnItsOwn:
             ]
 
         view = Chosen()
-        total = view._field_for("total")
-        status = view._field_for("status")
-        customer = view._field_for("customer")
+        total = view._fields.field_for("total")
+        status = view._fields.field_for("status")
+        customer = view._fields.field_for("customer")
 
         assert type(total) is DecimalField
         assert (total.label, total.read_only) == ("Amount", True)
@@ -110,12 +110,12 @@ class TestFieldOnItsOwn:
         view = Contact()
 
         assert view._list_fields() == ("id", "customer.email", "customer.name")
-        assert view._field_for("customer.email").format == "<{}>"
+        assert view._fields.field_for("customer.email").format == "<{}>"
         # Named by its path, as can_access_field reads it.
-        assert view._field_for("customer.email").name == "customer.email"
+        assert view._fields.field_for("customer.email").name == "customer.email"
         # Without a label of its own, the column names the relation too.
-        assert view._label_for("customer.email") == "Customer email"
-        assert view._label_for("customer.name") == "Buyer"
+        assert view._fields.label_for("customer.email") == "Customer email"
+        assert view._fields.label_for("customer.name") == "Buyer"
 
 
 class TestEnumField:
@@ -123,7 +123,7 @@ class TestEnumField:
         class Statuses(ModelView[Order]):
             fields = [EnumField(Order.status)]
 
-        item = Statuses()._field_for("status")
+        item = Statuses()._fields.field_for("status")
 
         assert isinstance(item, EnumField)
         assert item.parse("PAID") is OrderStatus.PAID
@@ -132,7 +132,7 @@ class TestEnumField:
         class Regions(ModelView[Customer]):
             fields = [EnumField(Customer.region, choices=[("EU", "Europe")])]
 
-        assert Regions()._field_for("region").display("EU") == "Europe"
+        assert Regions()._fields.field_for("region").display("EU") == "Europe"
 
     def test_choices_on_an_enum_column_keep_its_enum(self) -> None:
         class Statuses(ModelView[Order]):
@@ -142,7 +142,7 @@ class TestEnumField:
                 )
             ]
 
-        item = Statuses()._field_for("status")
+        item = Statuses()._fields.field_for("status")
 
         assert isinstance(item, EnumField)
         assert item.enum is OrderStatus
@@ -157,7 +157,7 @@ class TestEnumField:
                 )
             ]
 
-        item = Statuses()._field_for("status")
+        item = Statuses()._fields.field_for("status")
 
         assert isinstance(item, EnumField)
         assert item.display(OrderStatus.PAID) == "Paid up"
@@ -172,7 +172,7 @@ class TestEnumField:
         class Regions(ModelView[Customer]):
             fields = [EnumField(Customer.region, enum=Region)]
 
-        item = Regions()._field_for("region")
+        item = Regions()._fields.field_for("region")
 
         assert isinstance(item, EnumField)
         assert item.choices == (("DE", "Germany"), ("IT", "Italy"))
@@ -220,7 +220,7 @@ class TestRelationField:
         class Orders(ModelView[Order]):
             fields = [RelationField(Order.customer, record_title="{name}")]
 
-        item = Orders()._field_for("customer")
+        item = Orders()._fields.field_for("customer")
 
         assert isinstance(item, RelationField)
         assert item.related_model is Customer
@@ -232,7 +232,7 @@ class TestRelationField:
         class Customers(ModelView[Customer]):
             fields = [RelationField(Customer.orders)]
 
-        item = Customers()._field_for("orders")
+        item = Customers()._fields.field_for("orders")
 
         assert isinstance(item, RelationField)
         assert item.collection is True
@@ -247,7 +247,7 @@ class TestRelationField:
         views = ViewRegistry()
         customers = views.add(CustomerView)
         orders = views.add(OrderView)
-        item = orders._field_for("customer")
+        item = orders._fields.field_for("customer")
 
         assert isinstance(item, RelationField)
         assert views.for_relation(item) is customers
@@ -260,7 +260,7 @@ class TestRelationField:
             fields = [RelationField(Order.customer, view=CustomerView)]
 
         views = ViewRegistry()
-        item = views.add(OrderView)._field_for("customer")
+        item = views.add(OrderView)._fields.field_for("customer")
 
         assert isinstance(item, RelationField)
         with pytest.raises(AdminSiteError, match="CustomerView, which is not regist"):

@@ -58,19 +58,19 @@ class TestWhatTheyChange:
     def test_a_label_without_restating_the_field(self) -> None:
         view = ProductView()
 
-        assert view._label_for("name") == "Product name"
-        assert isinstance(view._field_for("name"), StringField)
+        assert view._fields.label_for("name") == "Product name"
+        assert isinstance(view._fields.field_for("name"), StringField)
 
     def test_a_line_of_help(self) -> None:
-        assert ProductView()._field_for("description").help_text == (
+        assert ProductView()._fields.field_for("description").help_text == (
             "Shown on the shop page."
         )
 
     def test_a_length_the_column_does_not_set(self) -> None:
-        assert ProductView()._field_for("name").max_length == 10
+        assert ProductView()._fields.field_for("name").max_length == 10
 
     def test_what_a_link_takes(self) -> None:
-        item = OrderView()._field_for("customer")
+        item = OrderView()._fields.field_for("customer")
 
         assert isinstance(item, RelationField)
         assert item.target is Customer
@@ -79,14 +79,14 @@ class TestWhatTheyChange:
         )
 
     def test_a_named_path_through_a_link_is_left_alone(self) -> None:
-        assert OrderView()._label_for("customer.name") == "Bought by"
+        assert OrderView()._fields.label_for("customer.name") == "Bought by"
 
     def test_a_path_nobody_named_still_names_the_link(self) -> None:
         class Plain(ModelView[Order]):
             name = "plain_orders"
             fields = ["id", "customer.name"]
 
-        assert Plain()._label_for("customer.name") == "Customer name"
+        assert Plain()._fields.label_for("customer.name") == "Customer name"
 
 
 class TestOnThePage:
@@ -144,7 +144,7 @@ class TestAFormat:
             name = "priced_products"
             fields = [Field(Product.price, format="€{:,.2f}")]
 
-        item = Priced()._field_for("price")
+        item = Priced()._fields.field_for("price")
 
         assert item.text_for(None, Decimal("1234.5")) == "€1,234.50"
         assert item.text_for(None, None) == ""

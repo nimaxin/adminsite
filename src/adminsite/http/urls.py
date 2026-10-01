@@ -98,7 +98,7 @@ class Urls:
 
     def file(self, view: ModelView[Any], path: str, key: str) -> str:
         """Where a stored file is fetched: its storage's address, or the admin."""
-        item = view._field_for(path)
+        item = view._fields.field_for(path)
         public = getattr(getattr(item, "storage", None), "url", None)
         address = public(key) if public is not None else ""
         return address or f"{self.base}/-/files/{view.name}/{path}/{key}"

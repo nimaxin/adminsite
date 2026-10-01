@@ -79,7 +79,7 @@ class TestFieldsPlaceEachColumnOnEveryPage:
         assert OrderView()._form_fields() == ("customer", "status", "total", "note")
 
     def test_the_field_given_in_full_is_used(self) -> None:
-        assert isinstance(OrderView()._field_for("note"), TextAreaField)
+        assert isinstance(OrderView()._fields.field_for("note"), TextAreaField)
 
     def test_the_create_and_edit_forms_can_differ(self) -> None:
         class SetOnce(ModelView[Order]):

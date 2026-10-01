@@ -17,13 +17,13 @@
 {% block header %}
   {#- The first choice on the page, such as a status, stands beside the name. -#}
   {% set first = namespace(path=none, value="") %}
-  {% for path, label, value in rows if first.path is none and value and view._field_for(path).widget == "select" %}
+  {% for path, label, value in rows if first.path is none and value and view._fields.field_for(path).widget == "select" %}
     {% set first.path = path %}{% set first.value = value %}
   {% endfor %}
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
     <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ heading }}</h1>
     {% if first.path %}
-      {{ values.badge(view._field_for(first.path), view._value_at(record, first.path), first.value) }}
+      {{ values.badge(view._fields.field_for(first.path), view._fields.value_at(record, first.path), first.value) }}
     {% endif %}
   </div>
 {% endblock %}
@@ -95,10 +95,10 @@
             <h2 id="details-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ _('Details') }}</h2>
             <dl class="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
               {% for path, label, value in rows %}
-                {% set item = view._field_for(path) %}
+                {% set item = view._fields.field_for(path) %}
                 {% set wide = item.widget in ("textarea", "json", "image") or (value|string|length > 60) %}
                 {#- A JSON document with a schema it fits reads as labelled values. -#}
-                {% set stored = view._value_at(record, path) if item.widget == "json" else none %}
+                {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
                 {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
                 <div class="flex min-w-0 flex-col gap-1 {% if wide %}sm:col-span-2{% endif %}"
                      {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
@@ -114,14 +114,14 @@
                   </dt>
                   <dd class="break-words">
                     {% if item.widget in ("file", "image") and value %}
-                      {% set address = urls.file(view, path, view._value_at(record, path)) %}
+                      {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
                       {% if item.widget == "image" %}
                         <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-48 rounded-box border border-base-300"></a>
                       {% else %}
                         <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
                       {% endif %}
                     {% elif item.widget in ("select", "checkbox") and value %}
-                      {{ values.badge(item, view._value_at(record, path), value) }}
+                      {{ values.badge(item, view._fields.value_at(record, path), value) }}
                     {% elif item.widget == "number" and value %}
                       <span class="text-[15px] font-semibold tabular-nums">{{ value }}</span>
                     {% elif item.widget == "json" and stored is not none %}
