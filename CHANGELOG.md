@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a10
+
+Views written the way starlette-admin writes them, and typed: the model as the view's type
+argument, one `fields` list, columns named by attribute, actions that ask for typed values, and a
+check of every name when the admin starts. A JSON column can be edited as a form built from its
+schema.
 
 Before upgrading:
 
+- Every view needs rewriting in the new shape, which the guides show. A view that still uses an
+  old setting, keyword or class stops the admin when it starts, with what to write instead.
 - A project that overrides `_table.html`, `detail.html`, `_toolbar.html`, `_list_menus.html`,
   `import_preview.html`, `_action_forms.html` or `dashboard/recent.html` should start its copy
   again from the new one. They call the view's methods by their new names, such as
@@ -12,20 +19,6 @@ Before upgrading:
 
 What changed:
 
-- `JSONField("settings", schema=ShopSettings)` edits a JSON column as a form built from a Pydantic
-  type or a JSON Schema: a switch for a yes or no, a number input that keeps to its limits, the
-  picker for a few fixed values, tables for lists of objects and for maps. Saving checks the
-  document with Pydantic and shows each problem beside its input; the record page names each value
-  by its title, and the API checks documents against the same schema.
-- A JSON field's schema can come from a function given the record, for a table whose rows hold
-  documents of different shapes. On a new record the form draws the document again as the rest of
-  the form changes, such as when a setting's key is chosen.
-- `partial=True` on a JSON field with a schema lets each property be left unset, with Set and Clear
-  beside it, and saves only the properties set, as an override keeps what it changes.
-- A list's columns fill the table's width again, as they did before 0.1.0a9. A key, such as an
-  order's number, now reads from the start like text rather than lining up on the right like an
-  amount, so on a list of one or two columns it no longer lands in the middle of the page. Each
-  row's menu stays right after its checkbox.
 - A view names its model as its type argument, `class OrderView(ModelView[Order])`, in place of
   `class OrderView(ModelView, model=Order)`, which now stops with the new form. `ModelView[Tag]` can
   be registered with no class of its own.
@@ -146,6 +139,9 @@ What changed:
   and `get_ordering` are `get_list_filters`, `get_searchable_fields` and `get_fields_default_sort`,
   and `form_values` is `form_only_values`. A view that still sets an old name, `display_template`,
   `title_of` or `can_detail` among them, stops the admin when it starts, with the name it has now.
+- A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
+  words for someone who never used an older adminsite: "OrderView sets list_display, a setting
+  adminsite does not have."
 - The per-request methods answer with what their setting takes: columns by attribute or string
   from `get_searchable_fields`, columns or filters from `get_list_filters`, and sorts such as
   `Descending(Order.created_at)` from `get_fields_default_sort`, each checked like the setting.
@@ -181,6 +177,20 @@ What changed:
   of `display_template`, as a view does.
 - A `ComputedField` loader is typed as taking a `SessionAdapter`, so an editor completes
   `session.execute` in it.
+- `JSONField("settings", schema=ShopSettings)` edits a JSON column as a form built from a Pydantic
+  type or a JSON Schema: a switch for a yes or no, a number input that keeps to its limits, the
+  picker for a few fixed values, tables for lists of objects and for maps. Saving checks the
+  document with Pydantic and shows each problem beside its input; the record page names each value
+  by its title, and the API checks documents against the same schema.
+- A JSON field's schema can come from a function given the record, for a table whose rows hold
+  documents of different shapes. On a new record the form draws the document again as the rest of
+  the form changes, such as when a setting's key is chosen.
+- `partial=True` on a JSON field with a schema lets each property be left unset, with Set and Clear
+  beside it, and saves only the properties set, as an override keeps what it changes.
+- A list's columns fill the table's width again, as they did before 0.1.0a9. A key, such as an
+  order's number, now reads from the start like text rather than lining up on the right like an
+  amount, so on a list of one or two columns it no longer lands in the middle of the page. Each
+  row's menu stays right after its checkbox.
 - A key with the wrong number of parts, such as `/shelves/A` for a key of two columns, answers "not
   found" rather than a server error, and a link's key with a part too many is refused rather than
   cut short.
@@ -240,9 +250,6 @@ What changed:
 - `after_save` can read a value the database set during the save, such as an `onupdate` time. On
   an async engine, reading one failed the save.
 - `SQLAlchemyRepository.create` and `.update`, which nothing called, are gone.
-- A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
-  words for someone who never used an older adminsite: "OrderView sets list_display, a setting
-  adminsite does not have."
 
 ## 0.1.0a9
 
