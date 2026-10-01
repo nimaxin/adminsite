@@ -1,7 +1,6 @@
 import types
 from collections.abc import Callable, Mapping, Sequence
 from copy import copy
-from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 from functools import partial
 from typing import (
@@ -9,8 +8,6 @@ from typing import (
     Any,
     ClassVar,
     Generic,
-    Literal,
-    TypeAlias,
     TypeGuard,
     TypeVar,
     get_args,
@@ -70,7 +67,6 @@ from adminsite.exceptions import (
     PermissionDeniedError,
     RecordNotFoundError,
     RefusedError,
-    UnknownFieldError,
 )
 from adminsite.fields import (
     BaseField,
@@ -89,7 +85,7 @@ from adminsite.filters import FilterOption, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
-from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationDirection
+from adminsite.schema import ModelSchema, RelationDirection
 from adminsite.security import Permission, RequestAction, permission_name
 from adminsite.text import (
     RecordValues,
@@ -97,6 +93,16 @@ from adminsite.text import (
     pluralize,
     snake_case,
     template_names,
+)
+from adminsite.views.checks import (
+    Takes,
+    check_excluded,
+    check_kind,
+    check_link_title,
+    check_list_flags,
+    check_options_used,
+    check_path,
+    check_title,
 )
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.naming import name_all_linked, name_linked
@@ -190,11 +196,6 @@ _ROW_PAGES = (RequestAction.CREATE, RequestAction.EDIT, RequestAction.DETAIL)
 M = TypeVar("M")
 
 T = TypeVar("T")
-
-# What a setting may name: any field of the view, a column or relationship
-# of the model, a column, a column the list can be sorted by, or a column of
-# the model itself.
-_Takes: TypeAlias = Literal["fields", "paths", "columns", "sortable", "own columns"]
 
 
 class ModelView(Generic[M]):
@@ -363,7 +364,9 @@ class ModelView(Generic[M]):
             page: self._paths(f"exclude_fields_from_{page}", entries, takes="fields")
             for page, entries in exclusions.items()
         }
-        self._check_excluded()
+        check_excluded(
+            type(self).__name__, self._excluded, self._candidates(), self._schema
+        )
         self._search_fields = self._paths(
             "searchable_fields", self.searchable_fields, takes="columns"
         )
@@ -378,10 +381,11 @@ class ModelView(Generic[M]):
         )
         self._record_title = self.record_title
         if self._record_title:
-            self._check_title(
+            check_title(
                 f"{type(self).__name__}.record_title: {describe(self._record_title)}",
                 self._record_title,
                 self.model,
+                self._inspector,
             )
         # A key the database or the model fills in, such as an autoincrement
         # id or a uuid4 default, is never typed into a form. A key people
@@ -408,8 +412,12 @@ class ModelView(Generic[M]):
         # not have stops the admin starting rather than the page that shows it.
         for path in self._placed:
             try:
-                self._field_for(path)
-                self._check_list_flags(path)
+                item = self._field_for(path)
+                check_list_flags(
+                    item,
+                    self._overrides.get(path, item),
+                    excluded_by_list=path in self._excluded[RequestAction.LIST],
+                )
             except AdminSiteError as error:
                 raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
 
@@ -827,11 +835,12 @@ class ModelView(Generic[M]):
                 "holds one record. An inline needs a relationship holding many."
             )
         if inline.record_title:
-            self._check_title(
+            check_title(
                 f"{type(self).__name__}.{setting}.record_title: "
                 f"{describe(inline.record_title)}",
                 inline.record_title,
                 relation.target,
+                self._inspector,
             )
         # The relationship fills in the child's columns it joins on, and so
         # every link of the child made of them, the link back among them. None
@@ -988,7 +997,7 @@ class ModelView(Generic[M]):
         entries: Sequence[ColumnReference],
         model: type[Any] | None = None,
         *,
-        takes: _Takes = "paths",
+        takes: Takes = "paths",
     ) -> tuple[str, ...]:
         """The paths a setting names, such as `customer.email`, each checked."""
         paths = []
@@ -1010,114 +1019,19 @@ class ModelView(Generic[M]):
         return tuple(sorts)
 
     def _check_path(
-        self, setting: str, path: str, model: type[Any], takes: _Takes
+        self, setting: str, path: str, model: type[Any], takes: Takes
     ) -> None:
-        """Refuse a path the setting cannot take, saying what it can.
-
-        A type checker sees an attribute; only this sees a string, and what
-        the setting does with the path, such as sorting through a
-        relationship holding many records, which no query can.
-        """
-        view = type(self).__name__
+        """Refuse a path the setting cannot take, as check_path says."""
         own = self._own_fields() if model is self.model else {}
-        if path in own:
-            if takes == "fields":
-                return
-            wanted = "columns and relationships" if takes == "paths" else "columns"
-            raise AdminSiteError(
-                f"{view}.{setting}: {own[path]!r} is a field of the view, not a "
-                f"column of {model.__name__}, and {setting} takes {wanted}."
-            )
-        try:
-            resolved = self._inspector.resolve(model, path)
-        except UnknownFieldError as error:
-            listed = own if takes == "fields" else {}
-            raise AdminSiteError(
-                f"{view}.{setting}: {self._missing(path, error, listed)}"
-            ) from None
-        except InvalidPathError as error:
-            raise AdminSiteError(f"{view}.{setting}: {error}") from None
-        if takes in ("columns", "sortable") and resolved.field is None:
-            target = self._inspector.inspect(resolved.relations[-1].target)
-            texts = [
-                name
-                for name, found in target.fields.items()
-                if found.python_type is str
-            ]
-            example = f"{path}.{(texts or list(target.fields))[0]}"
-            raise AdminSiteError(
-                f"{view}.{setting}: {describe(path)} is a relationship, and "
-                f"{setting} takes columns. Name a column of "
-                f"{target.model.__name__}, such as {describe(example)}."
-            )
-        if takes == "sortable" and resolved.crosses_collection:
-            raise AdminSiteError(
-                f"{view}.{setting}: {describe(path)} goes through a relationship "
-                "holding many records, so no list can be sorted by it."
-            )
-        if takes == "own columns" and (resolved.relations or resolved.field is None):
-            raise AdminSiteError(
-                f"{view}.{setting}: {describe(path)} is not a column of "
-                f"{model.__name__} itself, and {setting} takes the model's own "
-                "columns."
-            )
-
-    def _missing(
-        self, path: str, error: UnknownFieldError, own: Mapping[str, BaseField]
-    ) -> str:
-        """Say which name does not exist, and list the names that do."""
-        schema = self._inspector.inspect(error.model)
-        said = (
-            f"{error.model.__name__} has no column or relationship "
-            f"{describe(error.name)}."
+        check_path(
+            type(self).__name__,
+            setting,
+            path,
+            model,
+            takes,
+            own=own,
+            inspector=self._inspector,
         )
-        if error.name != path:
-            said = f"{describe(path)}: {said}"
-        said += f" Its columns: {', '.join(schema.fields)}."
-        if schema.relations:
-            said += f" Its relationships: {', '.join(schema.relations)}."
-        if own and error.name == path:
-            said += f" The view's own fields: {', '.join(own)}."
-        return said
-
-    def _check_title(self, where: str, template: str, model: type[Any]) -> None:
-        """Refuse a record title that reads an attribute the model does not have.
-
-        A template `str.format` cannot read would fail on every page that
-        names a record, and a name the model lacks would show as nothing, so
-        both stop the admin. So does a relationship: the pages load a record
-        without its links, and loading them would cost every page naming one.
-        """
-        try:
-            names = template_names(template)
-        except ValueError as error:
-            raise AdminSiteError(
-                f"{where} cannot be read: {error}. Write each column's name in "
-                "braces, such as {id}, and double a brace meant as text."
-            ) from None
-        schema = self._inspector.inspect(model)
-        for name in names:
-            if not hasattr(model, name):
-                missing = UnknownFieldError(model, name)
-                raise AdminSiteError(
-                    f"{where} reads {{{name}}}, and {self._missing(name, missing, {})}"
-                )
-            if name in schema.relations:
-                raise AdminSiteError(
-                    f"{where} reads through the relationship {describe(name)}. A "
-                    f"record_title reads {model.__name__}'s own columns, since "
-                    "every page naming a record would otherwise load its links "
-                    f"too. Its columns: {', '.join(schema.fields)}."
-                )
-
-    def _check_link_title(self, item: BaseField, written: str) -> None:
-        """Refuse a link's record_title that reads what its model lacks."""
-        if isinstance(item, RelationField) and item.record_title:
-            self._check_title(
-                f"{written}: its record_title {describe(item.record_title)}",
-                item.record_title,
-                item.related_model,
-            )
 
     def _own_fields(self) -> dict[str, BaseField]:
         """The fields in `fields` that are no column, such as a computed one."""
@@ -1136,7 +1050,7 @@ class ModelView(Generic[M]):
         placed: dict[str, None] = {}
         # The columns named, checked once the view's own fields are known,
         # so a name may come before the field it refers to.
-        named: dict[str, _Takes] = {}
+        named: dict[str, Takes] = {}
         for index, entry in enumerate(self._entries("fields", self.fields)):
             if isinstance(entry, Field):
                 path = self._converted("fields", entry.column, path_of)
@@ -1155,58 +1069,6 @@ class ModelView(Generic[M]):
         for path, takes in named.items():
             self._check_path("fields", path, self.model, takes)
         return tuple(placed)
-
-    def _check_excluded(self) -> None:
-        """Refuse an exclude list naming a field the view does not show.
-
-        Leaving such a field off a page does nothing. The usual case is a
-        foreign key, such as `customer_id`, which the view shows as its
-        relationship, `customer`.
-        """
-        shown = self._candidates()
-        for page, paths in self._excluded.items():
-            for path in paths:
-                if path in shown:
-                    continue
-                said = f"{type(self).__name__}.exclude_fields_from_{page}"
-                for relation in self._schema.relations.values():
-                    if (
-                        relation.direction is RelationDirection.MANY_TO_ONE
-                        and path in relation.local_columns
-                        and relation.name in shown
-                    ):
-                        raise AdminSiteError(
-                            f"{said}: {describe(path)} is shown as its relationship "
-                            f"{describe(relation.name)}. Name "
-                            f"{describe(relation.name)}."
-                        )
-                raise AdminSiteError(
-                    f"{said}: {describe(path)} is not among the fields the view "
-                    "shows, so leaving it off does nothing. The view's fields: "
-                    f"{', '.join(shown)}."
-                )
-
-    def _check_list_flags(self, path: str) -> None:
-        """Refuse a field both hidden in the list and left off it."""
-        item = self._field_for(path)
-        if not item.hidden_in_list:
-            return
-        written = self._overrides.get(path, item)
-        if item.exclude_from_list:
-            both = (
-                f"{written!r} has both hidden_in_list=True and exclude_from_list=True."
-            )
-        elif path in self._excluded[RequestAction.LIST]:
-            both = (
-                f"{written!r} has hidden_in_list=True, and exclude_fields_from_list "
-                "names it."
-            )
-        else:
-            return
-        raise AdminSiteError(
-            f"{both} hidden_in_list offers it among the columns people can add to "
-            "the list; excluding it keeps it off the list altogether. Keep one."
-        )
 
     # Turning paths into fields and values.
 
@@ -1229,7 +1091,7 @@ class ModelView(Generic[M]):
         column, or an option the kind never reads, is refused.
         """
         if not isinstance(given, Field) or given.form_only:
-            self._check_options_used(given, given)
+            check_options_used(given, given)
             given.check_options()
             return given
         path = path_of(given.column, self.model)
@@ -1248,7 +1110,14 @@ class ModelView(Generic[M]):
                     **given.given_options(),
                 )
         elif resolved.field is not None:
-            self._check_kind(given, resolved.field, resolved)
+            check_kind(
+                given,
+                resolved.field,
+                resolved,
+                self.model,
+                registry=self._registry,
+                inspector=self._inspector,
+            )
             completed = self._registry.fill(given, resolved.field)
         elif isinstance(given, RelationField):
             completed = given.filled_from_relation(resolved.relations[-1])
@@ -1257,93 +1126,10 @@ class ModelView(Generic[M]):
                 f"{given!r} names a relationship. Show it with RelationField, or "
                 "name it in fields without a field."
             )
-        self._check_options_used(given, completed)
+        check_options_used(given, completed)
         completed.check_options()
-        self._check_link_title(completed, repr(given))
+        check_link_title(completed, repr(given), self._inspector)
         return completed
-
-    def _check_kind(
-        self, given: Field[Any], column: FieldSchema, resolved: FieldPath
-    ) -> None:
-        """Refuse a kind of field its column cannot hold.
-
-        A type checker refuses the kind for a column named by its attribute,
-        but not for one named by a string, nor RelationField on any column.
-        A column of a type of the project's own, such as a TypeDecorator,
-        names no python type to check the kind against.
-        """
-        if isinstance(given, RelationField):
-            raise AdminSiteError(
-                f"{given!r} names a column, and RelationField shows a "
-                f"relationship. {self._relationship_instead(given, column, resolved)}"
-            )
-        if not isinstance(given.column, str) or not column.python_type_known:
-            return
-        held = column.python_type
-        wanted = type(given).column_types
-        # The kind the registry picks for the column always fits it, as a
-        # kind registered for a type of the project's own does.
-        picked = self._registry.field_class_for(column)
-        if (
-            not wanted
-            or isinstance(given, picked)
-            or not isinstance(held, type)
-            or issubclass(held, wanted)
-        ):
-            return
-        owner = resolved.relations[-1].target if resolved.relations else self.model
-        kinds = " or ".join(kind.__name__ for kind in wanted)
-        raise AdminSiteError(
-            f"{given!r} is for {kinds} values, and {owner.__name__}.{column.name} "
-            f"holds {held.__name__}. Use {picked.__name__}, or name the column "
-            "without a field."
-        )
-
-    def _relationship_instead(
-        self, given: Field[Any], column: FieldSchema, resolved: FieldPath
-    ) -> str:
-        """What to write instead of RelationField on a column, for a message.
-
-        A foreign key names the relationship it holds the key of.
-        """
-        owner = resolved.relations[-1].target if resolved.relations else self.model
-        relations = self._inspector.inspect(owner).relations.values()
-        for relation in relations:
-            if (
-                relation.direction is RelationDirection.MANY_TO_ONE
-                and column.name in relation.local_columns
-            ):
-                if isinstance(given.column, str) or resolved.relations:
-                    through = [linked.name for linked in resolved.relations]
-                    written = describe(".".join([*through, relation.name]))
-                else:
-                    written = f"{owner.__name__}.{relation.name}"
-                return f"Write RelationField({written})."
-        if not relations:
-            return (
-                f"{owner.__name__} has no relationship to show. Name the column "
-                "without a field."
-            )
-        names = ", ".join(relation.name for relation in relations)
-        return f"Name one of {owner.__name__}'s relationships: {names}."
-
-    def _check_options_used(self, given: BaseField, completed: BaseField) -> None:
-        """Refuse an option written on a field that its kind never reads.
-
-        Every kind takes the options on BaseField, so a type checker lets
-        max_length= onto a date field.
-        """
-        defaults = {item.name: item.default for item in dataclass_fields(completed)}
-        for option in sorted(completed.unused_options):
-            written = getattr(given, option)
-            if written == defaults[option]:
-                continue
-            named = repr(given)
-            if type(given) is not type(completed):
-                named += f" becomes {type(completed).__name__}, which"
-            raise AdminSiteError(
-                f"{named} has no use for {option}={written!r}. Leave it out."
-            )
 
     def _built_field(self, path: str) -> BaseField:
         """The field adminsite works out for a path nobody gave a field for."""
