@@ -201,8 +201,8 @@ class TestFieldPermissions:
     def test_a_column_can_be_hidden_from_some_people(self) -> None:
         view = HidesAColumn()
 
-        assert view._list_fields("support") == ("name", "region")
-        assert view._list_fields("manager") == ("name", "email", "region")
+        assert view._pages.list_fields("support") == ("name", "region")
+        assert view._pages.list_fields("manager") == ("name", "email", "region")
 
     def test_a_field_can_be_locked_for_some_people(self) -> None:
         view = HidesAColumn()

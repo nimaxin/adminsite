@@ -86,9 +86,9 @@ def api_paths(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
     """The fields a record carries: the list's, the record page's, the edit form's."""
     paths: list[str] = []
     for path in (
-        *view._list_fields(request),
-        *view._detail_fields(request),
-        *view._form_fields(request, page=RequestAction.EDIT),
+        *view._pages.list_fields(request),
+        *view._pages.detail_fields(request),
+        *view._pages.form_fields(request, page=RequestAction.EDIT),
     ):
         if path not in paths:
             paths.append(path)
@@ -173,7 +173,7 @@ def read_values(
     Only the fields sent are touched, so a PATCH with one field changes one
     field. A new record needs every required field.
     """
-    writable = set(view._writable_paths(request, record))
+    writable = set(view._pages.writable_paths(request, record))
     values: dict[str, Any] = {}
     errors: dict[str, str] = {}
     for path, raw in body.items():
@@ -231,7 +231,9 @@ async def index(admin: "Admin", request: Request) -> Response:
     """
     found = []
     for view in await admin.views_allowing(request):
-        paths = dict.fromkeys((*api_paths(view, request), *view._form_fields(request)))
+        paths = dict.fromkeys(
+            (*api_paths(view, request), *view._pages.form_fields(request))
+        )
         found.append(
             {
                 "name": view.name,
@@ -307,7 +309,7 @@ async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Resp
         key = view._fields.identity_of(record)
         paths = api_paths(view, request)
         fresh = await view._fetch_record(
-            session, key, paths=view._loadable(paths), request=request
+            session, key, paths=view._pages.loadable(paths), request=request
         )
         if fresh is None:
             # Saved outside what scope_query lets this user read.
@@ -320,7 +322,9 @@ async def item(admin: "Admin", request: Request) -> Response:
     """Read, change or delete one record."""
     view = find(admin, request)
     paths = api_paths(view, request)
-    load = tuple(dict.fromkeys((*view._load_paths(request), *view._loadable(paths))))
+    load = tuple(
+        dict.fromkeys((*view._pages.load_paths(request), *view._pages.loadable(paths)))
+    )
     urls = Urls(request)
     async with admin.database.session() as session:
         record = await view._fetch_record(

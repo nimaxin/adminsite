@@ -101,22 +101,25 @@ class TestPickingColumns:
     def test_only_columns_on_offer_count(self) -> None:
         view = OrderView()
 
-        assert view._pick_columns(["total", "secret", "note"]) == ("total", "note")
+        assert view._pages.pick_columns(["total", "secret", "note"]) == (
+            "total",
+            "note",
+        )
 
     def test_the_order_follows_the_picker(self) -> None:
         view = OrderView()
 
-        assert view._pick_columns(["note", "id"]) == ("id", "note")
+        assert view._pages.pick_columns(["note", "id"]) == ("id", "note")
 
     def test_picking_nothing_gives_the_default(self) -> None:
         view = OrderView()
 
-        assert view._pick_columns([]) == ("id", "status", "total")
+        assert view._pages.pick_columns([]) == ("id", "status", "total")
 
     def test_the_hidden_columns_follow_the_shown_ones(self) -> None:
         view = OrderView()
 
-        assert view._column_choices() == (
+        assert view._pages.column_choices() == (
             "id",
             "status",
             "total",

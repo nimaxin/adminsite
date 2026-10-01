@@ -89,7 +89,7 @@ async def records_matching(
     sections = []
     async with admin.database.session() as session:
         for view in await admin.views_allowing(request):
-            if not view.global_search or not view._search_paths(request):
+            if not view.global_search or not view._pages.search_paths(request):
                 continue
             # A view with no record page opens the form instead.
             opens_detail = await view.allows(

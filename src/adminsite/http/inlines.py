@@ -170,12 +170,12 @@ async def build_inline_tables(
 
         # A new row has the create page's fields and an existing child the
         # edit page's, as a view's forms do. The table has a column for each.
-        locked = view._inline_readonly(inline, request, record)
+        locked = view._pages.inline_readonly(inline, request, record)
         for row in (*rows, blank):
-            row.fields = child._form_fields(request, row.found)
-            row.readonly = locked | set(child._readonly_paths(request, row.found))
+            row.fields = child._pages.form_fields(request, row.found)
+            row.readonly = locked | set(child._pages.readonly_paths(request, row.found))
         drawn = {path for row in (*rows, blank) for path in row.fields}
-        paths = [path for path in child._candidates() if path in drawn]
+        paths = [path for path in child._settings.candidates if path in drawn]
 
         options = {
             path: await _relation_options(
@@ -265,7 +265,7 @@ def child_tables(
     tables = []
     for inline in view.get_inlines(request, record):
         child = view._inline_view(inline.name)
-        paths = child._detail_fields(request)
+        paths = child._pages.detail_fields(request)
         children = list(getattr(record, inline.name, None) or [])
         tables.append(
             {

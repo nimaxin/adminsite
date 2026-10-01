@@ -80,7 +80,7 @@ class Picker:
         """
         view = self.view
         if view is not None:
-            named = view._search_paths(self.request)
+            named = view._pages.search_paths(self.request)
             if named:
                 return named
         return self._named_in_label()

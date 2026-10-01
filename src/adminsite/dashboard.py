@@ -342,11 +342,11 @@ class RecentRecords(Widget):
         sort = (Sort.parse(self.sort),) if self.sort else ()
         # A field kept from this user on the list is neither sorted by nor
         # shown here: the view's own order applies, as it does there.
-        if sort and not view._can_access_path(
+        if sort and not view._pages.can_access_path(
             request, sort[0].path, RequestAction.LIST
         ):
             sort = ()
-        shows_value = bool(self.value) and view._can_access_path(
+        shows_value = bool(self.value) and view._pages.can_access_path(
             request, self.value, RequestAction.LIST
         )
         spec = view._build_spec(request=request, sort=sort).replace(

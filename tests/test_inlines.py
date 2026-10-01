@@ -95,13 +95,13 @@ class TestDeclaring:
             name = "everything"
             inlines = (Inline("items"),)
 
-        fields = Everything()._inline_view("items")._form_fields()
+        fields = Everything()._inline_view("items")._pages.form_fields()
 
         assert "order" not in fields
         assert "product" in fields
 
     def test_the_children_are_loaded_with_the_record(self, view: OrderView) -> None:
-        paths = view._load_paths()
+        paths = view._pages.load_paths()
 
         assert "items" in paths
         assert "items.product" in paths
@@ -162,7 +162,7 @@ class TestReadingTheForm:
 class TestSaving:
     async def test_a_line_is_changed(self, database: Database, view: OrderView) -> None:
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
             assert order is not None
             first = order.items[0]
             result = view._parse_form(
@@ -188,7 +188,7 @@ class TestSaving:
     async def test_a_line_is_added(self, database: Database, view: OrderView) -> None:
         before = len(await items_of(database, 1))
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
             assert order is not None
             result = view._parse_form(
                 {
@@ -215,7 +215,7 @@ class TestSaving:
     async def test_a_line_is_removed(self, database: Database, view: OrderView) -> None:
         existing = await items_of(database, 1)
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
             assert order is not None
             result = view._parse_form(
                 {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
@@ -265,7 +265,7 @@ class TestSaving:
     ) -> None:
         someone_elses = (await items_of(database, 2))[0]
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
             assert order is not None
             result = view._parse_form(
                 {
@@ -447,7 +447,7 @@ class TestAReadOnlyField:
     ) -> None:
         view = PricedOrderView()
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._load_paths())
+            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
             assert order is not None
             first = order.items[0]
             price = first.unit_price
@@ -826,8 +826,8 @@ class TestWhatTheParentFills:
 
         child = EveryMatchTeamView()._inline_view("home_matches")
 
-        assert child._form_fields() == ("away_team", "week")
-        assert child._detail_fields() == ("id", "away_team", "week")
+        assert child._pages.form_fields() == ("away_team", "week")
+        assert child._pages.detail_fields() == ("id", "away_team", "week")
 
     def test_a_link_over_its_column_named_in_the_fields_is_left_out(self) -> None:
         class HostTeamView(ModelView[Team]):
@@ -840,21 +840,21 @@ class TestWhatTheParentFills:
 
         child = HostTeamView()._inline_view("home_matches")
 
-        assert child._form_fields() == ("week",)
-        assert child._detail_fields() == ("week",)
+        assert child._pages.form_fields() == ("week",)
+        assert child._pages.detail_fields() == ("week",)
 
     def test_another_link_to_the_parent_stays(self) -> None:
         child = TeamView()._inline_view("home_matches")
 
-        assert child._form_fields() == ("away_team", "week")
-        assert child._form_fields(record=Match(id=1)) == ("away_team", "week")
-        assert child._detail_fields() == ("away_team", "week")
+        assert child._pages.form_fields() == ("away_team", "week")
+        assert child._pages.form_fields(record=Match(id=1)) == ("away_team", "week")
+        assert child._pages.detail_fields() == ("away_team", "week")
 
     def test_with_no_link_back_the_column_is_left_out(self) -> None:
         child = TeamView()._inline_view("players")
 
-        assert child._form_fields() == ("name",)
-        assert child._detail_fields() == ("id", "name")
+        assert child._pages.form_fields() == ("name",)
+        assert child._pages.detail_fields() == ("id", "name")
 
     async def test_rows_save_with_another_link_to_the_parent(
         self, teams: Database

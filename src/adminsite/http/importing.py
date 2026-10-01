@@ -135,7 +135,7 @@ async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Respons
                 record = await view._fetch_record(
                     session,
                     row.key,
-                    paths=view._load_paths(request),
+                    paths=view._pages.load_paths(request),
                     request=request,
                 )
             try:

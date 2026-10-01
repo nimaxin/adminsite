@@ -219,8 +219,8 @@ class TestALinkHeldByTheOtherModel:
         class PassportView(ModelView[Passport]):
             pass
 
-        assert PersonView()._candidates() == ("id", "name")
-        assert PassportView()._candidates() == ("id", "person")
+        assert PersonView()._settings.candidates == ("id", "name")
+        assert PassportView()._settings.candidates == ("id", "person")
 
     def test_leaving_the_key_off_a_page_is_not_said_to_name_the_link(self) -> None:
         class PersonView(ModelView[Person]):
@@ -257,21 +257,21 @@ class TestWhichKeysAreTyped:
     def test_a_key_the_model_fills_in_is_off_both_forms(self) -> None:
         view = CouponView()
 
-        assert view._form_fields() == ("code",)
-        assert view._form_fields(record=Coupon(code="SAVE10")) == ("code",)
+        assert view._pages.form_fields() == ("code",)
+        assert view._pages.form_fields(record=Coupon(code="SAVE10")) == ("code",)
 
     def test_a_key_people_type_is_on_the_form_and_required(self) -> None:
         view = CountryView()
 
-        assert view._form_fields() == ("code", "name")
+        assert view._pages.form_fields() == ("code", "name")
         assert view._fields.field_for("code").required
         assert ShelfView()._fields.field_for("slot").required
 
     def test_it_is_fixed_once_the_record_exists(self) -> None:
         view = ShelfView()
 
-        assert view._readonly_paths() == ()
-        assert view._readonly_paths(None, Shelf(aisle="A", slot=1)) == (
+        assert view._pages.readonly_paths() == ()
+        assert view._pages.readonly_paths(None, Shelf(aisle="A", slot=1)) == (
             "aisle",
             "slot",
         )
@@ -279,22 +279,22 @@ class TestWhichKeysAreTyped:
     def test_so_is_a_link_made_of_key_columns(self) -> None:
         view = ProfileView()
 
-        assert view._form_fields() == ("member", "bio")
+        assert view._pages.form_fields() == ("member", "bio")
         assert view._fields.field_for("member").required
-        assert view._readonly_paths() == ()
-        assert view._readonly_paths(None, Profile(member_id=1)) == ("member",)
+        assert view._pages.readonly_paths() == ()
+        assert view._pages.readonly_paths(None, Profile(member_id=1)) == ("member",)
 
     def test_a_link_to_many_is_not_fixed(self) -> None:
         class MemberView(ModelView[Member]):
             fields = [Member.name, Member.visits]
 
-        assert MemberView()._readonly_paths(None, Member(id=1)) == ()
+        assert MemberView()._pages.readonly_paths(None, Member(id=1)) == ()
 
     def test_a_foreign_key_the_view_names_is_on_the_form(self) -> None:
         view = NamedKeyProfileView()
 
-        assert view._form_fields() == ("member_id", "bio")
-        assert view._readonly_paths(None, Profile(member_id=1)) == ("member_id",)
+        assert view._pages.form_fields() == ("member_id", "bio")
+        assert view._pages.readonly_paths(None, Profile(member_id=1)) == ("member_id",)
 
     def test_an_inline_leaves_out_the_key_its_parent_fills_in(self) -> None:
         class MemberView(ModelView[Member]):
@@ -306,14 +306,14 @@ class TestWhichKeysAreTyped:
 
         child = MemberView()._inline_view("visits")
 
-        assert child._form_fields() == ("number", "note")
+        assert child._pages.form_fields() == ("number", "note")
 
     def test_a_key_the_database_names_otherwise_is_shown_as_its_link(self) -> None:
         class PlainCardView(ModelView[Card]):
             pass
 
-        assert PlainCardView()._form_fields() == ("member", "text")
-        assert CardView()._readonly_paths(None, Card(member_id=1)) == ("member",)
+        assert PlainCardView()._pages.form_fields() == ("member", "text")
+        assert CardView()._pages.readonly_paths(None, Card(member_id=1)) == ("member",)
 
     def test_an_inline_leaves_out_a_key_the_database_names_otherwise(self) -> None:
         class MemberView(ModelView[Member]):
@@ -322,9 +322,9 @@ class TestWhichKeysAreTyped:
         named = MemberWithNotesView()._inline_view("notes")
         default = MemberView()._inline_view("notes")
 
-        assert named._form_fields() == ("number", "body")
-        assert default._form_fields() == ("number", "body")
-        assert default._detail_fields() == ("number", "body")
+        assert named._pages.form_fields() == ("number", "body")
+        assert default._pages.form_fields() == ("number", "body")
+        assert default._pages.detail_fields() == ("number", "body")
 
     @pytest.mark.parametrize("view", [MemberWithStopsView, MemberWithNamedStopsView])
     def test_an_inline_leaves_out_the_key_with_no_link_back(
@@ -332,9 +332,11 @@ class TestWhichKeysAreTyped:
     ) -> None:
         child = view()._inline_view("stops")
 
-        assert child._form_fields() == ("number", "place")
-        assert child._readonly_paths(None, Stop(member_id=1, number=1)) == ("number",)
-        assert "member_id" not in child._detail_fields()
+        assert child._pages.form_fields() == ("number", "place")
+        assert child._pages.readonly_paths(None, Stop(member_id=1, number=1)) == (
+            "number",
+        )
+        assert "member_id" not in child._pages.detail_fields()
 
 
 @pytest.fixture

@@ -97,7 +97,7 @@ class TestFieldOnItsOwn:
         class Fixed(ModelView[Order]):
             fields = [Order.customer, Field(Order.total, read_only=True)]
 
-        assert Fixed()._readonly_paths() == ("total",)
+        assert Fixed()._pages.readonly_paths() == ("total",)
 
     def test_a_column_of_a_related_model(self) -> None:
         class Contact(ModelView[Order]):
@@ -109,7 +109,7 @@ class TestFieldOnItsOwn:
 
         view = Contact()
 
-        assert view._list_fields() == ("id", "customer.email", "customer.name")
+        assert view._pages.list_fields() == ("id", "customer.email", "customer.name")
         assert view._fields.field_for("customer.email").format == "<{}>"
         # Named by its path, as can_access_field reads it.
         assert view._fields.field_for("customer.email").name == "customer.email"
@@ -194,7 +194,7 @@ class TestComputedField:
         class Lines(ModelView[Order]):
             fields = [Order.id, ComputedField("lines", line_count, needs=[Order.items])]
 
-        assert Lines()._loadable(["id", "lines"]) == ["id", "items"]
+        assert Lines()._pages.loadable(["id", "lines"]) == ["id", "items"]
 
     def test_a_need_of_another_model(self) -> None:
         class Wrong(ModelView[Order]):

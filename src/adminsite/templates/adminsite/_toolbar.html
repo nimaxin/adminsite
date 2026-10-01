@@ -4,7 +4,7 @@
 {% import "adminsite/_icons.html" as icons %}
 {%- set kept = request.query_params.multi_items()|list -%}
 <div class="flex flex-wrap items-center gap-2 px-4 py-3 lg:px-7">
-  {% if view._search_paths(request) %}
+  {% if view._pages.search_paths(request) %}
     <form class="w-full sm:w-72" method="get" action="{{ urls.list(view) }}" role="search"
           hx-get="{{ urls.list(view) }}" hx-target="#records" hx-swap="outerHTML" hx-push-url="true">
       {% for key, value in kept if key not in ("q", "page", "after", "before") %}

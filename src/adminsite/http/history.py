@@ -124,7 +124,9 @@ def _verb(entry: AuditEntry, view: object) -> str:
 
 def _readable(view: "ModelView[Any] | None", request: Any, name: str) -> bool:
     """Whether this user sees the field an entry names on the record page."""
-    return view is None or view._can_access_path(request, name, RequestAction.DETAIL)
+    return view is None or view._pages.can_access_path(
+        request, name, RequestAction.DETAIL
+    )
 
 
 def _filter_fields(view: "ModelView[Any]", request: Any) -> dict[str, str]:

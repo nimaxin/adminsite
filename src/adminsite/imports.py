@@ -156,14 +156,14 @@ def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]
     A new record takes the create form's fields. A record that exists takes
     its edit form's, which `check_row` holds each row to.
     """
-    wanted = set(view._writable_paths(request)) | {
+    wanted = set(view._pages.writable_paths(request)) | {
         path
-        for path in view._form_fields(request, page=RequestAction.EDIT)
-        if not view._locked(path, saved=True)
+        for path in view._pages.form_fields(request, page=RequestAction.EDIT)
+        if not view._pages.locked(path, saved=True)
     }
     fields = tuple(
         path
-        for path in view._candidates()
+        for path in view._settings.candidates
         if path in wanted
         and view._fields.field_for(path).stored
         and not isinstance(view._fields.field_for(path), FileField)
@@ -271,9 +271,9 @@ async def _existing(
     scope = view._scope_for(request)
     # Loaded with the edit form's fields, which each row is held to, and with
     # every column the file can fill, which a row is compared with.
-    paths = view._loadable(
+    paths = view._pages.loadable(
         [
-            *view._form_fields(request, page=RequestAction.EDIT),
+            *view._pages.form_fields(request, page=RequestAction.EDIT),
             *import_columns(view, request),
         ]
     )
@@ -307,7 +307,7 @@ def check_row(
     """
     key = row.raw.get(key_name, "") if key_name else ""
     record = existing.get(key) if key else None
-    writable = set(view._writable_paths(request, record))
+    writable = set(view._pages.writable_paths(request, record))
     if key and record is None and key_name not in writable:
         row.errors[key_name] = _(
             "No {thing} has the key {key}.", thing=view.label.lower(), key=key
@@ -316,7 +316,7 @@ def check_row(
     if record is not None:
         row.key = key
 
-    readable = set(view._readable_paths(request)) if record is not None else set()
+    readable = set(view._pages.readable_paths(request)) if record is not None else set()
     for path, text in row.raw.items():
         if path == key_name and record is not None:
             continue

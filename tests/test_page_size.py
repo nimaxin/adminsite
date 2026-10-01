@@ -45,15 +45,15 @@ def rows(page: httpx.Response) -> int:
 
 class TestChoosing:
     def test_the_views_own_size_is_among_them(self) -> None:
-        assert OrderView()._page_sizes() == (3, 5, 100)
-        assert CustomerView()._page_sizes() == ()
+        assert OrderView()._pages.page_sizes() == (3, 5, 100)
+        assert CustomerView()._pages.page_sizes() == ()
 
     def test_only_a_size_on_offer_counts(self) -> None:
         view = OrderView()
 
-        assert view._pick_page_size(5) == 5
-        assert view._pick_page_size(1000) == 3
-        assert view._pick_page_size(None) == 3
+        assert view._pages.pick_page_size(5) == 5
+        assert view._pages.pick_page_size(1000) == 3
+        assert view._pages.pick_page_size(None) == 3
 
 
 class TestOnThePage:

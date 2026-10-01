@@ -111,7 +111,7 @@ class Selection(Generic[M]):
         if self.view._audit_log is not None:
             paths = [
                 path
-                for path in self.view._form_fields(
+                for path in self.view._pages.form_fields(
                     self.request, page=RequestAction.EDIT
                 )
                 if path in self.view._schema.fields

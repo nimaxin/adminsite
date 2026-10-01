@@ -86,7 +86,7 @@ class TestNaming:
 
 class TestColumns:
     def test_the_listed_columns_are_used(self, orders: OrderView) -> None:
-        assert orders._list_fields() == (
+        assert orders._pages.list_fields() == (
             "id",
             "customer.name",
             "status",
@@ -97,7 +97,7 @@ class TestColumns:
     def test_without_a_list_every_column_is_shown(self) -> None:
         view = ProductView()
 
-        assert view._list_fields() == ("id", "name", "price", "description")
+        assert view._pages.list_fields() == ("id", "name", "price", "description")
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
         assert orders._fields.label_for("created_at") == "Created at"
@@ -141,7 +141,7 @@ class TestReadingValues:
 
 class TestFilters:
     def test_a_filter_is_built_for_each_listed_path(self, orders: OrderView) -> None:
-        kinds = [type(item) for item in orders._list_filters(None)]
+        kinds = [type(item) for item in orders._pages.list_filters(None)]
 
         assert kinds == [
             ChoiceFilter,
@@ -156,7 +156,7 @@ class TestFilters:
         class WithFilter(ModelView[Order]):
             list_filters = (mine,)
 
-        assert WithFilter()._list_filters(None) == (mine,)
+        assert WithFilter()._pages.list_filters(None) == (mine,)
 
     def test_anything_else_in_list_filters_is_refused(self) -> None:
         class Wrong(ModelView[Order]):
@@ -170,8 +170,8 @@ class TestBuildingAQuery:
     def test_the_query_asks_for_what_the_list_shows(self, orders: OrderView) -> None:
         spec = orders._build_spec()
 
-        assert spec.paths == orders._list_fields()
-        assert spec.search_paths == orders._search_paths(None)
+        assert spec.paths == orders._pages.list_fields()
+        assert spec.search_paths == orders._pages.search_paths(None)
         assert spec.limit == 3
         assert spec.count is CountMode.EXACT
 
@@ -213,13 +213,13 @@ class TestBuildingAQuery:
 
 class TestForms:
     def test_the_form_skips_the_key(self) -> None:
-        assert "id" not in ProductView()._form_fields()
+        assert "id" not in ProductView()._pages.form_fields()
 
     def test_a_foreign_key_becomes_its_link_in_the_form(self) -> None:
         class PlainOrders(ModelView[Order]):
             pass
 
-        fields = PlainOrders()._form_fields()
+        fields = PlainOrders()._pages.form_fields()
 
         assert "customer" in fields
         assert "customer_id" not in fields
@@ -228,7 +228,7 @@ class TestForms:
         class PlainOrders(ModelView[Order]):
             pass
 
-        columns = PlainOrders()._list_fields()
+        columns = PlainOrders()._pages.list_fields()
 
         assert columns.index("customer") == 1
         assert "customer_id" not in columns
@@ -245,15 +245,15 @@ class TestForms:
 
         view = ShortProducts()
 
-        assert "description" not in view._list_fields()
-        assert "description" not in view._form_fields()
-        assert "description" not in view._detail_fields()
+        assert "description" not in view._pages.list_fields()
+        assert "description" not in view._pages.form_fields()
+        assert "description" not in view._pages.detail_fields()
 
     def test_the_listed_form_fields_are_used_in_order(self) -> None:
-        assert CustomerView()._form_fields() == ("name", "email", "region")
+        assert CustomerView()._pages.form_fields() == ("name", "email", "region")
 
     def test_read_only_fields_are_reported(self) -> None:
-        assert CustomerView()._readonly_paths() == ("email",)
+        assert CustomerView()._pages.readonly_paths() == ("email",)
 
 
 class TestOverriding:
@@ -268,8 +268,8 @@ class TestOverriding:
 
         view = StaffView()
 
-        assert view._list_fields("staff") == ("name",)
-        assert view._list_fields() == ("name", "email", "region")
+        assert view._pages.list_fields("staff") == ("name",)
+        assert view._pages.list_fields() == ("name", "email", "region")
 
 
 class TestRegistry:

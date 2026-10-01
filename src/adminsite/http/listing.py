@@ -93,7 +93,7 @@ def read_list_request(request: Request, view: ModelView[Any]) -> ListRequest:
         search=params.get("q", "").strip(),
         sort=read_sort(params.get("sort", ""), view, request),
         page=read_page(params.get("page", "1")),
-        values=parse_filters(view._list_filters(request), grouped),
+        values=parse_filters(view._pages.list_filters(request), grouped),
         after=params.get("after", ""),
         before=params.get("before", ""),
         columns=read_columns(request, view),
@@ -111,7 +111,9 @@ def read_sort(raw: str, view: ModelView[Any], request: Request) -> tuple[Sort, .
     if not raw:
         return ()
     sort = Sort.parse(raw)
-    if sort.path in view._readable_paths(request) and view._sortable(sort.path):
+    if sort.path in view._pages.readable_paths(request) and view._pages.sortable(
+        sort.path
+    ):
         return (sort,)
     return ()
 
@@ -132,11 +134,11 @@ def read_page_size(request: Request, view: ModelView[Any]) -> int:
             picked = int(request.query_params[SIZE_PARAM])
         except ValueError:
             picked = None
-        if session is not None and picked in view._page_sizes(request):
+        if session is not None and picked in view._pages.page_sizes(request):
             session[SIZE_KEY] = {**remembered, view.name: picked}
     else:
         picked = remembered.get(view.name)
-    return view._pick_page_size(picked, request)
+    return view._pages.pick_page_size(picked, request)
 
 
 def read_columns(request: Request, view: ModelView[Any]) -> tuple[str, ...]:
@@ -169,7 +171,7 @@ def read_columns(request: Request, view: ModelView[Any]) -> tuple[str, ...]:
             session[COLUMNS_KEY] = remembered
     else:
         picked = remembered.get(view.name, [])
-    return view._pick_columns(picked, request)
+    return view._pages.pick_columns(picked, request)
 
 
 def read_page(raw: str) -> int:
@@ -260,9 +262,9 @@ def as_context(
         "total_text": total_text(page),
         "columns": read.columns,
         "page_size": read.size,
-        "page_sizes": view._page_sizes(request),
-        "column_choices": view._column_choices(request),
-        "columns_changed": read.columns != view._list_fields(request),
+        "page_sizes": view._pages.page_sizes(request),
+        "column_choices": view._pages.column_choices(request),
+        "columns_changed": read.columns != view._pages.list_fields(request),
         "current_query": clean_query(request.url.query),
         "panels": panels,
         "chips": active_chips(panels),

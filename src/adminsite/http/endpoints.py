@@ -147,7 +147,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         await view._load_values(
             session,
             list(page),
-            read.columns or view._list_fields(request),
+            read.columns or view._pages.list_fields(request),
             request=request,
         )
         panels = await build_panels(view, session, spec, request)
@@ -347,10 +347,10 @@ async def detail(admin: "Admin", request: Request) -> Response:
     await view._ensure(Permission.VIEW_DETAIL, request=request)
     # A to-many link is read a few records at a time below, never loaded
     # whole: an invoice may cover thousands of records.
-    counted = many_links(view, view._detail_fields(request), request)
+    counted = many_links(view, view._pages.detail_fields(request), request)
     # Unless a computed field on the page reads it, which needs it whole.
     needed = computed_needs(
-        view, (*view._form_fields(request), *view._detail_fields(request))
+        view, (*view._pages.form_fields(request), *view._pages.detail_fields(request))
     )
     record = await load_or_404(
         admin,
@@ -358,12 +358,12 @@ async def detail(admin: "Admin", request: Request) -> Response:
         request,
         paths=[
             path
-            for path in view._load_paths(request)
+            for path in view._pages.load_paths(request)
             if path not in counted or path in needed
         ],
     )
 
-    paths = view._detail_fields(request, record)
+    paths = view._pages.detail_fields(request, record)
     async with admin.database.session() as session:
         await view._load_values(session, [record], paths, request=request)
     links = await linked_records(admin, view, record, paths, request)
@@ -675,7 +675,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
 
     async with admin.database.session() as session:
         record = await view._fetch_record(
-            session, key, paths=view._load_paths(request), request=request
+            session, key, paths=view._pages.load_paths(request), request=request
         )
         if record is None:
             raise HTTPException(status_code=404, detail=_("No such record."))
@@ -698,7 +698,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             # The rollback expired the record, and the form is about to
             # read it again, which an async session cannot do on the fly.
             record = await view._fetch_record(
-                session, key, paths=view._load_paths(request), request=request
+                session, key, paths=view._pages.load_paths(request), request=request
             )
             return await form_again(
                 admin, view, session, request, result, error, record, submitted
@@ -719,7 +719,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
         record = await view._fetch_record(
             session,
             read_key(request),
-            paths=view._load_paths(request),
+            paths=view._pages.load_paths(request),
             request=request,
         )
         if record is None:
@@ -778,8 +778,8 @@ async def document(admin: "Admin", request: Request) -> Response:
     else:
         await view._ensure(Permission.CREATE, request=request)
     # Only a field this user edits on this form, so no other is read back.
-    editable = set(view._form_fields(request, record)) - set(
-        view._readonly_paths(request, record)
+    editable = set(view._pages.form_fields(request, record)) - set(
+        view._pages.readonly_paths(request, record)
     )
     if path not in editable:
         raise HTTPException(
@@ -964,7 +964,7 @@ async def load_or_404(
         record = await view._fetch_record(
             session,
             read_key(request),
-            paths=view._load_paths(request) if paths is None else paths,
+            paths=view._pages.load_paths(request) if paths is None else paths,
             request=request,
         )
     if record is None:
@@ -1188,7 +1188,7 @@ async def perform(
             record = await view._fetch_record(
                 session,
                 key_of(chosen[0]),
-                paths=view._load_paths(request),
+                paths=view._pages.load_paths(request),
                 request=request,
             )
         if record is None:

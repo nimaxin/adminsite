@@ -38,7 +38,7 @@
               {% set numeric = view._fields.field_for(path).widget == 'number' and path not in view._schema.primary_key %}
               <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
-                {% if view._sortable(path) %}
+                {% if view._pages.sortable(path) %}
                   <a class="inline-flex items-center gap-1 hover:text-base-content"
                      href="{{ urls.sorted_by(path) }}"
                      hx-get="{{ urls.sorted_by(path) }}" hx-target="#records"

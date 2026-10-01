@@ -75,9 +75,9 @@ class TestEachPage:
         view = Orders()
 
         for page in (
-            view._list_fields,
-            view._detail_fields,
-            view._form_fields,
+            view._pages.list_fields,
+            view._pages.detail_fields,
+            view._pages.form_fields,
         ):
             assert "total" not in page("staff")
             assert "total" in page("manager")
@@ -85,9 +85,9 @@ class TestEachPage:
     def test_the_edit_form_and_the_export_ask_too(self) -> None:
         view = Orders()
 
-        assert "total" not in view._form_fields("staff", Order(id=1))
-        assert view._exported(["id", "total"], "staff") == ("id",)
-        assert view._exported(["id", "total"], "manager") == ("id", "total")
+        assert "total" not in view._pages.form_fields("staff", Order(id=1))
+        assert view._pages.exported(["id", "total"], "staff") == ("id",)
+        assert view._pages.exported(["id", "total"], "manager") == ("id", "total")
 
     def test_each_page_is_named_to_it(self) -> None:
         asked: list[tuple[str, RequestAction]] = []
@@ -102,11 +102,11 @@ class TestEachPage:
                 return True
 
         view = Asking()
-        view._list_fields()
-        view._detail_fields()
-        view._form_fields()
-        view._form_fields(record=Order(id=1))
-        view._exported(["id"])
+        view._pages.list_fields()
+        view._pages.detail_fields()
+        view._pages.form_fields()
+        view._pages.form_fields(record=Order(id=1))
+        view._pages.exported(["id"])
 
         assert {action for _name, action in asked} == set(RequestAction)
 
@@ -122,7 +122,7 @@ class TestEachPage:
                 names.add(field.name)
                 return True
 
-        Asking()._list_fields()
+        Asking()._pages.list_fields()
 
         assert names == {"id", "customer.email", "customer.name"}
 
@@ -132,21 +132,21 @@ class TestEachPage:
 
         view = Offered()
 
-        assert view._column_choices("staff") == ("id",)
-        assert view._column_choices("manager") == ("id", "total")
+        assert view._pages.column_choices("staff") == ("id",)
+        assert view._pages.column_choices("manager") == ("id", "total")
 
     def test_the_list_cannot_be_sorted_by_it(self) -> None:
         view = Orders()
 
-        assert "total" not in view._readable_paths("staff")
-        assert "total" in view._readable_paths("manager")
+        assert "total" not in view._pages.readable_paths("staff")
+        assert "total" in view._pages.readable_paths("manager")
 
     def test_the_create_form_alone_does_not_make_it_readable(self) -> None:
         view = NotedOrders()
 
-        assert "note" in view._form_fields("staff")
-        assert "note" not in view._readable_paths("staff")
-        assert "note" in view._readable_paths("manager")
+        assert "note" in view._pages.form_fields("staff")
+        assert "note" not in view._pages.readable_paths("staff")
+        assert "note" in view._pages.readable_paths("manager")
 
     def test_the_form_does_not_read_it_back(self) -> None:
         submitted = {"customer": "1", "status": "paid", "total": "0", "note": ""}
@@ -367,14 +367,14 @@ class TestSearchFiltersAndSort:
     def test_a_refused_field_is_not_searched(self) -> None:
         view = Narrowed()
 
-        assert view._search_paths("staff") == ()
-        assert view._search_paths("manager") == ("note",)
+        assert view._pages.search_paths("staff") == ()
+        assert view._pages.search_paths("manager") == ("note",)
 
     def test_nor_offered_as_a_filter(self) -> None:
         view = Narrowed()
 
-        assert [item.name for item in view._list_filters("staff")] == ["status"]
-        assert [item.name for item in view._list_filters("manager")] == [
+        assert [item.name for item in view._pages.list_filters("staff")] == ["status"]
+        assert [item.name for item in view._pages.list_filters("manager")] == [
             "status",
             "total",
         ]
@@ -382,14 +382,16 @@ class TestSearchFiltersAndSort:
     def test_nor_sorted_by_at_first(self) -> None:
         view = Narrowed()
 
-        assert view._default_sort("staff") == ()
-        assert view._default_sort("manager") == (Sort("total", descending=True),)
+        assert view._pages.default_sort("staff") == ()
+        assert view._pages.default_sort("manager") == (Sort("total", descending=True),)
 
     def test_a_filter_that_names_no_field_is_kept(self) -> None:
         class Custom(Narrowed):
             list_filters = [TextFilter("anything", label="Anything")]
 
-        assert [item.name for item in Custom()._list_filters("staff")] == ["anything"]
+        assert [item.name for item in Custom()._pages.list_filters("staff")] == [
+            "anything"
+        ]
 
 
 @pytest.fixture
@@ -567,8 +569,8 @@ class TestGetReadonlyFields:
         shipped = Order(id=1, status=OrderStatus.SHIPPED)
         pending = Order(id=2, status=OrderStatus.PENDING)
 
-        assert view._readonly_paths(None, shipped) == ("customer", "status")
-        assert view._readonly_paths(None, pending) == ()
+        assert view._pages.readonly_paths(None, shipped) == ("customer", "status")
+        assert view._pages.readonly_paths(None, pending) == ()
         result = view._parse_form(
             {"customer": "2", "status": "paid", "note": "Gift"}, record=shipped
         )
@@ -578,7 +580,7 @@ class TestGetReadonlyFields:
         class Fixed(ModelView[Order]):
             fields = [Order.status, Field(Order.total, read_only=True)]
 
-        assert Fixed()._readonly_paths(None, Order(id=1)) == ("total",)
+        assert Fixed()._pages.readonly_paths(None, Order(id=1)) == ("total",)
 
     def test_a_key_marked_read_only_is_locked_on_both_forms(self) -> None:
         class Locked(ModelView[Shelf]):
@@ -590,8 +592,8 @@ class TestGetReadonlyFields:
             {"aisle": "Z", "slot": "2", "label": "Linen"}, record=shelf
         )
 
-        assert view._readonly_paths() == ("aisle",)
-        assert view._readonly_paths(None, shelf) == ("aisle", "slot")
+        assert view._pages.readonly_paths() == ("aisle",)
+        assert view._pages.readonly_paths(None, shelf) == ("aisle", "slot")
         assert result.values == {"label": "Linen"}
 
     def test_a_misspelt_name_is_refused(self) -> None:
@@ -602,7 +604,7 @@ class TestGetReadonlyFields:
                 return ["stauts"]
 
         with pytest.raises(AdminSiteError) as raised:
-            Misspelt()._readonly_paths()
+            Misspelt()._pages.readonly_paths()
 
         assert str(raised.value).startswith(
             "Misspelt.get_readonly_fields: Order has no column or relationship "
@@ -679,9 +681,9 @@ class TestInlineFields:
                 return True
 
         child = Asking()._inline_view("items")
-        child._form_fields()
-        child._form_fields(record=OrderItem(id=1))
-        child._detail_fields()
+        child._pages.form_fields()
+        child._pages.form_fields(record=OrderItem(id=1))
+        child._pages.detail_fields()
 
         assert asked == [
             ("items.quantity", RequestAction.CREATE),
