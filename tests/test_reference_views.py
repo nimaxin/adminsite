@@ -130,7 +130,7 @@ class TestThePages:
 class TestTheSaveHook:
     async def test_it_writes_the_sku_in_capitals(self, admin: Admin) -> None:
         async with admin.database.session() as session:
-            record = await products(admin)._save(
+            record = await products(admin)._saver.save(
                 session,
                 {
                     "sku": " shirt-2 ",
@@ -148,7 +148,7 @@ class TestTheSaveHook:
     ) -> None:
         async with admin.database.session() as session:
             with pytest.raises(RefusedError) as refused:
-                await products(admin)._save(
+                await products(admin)._saver.save(
                     session,
                     {
                         "sku": "SHIRT-3",

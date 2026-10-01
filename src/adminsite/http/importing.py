@@ -139,7 +139,9 @@ async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Respons
                     request=request,
                 )
             try:
-                await view._save(session, row.values, record=record, request=request)
+                await view._saver.save(
+                    session, row.values, record=record, request=request
+                )
             except AdminSiteError as error:
                 failed.append(
                     _("row {number}: {reason}", number=row.number, reason=error)

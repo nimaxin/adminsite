@@ -335,7 +335,7 @@ async def item(admin: "Admin", request: Request) -> Response:
 
         if request.method == "DELETE":
             try:
-                await view._delete(session, record, request=request)
+                await view._saver.delete(session, record, request=request)
             except RefusedError as error:
                 raise ApiError(409, str(error)) from None
             return Response(status_code=204)
@@ -368,7 +368,7 @@ async def save(
 ) -> Any:
     """Save through the view, turning refusals into API errors."""
     try:
-        return await view._save(session, values, record=record, request=request)
+        return await view._saver.save(session, values, record=record, request=request)
     except RefusedError as error:
         if error.field:
             raise ApiError(

@@ -96,7 +96,7 @@ class TestCreating:
         self, database: Database, products: ProductView
     ) -> None:
         async with database.session() as session:
-            record = await products._save(
+            record = await products._saver.save(
                 session, {"name": "Felt hat", "price": Decimal("42.00")}
             )
 
@@ -110,7 +110,7 @@ class TestCreating:
             customer = await session.scalar(select(Customer))
             assert customer is not None
 
-            record = await orders._save(
+            record = await orders._saver.save(
                 session,
                 {
                     "customer": str(customer.id),
@@ -126,7 +126,7 @@ class TestCreating:
     ) -> None:
         async with database.session() as session:
             with pytest.raises(RecordNotFoundError, match="No Customer"):
-                await orders._save(
+                await orders._saver.save(
                     session,
                     {
                         "customer": "9999",
@@ -143,7 +143,7 @@ class TestCreating:
         async with database.session() as session:
             existing = list((await session.scalars(select(Order))).all())[:2]
 
-            record = await view._save(
+            record = await view._saver.save(
                 session,
                 {
                     "name": "Mara Svensson",
@@ -163,7 +163,7 @@ class TestChanging:
             record = await session.scalar(select(Product))
             assert record is not None
 
-            await products._save(session, {"name": "Renamed"}, record=record)
+            await products._saver.save(session, {"name": "Renamed"}, record=record)
 
             assert record.name == "Renamed"
 
@@ -175,7 +175,7 @@ class TestChanging:
             assert record is not None
             price = record.price
 
-            await products._save(session, {"name": "Renamed"}, record=record)
+            await products._saver.save(session, {"name": "Renamed"}, record=record)
 
             assert record.price == price
 
@@ -189,7 +189,7 @@ class TestDeleting:
             record = await session.get(Product, key)
             assert record is not None
 
-            await products._delete(session, record)
+            await products._saver.delete(session, record)
 
             assert await session.get(Product, key) is None
 
@@ -201,7 +201,7 @@ class TestDeleting:
             assert record is not None
 
             with pytest.raises(RefusedError, match="other records still refer"):
-                await products._delete(session, record)
+                await products._saver.delete(session, record)
 
             assert await session.get(Product, 1) is not None
 
@@ -220,7 +220,7 @@ class TestDeleting:
             await session.commit()
 
             with pytest.raises(RefusedError) as raised:
-                await Copying()._delete(session, lone)
+                await Copying()._saver.delete(session, lone)
 
         assert str(raised.value) == f"This customer could not be deleted. {REFUSED}"
 
@@ -230,7 +230,7 @@ class TestDeleting:
         view = CustomerView()
         async with database.session() as session:
             with pytest.raises(RefusedError) as raised:
-                await view._save(
+                await view._saver.save(
                     session,
                     {"name": "Someone", "email": "lena@fischer.de", "region": "DE"},
                 )
@@ -245,7 +245,7 @@ class TestDeleting:
 
         async with database.session() as session:
             with pytest.raises(RefusedError) as raised:
-                await NoPrice()._save(session, {"name": "Scarf"})
+                await NoPrice()._saver.save(session, {"name": "Scarf"})
 
         assert str(raised.value) == f"This product could not be saved. {REFUSED}"
         assert "clash" not in str(raised.value)
@@ -257,7 +257,7 @@ class TestDeleting:
             order = await orders._repository.get(session, 1, paths=("items.quantity",))
             assert order is not None
 
-            await orders._delete(session, order)
+            await orders._saver.delete(session, order)
 
             left = await session.scalar(
                 select(func.count())
@@ -280,7 +280,7 @@ class TestHooks:
                 seen.append(context)
 
         async with database.session() as session:
-            await Watching()._save(
+            await Watching()._saver.save(
                 session, {"name": "Watched", "price": Decimal("1.00")}
             )
 
@@ -295,7 +295,7 @@ class TestHooks:
                 context.record.description = "Added by a hook"
 
         async with database.session() as session:
-            record = await Stamping()._save(
+            record = await Stamping()._saver.save(
                 session, {"name": "Stamped", "price": Decimal("2.00")}
             )
 
@@ -313,7 +313,7 @@ class TestHooks:
 
         view = Counting()
         async with database.session() as session:
-            await view._save(session, {"name": "Counted", "price": Decimal("3")})
+            await view._saver.save(session, {"name": "Counted", "price": Decimal("3")})
 
             assert view.seen_before == 3
 
@@ -329,7 +329,7 @@ class TestHooks:
                 )
 
         async with database.session() as session:
-            await Auditing()._save(
+            await Auditing()._saver.save(
                 session, {"name": "Original", "price": Decimal("4.00")}
             )
 
@@ -353,7 +353,7 @@ class TestHooks:
             before = await session.scalar(select(func.count()).select_from(Product))
 
             with pytest.raises(RuntimeError, match="too low"):
-                await Refusing()._save(
+                await Refusing()._saver.save(
                     session, {"name": "Refused", "price": Decimal("0.01")}
                 )
 
@@ -371,7 +371,7 @@ class TestHooks:
 
         async with database.session() as session:
             with pytest.raises(RuntimeError):
-                await SecondThoughts()._save(
+                await SecondThoughts()._saver.save(
                     session, {"name": "Gone", "price": Decimal("5.00")}
                 )
 
@@ -395,7 +395,7 @@ class TestHooks:
             record = await session.scalar(select(Product))
             assert record is not None
 
-            await Marking()._save(session, {"name": "Edited"}, record=record)
+            await Marking()._saver.save(session, {"name": "Edited"}, record=record)
 
             assert marks == [False]
 
@@ -412,7 +412,7 @@ class TestHooks:
             key = record.id
 
             with pytest.raises(RuntimeError, match="still selling"):
-                await Protective()._delete(session, record)
+                await Protective()._saver.delete(session, record)
 
             assert await session.get(Product, key) is not None
 
@@ -428,7 +428,7 @@ class TestHooks:
             record = await session.get(Product, key)
             assert record is not None
 
-            await Logging()._delete(session, record)
+            await Logging()._saver.delete(session, record)
 
             assert names == ["Gift card"]
 
@@ -449,7 +449,7 @@ class TestRoundTrip:
             )
             assert result.ok
 
-            await view._save(session, result.values)
+            await view._saver.save(session, result.values)
 
             page = await view._repository.list(
                 session,

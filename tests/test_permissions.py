@@ -161,7 +161,7 @@ class TestActionPermissions:
         view = ReadOnlyOrders()
         async with database.session() as session:
             with pytest.raises(PermissionDeniedError, match="You cannot create"):
-                await view._save(session, {"note": "new"})
+                await view._saver.save(session, {"note": "new"})
 
     async def test_deleting_is_refused(self, database: Database) -> None:
         view = ReadOnlyOrders()
@@ -170,7 +170,7 @@ class TestActionPermissions:
             assert record is not None
 
             with pytest.raises(PermissionDeniedError, match="You cannot delete"):
-                await view._delete(session, record)
+                await view._saver.delete(session, record)
 
     async def test_permission_can_depend_on_the_user(self, database: Database) -> None:
         view = ByRole()
@@ -196,7 +196,7 @@ class TestActionPermissions:
             key = record.id
 
             with pytest.raises(PermissionDeniedError):
-                await view._delete(session, record, request="support")
+                await view._saver.delete(session, record, request="support")
 
             assert await session.get(Order, key) is not None
 

@@ -181,7 +181,7 @@ class TestSaving:
                 }
             )
 
-            await view._save(
+            await view._saver.save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -208,7 +208,7 @@ class TestSaving:
                 }
             )
 
-            await view._save(
+            await view._saver.save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -227,7 +227,7 @@ class TestSaving:
                 {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
             )
 
-            await view._save(
+            await view._saver.save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 
@@ -259,7 +259,7 @@ class TestSaving:
                 }
             )
 
-            order = await view._save(
+            order = await view._saver.save(
                 session, result.values, inline_rows=result.inline_rows
             )
             key = order.id
@@ -290,7 +290,7 @@ class TestSaving:
             )
 
             with pytest.raises(RecordNotFoundError):
-                await view._save(
+                await view._saver.save(
                     session,
                     result.values,
                     record=order,
@@ -474,7 +474,7 @@ class TestAReadOnlyField:
                     ),
                 }
             )
-            await view._save(
+            await view._saver.save(
                 session, result.values, record=order, inline_rows=result.inline_rows
             )
 

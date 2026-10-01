@@ -103,7 +103,7 @@ class TestChangingAValue:
         view = ProductView()
         values = {"name": "Cap", "price": 5, "description": "keep me"}
         async with database.session() as session:
-            await view._save(session, values)
+            await view._saver.save(session, values)
 
         assert values["description"] == "keep me"
 

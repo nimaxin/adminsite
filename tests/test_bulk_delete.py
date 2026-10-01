@@ -14,7 +14,7 @@ from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
-from adminsite.views import model_view
+from adminsite.views import saving
 from adminsite.views.writing import DeleteContext
 from tests.models import Customer, Product
 from tests.support import REFUSED
@@ -250,7 +250,7 @@ class TestWhenOneIsRefused:
         database: Database,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setattr(model_view, "BULK_DELETE_LIMIT", 2)
+        monkeypatch.setattr(saving, "BULK_DELETE_LIMIT", 2)
         keys = await add_products(database, "Spare A", "Spare B", "Spare C")
 
         page = await delete(client, "products", keys)

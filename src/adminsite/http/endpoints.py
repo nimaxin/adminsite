@@ -324,7 +324,7 @@ async def create_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, submitted=submitted
             )
         try:
-            record = await view._save(
+            record = await view._saver.save(
                 session,
                 result.values,
                 request=request,
@@ -687,7 +687,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
                 admin, view, session, request, result, None, record, submitted
             )
         try:
-            await view._save(
+            await view._saver.save(
                 session,
                 result.values,
                 record=record,
@@ -726,7 +726,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
             raise HTTPException(status_code=404, detail=_("No such record."))
         await view._ensure(Permission.DELETE, request=request, record=record)
         try:
-            await view._delete(session, record, request=request)
+            await view._saver.delete(session, record, request=request)
         except RefusedError as error:
             add_message(request, str(error), kind="error")
             return RedirectResponse(Urls(request).list(view), status_code=303)
