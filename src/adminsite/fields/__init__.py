@@ -1,6 +1,3 @@
-from typing import TYPE_CHECKING
-
-from adminsite.exceptions import renamed_names
 from adminsite.fields.base import BaseField, Field
 from adminsite.fields.choice import EnumField
 from adminsite.fields.computed import ComputedField
@@ -52,17 +49,3 @@ __all__ = [
     "build_default_registry",
     "default_registry",
 ]
-
-
-if not TYPE_CHECKING:
-    # The names 0.1.0a10 changed, refused with the name each has now. Hidden
-    # from type checkers, which report an old name as missing.
-    __getattr__ = renamed_names(
-        __name__,
-        {
-            "ChoiceField": "EnumField",
-            "Computed": "ComputedField",
-            "FieldOptions": "Field",
-            "TextField": "TextAreaField",
-        },
-    )

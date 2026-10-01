@@ -100,7 +100,6 @@ from adminsite.views.checks import (
 )
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.naming import name_all_linked, name_linked
-from adminsite.views.renamed import refuse_old_names
 from adminsite.views.settings import SettingsReader, default_paths
 from adminsite.views.writing import (
     DeleteContext,
@@ -232,13 +231,6 @@ class ModelView(Generic[M]):
     _audit_with_changes: bool = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        model = kwargs.pop("model", None)
-        if model is not None:
-            named = getattr(model, "__name__", "YourModel")
-            raise AdminSiteError(
-                f"Name the model of {cls.__name__} as its type argument: "
-                f"class {cls.__name__}(ModelView[{named}])."
-            )
         super().__init_subclass__(**kwargs)
         # The model is the type argument of the ModelView this class is built
         # on, or of a view that is generic itself, such as ShopView[Order].
@@ -269,7 +261,6 @@ class ModelView(Generic[M]):
                 f"{type(self).__name__} needs a model: "
                 f"class {type(self).__name__}(ModelView[YourModel])."
             )
-        refuse_old_names(type(self), base=ModelView, delete_action=DELETE_ACTION)
         self._inspector = inspector or SQLAlchemyInspector()
         self._registry = registry or default_registry
         try:

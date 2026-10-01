@@ -10,7 +10,6 @@ from sqlalchemy import Select, func, select
 from starlette.requests import Request
 
 from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.exceptions import renamed_keywords
 from adminsite.http.urls import Urls
 from adminsite.query import CountMode, Sort
 from adminsite.security import Permission, RequestAction
@@ -369,9 +368,6 @@ class RecentRecords(Widget):
                 )
                 for record in page
             ]
-
-
-renamed_keywords(RecentRecords, {"detail": "value"})
 
 
 @dataclass(frozen=True)

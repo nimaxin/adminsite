@@ -54,24 +54,6 @@ EXPECTED = {
         'expected "Decimal"'
     ),
     'on="records"': 'Argument "on" to "action" has incompatible type',
-    "FieldOptions": 'Module "adminsite" has no attribute "FieldOptions"',
-    "SignInRefused": 'Module "adminsite.auth" has no attribute "SignInRefused"',
-    "ChoiceField": 'Module "adminsite.fields" has no attribute "ChoiceField"',
-    "TextField": 'Module "adminsite.fields" has no attribute "TextField"',
-    "extra=1": 'Unexpected keyword argument "extra" for "Inline"',
-    "readonly_fields=": 'Unexpected keyword argument "readonly_fields" for "Inline"',
-    "Inline(Order.items, display_template=": (
-        'Unexpected keyword argument "display_template" for "Inline"'
-    ),
-    "RelationField(Order.customer, display_template=": (
-        'Unexpected keyword argument "display_template" for "RelationField"'
-    ),
-    'Inline(name="items")': 'Unexpected keyword argument "name" for "Inline"',
-    "enum_class=": 'Unexpected keyword argument "enum_class" for "EnumField"',
-    "readonly=True": 'Unexpected keyword argument "readonly" for "Field"',
-    'detail="total"': 'Unexpected keyword argument "detail" for "RecentRecords"',
-    "fields=default_registry": 'Unexpected keyword argument "fields" for "Admin"',
-    "Permission.DETAIL": '"type[Permission]" has no attribute "DETAIL"',
 }
 
 Reported = dict[str, dict[int, list[tuple[str, str]]]]

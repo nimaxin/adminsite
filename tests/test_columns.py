@@ -65,12 +65,6 @@ class TestTheModelComesFromTheTypeArgument:
 
         assert ProductView().model is Product
 
-    def test_the_old_keyword_names_the_new_form(self) -> None:
-        with pytest.raises(AdminSiteError, match=r"ModelView\[Order\]"):
-
-            class OrderView(ModelView, model=Order):  # type: ignore[type-arg]
-                pass
-
     def test_any_is_no_model(self) -> None:
         class Broken(ModelView[Any]):
             pass

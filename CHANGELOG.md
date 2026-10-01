@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
+  as `list_display`, starts and the setting does nothing, and an old class or keyword fails
+  like any name that does not exist.
+
 ## 0.1.0a10
 
 Views written the way starlette-admin writes them, and typed: the model as the view's type

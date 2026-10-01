@@ -115,9 +115,6 @@ leave the customer off with `Order.customer`, not `Order.customer_id`.
 [Columns menu](#choosing-columns). A field hidden in the list and excluded from it at once asks for
 two different things, and stops the admin when it starts.
 
-A setting from another admin, such as Django's `list_display`, `search_fields` or
-`readonly_fields`, stops the admin when it starts, with what to write instead.
-
 ## Naming
 
 | Setting | Default | Used for |

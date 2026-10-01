@@ -3,7 +3,7 @@ from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import Any, Self
 
-from adminsite.exceptions import AdminSiteError, FieldValidationError, renamed_keywords
+from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
 from adminsite.fields.tones import NEUTRAL, Tones, tone_number
 from adminsite.i18n import gettext as _
@@ -278,9 +278,6 @@ class EnumField(Field[Any]):
 def _is_enum(python_type: Any) -> bool:
     """Whether a column's type of value is an Enum, whose members it holds."""
     return isinstance(python_type, type) and issubclass(python_type, Enum)
-
-
-renamed_keywords(EnumField, {"enum_class": "enum"})
 
 
 def _written(value: Any) -> str:

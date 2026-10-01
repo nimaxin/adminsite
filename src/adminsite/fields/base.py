@@ -6,7 +6,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import QueryableAttribute
 
 from adminsite.columns import Link, describe, written_path
-from adminsite.exceptions import AdminSiteError, FieldValidationError, renamed_keywords
+from adminsite.exceptions import FieldValidationError
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import as_text, humanize
@@ -85,14 +85,6 @@ class BaseField:
     # written on the field, so a date field given max_length= stops the
     # admin starting instead of refusing every date typed in.
     unused_options: ClassVar[frozenset[str]] = frozenset()
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if "blank_keeps" in vars(cls):
-            raise AdminSiteError(
-                f"{cls.__name__} sets blank_keeps, which adminsite calls "
-                "keeps_value_when_blank. Rename it to keeps_value_when_blank."
-            )
 
     def __post_init__(self) -> None:
         self.labelled = bool(self.label)
@@ -177,9 +169,6 @@ class BaseField:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({describe(self.name)})"
-
-
-renamed_keywords(BaseField, {"readonly": "read_only"})
 
 
 @dataclass(eq=False, repr=False)

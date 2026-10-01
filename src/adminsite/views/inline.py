@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import QueryableAttribute
 
-from adminsite.exceptions import renamed_keywords
-
 if TYPE_CHECKING:
     from adminsite.columns import ColumnReference
     from adminsite.fields import Field
@@ -57,13 +55,6 @@ class Inline:
     def input_name(self, index: int | str, path: str) -> str:
         """The name a child's input carries in the submitted form."""
         return f"{self.name}-{index}-{path}"
-
-
-renamed_keywords(
-    Inline,
-    {"name": "relation", "extra": "blank_rows", "display_template": "record_title"},
-    {"readonly_fields": "Give each of those fields read_only=True in fields."},
-)
 
 
 @dataclass

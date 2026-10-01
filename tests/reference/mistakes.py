@@ -15,22 +15,15 @@ the module is imported, so it never reaches a running admin.
 """
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
 
 from adminsite import (
-    Admin,
-    Field,
-    Inline,
     ModelView,
-    Permission,
-    RecentRecords,
     SaveContext,
     Statement,
 )
 from adminsite.actions import Selection, action
-from adminsite.fields import EnumField, RelationField, default_registry
-from tests.reference.models import Customer, Order, OrderStatus
+from tests.reference.models import Customer, Order
 
 
 class WrongHooks(ModelView[Order]):
@@ -49,22 +42,3 @@ class WrongActions(ModelView[Order]):
     @action("Oops", on="records")  # type: ignore[arg-type]  # no such target
     async def oops(self, selection: Selection[Order]) -> str:
         return ""
-
-
-def old_names(engine: AsyncEngine) -> None:
-    """Keywords and classes 0.1.0a10 renamed, written the old way."""
-    from adminsite import FieldOptions  # type: ignore[attr-defined]
-    from adminsite.auth import SignInRefused  # type: ignore[attr-defined]
-    from adminsite.fields import ChoiceField, TextField  # type: ignore[attr-defined]
-
-    Inline(Order.items, extra=1)  # type: ignore[call-arg]
-    Inline(Order.items, readonly_fields=["unit_price"])  # type: ignore[call-arg]
-    Inline(Order.items, display_template="{quantity}")  # type: ignore[call-arg]
-    Inline(name="items")  # type: ignore[call-arg]
-    RelationField(Order.customer, display_template="{name}")  # type: ignore[call-arg]
-    EnumField(Order.status, enum_class=OrderStatus)  # type: ignore[call-arg]
-    Field(Order.note, readonly=True)  # type: ignore[call-arg]
-    RecentRecords("Latest", "orders", detail="total")  # type: ignore[call-arg]
-    Admin(engine, fields=default_registry)  # type: ignore[call-arg]
-    print(Permission.DETAIL)  # type: ignore[attr-defined]
-    print(FieldOptions, SignInRefused, ChoiceField, TextField)

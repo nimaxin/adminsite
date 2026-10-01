@@ -23,7 +23,7 @@ from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.dashboard import ModelCounts, Widget
-from adminsite.exceptions import AdminSiteError, PermissionDeniedError, renamed_keywords
+from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import api, endpoints
 from adminsite.http.palette import palette
@@ -608,6 +608,3 @@ class Admin:
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         """Let the admin be mounted like any other ASGI app."""
         await self.app(scope, receive, send)
-
-
-renamed_keywords(Admin, {"fields": "field_registry"})

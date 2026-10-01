@@ -1,6 +1,4 @@
-from collections.abc import Callable, Mapping
-from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from adminsite.columns import ColumnReference
@@ -16,8 +14,6 @@ __all__ = [
     "RefusedError",
     "SignInRefusedError",
     "UnknownFieldError",
-    "renamed_keywords",
-    "renamed_names",
 ]
 
 
@@ -140,61 +136,3 @@ class SignInRefusedError(AdminSiteError):
         super().__init__(reason)
         self.reason = reason
         self.user = user
-
-
-def renamed_names(module: str, renamed: Mapping[str, str]) -> Callable[[str], NoReturn]:
-    """A module's `__getattr__` that names what adminsite calls an old name.
-
-    It raises ImportError rather than AttributeError, whose message Python
-    replaces with its own when the name is imported.
-    """
-
-    def __getattr__(name: str) -> NoReturn:
-        if name in renamed:
-            raise ImportError(
-                f"{module} calls it {renamed[name]}, not {name}. "
-                f"Import {renamed[name]} instead.",
-                name=module,
-            )
-        raise AttributeError(f"module {module!r} has no attribute {name!r}")
-
-    return __getattr__
-
-
-def renamed_keywords(
-    cls: type[Any],
-    renamed: Mapping[str, str],
-    replaced: Mapping[str, str] | None = None,
-) -> None:
-    """Make a class refuse a keyword it took before, saying what to write now.
-
-    `renamed` maps an old keyword to the new one, and `replaced` to what to
-    write instead. The check runs in `__new__`, before any `__init__`, so a
-    subclass with an `__init__` of its own, such as a dataclass, refuses the
-    keyword too.
-    """
-    following: Callable[..., Any] = cls.__new__
-    instead = replaced or {}
-
-    def __new__(owner: type[Any], /, *args: Any, **kwargs: Any) -> Any:
-        for old in kwargs:
-            if old in renamed:
-                raise TypeError(
-                    f"{owner.__name__} calls it {renamed[old]}, not {old}. "
-                    f"Write {renamed[old]}= instead."
-                )
-            if old in instead:
-                raise TypeError(f"{owner.__name__} takes no {old}. {instead[old]}")
-        if following is object.__new__:
-            return following(owner)
-        return following(owner, *args, **kwargs)
-
-    # So inspect and help() go on showing the parameters of __init__.
-    update_wrapper(__new__, cls.__init__, assigned=(), updated=())
-    cls.__new__ = __new__
-
-
-if not TYPE_CHECKING:
-    # Hidden from type checkers, so they go on reporting the old name as
-    # missing rather than as a function that raises.
-    __getattr__ = renamed_names(__name__, {"SignInRefused": "SignInRefusedError"})
