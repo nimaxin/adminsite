@@ -162,7 +162,9 @@ class TestReadingTheForm:
 class TestSaving:
     async def test_a_line_is_changed(self, database: Database, view: OrderView) -> None:
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
+            order = await view._reader.fetch_record(
+                session, 1, paths=view._pages.load_paths()
+            )
             assert order is not None
             first = order.items[0]
             result = view._parse_form(
@@ -188,7 +190,9 @@ class TestSaving:
     async def test_a_line_is_added(self, database: Database, view: OrderView) -> None:
         before = len(await items_of(database, 1))
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
+            order = await view._reader.fetch_record(
+                session, 1, paths=view._pages.load_paths()
+            )
             assert order is not None
             result = view._parse_form(
                 {
@@ -215,7 +219,9 @@ class TestSaving:
     async def test_a_line_is_removed(self, database: Database, view: OrderView) -> None:
         existing = await items_of(database, 1)
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
+            order = await view._reader.fetch_record(
+                session, 1, paths=view._pages.load_paths()
+            )
             assert order is not None
             result = view._parse_form(
                 {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
@@ -265,7 +271,9 @@ class TestSaving:
     ) -> None:
         someone_elses = (await items_of(database, 2))[0]
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
+            order = await view._reader.fetch_record(
+                session, 1, paths=view._pages.load_paths()
+            )
             assert order is not None
             result = view._parse_form(
                 {
@@ -447,7 +455,9 @@ class TestAReadOnlyField:
     ) -> None:
         view = PricedOrderView()
         async with database.session() as session:
-            order = await view._fetch_record(session, 1, paths=view._pages.load_paths())
+            order = await view._reader.fetch_record(
+                session, 1, paths=view._pages.load_paths()
+            )
             assert order is not None
             first = order.items[0]
             price = first.unit_price

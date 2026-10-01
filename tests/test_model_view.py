@@ -168,7 +168,7 @@ class TestFilters:
 
 class TestBuildingAQuery:
     def test_the_query_asks_for_what_the_list_shows(self, orders: OrderView) -> None:
-        spec = orders._build_spec()
+        spec = orders._reader.build_spec()
 
         assert spec.paths == orders._pages.list_fields()
         assert spec.search_paths == orders._pages.search_paths(None)
@@ -178,18 +178,20 @@ class TestBuildingAQuery:
     def test_the_view_ordering_is_used_unless_asked_otherwise(
         self, orders: OrderView
     ) -> None:
-        assert orders._build_spec().sort == (Sort("created_at", descending=True),)
-        assert orders._build_spec(sort=[Sort("total")]).sort == (Sort("total"),)
+        assert orders._reader.build_spec().sort == (
+            Sort("created_at", descending=True),
+        )
+        assert orders._reader.build_spec(sort=[Sort("total")]).sort == (Sort("total"),)
 
     def test_pages_move_the_offset(self, orders: OrderView) -> None:
-        assert orders._build_spec(page=1).offset == 0
-        assert orders._build_spec(page=3).offset == 6
+        assert orders._reader.build_spec(page=1).offset == 0
+        assert orders._reader.build_spec(page=3).offset == 6
 
     async def test_the_query_reads_what_it_asked_for(
         self, database: Database, orders: OrderView
     ) -> None:
         async with database.session() as session:
-            spec = orders._build_spec(
+            spec = orders._reader.build_spec(
                 search="lena",
                 filters=[FilterValue("status", ("SHIPPED",))],
             )
@@ -205,7 +207,7 @@ class TestBuildingAQuery:
         self, database: Database, orders: OrderView
     ) -> None:
         async with database.session() as session:
-            page = await orders._repository.list(session, orders._build_spec())
+            page = await orders._repository.list(session, orders._reader.build_spec())
 
             assert len(page) == 3
             assert page.total == 7

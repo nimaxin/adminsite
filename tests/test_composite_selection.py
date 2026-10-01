@@ -34,7 +34,9 @@ class ShelfView(ModelView[Shelf]):
 def chosen(
     view: ModelView[Shelf], session: SessionAdapter, *keys: str
 ) -> Selection[Shelf]:
-    return Selection(view=view, session=session, spec=view._build_spec(), keys=keys)
+    return Selection(
+        view=view, session=session, spec=view._reader.build_spec(), keys=keys
+    )
 
 
 async def labels(session: SessionAdapter) -> dict[str, str]:
@@ -102,7 +104,10 @@ class TestWhatASelectionCovers:
         view = ShelfView()
         async with database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=view._build_spec(), everything=True
+                view=view,
+                session=session,
+                spec=view._reader.build_spec(),
+                everything=True,
             )
 
             assert await selection.count() == 3

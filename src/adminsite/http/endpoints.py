@@ -131,7 +131,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     view = find_view(admin, request)
     read = read_list_request(request, view)
 
-    spec = view._build_spec(
+    spec = view._reader.build_spec(
         request=request,
         search=read.search,
         filters=read.values,
@@ -143,8 +143,8 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         size=read.size,
     )
     async with admin.database.session() as session:
-        page = await view._fetch_page(session, spec, request=request)
-        await view._load_values(
+        page = await view._reader.fetch_page(session, spec, request=request)
+        await view._reader.load_values(
             session,
             list(page),
             read.columns or view._pages.list_fields(request),
@@ -365,7 +365,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
 
     paths = view._pages.detail_fields(request, record)
     async with admin.database.session() as session:
-        await view._load_values(session, [record], paths, request=request)
+        await view._reader.load_values(session, [record], paths, request=request)
     links = await linked_records(admin, view, record, paths, request)
     beside = {link.path for link in links}
     shown = await many_links_text(admin, view, record, counted, request)
@@ -477,7 +477,7 @@ async def many_links_text(
             item = view._fields.field_for(path)
             if not isinstance(item, RelationField):
                 continue
-            records, total = await view._fetch_related(
+            records, total = await view._reader.fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
             names = ", ".join(view._fields.name_linked(item, one) for one in records)
@@ -567,7 +567,7 @@ async def view_that_opens(
     async with admin.database.session() as session:
         for candidate in allowed:
             try:
-                found = await candidate._fetch_record(
+                found = await candidate._reader.fetch_record(
                     session,
                     key_of(candidate._fields.identity_of(value)),
                     request=request,
@@ -674,7 +674,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
     submitted = await read_form(request)
 
     async with admin.database.session() as session:
-        record = await view._fetch_record(
+        record = await view._reader.fetch_record(
             session, key, paths=view._pages.load_paths(request), request=request
         )
         if record is None:
@@ -697,7 +697,7 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
         except AdminSiteError as error:
             # The rollback expired the record, and the form is about to
             # read it again, which an async session cannot do on the fly.
-            record = await view._fetch_record(
+            record = await view._reader.fetch_record(
                 session, key, paths=view._pages.load_paths(request), request=request
             )
             return await form_again(
@@ -716,7 +716,7 @@ async def delete_record(admin: "Admin", request: Request) -> Response:
     await read_form(request)
 
     async with admin.database.session() as session:
-        record = await view._fetch_record(
+        record = await view._reader.fetch_record(
             session,
             read_key(request),
             paths=view._pages.load_paths(request),
@@ -961,7 +961,7 @@ async def load_or_404(
 ) -> Any:
     """Load the record the URL names, or raise a 404."""
     async with admin.database.session() as session:
-        record = await view._fetch_record(
+        record = await view._reader.fetch_record(
             session,
             read_key(request),
             paths=view._pages.load_paths(request) if paths is None else paths,
@@ -1185,7 +1185,7 @@ async def perform(
     if found.on_record:
         record = None
         if chosen:
-            record = await view._fetch_record(
+            record = await view._reader.fetch_record(
                 session,
                 key_of(chosen[0]),
                 paths=view._pages.load_paths(request),
@@ -1198,7 +1198,7 @@ async def perform(
         )
 
     read = read_list_request(request, view)
-    spec = view._build_spec(
+    spec = view._reader.build_spec(
         request=request, search=read.search, filters=read.values, sort=read.sort
     )
     selection = Selection(
@@ -1233,7 +1233,7 @@ async def export_records(admin: "Admin", request: Request) -> Response:
     await view._ensure(Permission.EXPORT, request=request)
 
     read = read_list_request(request, view)
-    spec = view._build_spec(
+    spec = view._reader.build_spec(
         request=request,
         search=read.search,
         filters=read.values,

@@ -99,10 +99,10 @@ async def records_matching(
                 Permission.EDIT, request=request, record=None
             ):
                 continue
-            spec = view._build_spec(request=request, search=term).replace(
+            spec = view._reader.build_spec(request=request, search=term).replace(
                 limit=PER_VIEW, offset=0, count=CountMode.NONE, keyset=False
             )
-            page = await view._fetch_page(session, spec, request=request)
+            page = await view._reader.fetch_page(session, spec, request=request)
             sections.append(
                 PaletteSection(
                     view.label_plural,

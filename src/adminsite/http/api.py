@@ -265,7 +265,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
 
     read = read_list_request(request, view)
     paths = api_paths(view, request)
-    spec = view._build_spec(
+    spec = view._reader.build_spec(
         request=request,
         search=read.search,
         filters=read.values,
@@ -283,8 +283,8 @@ async def collection(admin: "Admin", request: Request) -> Response:
 
     urls = Urls(request)
     async with admin.database.session() as session:
-        page = await view._fetch_page(session, spec, request=request)
-        await view._load_values(session, list(page), paths, request=request)
+        page = await view._reader.fetch_page(session, spec, request=request)
+        await view._reader.load_values(session, list(page), paths, request=request)
         items = [to_json(view, record, paths, urls) for record in page]
     return JSONResponse(
         {
@@ -308,13 +308,13 @@ async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Resp
         record = await save(view, session, values, None, request)
         key = view._fields.identity_of(record)
         paths = api_paths(view, request)
-        fresh = await view._fetch_record(
+        fresh = await view._reader.fetch_record(
             session, key, paths=view._pages.loadable(paths), request=request
         )
         if fresh is None:
             # Saved outside what scope_query lets this user read.
             return JSONResponse({"key": key}, status_code=201)
-        await view._load_values(session, [fresh], paths, request=request)
+        await view._reader.load_values(session, [fresh], paths, request=request)
         return JSONResponse(to_json(view, fresh, paths, urls), status_code=201)
 
 
@@ -327,7 +327,7 @@ async def item(admin: "Admin", request: Request) -> Response:
     )
     urls = Urls(request)
     async with admin.database.session() as session:
-        record = await view._fetch_record(
+        record = await view._reader.fetch_record(
             session, read_key(request), paths=load, request=request
         )
         if record is None:
@@ -348,12 +348,14 @@ async def item(admin: "Admin", request: Request) -> Response:
             await save(view, session, values, record, request)
             # A hook may have changed the key, so it is read again by the new one.
             key = view._fields.identity_of(record)
-            record = await view._fetch_record(session, key, paths=load, request=request)
+            record = await view._reader.fetch_record(
+                session, key, paths=load, request=request
+            )
             if record is None:
                 # Saved outside what scope_query lets this user read.
                 return JSONResponse({"key": key})
 
-        await view._load_values(session, [record], paths, request=request)
+        await view._reader.load_values(session, [record], paths, request=request)
         return JSONResponse(to_json(view, record, paths, urls))
 
 

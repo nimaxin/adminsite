@@ -40,7 +40,6 @@ from adminsite.audit.inputs import HIDDEN, recorded_inputs
 from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.filters import (
     SQLFilter,
-    SQLFilterContext,
 )
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import (
@@ -59,7 +58,6 @@ from adminsite.exceptions import (
     AdminSiteError,
     FieldValidationError,
     IntegrityError,
-    InvalidPathError,
     NotAModelError,
     PermissionDeniedError,
     RecordNotFoundError,
@@ -75,13 +73,11 @@ from adminsite.fields import (
     RelationField,
     default_registry,
 )
-from adminsite.fields.computed import LOADED
 from adminsite.fields.documents import DocumentError
 from adminsite.fields.files import UNCHANGED, FileField, NewFile, UploadField
-from adminsite.filters import FilterOption, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
-from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
+from adminsite.query import CountMode, Pagination
 from adminsite.schema import RelationDirection
 from adminsite.security import Permission, RequestAction, permission_name
 from adminsite.text import (
@@ -89,14 +85,15 @@ from adminsite.text import (
     names_itself,
     pluralize,
     snake_case,
-    template_names,
 )
 from adminsite.views.checks import (
     check_title,
 )
 from adminsite.views.inline import Inline, InlineRow
+from adminsite.views.links import Links
 from adminsite.views.naming import name_all_linked
 from adminsite.views.pages import PageFields
+from adminsite.views.reading import Reader
 from adminsite.views.settings import SettingsReader, default_paths
 from adminsite.views.view_fields import ViewFields
 from adminsite.views.writing import (
@@ -295,6 +292,15 @@ class ModelView(Generic[M]):
             self._schema,
             self._inline_views,
         )
+        self._reader = Reader(
+            self,
+            self._settings,
+            self._fields,
+            self._pages,
+            self._repository,
+            self._schema,
+        )
+        self._links = Links(self, self._inspector)
 
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
@@ -514,37 +520,6 @@ class ModelView(Generic[M]):
                 setattr(draft, path, value)
         return draft
 
-    async def _load_values(
-        self,
-        session: SessionAdapter,
-        records: Sequence[Any],
-        paths: Sequence[str],
-        *,
-        request: Any = None,
-    ) -> None:
-        """Run the loaders of the computed fields among `paths`, once for all.
-
-        Each value waits on its record for the rest of the request, where
-        the list, the record page, the export and the API read it.
-        """
-        if not records:
-            return
-        for path in dict.fromkeys(paths):
-            if "." in path:
-                continue
-            try:
-                item = self._fields.field_for(path)
-            except AdminSiteError:
-                continue
-            if not isinstance(item, ComputedField) or item.load is None:
-                continue
-            found = await item.load(session, records)
-            for record in records:
-                waiting = vars(record).setdefault(LOADED, {})
-                waiting[item.name] = found.get(
-                    self._fields.key_value(record), item.default
-                )
-
     def get_record_title(self, record: M, /) -> str:
         """Name a record, for a heading, a link to it and the history.
 
@@ -559,64 +534,6 @@ class ModelView(Generic[M]):
         return _(
             "{thing} #{key}", thing=self.label, key=self._fields.identity_of(record)
         )
-
-    # Building a read.
-
-    def _build_spec(
-        self,
-        *,
-        request: Any = None,
-        search: str = "",
-        filters: Sequence[FilterValue] = (),
-        sort: Sequence[Sort] = (),
-        page: int = 1,
-        paths: Sequence[str] = (),
-        after: str = "",
-        before: str = "",
-        size: int | None = None,
-    ) -> QuerySpec:
-        """Describe the read this view wants, page by page."""
-        wanted = tuple(
-            self._pages.loadable(tuple(paths) or self._pages.list_fields(request))
-        )
-        spec = QuerySpec(
-            paths=wanted,
-            defer=self._deferred(request, wanted),
-            search=search,
-            search_paths=self._pages.search_paths(request),
-            search_condition=self.search_condition(search.strip(), request=request)
-            if search.strip()
-            else None,
-            filters=tuple(filters),
-            sort=tuple(sort) or self._pages.default_sort(request),
-            limit=size or self.page_size,
-            count=self.count_mode,
-            keyset=self.pagination is Pagination.KEYSET,
-            after=after,
-            before=before,
-        )
-        return spec.page(page)
-
-    def _deferred(self, request: Any, loaded: Sequence[str]) -> tuple[str, ...]:
-        """The columns to leave out of this query.
-
-        A column the page reads is never left out, whatever the view says,
-        since reading it afterwards would cost a query for every row. That
-        covers the columns on show, the key, and the ones the record's name
-        is built from.
-        """
-        keep = set(loaded) | set(self._schema.primary_key) | self._named_in_title()
-        named = self.get_deferred_fields(request)
-        paths = (
-            self._settings.deferred_fields
-            if named is self.deferred_fields
-            else self._settings.paths("get_deferred_fields", named, takes="own columns")
-        )
-        return tuple(path for path in paths if path not in keep)
-
-    def _named_in_title(self) -> set[str]:
-        """The columns `record_title` reads, which every row needs."""
-        return set(template_names(self._settings.record_title))
 
     # Actions.
 
@@ -881,28 +798,15 @@ class ModelView(Generic[M]):
         """The record a link input names, or a refusal naming the input."""
         target = self._views.for_relation(item) if self._views is not None else None
         if target is not None:
-            record = await self._linked_through(target, session, key, request)
+            record = await self._links.linked_through(target, session, key, request)
         else:
-            record = await self._linked_directly(item, session, key)
+            record = await self._links.linked_directly(item, session, key)
         if record is None:
             raise RefusedError(
                 _("{field}: choose from the records offered.", field=label),
                 field=item.name,
             )
         return record
-
-    async def _linked_directly(
-        self, item: RelationField, session: SessionAdapter, key: Any
-    ) -> Any | None:
-        """A linked record by its key, for a model no view shows."""
-        repository = SQLAlchemyRepository(item.related_model, self._inspector)
-        wanted = key
-        if isinstance(key, str) and len(repository.schema.primary_key) > 1:
-            wanted = tuple(key.split(","))
-        try:
-            return await repository.get(session, wanted)
-        except InvalidPathError:
-            return None
 
     async def _given(
         self,
@@ -1079,76 +983,6 @@ class ModelView(Generic[M]):
         """The scope as a function, ready to hand to the repository."""
         return lambda statement: self.scope_query(statement, request=request)
 
-    # Reading records.
-
-    async def _fetch_page(
-        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
-    ) -> Page:
-        """Read one page, within the scope and after a permission check."""
-        await self._ensure(Permission.VIEW, request=request)
-        return await self._repository.list(session, spec, self._scope_for(request))
-
-    async def _fetch_record(
-        self,
-        session: SessionAdapter,
-        key: Any,
-        *,
-        paths: Sequence[str] = (),
-        request: Any = None,
-    ) -> Any | None:
-        """Load one record, or nothing if it is missing or out of scope."""
-        await self._ensure(Permission.VIEW, request=request)
-        return await self._repository.get(
-            session, key, tuple(paths), self._scope_for(request)
-        )
-
-    async def _filter_options(
-        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
-    ) -> list[tuple[SQLFilter[Any], Sequence[FilterOption]]]:
-        """Each filter beside the list, with the choices it offers.
-
-        Counted within the scope, so a count never gives away how many
-        records the user may not see.
-        """
-        await self._ensure(Permission.VIEW, request=request)
-        context = SQLFilterContext(
-            session, self._repository, spec, self._scope_for(request)
-        )
-        return [
-            (item, await item.options(context))
-            for item in self._pages.list_filters(request)
-        ]
-
-    async def _fetch_related(
-        self,
-        session: SessionAdapter,
-        record: Any,
-        path: str,
-        *,
-        limit: int,
-        request: Any = None,
-    ) -> tuple[Sequence[Any], int]:
-        """The first records a to-many link of this record holds, and the total.
-
-        Read through the linked model's own view, as a picker is, so its
-        `scope_query` leaves out records, and their count, that it hides
-        from this user. A model no view shows is read directly.
-        """
-        await self._ensure(Permission.VIEW_DETAIL, request=request, record=record)
-        item = self._fields.field_for(path)
-        target = (
-            self._views.for_relation(item)
-            if self._views is not None and isinstance(item, RelationField)
-            else None
-        )
-        return await self._repository.related(
-            session,
-            record,
-            path,
-            limit=limit,
-            scope=target._scope_for(request) if target is not None else None,
-        )
-
     # Writing.
 
     def _parse_form(
@@ -1283,7 +1117,7 @@ class ModelView(Generic[M]):
         values, stored = await self._store_files(session, dict(values), record)
         try:
             async with session.transaction():
-                values = await self._resolve_links(session, values, request)
+                values = await self._links.resolve(session, values, request)
                 target = record if record is not None else self._repository.model()
                 context = SaveContext(
                     session=session,
@@ -1547,7 +1381,9 @@ class ModelView(Generic[M]):
                 if row.is_new:
                     if not row.delete:
                         child = child_view.model()
-                        values = await self._row_links(session, inline, row, request)
+                        values = await self._links.row_values(
+                            session, inline, row, request
+                        )
                         await child_view._repository.apply_values(
                             session, child, values
                         )
@@ -1561,78 +1397,8 @@ class ModelView(Generic[M]):
                         children.remove(existing)
                         await session.delete(existing)
                     continue
-                values = await self._row_links(session, inline, row, request)
+                values = await self._links.row_values(session, inline, row, request)
                 await child_view._repository.apply_values(session, existing, values)
-
-    async def _row_links(
-        self, session: SessionAdapter, inline: Inline, row: InlineRow, request: Any
-    ) -> dict[str, Any]:
-        """A child row's values with the records its links name.
-
-        A refusal names the row's own input, so it is shown in that cell.
-        """
-        try:
-            return await self._resolve_links(
-                session, row.values, request, fields_of=self._inline_view(inline.name)
-            )
-        except RefusedError as error:
-            if not error.field or row.index is None:
-                raise
-            raise RefusedError(
-                str(error), field=inline.input_name(row.index, error.field)
-            ) from error
-
-    async def _resolve_links(
-        self,
-        session: SessionAdapter,
-        values: Mapping[str, Any],
-        request: Any,
-        *,
-        fields_of: "ModelView[Any] | None" = None,
-    ) -> dict[str, Any]:
-        """Turn the keys sent for links into records, through their own view.
-
-        The picker offered only the records the target's view lets this
-        user see, so a key for any other record did not come from the form.
-        It is refused like any other bad choice, and nothing is said about
-        whether the record exists. A target with no view is loaded by key,
-        so a hook reads a record either way, never a key.
-        """
-        owner = fields_of or self
-        resolved = dict(values)
-        for path, value in values.items():
-            item = owner._fields.field_for(path)
-            if not isinstance(item, RelationField):
-                continue
-            if value is None or value == "" or value == []:
-                continue
-            target = self._views.for_relation(item) if self._views is not None else None
-            if target is None:
-                resolved[path] = await owner._repository.linked(session, path, value)
-                continue
-            keys = value if isinstance(value, list | tuple | set) else [value]
-            found = []
-            for key in keys:
-                record = key
-                if not isinstance(record, item.related_model):
-                    record = await self._linked_through(target, session, key, request)
-                if record is None:
-                    raise RefusedError(_("Choose a record."), field=path)
-                found.append(record)
-            resolved[path] = found if item.collection else found[0]
-        return resolved
-
-    async def _linked_through(
-        self, target: "ModelView[Any]", session: SessionAdapter, key: Any, request: Any
-    ) -> Any | None:
-        """One linked record, if the target's view lets this user see it."""
-        wanted = key
-        if isinstance(key, str) and len(target._schema.primary_key) > 1:
-            wanted = tuple(key.split(","))
-        try:
-            return await target._fetch_record(session, wanted, request=request)
-        except (PermissionDeniedError, InvalidPathError):
-            return None
 
     def _snapshot(self, record: Any, paths: Sequence[str]) -> dict[str, Any]:
         """What a record shows for these paths, as the history records it.

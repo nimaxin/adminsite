@@ -68,7 +68,7 @@ class TestRowScope:
     async def test_the_list_only_shows_rows_in_scope(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._fetch_page(session, view._build_spec())
+            page = await view._reader.fetch_page(session, view._reader.build_spec())
 
             assert len(page) == 2
             assert {row.customer.name for row in page} == {"Lena Fischer"}
@@ -78,14 +78,18 @@ class TestRowScope:
     ) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._fetch_page(session, view._build_spec().replace(limit=1))
+            page = await view._reader.fetch_page(
+                session, view._reader.build_spec().replace(limit=1)
+            )
 
             assert page.total == 2
 
     async def test_the_scope_follows_the_request(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._fetch_page(session, view._build_spec(), request="IT")
+            page = await view._reader.fetch_page(
+                session, view._reader.build_spec(), request="IT"
+            )
 
             assert {row.customer.name for row in page} == {"Marco Rossi"}
 
@@ -99,15 +103,15 @@ class TestRowScope:
             )
             assert italian is not None
 
-            assert await view._fetch_record(session, italian.id) is None
+            assert await view._reader.fetch_record(session, italian.id) is None
 
     async def test_a_row_inside_the_scope_opens(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._fetch_page(session, view._build_spec())
+            page = await view._reader.fetch_page(session, view._reader.build_spec())
             wanted = page.rows[0]
 
-            assert await view._fetch_record(session, wanted.id) is not None
+            assert await view._reader.fetch_record(session, wanted.id) is not None
 
     async def test_filter_counts_only_count_rows_in_scope(
         self, database: Database
@@ -115,8 +119,8 @@ class TestRowScope:
         """A count of every row would say how many the user may not see."""
         view = GermanOrdersByStatus()
         async with database.session() as session:
-            ((_status, options),) = await view._filter_options(
-                session, view._build_spec()
+            ((_status, options),) = await view._reader.filter_options(
+                session, view._reader.build_spec()
             )
 
             counts = {option.value: option.count for option in options}
@@ -130,10 +134,10 @@ class TestRowScope:
     async def test_the_scope_also_narrows_the_search(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            spec = view._build_spec(search="rossi")
+            spec = view._reader.build_spec(search="rossi")
             spec = spec.replace(search_paths=("customer.name",))
 
-            page = await view._fetch_page(session, spec)
+            page = await view._reader.fetch_page(session, spec)
 
             assert len(page) == 0
 

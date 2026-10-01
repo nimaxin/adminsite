@@ -190,7 +190,7 @@ async def build_panels(
 ) -> list[FilterPanel]:
     """Build each filter's control, with counts where it offers them."""
     chosen = {value.name: value for value in spec.filters}
-    offered = await view._filter_options(session, spec, request=request)
+    offered = await view._reader.filter_options(session, spec, request=request)
     return [
         FilterPanel(filter=item, options=options, value=chosen.get(item.name))
         for item, options in offered

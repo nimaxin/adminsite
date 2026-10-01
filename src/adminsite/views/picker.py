@@ -119,7 +119,7 @@ class Picker:
         )
         if view is None:
             return await self._repository().list(session, spec)
-        return await view._fetch_page(session, spec, request=self.request)
+        return await view._reader.fetch_page(session, spec, request=self.request)
 
     async def offered(
         self, session: SessionAdapter, *, search: str = "", limit: int = PICKER_LIMIT
@@ -140,6 +140,6 @@ class Picker:
         if view is None:
             return await self._repository().get(session, key)
         try:
-            return await view._fetch_record(session, key, request=self.request)
+            return await view._reader.fetch_record(session, key, request=self.request)
         except PermissionDeniedError:
             return None

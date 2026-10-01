@@ -54,15 +54,15 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
 
 class TestWhatTheQueryAsksFor:
     def test_the_named_columns_are_left_out(self) -> None:
-        spec = SettingView()._build_spec()
+        spec = SettingView()._reader.build_spec()
 
         assert spec.defer == ("options", "notes")
 
     def test_a_column_on_show_is_kept(self) -> None:
-        assert ShownView()._build_spec().defer == ()
+        assert ShownView()._reader.build_spec().defer == ()
 
     def test_a_column_the_name_needs_is_kept(self) -> None:
-        assert TitledView()._build_spec().defer == ()
+        assert TitledView()._reader.build_spec().defer == ()
 
     def test_a_column_that_does_not_exist_says_so(self) -> None:
         class Wrong(ModelView[Setting]):

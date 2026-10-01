@@ -322,7 +322,7 @@ class TestTheValues:
 
         view = Reading()
         async with database.session() as session:
-            record = await view._fetch_record(session, 1, paths=["customer"])
+            record = await view._reader.fetch_record(session, 1, paths=["customer"])
             assert record is not None
             await view._save(session, {"status": OrderStatus.PAID}, record=record)
 

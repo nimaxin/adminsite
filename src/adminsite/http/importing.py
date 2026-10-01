@@ -132,7 +132,7 @@ async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Respons
         for row in plan.ready:
             record = None
             if row.key:
-                record = await view._fetch_record(
+                record = await view._reader.fetch_record(
                     session,
                     row.key,
                     paths=view._pages.load_paths(request),

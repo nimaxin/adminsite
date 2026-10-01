@@ -89,14 +89,14 @@ async def stream_csv(
     offset = 0
     async with admin.database.session() as session:
         while True:
-            batch = await view._fetch_page(
+            batch = await view._reader.fetch_page(
                 session,
                 spec.replace(limit=BATCH_SIZE, offset=offset),
                 request=request,
             )
             if not len(batch):
                 return
-            await view._load_values(session, list(batch), paths, request=request)
+            await view._reader.load_values(session, list(batch), paths, request=request)
             yield csv_rows(view, list(batch.rows), paths)
             if len(batch) < BATCH_SIZE:
                 return

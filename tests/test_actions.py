@@ -343,7 +343,7 @@ class TestSelection:
         self, database: Database
     ) -> None:
         view = OrderView()
-        spec = view._build_spec(search="lena")
+        spec = view._reader.build_spec(search="lena")
         async with database.session() as session:
             selection = Selection(
                 view=view, session=session, spec=spec, everything=True

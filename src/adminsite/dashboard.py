@@ -349,7 +349,7 @@ class RecentRecords(Widget):
         shows_value = bool(self.value) and view._pages.can_access_path(
             request, self.value, RequestAction.LIST
         )
-        spec = view._build_spec(request=request, sort=sort).replace(
+        spec = view._reader.build_spec(request=request, sort=sort).replace(
             limit=self.limit, offset=0, count=CountMode.NONE, keyset=False
         )
         urls = Urls(request)
@@ -357,7 +357,7 @@ class RecentRecords(Widget):
             Permission.VIEW_DETAIL, request=request, record=None
         )
         async with admin.database.session() as session:
-            page = await view._fetch_page(session, spec, request=request)
+            page = await view._reader.fetch_page(session, spec, request=request)
             return [
                 RecentItem(
                     view.get_record_title(record),
