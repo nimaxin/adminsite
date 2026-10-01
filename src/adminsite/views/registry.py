@@ -105,7 +105,7 @@ class ViewRegistry:
                 for index, inline in enumerate(view.inlines)
             ]
             for setting, owner in owners:
-                for path in owner._placed:
+                for path in owner._settings.placed:
                     item = owner._field_for(path)
                     if not isinstance(item, RelationField) or item.view is None:
                         continue

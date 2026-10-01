@@ -135,9 +135,9 @@ def _filter_fields(view: "ModelView[Any]", request: Any) -> dict[str, str]:
     offered = (
         ()
         if named is view.list_filters
-        else view._built_filters("get_list_filters", named)
+        else view._settings.filters("get_list_filters", named)
     )
-    return {item.name: item.path for item in (*view._filters, *offered)}
+    return {item.name: item.path for item in (*view._settings.list_filters, *offered)}
 
 
 def _label(view: object, name: str) -> str:

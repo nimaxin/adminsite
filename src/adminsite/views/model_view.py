@@ -1,5 +1,5 @@
 import types
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from copy import copy
 from dataclasses import replace
 from functools import partial
@@ -41,7 +41,6 @@ from adminsite.audit.store import record_or_warn
 from adminsite.backends.sqlalchemy.filters import (
     SQLFilter,
     SQLFilterContext,
-    filter_for,
 )
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import (
@@ -54,9 +53,7 @@ from adminsite.columns import (
     ColumnReference,
     Descending,
     describe,
-    is_column,
     path_of,
-    sort_of,
 )
 from adminsite.exceptions import (
     AdminSiteError,
@@ -85,7 +82,7 @@ from adminsite.filters import FilterOption, FilterValue
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
-from adminsite.schema import ModelSchema, RelationDirection
+from adminsite.schema import RelationDirection
 from adminsite.security import Permission, RequestAction, permission_name
 from adminsite.text import (
     RecordValues,
@@ -95,18 +92,16 @@ from adminsite.text import (
     template_names,
 )
 from adminsite.views.checks import (
-    Takes,
-    check_excluded,
     check_kind,
     check_link_title,
     check_list_flags,
     check_options_used,
-    check_path,
     check_title,
 )
 from adminsite.views.inline import Inline, InlineRow
 from adminsite.views.naming import name_all_linked, name_linked
 from adminsite.views.renamed import refuse_old_names
+from adminsite.views.settings import SettingsReader, default_paths
 from adminsite.views.writing import (
     DeleteContext,
     FormData,
@@ -137,8 +132,6 @@ _ROW_PAGES = (RequestAction.CREATE, RequestAction.EDIT, RequestAction.DETAIL)
 # The model a view shows. Not bound to DeclarativeBase: a SQLModel model is
 # mapped without it. The admin refuses a class that is not mapped.
 M = TypeVar("M")
-
-T = TypeVar("T")
 
 
 class ModelView(Generic[M]):
@@ -294,72 +287,30 @@ class ModelView(Generic[M]):
         self.label_plural = self.label_plural or self._schema.label_plural
 
         # The settings as the paths the rest of adminsite works with.
-        self._overrides: dict[str, BaseField] = {}
-        self._placed = self._read_fields()
-        exclusions: dict[RequestAction, Sequence[ColumnReference]] = {
-            RequestAction.LIST: self.exclude_fields_from_list,
-            RequestAction.DETAIL: self.exclude_fields_from_detail,
-            RequestAction.CREATE: self.exclude_fields_from_create,
-            RequestAction.EDIT: self.exclude_fields_from_edit,
-            RequestAction.EXPORT: self.exclude_fields_from_export,
-        }
-        self._excluded = {
-            page: self._paths(f"exclude_fields_from_{page}", entries, takes="fields")
-            for page, entries in exclusions.items()
-        }
-        check_excluded(
-            type(self).__name__, self._excluded, self._candidates(), self._schema
-        )
-        self._search_fields = self._paths(
-            "searchable_fields", self.searchable_fields, takes="columns"
-        )
-        self._sortable_fields = (
-            None
-            if self.sortable_fields is None
-            else self._paths("sortable_fields", self.sortable_fields, takes="sortable")
-        )
-        self._ordering = self._sorts("fields_default_sort", self.fields_default_sort)
-        self._deferred_fields = self._paths(
-            "deferred_fields", self.deferred_fields, takes="own columns"
-        )
-        self._record_title = self.record_title
-        if self._record_title:
-            check_title(
-                f"{type(self).__name__}.record_title: {describe(self._record_title)}",
-                self._record_title,
-                self.model,
-                self._inspector,
-            )
-        # A key the database or the model fills in, such as an autoincrement
-        # id or a uuid4 default, is never typed into a form. A key people
-        # choose, such as a code, is, until the record exists.
-        self._filled_keys = frozenset(
-            name
-            for name in self._schema.primary_key
-            if name in self._schema.fields and self._schema.fields[name].has_default
-        )
+        self._settings = SettingsReader(self, self._schema, self._inspector)
 
         self._actions = self._collect_actions()
         self._inline_views = {
             inline.name: self._build_inline_view(inline, f"inlines[{index}]")
-            for index, inline in enumerate(self._entries("inlines", self.inlines))
+            for index, inline in enumerate(
+                self._settings.entries("inlines", self.inlines)
+            )
         }
-        self._filters: tuple[SQLFilter[Any], ...] = self._built_filters(
-            "list_filters", self.list_filters
-        )
         self._repository = SQLAlchemyRepository(
-            self.model, self._inspector, self._filters
+            self.model, self._inspector, self._settings.list_filters
         )
         self._fields: dict[str, BaseField] = {}
         # Built now, so a mistake such as a tone for a value the field does
         # not have stops the admin starting rather than the page that shows it.
-        for path in self._placed:
+        for path in self._settings.placed:
             try:
                 item = self._field_for(path)
                 check_list_flags(
                     item,
-                    self._overrides.get(path, item),
-                    excluded_by_list=path in self._excluded[RequestAction.LIST],
+                    self._settings.overrides.get(path, item),
+                    excluded_by_list=(
+                        path in self._settings.excluded[RequestAction.LIST]
+                    ),
                 )
             except AdminSiteError as error:
                 raise AdminSiteError(f"{type(self).__name__}.fields: {error}") from None
@@ -460,9 +411,11 @@ class ModelView(Generic[M]):
         """
         named = self.get_searchable_fields(request)
         if named is self.searchable_fields:
-            paths = self._search_fields
+            paths = self._settings.searchable_fields
         else:
-            paths = self._paths("get_searchable_fields", named, takes="columns")
+            paths = self._settings.paths(
+                "get_searchable_fields", named, takes="columns"
+            )
         return self._accessible(request, paths, RequestAction.LIST)
 
     def search_condition(
@@ -493,9 +446,9 @@ class ModelView(Generic[M]):
         """
         named = self.get_list_filters(request)
         if named is self.list_filters:
-            built = self._filters
+            built = self._settings.list_filters
         else:
-            built = self._built_filters("get_list_filters", named)
+            built = self._settings.filters("get_list_filters", named)
         return tuple(
             item
             for item in built
@@ -516,9 +469,9 @@ class ModelView(Generic[M]):
         """
         named = self.get_fields_default_sort(request)
         if named is self.fields_default_sort:
-            sorts = self._ordering
+            sorts = self._settings.fields_default_sort
         else:
-            sorts = self._sorts("get_fields_default_sort", named)
+            sorts = self._settings.sorts("get_fields_default_sort", named)
         return tuple(
             sort
             for sort in sorts
@@ -594,7 +547,7 @@ class ModelView(Generic[M]):
         self, request: Any = None, record: Any = None
     ) -> tuple[str, ...]:
         """The paths shown but not editable, named for the record or by themselves."""
-        named = self._paths(
+        named = self._settings.paths(
             "get_readonly_fields",
             self.get_readonly_fields(request, record),
             takes="fields",
@@ -717,8 +670,8 @@ class ModelView(Generic[M]):
         Left to the default, a relationship and a path through one holding
         many records are not, as no query can sort by them.
         """
-        if self._sortable_fields is not None:
-            return path in self._sortable_fields
+        if self._settings.sortable_fields is not None:
+            return path in self._settings.sortable_fields
         if not self._field_for(path).stored:
             return False
         resolved = self._inspector.resolve(self.model, path)
@@ -739,8 +692,8 @@ class ModelView(Generic[M]):
         return tuple(paths)
 
     def _build_inline_view(self, inline: Inline, setting: str) -> "ModelView[Any]":
-        self._converted(setting, inline.relation, path_of)
-        self._check_path(setting, inline.name, self.model, "paths")
+        self._settings.converted(setting, inline.relation, path_of)
+        self._settings.check(setting, inline.name, self.model, "paths")
         relation = self._schema.relation_named(inline.name)
         if not relation.collection:
             raise AdminSiteError(
@@ -772,8 +725,8 @@ class ModelView(Generic[M]):
         ]
         # Checked here, so a mistake names the parent's setting. The child view
         # takes the entries as they are, fields with their options included.
-        entries = self._entries(f"{setting}.fields", inline.fields)
-        named = self._paths(
+        entries = self._settings.entries(f"{setting}.fields", inline.fields)
+        named = self._settings.paths(
             f"{setting}.fields",
             [
                 entry.column if isinstance(entry, Field) else entry
@@ -784,7 +737,7 @@ class ModelView(Generic[M]):
         )
         # Left off only where the rows show it, since an exclude list names
         # only fields the view shows.
-        shown = named if entries else self._default_paths(target)
+        shown = named if entries else default_paths(target)
         filled = [name for name in filled if name in shown]
 
         def can_access_field(
@@ -823,7 +776,7 @@ class ModelView(Generic[M]):
 
     def _candidates(self) -> tuple[str, ...]:
         """The fields a page picks from: the view's, or every column."""
-        return self._placed or self._default_paths(self._schema)
+        return self._settings.candidates
 
     def _listed(self) -> tuple[str, ...]:
         """The columns the list can show, hidden or not."""
@@ -836,14 +789,14 @@ class ModelView(Generic[M]):
 
     def _editable(self, path: str) -> bool:
         """Whether a path can be an input in a form."""
-        if "." in path or path in self._filled_keys:
+        if "." in path or path in self._settings.filled_keys:
             return False
         item = self._field_for(path)
         return item.stored or item.form_only
 
     def _excluded_from(self, page: RequestAction, path: str) -> bool:
         """Whether the field is left off a page, by its flag or the view's list."""
-        if path in self._excluded[page]:
+        if path in self._settings.excluded[page]:
             return True
         item = self._field_for(path)
         return {
@@ -854,135 +807,6 @@ class ModelView(Generic[M]):
             RequestAction.EXPORT: item.exclude_from_export,
         }[page]
 
-    @staticmethod
-    def _default_paths(schema: ModelSchema) -> tuple[str, ...]:
-        """Every column of a model in order, with a foreign key shown as its link.
-
-        A form offering `customer_id` as a number box is no use to anyone,
-        so the key column is swapped for the relationship it belongs to,
-        which gets a proper picker and shows the customer's name.
-        """
-        links = {
-            column: relation.name
-            for relation in schema.relations.values()
-            # Only a link that holds the key here. One held by the other model,
-            # such as a person's passport, names this model's own key.
-            if relation.direction is RelationDirection.MANY_TO_ONE
-            for column in relation.local_columns
-        }
-        return tuple(dict.fromkeys(links.get(name, name) for name in schema.fields))
-
-    # Turning settings into paths.
-
-    def _entries(self, setting: str, entries: Sequence[T]) -> Sequence[T]:
-        """A setting's entries, refusing one string where a list belongs.
-
-        A string is a sequence of letters, so `searchable_fields = "note"`
-        would otherwise search the columns n, o, t and e.
-        """
-        if isinstance(entries, str):
-            raise AdminSiteError(
-                f"{type(self).__name__}.{setting} is the string {describe(entries)}. "
-                f"Make it a list: {setting} = [{describe(entries)}]."
-            )
-        return entries
-
-    def _converted(
-        self,
-        setting: str,
-        entry: Any,
-        convert: Callable[[Any, type[Any]], T],
-        model: type[Any] | None = None,
-    ) -> T:
-        """One entry of a setting converted, naming the setting if it fails.
-
-        It starts from the view's model, or from `model` for a setting about
-        related records, such as an inline's fields.
-        """
-        try:
-            return convert(entry, model or self.model)
-        except AdminSiteError as error:
-            raise AdminSiteError(f"{type(self).__name__}.{setting}: {error}") from None
-
-    def _paths(
-        self,
-        setting: str,
-        entries: Sequence[ColumnReference],
-        model: type[Any] | None = None,
-        *,
-        takes: Takes = "paths",
-    ) -> tuple[str, ...]:
-        """The paths a setting names, such as `customer.email`, each checked."""
-        paths = []
-        for entry in self._entries(setting, entries):
-            path = self._converted(setting, entry, path_of, model)
-            self._check_path(setting, path, model or self.model, takes)
-            paths.append(path)
-        return tuple(paths)
-
-    def _sorts(
-        self, setting: str, entries: Sequence[ColumnReference | Descending]
-    ) -> tuple[Sort, ...]:
-        """The sorts a setting asks for, in order."""
-        sorts = []
-        for entry in self._entries(setting, entries):
-            sort = self._converted(setting, entry, sort_of)
-            self._check_path(setting, sort.path, self.model, "sortable")
-            sorts.append(sort)
-        return tuple(sorts)
-
-    def _check_path(
-        self, setting: str, path: str, model: type[Any], takes: Takes
-    ) -> None:
-        """Refuse a path the setting cannot take, as check_path says."""
-        own = self._own_fields() if model is self.model else {}
-        check_path(
-            type(self).__name__,
-            setting,
-            path,
-            model,
-            takes,
-            own=own,
-            inspector=self._inspector,
-        )
-
-    def _own_fields(self) -> dict[str, BaseField]:
-        """The fields in `fields` that are no column, such as a computed one."""
-        return {
-            path: item
-            for path, item in self._overrides.items()
-            if not isinstance(item, Field) or item.form_only
-        }
-
-    def _read_fields(self) -> tuple[str, ...]:
-        """The paths `fields` places, in order, keeping the fields it sets.
-
-        A field is completed from its column when it is first asked for. A
-        path placed twice keeps its first place.
-        """
-        placed: dict[str, None] = {}
-        # The columns named, checked once the view's own fields are known,
-        # so a name may come before the field it refers to.
-        named: dict[str, Takes] = {}
-        for index, entry in enumerate(self._entries("fields", self.fields)):
-            if isinstance(entry, Field):
-                path = self._converted("fields", entry.column, path_of)
-                self._overrides[path] = entry
-                if not entry.form_only:
-                    named[path] = "paths"
-            elif isinstance(entry, BaseField):
-                path = entry.name
-                self._overrides[path] = entry
-                if isinstance(entry, ComputedField):
-                    self._paths(f"fields[{index}].needs", entry.needs)
-            else:
-                path = self._converted("fields", entry, path_of)
-                named.setdefault(path, "fields")
-            placed.setdefault(path)
-        for path, takes in named.items():
-            self._check_path("fields", path, self.model, takes)
-        return tuple(placed)
-
     # Turning paths into fields and values.
 
     def _field_for(self, path: str) -> BaseField:
@@ -990,7 +814,7 @@ class ModelView(Generic[M]):
         known = self._fields.get(path)
         if known is not None:
             return known
-        given = self._overrides.get(path)
+        given = self._settings.overrides.get(path)
         built = self._built_field(path) if given is None else self._completed(given)
         self._fields[path] = built
         return built
@@ -1229,8 +1053,8 @@ class ModelView(Generic[M]):
         neither is named by the view's label and the record's key, "Order
         #12", rather than by where it sits in memory.
         """
-        if self._record_title:
-            return self._record_title.format_map(RecordValues(record))
+        if self._settings.record_title:
+            return self._settings.record_title.format_map(RecordValues(record))
         if names_itself(record):
             return str(record)
         return _("{thing} #{key}", thing=self.label, key=self._identity_of(record))
@@ -1285,15 +1109,15 @@ class ModelView(Generic[M]):
         keep = set(loaded) | set(self._schema.primary_key) | self._named_in_title()
         named = self.get_deferred_fields(request)
         paths = (
-            self._deferred_fields
+            self._settings.deferred_fields
             if named is self.deferred_fields
-            else self._paths("get_deferred_fields", named, takes="own columns")
+            else self._settings.paths("get_deferred_fields", named, takes="own columns")
         )
         return tuple(path for path in paths if path not in keep)
 
     def _named_in_title(self) -> set[str]:
         """The columns `record_title` reads, which every row needs."""
-        return set(template_names(self._record_title))
+        return set(template_names(self._settings.record_title))
 
     # Actions.
 
@@ -2431,26 +2255,6 @@ class ModelView(Generic[M]):
         As with `after_save_committed`, an error here is logged and the
         delete still stands.
         """
-
-    def _built_filters(
-        self, setting: str, entries: Sequence[ColumnReference | SQLFilter[M]]
-    ) -> tuple[SQLFilter[Any], ...]:
-        """The filters a setting names: a column's own, or one given whole."""
-        repository = SQLAlchemyRepository(self.model, self._inspector)
-        built: list[SQLFilter[Any]] = []
-        for item in self._entries(setting, entries):
-            if isinstance(item, SQLFilter):
-                built.append(item)
-            elif is_column(item):
-                path = self._converted(setting, item, path_of)
-                self._check_path(setting, path, self.model, "paths")
-                built.append(filter_for(repository, path))
-            else:
-                raise AdminSiteError(
-                    f"{type(self).__name__}.{setting} takes columns or "
-                    f"SQLFilter instances, not {type(item).__name__}."
-                )
-        return tuple(built)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(model={self.model.__name__})"

@@ -138,7 +138,7 @@ class TestSettingsNameColumnsByAttribute:
         assert view._search_paths(None) == ("id", "customer.email")
         assert view._form_fields() == ("customer", "status", "note")
         assert view._readonly_paths()[0] == "status"
-        assert view._deferred_fields == ("note",)
+        assert view._settings.deferred_fields == ("note",)
 
     def test_a_link_can_go_through_several_relations(self) -> None:
         class ItemView(ModelView[OrderItem]):
