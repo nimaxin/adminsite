@@ -2,6 +2,7 @@ import html
 import json
 import re
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 import pytest
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField
@@ -157,6 +158,47 @@ class TestTheRecordPage:
         page = await client.get(f"/admin/articles/{keys['article']}")
 
         assert "Science and technology, Breaking news" in page.text
+
+
+class PublicTagView(ModelView[Tag]):
+    """The tags whose name does not start with Hidden."""
+
+    record_title = "{name}"
+
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+        return statement.where(Tag.name.not_like("Hidden%"))
+
+
+@pytest.fixture
+async def public(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    admin = Admin(database, views=[ArticleView, PublicTagView], secret_key="s")
+    app = Starlette()
+    app.mount("/admin", admin)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client
+
+
+class TestTheRecordPageThroughAScopedView:
+    async def test_it_names_and_counts_only_what_the_scope_shows(
+        self, public: httpx.AsyncClient, database: Database
+    ) -> None:
+        async with database.session() as session:
+            shown = [Tag(name=f"Shown {number}") for number in range(22)]
+            hidden = [Tag(name=f"Hidden {number}") for number in range(5)]
+            article = Article(title="Mixed", tags=[*hidden[:2], *shown, *hidden[2:]])
+            await session.add(article)
+            await session.flush()
+            key = article.id
+            await session.commit()
+
+        page = await public.get(f"/admin/articles/{key}")
+
+        assert page.status_code == 200
+        assert "Shown 0, Shown 1" in page.text
+        assert "and 2 more" in page.text
+        assert "Hidden" not in page.text
 
 
 class OrderedArticleView(ModelView[Article]):

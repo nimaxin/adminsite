@@ -46,6 +46,8 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.Link
 
+::: adminsite.ColumnReference
+
 ::: adminsite.Descending
 
 ::: adminsite.Inline
@@ -164,3 +166,5 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.PermissionDeniedError
 
 ::: adminsite.RecordNotFoundError
+
+::: adminsite.exceptions.IntegrityError

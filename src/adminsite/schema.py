@@ -36,17 +36,22 @@ class FieldSchema:
     # Whether the database numbers new records with it, as it does a
     # table's integer primary key.
     autoincrement: bool = False
+    # Whether a new record gets a value without one being given: from a
+    # default, a server default or the database's numbering.
     has_default: bool = False
     max_length: int | None = None
     enum_values: tuple[str, ...] | None = None
     # For a column holding a list of values, such as a Postgres ARRAY, what
     # each value is. None for any other column.
     item: "FieldSchema | None" = None
+    # False when the column's type is the project's own, such as a
+    # TypeDecorator, or names no python type, so python_type is a guess.
+    python_type_known: bool = True
 
     @property
     def required(self) -> bool:
         """Whether a value has to be supplied when creating a record."""
-        return not (self.nullable or self.has_default or self.primary_key)
+        return not (self.nullable or self.has_default)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +62,11 @@ class RelationSchema:
     label: str
     target: type[Any]
     direction: RelationDirection
+    # The columns it joins on, by their attribute names: its own model's,
+    # and the target's. A many-to-many joins the target through a table of
+    # its own, so it has no target columns.
     local_columns: tuple[str, ...] = ()
+    remote_columns: tuple[str, ...] = ()
     nullable: bool = False
 
     @property
@@ -102,6 +111,14 @@ class ModelSchema:
     def identity_of(self, record: Any) -> str:
         """Write the primary key of a record as one string, for a URL."""
         return ",".join(str(getattr(record, name)) for name in self.primary_key)
+
+    def key_parts(self, key: Any) -> tuple[Any, ...]:
+        """A key as its parts: "A,1" is ("A", "1") for a key of two columns."""
+        if isinstance(key, tuple):
+            return key
+        if isinstance(key, str) and len(self.primary_key) > 1:
+            return tuple(key.split(","))
+        return (key,)
 
 
 @dataclass(frozen=True, slots=True)

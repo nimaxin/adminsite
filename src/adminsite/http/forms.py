@@ -51,11 +51,6 @@ async def build_rows(
     errors = errors or {}
     submitted = submitted or {}
     typed = typed or {}
-    if record is not None:
-        # A computed value on the form, read only, may come from a loader.
-        await view._load_values(
-            session, [record], view._form_fields(request, record), request=request
-        )
 
     starting = await view.form_only_values(session, record, request=request)
     draft: Any = None

@@ -77,11 +77,13 @@ Dates as labels are written short, such as "Sep 14".
 ### RecentRecords
 
 The latest records of a view, each linking to its page. It reads through the view, so the view's
-`scope_query` applies and the card is hidden from users who may not open the view.
+`scope_query` applies and the card is hidden from users who may not open the view. A field the
+view's `can_access_field` keeps from the user on the list is not shown as `value`, and not used as
+`sort`: the view's own ordering applies instead.
 
 | Option | What it does |
 |---|---|
-| `sort` | The order, such as `"-created_at"`. The view's own ordering if left out. |
+| `sort` | The order, such as `"-created_at"`. The view's `fields_default_sort` if left out. |
 | `value` | A path shown at the right of each record, such as `"total"`. |
 | `limit` | How many records. Five unless you say. |
 

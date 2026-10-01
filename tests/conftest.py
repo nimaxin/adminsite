@@ -19,6 +19,7 @@ from adminsite.backends.sqlalchemy import Database
 from adminsite.http import templating
 from tests.factories import build_sample_data
 from tests.models import Base
+from tests.reference.models import ReferenceBase
 from tests.support import Backend
 
 # One in-memory database per test, kept alive by a single pooled connection.
@@ -157,6 +158,18 @@ def async_session_factory(
     return async_sessionmaker(async_engine, expire_on_commit=False)
 
 
+@pytest.fixture(params=["async", "sync"])
+def plain_factory(
+    request: pytest.FixtureRequest,
+) -> async_sessionmaker[AsyncSession] | sessionmaker[Session]:
+    """A session factory with SQLAlchemy's own settings, as a project makes one."""
+    if request.param == "async":
+        engine: AsyncEngine = request.getfixturevalue("async_engine")
+        return async_sessionmaker(engine)
+    plain: Engine = request.getfixturevalue("sync_engine")
+    return sessionmaker(plain)
+
+
 def fresh_tables(url: str) -> list[Table]:
     """Make the tables on a database server, once per run."""
     engine = create_engine(url)
@@ -272,3 +285,25 @@ def backend(request: pytest.FixtureRequest) -> Backend:
 def database(backend: Backend) -> Database:
     """The database behind the current backend."""
     return backend.database
+
+
+@pytest.fixture(params=["async", "sync"])
+async def reference_database(
+    request: pytest.FixtureRequest,
+) -> AsyncIterator[Database]:
+    """An empty database with the reference shop's tables, async and sync."""
+    if request.param == "async":
+        engine = create_async_engine(ASYNC_URL, poolclass=StaticPool)
+        enforce_foreign_keys(engine.sync_engine)
+        async with engine.begin() as connection:
+            await connection.run_sync(ReferenceBase.metadata.create_all)
+        yield Database(engine)
+        await engine.dispose()
+        return
+    plain = create_engine(
+        SYNC_URL, poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    enforce_foreign_keys(plain)
+    ReferenceBase.metadata.create_all(plain)
+    yield Database(plain)
+    plain.dispose()

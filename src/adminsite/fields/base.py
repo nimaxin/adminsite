@@ -6,7 +6,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import QueryableAttribute
 
 from adminsite.columns import Link, describe, written_path
-from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.exceptions import AdminSiteError, FieldValidationError, renamed_keywords
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
 from adminsite.text import as_text, humanize
@@ -81,6 +81,10 @@ class BaseField:
     # Whether leaving the input empty on an existing record keeps what the
     # record has, instead of clearing it, as for a password.
     keeps_value_when_blank = False
+    # The options above that this kind never reads. A view refuses one
+    # written on the field, so a date field given max_length= stops the
+    # admin starting instead of refusing every date typed in.
+    unused_options: ClassVar[frozenset[str]] = frozenset()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -175,6 +179,9 @@ class BaseField:
         return f"{type(self).__name__}({describe(self.name)})"
 
 
+renamed_keywords(BaseField, {"readonly": "read_only"})
+
+
 @dataclass(eq=False, repr=False)
 class Field(BaseField, Generic[V]):
     """A column's field: `Field(Order.created_at, label="Placed")`.
@@ -192,6 +199,11 @@ class Field(BaseField, Generic[V]):
     column: QueryableAttribute[V] | Link[V] | str
     _: KW_ONLY
     default: V | None = None
+
+    # The types of value this kind's column may hold, as V says them to a
+    # type checker. A view checks a column named by a string against them
+    # when it starts. Empty for a kind that takes any column.
+    column_types: ClassVar[tuple[type[Any], ...]] = ()
 
     def __post_init__(self) -> None:
         self.name = written_path(self.column)

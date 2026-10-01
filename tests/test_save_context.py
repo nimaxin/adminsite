@@ -2,12 +2,18 @@
 
 import logging
 from collections.abc import Awaitable, Callable, Iterator
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, assert_type
 
+import httpx
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+from starlette.applications import Starlette
 
 from adminsite import (
+    Admin,
     AdminSiteError,
     DeleteContext,
     Link,
@@ -24,7 +30,17 @@ from adminsite.backends.sqlalchemy import (
 )
 from adminsite.fields import PasswordField
 from adminsite.query import QuerySpec
-from tests.models import Account, Customer, Order, OrderStatus, Product
+from tests.models import (
+    Account,
+    Article,
+    Customer,
+    Draft,
+    Order,
+    OrderStatus,
+    Product,
+    Tag,
+)
+from tests.support import Backend, count_queries, spare_product
 
 events: list[str] = []
 seen: dict[str, Any] = {}
@@ -84,6 +100,14 @@ async def product(database: Database, key: int) -> Product | None:
         return await session.get(Product, key)
 
 
+def serve(admin: Admin) -> httpx.AsyncClient:
+    app = Starlette()
+    app.mount("/admin", admin)
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
+
+
 class TestTheValues:
     async def test_a_value_reads_as_its_columns_type(self, database: Database) -> None:
         class Reading(ModelView[Product]):
@@ -132,6 +156,27 @@ class TestTheValues:
             await Reading()._save(session, {"name": "Scarf", "price": Decimal(1)})
 
         assert seen["description"] is None
+
+    async def test_on_a_new_record_one_with_a_default_is_empty_until_the_insert(
+        self, database: Database
+    ) -> None:
+        class Reading(ModelView[Order]):
+            fields = [Order.customer, Order.created_at]
+
+            async def before_save(self, context: SaveContext[Order]) -> None:
+                seen["before"] = context.values[Order.total].get()
+
+            async def after_save(self, context: SaveContext[Order]) -> None:
+                seen["after"] = context.values[Order.total].get()
+
+        async with database.session() as session:
+            await Reading()._save(
+                session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+            )
+
+        # As the record's own attribute is, though the column holds no None.
+        assert seen["before"] is None
+        assert seen["after"] == Decimal(0)
 
     async def test_set_stores_a_column_the_form_leaves_out(
         self, database: Database
@@ -199,6 +244,48 @@ class TestTheValues:
                     session, {"name": "Scarf", "price": Decimal(1)}
                 )
 
+    @pytest.mark.parametrize("created", [True, False])
+    async def test_a_misspelt_name_is_refused_when_set(
+        self, database: Database, created: bool
+    ) -> None:
+        class Misspelling(ModelView[Product]):
+            fields = [Product.name, Product.price]
+
+            async def before_save(self, context: SaveContext[Product]) -> None:
+                context.values["descripton"].set("typo")
+
+        async with database.session() as session:
+            record = None if created else await session.get(Product, 1)
+            with pytest.raises(AdminSiteError) as raised:
+                await Misspelling()._save(
+                    session, {"name": "Scarf", "price": Decimal(1)}, record=record
+                )
+
+        assert str(raised.value) == (
+            "Product has no column named 'descripton', and the view asks for no "
+            "value by that name."
+        )
+
+    async def test_a_column_of_a_linked_record_is_refused_when_set(
+        self, database: Database
+    ) -> None:
+        class Reaching(ModelView[Order]):
+            fields = [Order.customer, Order.created_at]
+
+            async def before_save(self, context: SaveContext[Order]) -> None:
+                context.values["customer.email"].set("new@example.com")
+
+        async with database.session() as session:
+            with pytest.raises(AdminSiteError) as raised:
+                await Reaching()._save(
+                    session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+                )
+
+        assert str(raised.value) == (
+            "'customer.email' is not a column of Order. A save stores the "
+            "record's own columns, such as Order.id."
+        )
+
     async def test_a_relation_not_loaded_is_refused_rather_than_loaded(
         self, database: Database
     ) -> None:
@@ -241,6 +328,72 @@ class TestTheValues:
 
         assert isinstance(seen["customer"], Customer)
         assert seen["customer"].id == record.customer_id
+
+    async def test_a_link_sent_as_a_key_reads_as_its_record(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            await Ordering()._save(
+                session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+            )
+
+        assert isinstance(seen["customer"], Customer)
+        assert seen["customer"].id == 2
+
+    async def test_so_does_a_link_to_many(self, database: Database) -> None:
+        class Tagging(ModelView[Article]):
+            fields = [Article.title, Article.tags]
+
+            async def before_save(self, context: SaveContext[Article]) -> None:
+                seen["tags"] = assert_type(
+                    context.values[Article.tags].get(), list[Tag]
+                )
+
+        async with database.session() as session:
+            tags = [Tag(name="Linen"), Tag(name="Summer")]
+            for tag in tags:
+                await session.add(tag)
+            await session.commit()
+            keys = [str(tag.id) for tag in tags]
+            await Tagging()._save(session, {"title": "New in", "tags": keys})
+
+        assert [tag.name for tag in seen["tags"]] == ["Linen", "Summer"]
+
+    @pytest.mark.parametrize("with_customers", [False, True])
+    async def test_a_form_hands_the_hook_a_record_with_or_without_its_view(
+        self, database: Database, with_customers: bool
+    ) -> None:
+        views: list[type[ModelView[Any]]] = [Ordering]
+        if with_customers:
+            views.append(ModelView[Customer])
+        app = Starlette()
+        app.mount("/admin", Admin(database, views=views))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            answer = await client.post(
+                "/admin/orders/new",
+                data={"customer": "1", "created_at": "2026-09-30T10:00"},
+            )
+
+        assert answer.status_code == 303, answer.text
+        assert isinstance(seen["customer"], Customer)
+        assert seen["customer"].name == "Lena Fischer"
+
+
+class Ordering(ModelView[Order]):
+    """Reads the customer before an order is saved, as the hooks page shows."""
+
+    name = "orders"
+    fields = [Order.customer, Order.created_at]
+
+    async def before_save(self, context: SaveContext[Order]) -> None:
+        customer = context.values[Order.customer].get()
+        seen["customer"] = customer
+        if not customer.is_active:
+            raise RefusedError(
+                "This customer's account is closed.", field=Order.customer
+            )
 
 
 class TestRefusedByAttribute:
@@ -351,3 +504,97 @@ class TestCommittedHooks:
             "after_delete_committed",
         ]
         assert sorted(seen["deleted"]) == ["Hat", "Scarf"]
+
+    async def test_the_create_form_reaches_it(self, database: Database) -> None:
+        async with serve(Admin(database, views=[Watched])) as client:
+            answer = await client.post(
+                "/admin/products/new", data={"name": "Scarf", "price": "12.50"}
+            )
+
+        assert answer.status_code == 303, answer.text
+        assert events[-2:] == ["commit", "after_save_committed"]
+        assert seen["created"] is True
+
+    async def test_a_delete_through_the_api_reaches_it(
+        self, database: Database
+    ) -> None:
+        key = await spare_product(database)
+        async with serve(Admin(database, views=[Watched], api=True)) as client:
+            answer = await client.delete(f"/admin/-/api/products/{key}")
+
+        assert answer.status_code == 204, answer.text
+        assert events[-2:] == ["commit", "after_delete_committed"]
+        assert seen["deleted"] == ["Gift card"]
+
+    async def test_it_reads_the_record_whatever_the_session_factory(
+        self, plain_factory: async_sessionmaker[AsyncSession] | sessionmaker[Session]
+    ) -> None:
+        class Reading(Watched):
+            async def after_save_committed(self, context: SaveContext[Product]) -> None:
+                seen["name"] = context.record.name
+
+        async with serve(Admin(plain_factory, views=[Reading])) as client:
+            answer = await client.post(
+                "/admin/products/new", data={"name": "Scarf", "price": "12.50"}
+            )
+
+        assert answer.status_code == 303, answer.text
+        assert seen["name"] == "Scarf"
+
+    async def test_it_reads_a_value_the_database_set_in_the_save(
+        self, database: Database, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        class Stamped(ModelView[Draft]):
+            fields = [Draft.title]
+
+            async def after_save(self, context: SaveContext[Draft]) -> None:
+                seen["in the save"] = context.record.updated_at
+
+            async def after_save_committed(self, context: SaveContext[Draft]) -> None:
+                seen["once committed"] = context.record.updated_at
+
+        async with database.session() as session:
+            draft = Draft(title="Start")
+            await session.add(draft)
+            await session.commit()
+        with caplog.at_level(logging.ERROR, logger="adminsite"):
+            async with database.session() as session:
+                record = await session.get(Draft, draft.id)
+                await Stamped()._save(session, {"title": "About"}, record=record)
+
+        assert isinstance(seen["in the save"], datetime)
+        assert isinstance(seen["once committed"], datetime)
+        assert "Work that waited on a commit failed." not in caplog.text
+
+    async def test_it_reads_it_when_after_save_changes_the_record(
+        self, backend: Backend, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        class Checked(ModelView[Draft]):
+            fields = [Draft.title]
+
+            async def after_save(self, context: SaveContext[Draft]) -> None:
+                context.record.title += " (checked)"
+
+            async def after_save_committed(self, context: SaveContext[Draft]) -> None:
+                with count_queries(backend) as counter:
+                    seen["once committed"] = context.record.updated_at
+                seen["queries"] = counter.count
+
+        database = backend.database
+        async with database.session() as session:
+            draft = Draft(title="Start")
+            await session.add(draft)
+            await session.commit()
+        with caplog.at_level(logging.ERROR, logger="adminsite"):
+            async with database.session() as session:
+                record = await session.get(Draft, draft.id)
+                await Checked()._save(session, {"title": "About"}, record=record)
+
+        assert "Work that waited on a commit failed." not in caplog.text
+        assert isinstance(seen["once committed"], datetime)
+        assert seen["queries"] == 0
+        async with database.session() as session:
+            stored = await session.get(Draft, draft.id)
+        assert stored is not None
+        assert stored.title == "About (checked)"
+        assert stored.updated_at == seen["once committed"]

@@ -11,7 +11,15 @@ from adminsite import (
 )
 from adminsite.backends.sqlalchemy import SQLAlchemyInspector
 from adminsite.text import humanize, humanize_class, pluralize, snake_case
-from tests.models import Customer, Order, OrderItem, OrderStatus, Product
+from tests.models import (
+    Article,
+    Customer,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Product,
+    Shelf,
+)
 
 
 @pytest.fixture
@@ -91,6 +99,16 @@ class TestModelSchema:
         assert schema.field_named("status").required is False
         assert schema.field_named("id").required is False
 
+    def test_a_key_people_type_is_required(
+        self, inspector: SQLAlchemyInspector
+    ) -> None:
+        schema = inspector.inspect(Shelf)
+
+        assert schema.field_named("aisle").required is True
+        assert schema.field_named("slot").required is True
+        assert schema.field_named("aisle").has_default is False
+        assert inspector.inspect(Order).field_named("id").has_default is True
+
     def test_unknown_names_say_which_model_and_name(
         self, inspector: SQLAlchemyInspector
     ) -> None:
@@ -128,6 +146,17 @@ class TestRelations:
         relation = inspector.inspect(Order).relation_named("customer")
 
         assert relation.local_columns == ("customer_id",)
+        assert relation.remote_columns == ("id",)
+
+    def test_knows_which_columns_a_link_to_many_joins_on(
+        self, inspector: SQLAlchemyInspector
+    ) -> None:
+        items = inspector.inspect(Order).relation_named("items")
+        tags = inspector.inspect(Article).relation_named("tags")
+
+        assert items.local_columns == ("id",)
+        assert items.remote_columns == ("order_id",)
+        assert tags.remote_columns == ()
 
     def test_labels_relationships(self, inspector: SQLAlchemyInspector) -> None:
         assert inspector.inspect(Order).relation_named("items").label == "Items"

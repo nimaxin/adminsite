@@ -5,9 +5,9 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, Link, ModelView
 from adminsite.backends.sqlalchemy import Database
-from tests.models import Customer, Order
+from tests.models import Customer, Order, OrderItem
 
 
 class OrderView(ModelView[Order]):
@@ -153,6 +153,89 @@ class TestSorting:
         assert "1 to 2 of 2" in response.text
 
 
+class LinkedOrderView(ModelView[Order]):
+    name = "linked_orders"
+    fields = [Order.id, Order.customer, Order.items, Order.status]
+
+
+class CustomerOrderView(ModelView[Customer]):
+    name = "customer_orders"
+    fields = [Customer.id, Customer.name, Link(Customer.orders, Order.status)]
+
+
+class UnsortedOrderView(ModelView[Order]):
+    name = "unsorted_orders"
+    fields = [Order.id, Order.status, Order.total]
+    sortable_fields = []
+
+
+@pytest.fixture
+def sorting(database: Database) -> httpx.AsyncClient:
+    admin = Admin(
+        database, views=[LinkedOrderView, CustomerOrderView, UnsortedOrderView]
+    )
+    app = Starlette()
+    app.mount("/admin", admin)
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
+
+
+def sort_links(page: str) -> list[str]:
+    """The addresses the list's column headings sort by."""
+    head = page.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    return [html.unescape(link) for link in re.findall(r'href="([^"]+)"', head)]
+
+
+def row_keys(page: str) -> list[str]:
+    """The keys of the rows, in the order the list shows them."""
+    return re.findall(r'name="keys" value="([^"]+)"', page)
+
+
+class TestWhatCanBeSorted:
+    async def test_a_relationship_has_no_sort_link(
+        self, sorting: httpx.AsyncClient
+    ) -> None:
+        orders = await sorting.get("/admin/linked_orders")
+        customers = await sorting.get("/admin/customer_orders")
+
+        assert sort_links(orders.text) == [
+            "/admin/linked_orders?sort=id",
+            "/admin/linked_orders?sort=status",
+        ]
+        assert sort_links(customers.text) == [
+            "/admin/customer_orders?sort=id",
+            "/admin/customer_orders?sort=name",
+        ]
+
+    async def test_every_sort_link_answers(self, sorting: httpx.AsyncClient) -> None:
+        for view in ("linked_orders", "customer_orders"):
+            page = await sorting.get(f"/admin/{view}")
+            for link in sort_links(page.text):
+                assert (await sorting.get(link)).status_code == 200
+
+    @pytest.mark.parametrize("sort", ["customer", "-customer", "items"])
+    async def test_a_sort_by_a_relationship_is_ignored(
+        self, sorting: httpx.AsyncClient, sort: str
+    ) -> None:
+        plain = await sorting.get("/admin/linked_orders")
+        asked = await sorting.get(f"/admin/linked_orders?sort={sort}")
+
+        assert asked.status_code == 200
+        assert row_keys(asked.text) == row_keys(plain.text)
+
+    async def test_an_empty_sortable_fields_sorts_by_none(
+        self, sorting: httpx.AsyncClient
+    ) -> None:
+        plain = await sorting.get("/admin/unsorted_orders")
+        asked = await sorting.get("/admin/unsorted_orders?sort=-id")
+        sortable = await sorting.get("/admin/linked_orders?sort=-id")
+
+        assert sort_links(plain.text) == []
+        assert row_keys(asked.text) == row_keys(plain.text)
+        assert row_keys(sortable.text) == row_keys(plain.text)[::-1]
+
+
 class TestPaging:
     async def test_paging_keeps_the_filters(self, client: httpx.AsyncClient) -> None:
         response = await client.get("/admin/orders?status=PAID&page=1")
@@ -230,3 +313,44 @@ class TestColumns:
         # is an amount, so it lines up on the right.
         assert at_the_end["Id"] is False
         assert at_the_end["Total"] is True
+
+
+class CustomerTotalsView(ModelView[Customer]):
+    name = "customer_totals"
+    fields = [
+        Customer.id,
+        Customer.name,
+        Link(Customer.orders, Order.total),
+        Link(Customer.orders, Link(Order.customer, Customer.email)),
+        Link(Customer.orders, Link(Order.items, OrderItem.quantity)),
+    ]
+
+
+class TestAColumnReadThroughLinksToMany:
+    async def test_it_shows_each_record_s_value(self, database: Database) -> None:
+        app = Starlette()
+        app.mount("/admin", Admin(database, views=[CustomerTotalsView], api=True))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/customer_totals")
+            detail = await client.get("/admin/customer_totals/1")
+            export = await client.get("/admin/customer_totals/export?format=csv")
+            listed = await client.get("/admin/-/api/customer_totals?sort=id")
+            one = await client.get("/admin/-/api/customer_totals/1")
+
+        assert page.status_code == detail.status_code == 200
+        for shown in ("107.00, 38.50", "lena@fischer.de, lena@fischer.de", "1, 2, 1"):
+            assert shown in page.text
+            assert shown in detail.text
+        lena = '1,Lena Fischer,"107.00, 38.50","lena@fischer.de, lena@fischer.de"'
+        assert f'{lena},"1, 2, 1"' in export.text
+        assert listed.json()["items"][0] == one.json()
+        assert one.json() == {
+            "key": "1",
+            "id": 1,
+            "name": "Lena Fischer",
+            "orders.total": ["107.00", "38.50"],
+            "orders.customer.email": ["lena@fischer.de", "lena@fischer.de"],
+            "orders.items.quantity": [1, 2, 1],
+        }

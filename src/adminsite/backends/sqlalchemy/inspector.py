@@ -1,11 +1,13 @@
+from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import ARRAY, JSON, Column, Enum
+from sqlalchemy import ARRAY, JSON, Column, ColumnElement, Enum
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Mapper, RelationshipProperty
+from sqlalchemy.orm.exc import UnmappedColumnError
 from sqlalchemy.orm.interfaces import MANYTOMANY, MANYTOONE
-from sqlalchemy.types import TypeEngine
+from sqlalchemy.types import TypeDecorator, TypeEngine, UserDefinedType
 
 from adminsite.exceptions import (
     InvalidPathError,
@@ -112,13 +114,14 @@ class SQLAlchemyInspector:
             name=name,
             label=humanize(name.removesuffix("_id")),
             python_type=self._python_type_of(column.type),
+            python_type_known=self._names_python_type(column.type),
             nullable=bool(column.nullable),
             primary_key=bool(column.primary_key),
             foreign_key=bool(column.foreign_keys),
             autoincrement=column.table.autoincrement_column is column,
             has_default=column.default is not None
             or column.server_default is not None
-            or bool(column.primary_key and column.autoincrement is not False),
+            or column.table.autoincrement_column is column,
             max_length=getattr(column.type, "length", None),
             enum_values=self._enum_values_of(column.type),
             item=self._read_item(name, column.type),
@@ -137,6 +140,7 @@ class SQLAlchemyInspector:
             name=name,
             label=humanize(name),
             python_type=self._python_type_of(item_type),
+            python_type_known=self._names_python_type(item_type),
             max_length=getattr(item_type, "length", None),
             enum_values=self._enum_values_of(item_type),
         )
@@ -156,6 +160,22 @@ class SQLAlchemyInspector:
             # the field still renders, and let a field override fix it.
             return str
 
+    def _names_python_type(self, column_type: TypeEngine[Any]) -> bool:
+        """Whether the column's type says which python type it holds.
+
+        A type of the project's own, a TypeDecorator or a UserDefinedType,
+        says how it is stored. For one, and for a type that names nothing,
+        SQLAlchemy 2.1 answers object and 2.0 raises NotImplementedError.
+        """
+        if isinstance(column_type, JSON):
+            return True
+        if isinstance(column_type, TypeDecorator | UserDefinedType):
+            return False
+        try:
+            return column_type.python_type is not object
+        except NotImplementedError:
+            return False
+
     def _read_relations(self, mapper: Mapper[Any]) -> dict[str, RelationSchema]:
         relations: dict[str, RelationSchema] = {}
         for relationship in mapper.relationships:
@@ -163,19 +183,38 @@ class SQLAlchemyInspector:
         return relations
 
     def _read_relation(self, relationship: RelationshipProperty[Any]) -> RelationSchema:
-        local_columns = tuple(
-            column.key
-            for column in relationship.local_columns
-            if column.key is not None
-        )
+        direction = self._direction_of(relationship)
+        remote_columns: tuple[str, ...] = ()
+        if direction is not RelationDirection.MANY_TO_MANY:
+            remote_columns = self._attribute_names(
+                relationship.mapper,
+                [remote for _, remote in relationship.local_remote_pairs or ()],
+            )
         return RelationSchema(
             name=relationship.key,
             label=humanize(relationship.key),
             target=relationship.mapper.class_,
-            direction=self._direction_of(relationship),
-            local_columns=local_columns,
+            direction=direction,
+            local_columns=self._attribute_names(
+                relationship.parent, relationship.local_columns
+            ),
+            remote_columns=remote_columns,
             nullable=all(column.nullable for column in relationship.local_columns),
         )
+
+    def _attribute_names(
+        self, mapper: Mapper[Any], columns: Iterable[ColumnElement[Any]]
+    ) -> tuple[str, ...]:
+        """The attributes holding these columns, without any the mapper skips."""
+        # Fields and keys go by attribute, and a column's own name can differ:
+        # mapped_column("personId") is held by person_id.
+        names: list[str] = []
+        for column in columns:
+            try:
+                names.append(mapper.get_property_by_column(column).key)
+            except UnmappedColumnError:
+                continue
+        return tuple(dict.fromkeys(names))
 
     def _direction_of(
         self, relationship: RelationshipProperty[Any]

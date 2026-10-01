@@ -33,6 +33,10 @@ class ListField(Field[Sequence[Any] | None]):
 
     widget = "list"
     python_type = list
+    # A JSON column reads as dict, whatever document it holds.
+    column_types = (list, dict)
+    # Each value is held to the length of the field that reads it.
+    unused_options = frozenset({"max_length"})
 
     def column_options(self, schema: FieldSchema) -> dict[str, Any]:
         """The column's options, except that a list is never required by it.

@@ -12,11 +12,13 @@ from starlette.requests import Request
 
 from adminsite import (
     Admin,
+    BaseField,
     Chart,
     ModelCounts,
     ModelView,
     Permission,
     RecentRecords,
+    RequestAction,
     Stat,
     Widget,
 )
@@ -27,6 +29,19 @@ from tests.models import Customer, Order, OrderStatus
 
 class OrderView(ModelView[Order]):
     record_title = "Order #{id}"
+
+
+class GuardedOrderView(ModelView[Order]):
+    """Orders whose totals only managers see, oldest first."""
+
+    name = "guarded"
+    record_title = "Order #{id}"
+    fields_default_sort = [Order.id]
+
+    def can_access_field(
+        self, request: Request, field: BaseField, action: RequestAction
+    ) -> bool:
+        return field.name != "total" or request.headers.get("x-role") == "manager"
 
 
 class CustomerView(ModelView[Customer]):
@@ -222,6 +237,34 @@ class TestRecentRecords:
         text = await overview(database, RecentRecords("Latest customers", "customers"))
 
         assert "Latest customers" not in text
+
+    @pytest.mark.parametrize(
+        ("role", "keys", "totals"),
+        [
+            ("staff", [1, 2, 3, 4, 5], []),
+            (
+                "manager",
+                [4, 1, 5, 3, 6],
+                ["118.00", "107.00", "101.00", "72.00", "59.00"],
+            ),
+        ],
+    )
+    async def test_a_field_kept_from_the_user_is_neither_shown_nor_sorted_by(
+        self, database: Database, role: str, keys: list[int], totals: list[str]
+    ) -> None:
+        admin = Admin(
+            database,
+            views=[GuardedOrderView],
+            dashboard=[
+                RecentRecords("Biggest orders", "guarded", sort="-total", value="total")
+            ],
+        )
+        async with serve(admin) as client:
+            text = (await client.get("/admin/", headers={"x-role": role})).text
+
+        linked = re.findall(r'href="/admin/guarded/(\d+)"', text)
+        assert [int(key) for key in linked] == keys
+        assert re.findall(r'tabular-nums text-muted">([^<]*)<', text) == totals
 
 
 class TestTheOverview:

@@ -9,9 +9,9 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from adminsite.actions import Selection
 from adminsite.exceptions import FieldValidationError, IntegrityError, RefusedError
 from adminsite.fields import (
+    BaseField,
     EnumField,
     FileField,
     JSONField,
@@ -19,11 +19,12 @@ from adminsite.fields import (
     RelationField,
 )
 from adminsite.fields.documents import DocumentError
+from adminsite.http.endpoints import perform
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
 from adminsite.messages import Message
-from adminsite.security import Permission
+from adminsite.security import Permission, RequestAction
 from adminsite.text import plain
 from adminsite.views import ModelView
 
@@ -82,12 +83,12 @@ def find(admin: "Admin", request: Request) -> ModelView[Any]:
 
 
 def api_paths(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
-    """The fields a record carries: the list's, the record page's, the form's."""
+    """The fields a record carries: the list's, the record page's, the edit form's."""
     paths: list[str] = []
     for path in (
         *view._list_fields(request),
         *view._detail_fields(request),
-        *view._form_fields(request),
+        *view._form_fields(request, page=RequestAction.EDIT),
     ):
         if path not in paths:
             paths.append(path)
@@ -117,6 +118,15 @@ def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
         # Markup belongs on the page, so what goes out is its text.
         return plain(item.text_for(record, None))
     value = view._value_at(record, path)
+    if "." in path and view._inspector.resolve(view.model, path).crosses_collection:
+        # Read through a link to many, it holds a value for each record.
+        return [_one_value(view, path, item, one, urls) for one in value or ()]
+    return _one_value(view, path, item, value, urls)
+
+
+def _one_value(
+    view: ModelView[Any], path: str, item: BaseField, value: Any, urls: Urls
+) -> Any:
     if isinstance(item, RelationField):
         target = view._inspector.inspect(item.related_model)
         if value is None:
@@ -163,9 +173,7 @@ def read_values(
     Only the fields sent are touched, so a PATCH with one field changes one
     field. A new record needs every required field.
     """
-    writable = set(view._form_fields(request, record)) - set(
-        view._readonly_paths(request, record)
-    )
+    writable = set(view._writable_paths(request, record))
     values: dict[str, Any] = {}
     errors: dict[str, str] = {}
     for path, raw in body.items():
@@ -173,9 +181,6 @@ def read_values(
             errors[path] = _("This field cannot be written.")
             continue
         item = view._field_for(path)
-        if not (item.stored or item.form_only):
-            errors[path] = _("This field cannot be written.")
-            continue
         if (
             item.keeps_value_when_blank
             and record is not None
@@ -220,9 +225,13 @@ def read_values(
 
 
 async def index(admin: "Admin", request: Request) -> Response:
-    """The views this user may open, with their fields and actions."""
+    """The views this user may open, with their fields and actions.
+
+    The fields are those a record carries, then any more a new record takes.
+    """
     found = []
     for view in await admin.views_allowing(request):
+        paths = dict.fromkeys((*api_paths(view, request), *view._form_fields(request)))
         found.append(
             {
                 "name": view.name,
@@ -234,10 +243,10 @@ async def index(admin: "Admin", request: Request) -> Response:
                         "widget": view._field_for(path).widget,
                         "required": bool(view._field_for(path).required),
                     }
-                    for path in api_paths(view, request)
+                    for path in paths
                 ],
                 "actions": [
-                    {"name": item.name, "label": item.label}
+                    {"name": item.name, "label": item.label, "on": item.on}
                     for item in view.get_actions(request)
                     if await view.allows(item.permission, request=request, record=None)
                 ],
@@ -300,6 +309,9 @@ async def create(admin: "Admin", request: Request, view: ModelView[Any]) -> Resp
         fresh = await view._fetch_record(
             session, key, paths=view._loadable(paths), request=request
         )
+        if fresh is None:
+            # Saved outside what scope_query lets this user read.
+            return JSONResponse({"key": key}, status_code=201)
         await view._load_values(session, [fresh], paths, request=request)
         return JSONResponse(to_json(view, fresh, paths, urls), status_code=201)
 
@@ -330,9 +342,12 @@ async def item(admin: "Admin", request: Request) -> Response:
                 view, await read_body(request), record=record, request=request
             )
             await save(view, session, values, record, request)
-            record = await view._fetch_record(
-                session, read_key(request), paths=load, request=request
-            )
+            # A hook may have changed the key, so it is read again by the new one.
+            key = view._identity_of(record)
+            record = await view._fetch_record(session, key, paths=load, request=request)
+            if record is None:
+                # Saved outside what scope_query lets this user read.
+                return JSONResponse({"key": key})
 
         await view._load_values(session, [record], paths, request=request)
         return JSONResponse(to_json(view, record, paths, urls))
@@ -357,18 +372,23 @@ async def save(
 
 
 async def action(admin: "Admin", request: Request) -> Response:
-    """Run a bulk action over some keys, or over everything that matches."""
+    """Run an action over some keys or all that match, over one record, or the view."""
     view = find(admin, request)
-    try:
-        found = view._action_named(request.path_params["name"], request)
-    except Exception:
-        raise ApiError(404, _("No such action.")) from None
+    found = view._find_action(request.path_params["name"], request)
+    if found is None:
+        raise ApiError(404, _("No such action."))
     body = await read_body(request)
     keys = body.get("keys", [])
     if not isinstance(keys, list):
         raise ApiError(422, _("keys is a list."))
+    if found.on_record and len(keys) != 1:
+        raise ApiError(422, _("This action runs on one record. Send its key."))
 
-    raw_inputs = body.get("inputs", {})
+    raw_inputs = body.get("inputs")
+    if raw_inputs is None:
+        raw_inputs = {}
+    elif not isinstance(raw_inputs, dict):
+        raise ApiError(422, _("inputs is an object."))
     inputs = view._parse_action_inputs(
         found,
         {
@@ -381,25 +401,18 @@ async def action(admin: "Admin", request: Request) -> Response:
     if not inputs.ok:
         raise ApiError(422, _("Some values need another look."), inputs.errors)
 
-    read = read_list_request(request, view)
-    spec = view._build_spec(
-        request=request, search=read.search, filters=read.values, sort=read.sort
-    )
+    # Written as the action form sends them, so the run is the page's own.
+    chosen = {
+        "keys": [str(key) for key in keys],
+        "everything": "1" if body.get("everything") else "",
+    }
     async with admin.database.session() as session:
-        selection = Selection(
-            view=view,
-            session=session,
-            spec=spec,
-            keys=tuple(str(key) for key in keys),
-            everything=bool(body.get("everything")),
-            request=request,
-        )
         try:
             # Anything that fails is rolled back first, so the audit log can
             # write the attempt down.
             async with session.transaction():
-                message = await view._run_action(
-                    found, selection, request=request, values=inputs.values
+                message = await perform(
+                    admin, request, view, found, session, chosen, inputs.values
                 )
         except RefusedError as error:
             if error.field:
@@ -408,10 +421,11 @@ async def action(admin: "Admin", request: Request) -> Response:
                     422, _("Some values need another look."), {error.field: str(error)}
                 ) from None
             raise ApiError(409, str(error)) from None
-        except IntegrityError:
-            raise ApiError(
-                409, _("Other records still refer to some of these.")
-            ) from None
+        except IntegrityError as error:
+            raise ApiError(409, str(error)) from None
+    # An action that answers with a file sends it as it is.
+    if isinstance(message, Response):
+        return message
     if isinstance(message, Message):
         return JSONResponse(message.as_json())
     return JSONResponse({"message": str(message)})

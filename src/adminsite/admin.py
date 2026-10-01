@@ -23,7 +23,7 @@ from adminsite.auth import AuthProvider
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.dashboard import ModelCounts, Widget
-from adminsite.exceptions import AdminSiteError, PermissionDeniedError
+from adminsite.exceptions import AdminSiteError, PermissionDeniedError, renamed_keywords
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import api, endpoints
 from adminsite.http.palette import palette
@@ -251,6 +251,9 @@ class Admin:
     def app(self) -> Starlette:
         """The Starlette app behind the admin, built once."""
         if self._app is None:
+            # Every view is registered by now, so a link can be checked
+            # against the view it names before any page draws it.
+            self.views.check_links()
             self._app = Starlette(
                 routes=self.routes(),
                 middleware=self.middleware(),
@@ -605,3 +608,6 @@ class Admin:
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         """Let the admin be mounted like any other ASGI app."""
         await self.app(scope, receive, send)
+
+
+renamed_keywords(Admin, {"fields": "field_registry"})

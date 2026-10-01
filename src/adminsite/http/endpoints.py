@@ -94,7 +94,6 @@ __all__ = [
     "import_template",
     "index",
     "key_of",
-    "key_text",
     "linked_records",
     "list_query",
     "list_records",
@@ -396,7 +395,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
     ):
         query = AuditQuery(view=view.name, record_key=key)
         found = await admin.audit.find(query, limit=HISTORY_LIMIT + 1)
-        history = describe(admin, found[:HISTORY_LIMIT])
+        history = describe(admin, found[:HISTORY_LIMIT], request)
         # The rest are paged through on the Activity page.
         if len(found) > HISTORY_LIMIT:
             older_history = Urls(request).activity(view=view.name, record=key)
@@ -453,11 +452,10 @@ def many_links(
 
 
 def computed_needs(view: ModelView[Any], paths: Sequence[str]) -> set[str]:
-    """What the computed fields among these paths read from the record."""
+    """What the computed fields among these paths read from the record, as paths."""
+    # A need may be written as an attribute, Order.items, which is not "items".
     return {
-        needed
-        for path in paths
-        for needed in getattr(view._field_for(path), "needs", ())
+        needed for path in paths for needed in view._needs_of(view._field_for(path))
     }
 
 
@@ -621,7 +619,7 @@ async def activity(admin: "Admin", request: Request) -> Response:
         "activity.html",
         request,
         {
-            "items": describe(admin, entries),
+            "items": describe(admin, entries, request),
             "tabs": tabs,
             "filters": filters,
             "event_choices": choices,
@@ -698,9 +696,11 @@ async def edit_record(admin: "Admin", request: Request) -> Response:
             return await form_again(
                 admin, view, session, request, result, error, record, submitted
             )
+        # A hook may have changed the key, so the page follows the record.
+        saved = view._identity_of(record)
 
     add_message(request, _("{thing} saved.", thing=view.label))
-    return RedirectResponse(await after_save(admin, view, request, key_text(key)), 303)
+    return RedirectResponse(await after_save(admin, view, request, saved), 303)
 
 
 async def delete_record(admin: "Admin", request: Request) -> Response:
@@ -815,10 +815,9 @@ async def action_lookup(admin: "Admin", request: Request) -> Response:
     the target's own view, as a form's link does.
     """
     view = find_view(admin, request)
-    try:
-        found = view._action_named(request.path_params["name"], request)
-    except AdminSiteError:
-        raise HTTPException(status_code=404, detail=_("No such action.")) from None
+    found = view._find_action(request.path_params["name"], request)
+    if found is None:
+        raise HTTPException(status_code=404, detail=_("No such action."))
     await view._ensure(found.permission, request=request)
 
     name = request.path_params["input"]
@@ -905,26 +904,29 @@ async def form_again(
         request=request,
     )
     context = form_context(view, rows, request, record)
+    # A refusal about one field belongs next to that field, not above the
+    # form, so it reads like any other problem with what was typed. One
+    # about a child row's input, named like items-2-product, goes in its cell.
+    refused = error.field if isinstance(error, RefusedError) else ""
     context["inlines"] = await build_inline_tables(
         admin,
         view,
         session,
         record=record,
         submitted=submitted or {},
-        errors=result.errors,
+        errors={**result.errors, refused: str(error)} if refused else result.errors,
         request=request,
     )
-    # A refusal about one field belongs next to that field, not above the
-    # form, so it reads like any other problem with what was typed.
-    beside_field = (
-        isinstance(error, RefusedError)
-        and error.field in {row.path for row in rows}
-        and error.field
+    in_cell = any(
+        cell.path == refused
+        for table in context["inlines"]
+        for item in table.rows
+        for cell in item.cells
     )
-    if beside_field:
-        for row in rows:
-            if row.path == beside_field:
-                row.error = str(error)
+    beside_field = bool(refused) and (in_cell or refused in {row.path for row in rows})
+    for row in rows:
+        if refused and row.path == refused:
+            row.error = str(error)
     context["form_error"] = "" if beside_field or error is None else str(error)
     if record is not None:
         context["can_delete"] = await view.allows(
@@ -993,11 +995,6 @@ def key_of(raw: str) -> Any:
     """A key written as text, as one value or a tuple for a composite key."""
     parts = raw.split(",")
     return tuple(parts) if len(parts) > 1 else raw
-
-
-def key_text(key: Any) -> str:
-    """Write a key back the way it appears in a URL."""
-    return ",".join(key) if isinstance(key, tuple) else str(key)
 
 
 async def read_form(request: Request) -> dict[str, Any]:
@@ -1107,16 +1104,15 @@ async def note_sign_in(
 async def run_action(admin: "Admin", request: Request) -> Response:
     """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
-    try:
-        found = view._action_named(request.path_params["name"], request)
-    except AdminSiteError:
-        raise HTTPException(status_code=404, detail=_("No such action.")) from None
+    found = view._find_action(request.path_params["name"], request)
+    if found is None:
+        raise HTTPException(status_code=404, detail=_("No such action."))
 
     submitted = await read_form(request)
     inputs = view._parse_action_inputs(found, submitted)
     if not inputs.ok:
         problems = "; ".join(
-            f"{item.label}: {inputs.errors[item.name]}"
+            f"{found.input_label(item)}: {inputs.errors[item.name]}"
             for item in found.inputs
             if item.name in inputs.errors
         )
@@ -1142,13 +1138,13 @@ async def run_action(admin: "Admin", request: Request) -> Response:
         except RefusedError as error:
             add_message(request, str(error), kind="error")
             return back_from_action(admin, request, view, found, submitted)
-        except IntegrityError:
+        except IntegrityError as error:
             add_message(
                 request,
                 _(
-                    "{action} was not done, because other records still refer to "
-                    "some of these.",
+                    "{action} was not done. {reason}",
                     action=found.label,
+                    reason=str(error),
                 ),
                 kind="error",
             )

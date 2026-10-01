@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeAlias, TypeVar
 
 from adminsite.exceptions import AdminSiteError
+from adminsite.i18n import gettext as _
 from adminsite.security import Permission
 from adminsite.text import humanize
 
@@ -96,6 +97,13 @@ class Action:
             for group in self.call.groups
             for part in group.fields
         }
+
+    def input_label(self, item: "BaseField") -> str:
+        """An input as a message names it: a group's field with its heading."""
+        heading = self.headings.get(item.name)
+        if heading is None:
+            return item.label
+        return _("{group}, {field}", group=heading, field=item.label)
 
 
 def action(

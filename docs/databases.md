@@ -24,6 +24,11 @@ Everything above the session is written once, so both behave the same. A sync se
 single worker thread for its whole life, which keeps SQLAlchemy from ever being used by two threads
 at once.
 
+The sessions the admin opens keep their records loaded after a commit, as if made with
+`expire_on_commit=False`, whatever the factory you give says. The pages and the
+[committed hooks](hooks.md#once-the-change-is-committed) read a record once it is saved, and an
+async session cannot load it again there.
+
 ## Tested on
 
 - SQLite, with `aiosqlite` and with the standard library driver
@@ -83,8 +88,7 @@ With an async engine, listen on `engine.sync_engine`: SQLAlchemy takes no listen
 engine itself.
 
 With them on, deleting a record that others still point at is refused, and the admin shows "This
-customer cannot be deleted, because other records still refer to it." A value that must be unique
-is reported the same way.
+customer cannot be deleted, because other records still refer to it."
 
 Bulk deletes from an [action](actions.md) are single statements and never load the records, so
 they rely on the database for cascades. Give child tables `ondelete="CASCADE"` where children should
@@ -93,6 +97,38 @@ go with their parent:
 ```python
 order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
 ```
+
+## When the database refuses a change
+
+A save the database refuses, because a value that must be unique is already taken or a required
+value is missing, is shown on the form, and nothing is saved. A refused delete is shown above the
+list. It says other records still refer to the record only when the database refused the delete
+itself. When it refused something else in the same transaction, such as a row a [hook](hooks.md)
+wrote, it says "This customer could not be deleted." and names the likely causes, as a save does.
+The database's own message is never shown or written to the audit log, since it can hold the values
+it refused.
+
+In code of your own, such as a [page](pages.md) or an [action](actions.md), `commit()` and
+`transaction()` on adminsite's session raise `adminsite.exceptions.IntegrityError` for such a
+change, with SQLAlchemy's error as its cause:
+
+```python
+from adminsite.exceptions import IntegrityError
+
+
+async def add_customer(name: str, email: str) -> str:
+    async with admin.database.session() as session:
+        try:
+            async with session.transaction():
+                await session.add(Customer(name=name, email=email))
+        except IntegrityError:
+            return "That email is already taken."
+    return "Customer added."
+```
+
+Inside the block, `flush()` and `execute()` raise SQLAlchemy's own error; the transaction turns it
+into adminsite's as it leaves the block. An action that lets the error through is not done, and the
+list says why.
 
 ## After a rollback
 

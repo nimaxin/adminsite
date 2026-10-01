@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import QueryableAttribute
 
+from adminsite.exceptions import renamed_keywords
+
 if TYPE_CHECKING:
     from adminsite.columns import ColumnReference
     from adminsite.fields import Field
@@ -35,7 +37,8 @@ class Inline:
 
     relation: str | QueryableAttribute[Any]
     # The child's fields, in order, as a view's fields are written:
-    # Field(OrderItem.unit_price, read_only=True) shows a value it never edits.
+    # Field(OrderItem.added_at, read_only=True) shows a value it never edits,
+    # so a new row takes it from a default on the model.
     fields: Sequence["ColumnReference | Field[Any]"] = ()
     label: str = ""
     # How many blank rows the table starts with while it has no rows yet.
@@ -56,6 +59,13 @@ class Inline:
         return f"{self.name}-{index}-{path}"
 
 
+renamed_keywords(
+    Inline,
+    {"name": "relation", "extra": "blank_rows", "display_template": "record_title"},
+    {"readonly_fields": "Give each of those fields read_only=True in fields."},
+)
+
+
 @dataclass
 class InlineRow:
     """One child as it came back from the form."""
@@ -63,6 +73,9 @@ class InlineRow:
     key: str
     values: dict[str, Any] = field(default_factory=dict)
     delete: bool = False
+    # Where the row sat in the form, which names its inputs, so a refusal
+    # about one of them can be shown beside it.
+    index: int | None = None
 
     @property
     def is_new(self) -> bool:

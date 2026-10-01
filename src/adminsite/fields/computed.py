@@ -81,16 +81,33 @@ class ComputedField(BaseField, Generic[M, V]):
     needs: Sequence[ColumnReference] = ()
     load: Loader[M, V] | None = None
     default: V | None = None
-    read_only: bool = True
 
     widget = "text"
     stored = False
+    # Never in a form, never saved, so never audited either.
+    unused_options = frozenset(
+        {
+            "required",
+            "read_only",
+            "max_length",
+            "secret",
+            "form_only",
+            "exclude_from_create",
+            "exclude_from_edit",
+        }
+    )
 
     def __post_init__(self) -> None:
         if (self.getter is None) == (self.load is None):
             raise AdminSiteError(
                 f"ComputedField({self.name!r}) takes a function of the record or "
                 "load=, one of the two."
+            )
+        if self.form_only:
+            raise AdminSiteError(
+                f"ComputedField({self.name!r}) is shown and never edited, so it "
+                "cannot be form_only. Give the input a field of its own, such as "
+                f"StringField({self.name!r}, form_only=True)."
             )
         super().__post_init__()
 

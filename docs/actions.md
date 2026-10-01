@@ -29,7 +29,7 @@ one statement. It gives you:
 | `await selection.update(**values)` | Changes every covered row in one `UPDATE`, and returns how many. |
 | `await selection.delete()` | Deletes every covered row in one `DELETE`, and returns how many. |
 | `await selection.count()` | How many rows it covers. |
-| `await selection.records(paths=...)` | Loads the records, for work that needs each one, with the links `paths` names. A `Selection[Order]` loads orders. |
+| `await selection.records(paths=[Order.customer])` | Loads the records, for work that needs each one, with the links `paths` names. A `Selection[Order]` loads orders. |
 | `selection.statement()` | A `select()` of the covered primary keys, to use in your own queries. |
 
 `update` and `delete` never load the records, so they skip the save hooks, and a delete relies on
@@ -44,8 +44,10 @@ record=...)`, `before_delete` and `after_delete` run for every one, and the audi
 delete entry for each.
 
 It is all or none. When one record is refused, by a hook, by a permission, or because other records
-still point at it, nothing is deleted and the message names that record. One Delete removes at most
-1,000 records; narrow the list first for more.
+still point at it, nothing is deleted and the message names that record. When the database refuses
+something else, such as a row a hook wrote, nothing is deleted and the message says Delete was not
+done, with the likely causes. One Delete removes at most 1,000 records; narrow the list first for
+more.
 
 Switch it off for a view with `can_delete_selected = False`, and add an action of your own where the
 view needs a different one. `can_delete = False` removes it along with every other delete.
@@ -93,8 +95,13 @@ The type picks the input:
 | a dataclass | [its fields, under one heading](#a-group-of-values) |
 
 A value is required unless its type allows None or it has a default. A default fills the input when
-the dialog opens, so a switch that is usually on opens on, and an input left empty takes it. A
-missing or invalid value stops the action and tells the user which input and why.
+the dialog opens, so a switch that is usually on opens on, and an input left empty takes it, unless
+its type allows None: `copies: int | None = 2` opens on 2, and emptied it is None. A missing or
+invalid value stops the action and tells the user which input and why, naming the group for a
+field of one.
+
+A `Literal`'s options read as they are written, `"DHL"` as DHL, and one in lower case as words:
+`"next_day"` reads "Next day".
 
 `Annotated[..., Input(...)]` words an input:
 
@@ -126,6 +133,8 @@ A parameter of one of these types is handed over instead of asked for:
 | `Request` | the request, to read who is signed in or the session |
 | `SessionAdapter` | adminsite's session, with a sync or an async database alike |
 | `AsyncSession` | SQLAlchemy's own session, where the database is async |
+
+A `| None` changes nothing here: `request: Request | None` is handed the request just the same.
 
 The session is the one the action runs in, so what the method writes is committed with it, or rolled
 back when it fails. Asking for an `AsyncSession` when the database is not async stops the admin when
@@ -162,8 +171,9 @@ class ProductView(ModelView[Product]):
 ```
 
 The heading is the parameter's name, "Change", or the `label` of an `Input` on it. Each field is
-sent as `change.percent`, the name the [JSON API](api.md#actions) takes too. A dataclass inside a
-dataclass is asked for with a parameter of its own.
+sent as `change.percent`, the name the [JSON API](api.md#actions) takes too. An `InitVar` is asked
+for like a field and handed to `__post_init__`. A dataclass inside a dataclass is asked for with a
+parameter of its own.
 
 ### A file
 
@@ -242,9 +252,12 @@ class OrderView(ModelView[Order]):
         ]
 ```
 
-The field takes the place of the input the parameter asked for, and its value still reaches
-`warehouse`. The run goes through `get_actions` as well, so a value that was never on offer is
-refused rather than accepted because the class said so.
+The field takes the place of the input of its name, and its value still reaches `warehouse`. The
+method's other parameters are still asked for as their types say, and so are those of an `Action`
+that `get_actions` builds by hand. A copy under another name, `dataclasses.replace(item,
+name="move_now", label="Move now")`, asks for what the action asks for, groups and defaults
+included. The run goes through `get_actions` as well, so a value that was never on offer is refused
+rather than accepted because the class said so.
 
 ## Options
 
@@ -305,6 +318,8 @@ class InvoiceView(ModelView[Invoice]):
         invoice.status = "confirmed"
         return f"Invoice {invoice.number} confirmed."
 ```
+
+The record goes to the first parameter typed `Invoice`, written before the `*` or after it.
 
 The button sits on the row and on the record's page, and the record's own permission decides
 whether it is offered: `allows(action, record=record)` refusing a paid invoice hides Confirm for
@@ -382,5 +397,6 @@ class OrderView(ModelView[Order]):
 ```
 
 Anything Starlette can answer with works: a file, JSON, or a redirect to somewhere the result
-waits. The transaction is committed first, so the answer describes work that really happened.
+waits. The transaction is committed first, so the answer describes work that really happened. The
+[JSON API](api.md#actions) sends the response as it is too.
 

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Executable
 
 from adminsite.exceptions import AdminSiteError, IntegrityError
+from adminsite.i18n import gettext as _
 
 __all__ = [
     "AsyncSessionAdapter",
@@ -44,7 +45,16 @@ def database_refusals() -> Iterator[None]:
     try:
         yield
     except exc.IntegrityError as error:
-        raise IntegrityError(str(error.orig)) from error
+        # The database's text can hold the values it refused, so people read
+        # a fixed message, and SQLAlchemy's error stays as the cause. Which
+        # rule broke is not told apart, since each driver names it differently.
+        raise IntegrityError(
+            _(
+                "The database refused the change. A value that must be unique "
+                "may already be taken, a required value may be missing, or "
+                "other records may still refer to one being removed."
+            )
+        ) from error
 
 
 async def _run_after(moment: str, work: Callable[[], Awaitable[None]]) -> None:
@@ -376,17 +386,23 @@ class Database:
     def open(self) -> SessionAdapter:
         """Open a session the caller is responsible for closing."""
         session = self._factory()
+        # The pages and the committed hooks read a record after its commit,
+        # which would load it again, and an async session refuses that. So
+        # the session keeps what it loaded, as starlette-admin's do,
+        # whatever the given factory says.
         if isinstance(session, AsyncSession):
+            session.sync_session.expire_on_commit = False
             return AsyncSessionAdapter(session)
+        session.expire_on_commit = False
         return SyncSessionAdapter(session)
 
     def _factory_for(
         self, source: SessionSource
     ) -> Callable[[], Session | AsyncSession]:
         if isinstance(source, AsyncEngine):
-            return async_sessionmaker(source, expire_on_commit=False)
+            return async_sessionmaker(source)
         if isinstance(source, Engine):
-            return sessionmaker(source, expire_on_commit=False)
+            return sessionmaker(source)
         if isinstance(source, async_sessionmaker | sessionmaker):
             return source
         raise AdminSiteError(

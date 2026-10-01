@@ -84,6 +84,7 @@ class JSONField(Field[Any]):
     widget = "json"
     python_type = dict
     error_message = 'Write valid JSON, such as {"key": "value"}.'
+    unused_options = frozenset({"max_length"})
 
     def __post_init__(self) -> None:
         super().__post_init__()

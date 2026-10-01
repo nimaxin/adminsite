@@ -11,7 +11,7 @@ from adminsite.query import QuerySpec
 from adminsite.views import ModelView
 from adminsite.views.writing import DeleteContext, SaveContext
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
-from tests.support import spare_product
+from tests.support import REFUSED, spare_product
 
 
 class ProductView(ModelView[Product]):
@@ -66,7 +66,7 @@ class TestReadingAForm:
 
         assert result.errors == {"name": "This field is required."}
 
-    def test_readonly_fields_are_not_read_from_the_form(
+    def test_read_only_fields_are_not_read_from_the_form(
         self, orders: OrderView
     ) -> None:
         result = orders._parse_form(
@@ -205,16 +205,50 @@ class TestDeleting:
 
             assert await session.get(Product, 1) is not None
 
+    async def test_a_hook_the_database_refuses_is_not_put_down_to_references(
+        self, database: Database
+    ) -> None:
+        class Copying(ModelView[Customer]):
+            async def before_delete(self, context: DeleteContext[Customer]) -> None:
+                # Left for the delete's own flush, with an email already taken.
+                copy = Customer(name="Copy", email="lena@fischer.de")
+                await context.session.add(copy)
+
+        async with database.session() as session:
+            lone = Customer(name="Lone", email="lone@example.com")
+            await session.add(lone)
+            await session.commit()
+
+            with pytest.raises(RefusedError) as raised:
+                await Copying()._delete(session, lone)
+
+        assert str(raised.value) == f"This customer could not be deleted. {REFUSED}"
+
     async def test_a_duplicate_unique_value_is_refused_with_a_reason(
         self, database: Database
     ) -> None:
         view = CustomerView()
         async with database.session() as session:
-            with pytest.raises(RefusedError, match="must be unique"):
+            with pytest.raises(RefusedError) as raised:
                 await view._save(
                     session,
                     {"name": "Someone", "email": "lena@fischer.de", "region": "DE"},
                 )
+
+        assert str(raised.value) == f"This customer could not be saved. {REFUSED}"
+
+    async def test_a_missing_required_value_is_not_called_a_clash(
+        self, database: Database
+    ) -> None:
+        class NoPrice(ModelView[Product]):
+            fields = [Product.name]
+
+        async with database.session() as session:
+            with pytest.raises(RefusedError) as raised:
+                await NoPrice()._save(session, {"name": "Scarf"})
+
+        assert str(raised.value) == f"This product could not be saved. {REFUSED}"
+        assert "clash" not in str(raised.value)
 
     async def test_deleting_a_parent_takes_its_children(
         self, database: Database, orders: OrderView

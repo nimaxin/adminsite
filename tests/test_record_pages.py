@@ -1,3 +1,5 @@
+import re
+
 import httpx
 import pytest
 from sqlalchemy import func, select
@@ -6,9 +8,9 @@ from starlette.applications import Starlette
 from adminsite import Admin, Field, ModelView
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
-from adminsite.views.writing import SaveContext
+from adminsite.views.writing import DeleteContext, SaveContext
 from tests.models import Customer, Order, Product
-from tests.support import spare_product
+from tests.support import REFUSED, spare_product
 
 
 class ProductView(ModelView[Product]):
@@ -253,6 +255,43 @@ class TestDeleting:
         assert response.status_code == 303
         async with database.session() as session:
             assert await session.get(Product, 1) is not None
+
+    @pytest.mark.parametrize("flushes", [False, True])
+    async def test_a_refusal_for_another_reason_blames_no_references(
+        self, database: Database, flushes: bool
+    ) -> None:
+        class Copying(ModelView[Customer]):
+            async def after_delete(self, context: DeleteContext[Customer]) -> None:
+                # An email another customer already has.
+                copy = Customer(name="Copy", email="lena@fischer.de")
+                await context.session.add(copy)
+                if flushes:
+                    await context.session.flush()
+
+        async with database.session() as session:
+            lone = Customer(name="Lone", email="lone@example.com")
+            await session.add(lone)
+            await session.commit()
+            key = lone.id
+        app = Starlette()
+        site = Admin(database, views=[Copying], secret_key="for-the-session")
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/customers")
+            token = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+            assert token is not None
+            answer = await client.post(
+                f"/admin/customers/{key}/delete",
+                data={"_csrf": token.group(1)},
+                follow_redirects=True,
+            )
+
+        assert f"This customer could not be deleted. {REFUSED}" in answer.text
+        assert "because other records still refer" not in answer.text
+        async with database.session() as session:
+            assert await session.get(Customer, key) is not None
 
     async def test_a_key_that_is_not_a_number_is_not_found(
         self, client: httpx.AsyncClient

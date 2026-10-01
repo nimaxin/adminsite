@@ -115,6 +115,10 @@ class BigSpenders(SQLFilter[Customer]):
 A filter can also depend on who is asking: return it from `get_list_filters(request)` instead of
 naming it in `list_filters`, and it is offered and applied for that request alone.
 
+A filter on a field that `can_access_field` keeps from the user on the list is neither offered to
+them nor applied when the URL names it, since its choices and their counts would give the field's
+values away. See [Permissions](permissions.md#fields).
+
 ## One place for every read
 
 The list, its count, a CSV export and a bulk action all go through the same filters. "Select all

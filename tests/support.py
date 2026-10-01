@@ -7,6 +7,13 @@ from sqlalchemy import Engine, event
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Product
 
+# What people read when the database refuses a change, whatever the rule.
+REFUSED = (
+    "The database refused the change. A value that must be unique may already "
+    "be taken, a required value may be missing, or other records may still "
+    "refer to one being removed."
+)
+
 
 @dataclass
 class Backend:

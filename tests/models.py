@@ -12,6 +12,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Table,
+    func,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -170,6 +171,19 @@ class Article(Base):
     tags: Mapped[list[Tag]] = relationship(
         secondary=article_tags, order_by=article_tags.c.id
     )
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class Draft(Base):
+    """A row the database stamps on every change, for values set in a save."""
+
+    __tablename__ = "drafts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    updated_at: Mapped[datetime | None] = mapped_column(onupdate=func.now())
 
     def __str__(self) -> str:
         return self.title

@@ -4,10 +4,11 @@ import dataclasses
 import enum
 import re
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import InitVar, dataclass
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Annotated, Any, Literal, assert_type
+from uuid import UUID
 
 import httpx
 import pytest
@@ -18,18 +19,22 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
-from adminsite.actions import Input, Selection, action
+from adminsite.actions import Action, Input, Selection, action
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import (
     BooleanField,
     DateField,
+    DateTimeField,
     DecimalField,
     EnumField,
+    FloatField,
     IntegerField,
     RelationField,
     StringField,
     TextAreaField,
+    TimeField,
+    UUIDField,
 )
 from adminsite.fields.files import UploadField
 from tests.models import Customer, Order, OrderStatus
@@ -51,6 +56,27 @@ class Discount:
     ]
     round_to: Decimal = Decimal("0.05")
     only_pending: bool = True
+
+
+@dataclass
+class Signed:
+    """A note, signed with the initials of whoever wrote it."""
+
+    note: str
+    initials: InitVar[str]
+
+    def __post_init__(self, initials: str) -> None:
+        self.note = f"{self.note} ({initials})"
+
+
+@dataclass(frozen=True)
+class Markdown:
+    percent: Decimal
+
+
+@dataclass(frozen=True)
+class Refund:
+    percent: Decimal
 
 
 class OrderView(ModelView[Order]):
@@ -97,6 +123,53 @@ class OrderView(ModelView[Order]):
         seen["customer"] = customer
         return f"Order {order.id} handed to {customer.name}."
 
+    @action("Stamp", on="record")
+    async def stamp(self, *, order: Order) -> str:
+        seen["stamped"] = order
+        return f"Order {order.id} stamped."
+
+    @action("Sign")
+    async def sign(self, selection: Selection[Order], *, signed: Signed) -> str:
+        seen["signed"] = signed
+        return "Signed."
+
+    @action("Adjust")
+    async def adjust(
+        self, selection: Selection[Order], *, markdown: Markdown, refund: Refund
+    ) -> str:
+        return "Adjusted."
+
+    @action("Print labels")
+    async def print_labels(
+        self, selection: Selection[Order], *, copies: int | None = 2
+    ) -> str:
+        seen["copies"] = copies
+        return "Printed."
+
+    @action("Look")
+    async def look(
+        self,
+        selection: Selection[Order],
+        request: Request | None = None,
+        session: SessionAdapter | None = None,
+    ) -> str:
+        seen.update(request=request, session=session)
+        return "Looked."
+
+    @action("Schedule")
+    async def schedule(
+        self,
+        selection: Selection[Order],
+        *,
+        rate: float,
+        at: datetime,
+        opens: time,
+        code: UUID,
+        carriers: list[Carrier],
+    ) -> str:
+        seen.update(rate=rate, at=at, opens=opens, code=code, carriers=carriers)
+        return "Scheduled."
+
     @action("Read a file", on="view", permission=Permission.VIEW)
     async def read_file(
         self,
@@ -120,17 +193,65 @@ class Moves(ModelView[Order]):
     name = "moves"
 
     @action("Move")
-    async def move(self, selection: Selection[Order], *, warehouse: str) -> str:
-        seen["warehouse"] = warehouse
+    async def move(
+        self, selection: Selection[Order], *, warehouse: str, note: str
+    ) -> str:
+        seen.update(warehouse=warehouse, note=note)
         return f"Moved to {warehouse}."
+
+    async def by_hand(self, selection: Selection[Order], *, reason: str) -> str:
+        seen["reason"] = reason
+        return f"Done by hand: {reason}."
 
     def get_actions(self, request: Any = None) -> tuple[Any, ...]:
         choices = (("north", "North"), ("south", "South"))
-        return tuple(
-            dataclasses.replace(item, inputs=(EnumField("warehouse", choices=choices),))
-            if item.name == "move"
-            else item
-            for item in super().get_actions(request)
+        return (
+            *(
+                dataclasses.replace(
+                    item, inputs=(EnumField("warehouse", choices=choices),)
+                )
+                if item.name == "move"
+                else item
+                for item in super().get_actions(request)
+            ),
+            Action(name="by_hand", label="By hand", method="by_hand"),
+        )
+
+
+class Twice(OrderView):
+    """Offers two of its actions again, under other names."""
+
+    name = "twice"
+
+    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+        found = super().get_actions(request)
+        return (
+            *found,
+            *(
+                dataclasses.replace(item, name=f"{item.name}_again", label="Again")
+                for item in found
+                if item.name in ("discount", "add_note")
+            ),
+        )
+
+
+class Mistaken(ModelView[Order]):
+    """Builds an action by hand that asks for a value its method never takes."""
+
+    name = "mistaken"
+
+    async def by_hand(self, selection: Selection[Order]) -> str:
+        return "Done by hand."
+
+    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+        return (
+            *super().get_actions(request),
+            Action(
+                name="by_hand",
+                label="By hand",
+                method="by_hand",
+                inputs=(StringField("reason"),),
+            ),
         )
 
 
@@ -258,6 +379,64 @@ class TestWhatTheDialogAsksFor:
         assert isinstance(asked["kind"], EnumField)
         assert asked["kind"].choices == (("orders", "Orders"), ("returns", "Returns"))
         assert asked["kind"].default == "orders"
+
+    def test_a_literal_keeps_the_capitals_it_was_written_with(self) -> None:
+        class Shipping(ModelView[Order]):
+            @action("Ship")
+            async def ship(
+                self,
+                selection: Selection[Order],
+                *,
+                carrier: Literal["DHL", "PostNL", "next_day"],
+            ) -> str:
+                return ""
+
+        (carrier,) = Shipping()._action_named("ship").inputs
+
+        assert isinstance(carrier, EnumField)
+        assert carrier.choices == (
+            ("DHL", "DHL"),
+            ("PostNL", "PostNL"),
+            ("next_day", "Next day"),
+        )
+
+    def test_every_plain_type_has_its_input(self) -> None:
+        asked = inputs_of("schedule")
+
+        assert isinstance(asked["rate"], FloatField)
+        assert isinstance(asked["at"], DateTimeField)
+        assert isinstance(asked["opens"], TimeField)
+        assert isinstance(asked["code"], UUIDField)
+        assert isinstance(asked["carriers"], EnumField)
+        assert asked["carriers"].enum is Carrier
+        assert asked["carriers"].multiple is True
+
+    def test_an_init_var_is_asked_for_with_the_fields(self) -> None:
+        assert list(inputs_of("sign")) == ["signed.note", "signed.initials"]
+
+    def test_the_record_goes_to_its_type_after_the_star(self) -> None:
+        stamp = OrderView()._action_named("stamp")
+
+        assert stamp.inputs == ()
+        assert stamp.needs_dialog is False
+
+    def test_what_is_handed_may_be_typed_optional(self) -> None:
+        look = OrderView()._action_named("look")
+
+        assert look.inputs == ()
+        assert look.call is not None
+        assert [(one.name, one.kind) for one in look.call.handed] == [
+            ("selection", "subject"),
+            ("request", "request"),
+            ("session", "session"),
+        ]
+
+    def test_a_default_where_none_is_allowed_opens_the_dialog(self) -> None:
+        copies = inputs_of("print_labels")["copies"]
+
+        assert isinstance(copies, IntegerField)
+        assert copies.default == 2
+        assert copies.required is False
 
     def test_input_may_sit_inside_or_around_none(self) -> None:
         class Notes(ModelView[Order]):
@@ -412,6 +591,63 @@ class TestTheValuesArriveTyped:
         assert seen["customer"].id == 2
         assert f"handed to {seen['customer'].name}" in answer.text
 
+    async def test_emptied_where_none_is_allowed_it_is_none(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        await run(client, "print_labels", {"keys": ["1"], "copies": ""})
+
+        assert seen["copies"] is None
+
+    async def test_every_plain_type_as_its_type(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        code = UUID("12345678-1234-5678-1234-567812345678")
+        answer = await run(
+            client,
+            "schedule",
+            {
+                "keys": ["1"],
+                "rate": "0.5",
+                "at": "2026-09-30T10:00",
+                "opens": "09:30",
+                "code": str(code),
+                "carriers": ["DHL", "UPS"],
+            },
+        )
+
+        assert "Scheduled." in answer.text
+        assert seen["rate"] == 0.5
+        assert isinstance(seen["rate"], float)
+        assert seen["at"] == datetime(2026, 9, 30, 10, 0)
+        assert seen["opens"] == time(9, 30)
+        assert seen["code"] == code
+        assert seen["carriers"] == [Carrier.DHL, Carrier.UPS]
+
+    async def test_a_group_with_an_init_var(self, client: httpx.AsyncClient) -> None:
+        await run(
+            client,
+            "sign",
+            {"keys": ["1"], "signed.note": "Checked", "signed.initials": "NN"},
+        )
+
+        assert isinstance(seen["signed"], Signed)
+        assert seen["signed"].note == "Checked (NN)"
+
+    async def test_the_record_after_the_star(self, client: httpx.AsyncClient) -> None:
+        answer = await run(client, "stamp", {"keys": "2"})
+
+        assert "Order 2 stamped." in answer.text
+        assert isinstance(seen["stamped"], Order)
+        assert seen["stamped"].id == 2
+
+    async def test_the_request_and_the_session_typed_optional(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        await run(client, "look", {"keys": ["1"]})
+
+        assert isinstance(seen["request"], Request)
+        assert isinstance(seen["session"], SessionAdapter)
+
     async def test_a_file_as_it_was_sent(self, client: httpx.AsyncClient) -> None:
         answer = await run(
             client,
@@ -429,6 +665,21 @@ class TestTheValuesArriveTyped:
 
         assert "Ship was not done. Carrier: This field is required." in answer.text
         assert seen == {}
+
+    async def test_a_problem_in_a_group_names_the_group(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await run(
+            client,
+            "adjust",
+            {"keys": ["1"], "markdown.percent": "a lot", "refund.percent": "some"},
+        )
+
+        wrong = "Enter an amount, for example 12.50."
+        assert (
+            f"Adjust was not done. Markdown, Percent: {wrong}; Refund, Percent: {wrong}"
+            in answer.text
+        )
 
     async def test_a_file_of_another_type_is_refused(
         self, client: httpx.AsyncClient
@@ -448,13 +699,34 @@ class TestChoicesPerRequest:
         page = await client.get("/admin/moves")
         answer = await client.post(
             "/admin/moves/action/move",
-            data={"_csrf": token_in(page), "keys": ["1"], "warehouse": "north"},
+            data={
+                "_csrf": token_in(page),
+                "keys": ["1"],
+                "warehouse": "north",
+                "note": "Fragile",
+            },
             follow_redirects=True,
         )
 
-        assert '<option value="north"' in dialog_for(page, "move")
+        dialog = dialog_for(page, "move")
+        assert '<option value="north"' in dialog
+        assert 'name="note"' in dialog
         assert "Moved to north." in answer.text
-        assert seen["warehouse"] == "north"
+        assert seen == {"warehouse": "north", "note": "Fragile"}
+
+    async def test_an_action_built_by_hand_asks_for_its_values(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/moves")
+        answer = await client.post(
+            "/admin/moves/action/by_hand",
+            data={"_csrf": token_in(page), "keys": ["1"], "reason": "Stock count"},
+            follow_redirects=True,
+        )
+
+        assert 'name="reason"' in dialog_for(page, "by_hand")
+        assert "Done by hand: Stock count." in answer.text
+        assert seen["reason"] == "Stock count"
 
     async def test_a_value_never_offered_is_refused(
         self, client: httpx.AsyncClient
@@ -462,12 +734,113 @@ class TestChoicesPerRequest:
         page = await client.get("/admin/moves")
         answer = await client.post(
             "/admin/moves/action/move",
-            data={"_csrf": token_in(page), "keys": ["1"], "warehouse": "west"},
+            data={
+                "_csrf": token_in(page),
+                "keys": ["1"],
+                "warehouse": "west",
+                "note": "Fragile",
+            },
             follow_redirects=True,
         )
 
         assert "Choose one of the listed options." in answer.text
         assert seen == {}
+
+
+class TestOfferedAgainUnderAnotherName:
+    @pytest.fixture
+    async def twice(self, database: Database) -> AsyncIterator[httpx.AsyncClient]:
+        seen.clear()
+        admin = Admin(
+            database, views=[Twice, CustomerView], secret_key="for-the-session"
+        )
+        async with serve(admin) as client:
+            yield client
+
+    async def test_it_asks_for_what_the_action_asks_for(
+        self, twice: httpx.AsyncClient
+    ) -> None:
+        page = await twice.get("/admin/twice")
+
+        assert page.status_code == 200
+        assert 'name="discount.percent"' in dialog_for(page, "discount_again")
+
+    async def test_its_group_arrives_as_the_dataclass(
+        self, twice: httpx.AsyncClient
+    ) -> None:
+        page = await twice.get("/admin/twice")
+        answer = await twice.post(
+            "/admin/twice/action/discount_again",
+            data={"_csrf": token_in(page), "keys": ["1"], "discount.percent": "10"},
+            follow_redirects=True,
+        )
+
+        assert "Discounted." in answer.text
+        assert seen["discount"] == Discount(
+            percent=Decimal("10"), round_to=Decimal("0.05"), only_pending=False
+        )
+
+    async def test_left_empty_it_takes_the_default(
+        self, twice: httpx.AsyncClient
+    ) -> None:
+        page = await twice.get("/admin/twice")
+        await twice.post(
+            "/admin/twice/action/add_note_again",
+            data={"_csrf": token_in(page), "keys": "3", "note": "Call", "copies": ""},
+            follow_redirects=True,
+        )
+
+        assert seen["copies"] == 1
+
+
+MISTAKEN_RUNS = [
+    pytest.param(
+        "POST", "/admin/mistaken/action/by_hand", {"data": {"keys": "1"}}, id="form"
+    ),
+    pytest.param(
+        "POST",
+        "/admin/-/api/mistaken/actions/by_hand",
+        {"json": {"keys": ["1"]}},
+        id="api",
+    ),
+    pytest.param(
+        "GET", "/admin/mistaken/action/by_hand/lookup/reason", {}, id="lookup"
+    ),
+]
+
+
+class TestAnActionThatIsNotThere:
+    async def test_a_name_nothing_offers_is_not_found(self, database: Database) -> None:
+        admin = Admin(database, views=[Mistaken], api=True)
+        async with serve(admin) as client:
+            by_form = await client.post(
+                "/admin/mistaken/action/fly", data={"keys": "1"}
+            )
+            by_api = await client.post(
+                "/admin/-/api/mistaken/actions/fly", json={"keys": ["1"]}
+            )
+            lookup = await client.get("/admin/mistaken/action/fly/lookup/reason")
+
+        assert [answer.status_code for answer in (by_form, by_api, lookup)] == [
+            404,
+            404,
+            404,
+        ]
+        assert by_api.json() == {"error": "No such action."}
+
+    @pytest.mark.parametrize(("method", "url", "sent"), MISTAKEN_RUNS)
+    async def test_a_mistake_in_one_is_not_taken_for_a_missing_one(
+        self, database: Database, method: str, url: str, sent: dict[str, Any]
+    ) -> None:
+        admin = Admin(database, views=[Mistaken], api=True)
+        async with serve(admin) as client:
+            with pytest.raises(AdminSiteError) as raised:
+                await client.request(method, url, **sent)
+
+        assert str(raised.value) == (
+            "Mistaken.by_hand: inputs asks for 'reason', and the method has no "
+            "parameter by that name. Add reason to its parameters."
+        )
 
 
 class TestSQLAlchemysOwnSession:
@@ -571,6 +944,26 @@ class InputWithNoParameter(ModelView[Order]):
         return ""
 
 
+class StarArgs(ModelView[Order]):
+    @action("Tag")
+    async def tag(self, selection: Selection[Order], *labels: str) -> str:
+        return ""
+
+
+class PositionalOnly(ModelView[Order]):
+    @action("Tag")
+    async def tag(self, selection: Selection[Order], label: str, /) -> str:
+        return ""
+
+
+class OptionalGroup(ModelView[Order]):
+    @action("Ship")
+    async def ship(
+        self, selection: Selection[Order], *, address: Address | None = None
+    ) -> str:
+        return ""
+
+
 class TypeNobodyImported(ModelView[Order]):
     @action("Ship")
     async def ship(
@@ -592,6 +985,9 @@ REFUSED: dict[type[ModelView[Any]], list[str]] = {
     OptionItHasNoUseFor: ["copies", "Input(multiline=...)"],
     GroupInAGroup: ["shipping.address", "dataclass inside a dataclass"],
     InputWithNoParameter: ["'carrier'", "no parameter by that name"],
+    StarArgs: ["*labels cannot be filled in", "Name each parameter"],
+    PositionalOnly: ["label comes before a /", "Move the / before it"],
+    OptionalGroup: ["address is typed Address | None", "always asked for"],
     TypeNobodyImported: ["Nowhere", "TYPE_CHECKING"],
 }
 

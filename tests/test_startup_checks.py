@@ -4,20 +4,80 @@ Each message names the view, the setting, and what the setting could have
 named instead.
 """
 
+from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 import pytest
+from sqlalchemy import CHAR, DateTime
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 from adminsite import AdminSiteError, Descending, Field, Inline, ModelView
 from adminsite.backends.sqlalchemy import SQLAlchemyInspector
-from adminsite.fields import ComputedField, EnumField, RelationField
-from tests.models import Customer, Order
+from adminsite.fields import (
+    BooleanField,
+    ComputedField,
+    DateField,
+    DateTimeField,
+    EnumField,
+    RelationField,
+    StringField,
+    UUIDField,
+)
+from tests.models import Customer, Order, OrderItem
 from tests.reference import startup_mistakes
 from tests.reference.startup_mistakes import EXPECTED
 
 
 def line_count(order: Order) -> int:
     return len(order.items)
+
+
+class CustomTypes(DeclarativeBase):
+    pass
+
+
+class TZDateTime(TypeDecorator[datetime]):
+    """A datetime kept in UTC, as SQLAlchemy's own recipe writes it."""
+
+    impl = DateTime
+    cache_ok = True
+
+
+class GUID(TypeDecorator[UUID]):
+    """A UUID kept as 32 characters, as SQLAlchemy's own recipe writes it."""
+
+    impl = CHAR(32)
+    cache_ok = True
+
+
+class NamesNothing(TypeDecorator[datetime]):
+    """Raises for its python type, as SQLAlchemy 2.0 does for a TypeDecorator."""
+
+    impl = DateTime
+    cache_ok = True
+
+    @property
+    def python_type(self) -> type[Any]:
+        raise NotImplementedError
+
+
+class Ticket(UserDefinedType[UUID]):
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "CHAR(32)"
+
+
+class Event(CustomTypes):
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    starts_at: Mapped[datetime] = mapped_column(TZDateTime)
+    token: Mapped[UUID] = mapped_column(GUID)
+    ends_at: Mapped[datetime] = mapped_column(NamesNothing)
+    ticket: Mapped[UUID] = mapped_column(Ticket)
 
 
 def refusal(view: type[ModelView[Any]]) -> str:
@@ -141,13 +201,57 @@ class TestARecordTitle:
 
         assert "cannot be read: {} names no column." in refusal(Titled)
 
-    def test_a_related_record_is_read_through_its_link(self) -> None:
+    def test_a_relationship_is_refused(self) -> None:
         class Titled(ModelView[Order]):
             record_title = "{customer.name}, #{id}"
 
-        order = Order(id=3, customer=Customer(name="Lena"))
+        assert refusal(Titled) == (
+            'Titled.record_title: "{customer.name}, #{id}" reads through the '
+            'relationship "customer". A record_title reads Order\'s own columns, '
+            "since every page naming a record would otherwise load its links too. "
+            "Its columns: id, customer_id, status, total, note, created_at."
+        )
 
-        assert Titled().get_record_title(order) == "Lena, #3"
+    def test_a_relationship_on_its_own_is_refused(self) -> None:
+        class Titled(ModelView[Customer]):
+            record_title = "{name}: {orders}"
+
+        assert refusal(Titled).startswith(
+            'Titled.record_title: "{name}: {orders}" reads through the '
+            'relationship "orders".'
+        )
+
+    def test_an_inline_s_relationship_is_refused(self) -> None:
+        class WithLines(ModelView[Order]):
+            inlines = [Inline(Order.items, record_title="{product.name}")]
+
+        assert refusal(WithLines) == (
+            'WithLines.inlines[0].record_title: "{product.name}" reads through the '
+            'relationship "product". A record_title reads OrderItem\'s own '
+            "columns, since every page naming a record would otherwise load its "
+            "links too. Its columns: id, order_id, product_id, quantity, unit_price."
+        )
+
+    def test_a_link_s_relationship_is_refused(self) -> None:
+        class Linked(ModelView[Order]):
+            fields = [
+                Order.id,
+                RelationField(Order.customer, record_title="{orders}"),
+            ]
+
+        assert refusal(Linked).startswith(
+            "Linked.fields: RelationField(Order.customer): its record_title "
+            '"{orders}" reads through the relationship "orders". A record_title '
+            "reads Customer's own columns"
+        )
+
+    def test_a_column_s_own_attribute_is_read(self) -> None:
+        class Titled(ModelView[Order]):
+            record_title = "#{id} of {created_at.year}"
+
+        order = Order(id=3, created_at=datetime(2026, 5, 1))
+
+        assert Titled().get_record_title(order) == "#3 of 2026"
 
     def test_an_inline_s_is_checked_against_its_model(self) -> None:
         class WithLines(ModelView[Order]):
@@ -199,11 +303,98 @@ class TestWhatASettingTakes:
 
         assert "goes through a relationship holding many records" in refusal(Sorted)
 
+    def test_a_sort_takes_a_column_the_model_has(self) -> None:
+        class Sortable(ModelView[Order]):
+            sortable_fields = ["totl"]
+
+        assert refusal(Sortable) == (
+            'Sortable.sortable_fields: Order has no column or relationship "totl". '
+            "Its columns: id, customer_id, status, total, note, created_at. "
+            "Its relationships: customer, items."
+        )
+
+    def test_a_sort_takes_columns_not_a_relationship(self) -> None:
+        class Sortable(ModelView[Order]):
+            sortable_fields = [Order.customer]
+
+        class Sorted(ModelView[Order]):
+            fields_default_sort = [Order.customer]
+
+        assert refusal(Sortable) == (
+            'Sortable.sortable_fields: "customer" is a relationship, and '
+            "sortable_fields takes columns. Name a column of Customer, such as "
+            '"customer.name".'
+        )
+        assert refusal(Sorted) == (
+            'Sorted.fields_default_sort: "customer" is a relationship, and '
+            "fields_default_sort takes columns. Name a column of Customer, such as "
+            '"customer.name".'
+        )
+
+    def test_no_list_is_sortable_through_a_relationship_holding_many(self) -> None:
+        class Sortable(ModelView[Customer]):
+            sortable_fields = ["orders.total"]
+
+        assert refusal(Sortable) == (
+            'Sortable.sortable_fields: "orders.total" goes through a relationship '
+            "holding many records, so no list can be sorted by it."
+        )
+
+    def test_a_sort_takes_no_computed_field(self) -> None:
+        class Sortable(ModelView[Order]):
+            fields = [Order.id, ComputedField("lines", line_count)]
+            sortable_fields = ["lines"]
+
+        class Sorted(ModelView[Order]):
+            fields = [Order.id, ComputedField("lines", line_count)]
+            fields_default_sort = ["lines"]
+
+        assert refusal(Sortable) == (
+            'Sortable.sortable_fields: ComputedField("lines") is a field of the '
+            "view, not a column of Order, and sortable_fields takes columns."
+        )
+        assert refusal(Sorted) == (
+            'Sorted.fields_default_sort: ComputedField("lines") is a field of the '
+            "view, not a column of Order, and fields_default_sort takes columns."
+        )
+
     def test_a_deferred_column_is_the_model_s_own(self) -> None:
         class Deferred(ModelView[Order]):
             deferred_fields = [Order.customer]
 
         assert "takes the model's own columns" in refusal(Deferred)
+
+
+class TestAnExcludeList:
+    def test_a_key_shown_as_its_relationship_names_the_relationship(self) -> None:
+        class Listed(ModelView[Order]):
+            exclude_fields_from_list = [Order.customer_id]
+
+        assert refusal(Listed) == (
+            'Listed.exclude_fields_from_list: "customer_id" is shown as its '
+            'relationship "customer". Name "customer".'
+        )
+
+    def test_a_field_the_view_does_not_show_is_refused(self) -> None:
+        class Exported(ModelView[Order]):
+            fields = [Order.id, Order.status]
+            exclude_fields_from_export = [Order.note]
+
+        assert refusal(Exported) == (
+            'Exported.exclude_fields_from_export: "note" is not among the fields '
+            "the view shows, so leaving it off does nothing. The view's fields: "
+            "id, status."
+        )
+
+    def test_an_inline_leaves_the_link_back_off_only_where_it_shows(self) -> None:
+        class Every(ModelView[Order]):
+            inlines = [Inline(Order.items)]
+
+        class Chosen(ModelView[Order]):
+            inlines = [Inline(Order.items, fields=[OrderItem.product])]
+
+        assert "order" not in Every()._inline_view("items")._form_fields()
+        assert Chosen()._inline_view("items")._form_fields() == ("product",)
 
 
 class TestAField:
@@ -227,8 +418,181 @@ class TestAField:
             "REFUNDED."
         )
 
+    def test_a_kind_on_a_relationship_is_refused(self) -> None:
+        class Wrong(ModelView[Order]):
+            fields = [StringField("customer")]
+
+        assert refusal(Wrong) == (
+            'Wrong.fields: StringField("customer") names a relationship. Show it '
+            "with RelationField, or name it in fields without a field."
+        )
+
     def test_a_choice_field_takes_its_choices_from_an_enum_column(self) -> None:
         class Statuses(ModelView[Order]):
             fields = [EnumField(Order.status)]
 
         assert Statuses()._field_for("status").display("PAID") == "Paid"
+
+    def test_one_in_an_inline_names_the_view_and_the_setting(self) -> None:
+        class WithLines(ModelView[Order]):
+            inlines = [Inline(Order.items, fields=[EnumField(OrderItem.quantity)])]
+
+        message = refusal(WithLines)
+
+        assert message.startswith(
+            "WithLines.inlines[0].fields: EnumField(OrderItem.quantity) has "
+            "nothing to choose from."
+        )
+        assert "OrderItemInline" not in message
+
+    def test_a_choice_names_a_member_of_the_column_s_enum(self) -> None:
+        class Statuses(ModelView[Order]):
+            fields = [EnumField(Order.status, choices=[("PIAD", "Paid")])]
+
+        assert refusal(Statuses) == (
+            'Statuses.fields: EnumField(Order.status): its choices name "PIAD", '
+            "which is not a member of OrderStatus. Name a member by its name or "
+            "its value: PENDING, PAID, SHIPPED, REFUNDED."
+        )
+
+
+class TestAKindFitsItsColumn:
+    def test_relation_field_on_a_foreign_key_names_the_relationship(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, RelationField(Order.customer_id)]
+
+        assert refusal(Orders) == (
+            "Orders.fields: RelationField(Order.customer_id) names a column, and "
+            "RelationField shows a relationship. Write RelationField(Order.customer)."
+        )
+
+    def test_one_named_by_a_string_is_answered_by_a_string(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, RelationField("customer_id")]
+
+        assert refusal(Orders).endswith('Write RelationField("customer").')
+
+    def test_relation_field_on_another_column_lists_the_relationships(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, RelationField(Order.note)]
+
+        assert refusal(Orders).endswith(
+            "Name one of Order's relationships: customer, items."
+        )
+
+    def test_a_kind_named_by_a_string_is_checked_against_the_column(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, BooleanField("created_at")]
+
+        assert refusal(Orders) == (
+            'Orders.fields: BooleanField("created_at") is for bool values, and '
+            "Order.created_at holds datetime. Use DateTimeField, or name the "
+            "column without a field."
+        )
+
+    def test_a_kind_named_by_its_attribute_is_left_to_the_type_checker(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, BooleanField(Order.created_at)]  # type: ignore[arg-type]
+
+        view = Orders(SQLAlchemyInspector())
+
+        assert isinstance(view._field_for("created_at"), BooleanField)
+
+    def test_a_narrower_type_or_a_kind_for_any_value_fits(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [
+                Order.id,
+                DateField("created_at"),
+                EnumField("note", choices=[("gift", "Gift")]),
+            ]
+
+        view = Orders()
+
+        assert isinstance(view._field_for("created_at"), DateField)
+        assert isinstance(view._field_for("note"), EnumField)
+
+
+class TestAColumnOfATypeOfItsOwn:
+    """Its type names no python type to check a kind against."""
+
+    def kinds(self, view: type[ModelView[Any]]) -> dict[str, str]:
+        built = view(SQLAlchemyInspector())
+        return {
+            path: type(built._field_for(path)).__name__
+            for path in ("starts_at", "token", "ends_at", "ticket")
+        }
+
+    def test_named_by_its_attribute(self) -> None:
+        class Events(ModelView[Event]):
+            fields = [
+                Event.id,
+                DateTimeField(Event.starts_at),
+                UUIDField(Event.token),
+                DateTimeField(Event.ends_at),
+                UUIDField(Event.ticket),
+            ]
+
+        assert self.kinds(Events) == {
+            "starts_at": "DateTimeField",
+            "token": "UUIDField",
+            "ends_at": "DateTimeField",
+            "ticket": "UUIDField",
+        }
+
+    def test_named_by_a_string(self) -> None:
+        class Events(ModelView[Event]):
+            fields = [
+                "id",
+                DateTimeField("starts_at"),
+                UUIDField("token"),
+                DateTimeField("ends_at"),
+                UUIDField("ticket"),
+            ]
+
+        assert self.kinds(Events) == {
+            "starts_at": "DateTimeField",
+            "token": "UUIDField",
+            "ends_at": "DateTimeField",
+            "ticket": "UUIDField",
+        }
+
+    def test_relation_field_is_still_refused(self) -> None:
+        class Events(ModelView[Event]):
+            fields = [Event.id, RelationField("starts_at")]
+
+        assert refusal(Events).startswith(
+            'Events.fields: RelationField("starts_at") names a column, and '
+            "RelationField shows a relationship."
+        )
+
+
+class TestAnOptionTheKindNeverReads:
+    def test_it_is_refused(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, DateTimeField(Order.created_at, max_length=5)]
+
+        assert refusal(Orders) == (
+            "Orders.fields: DateTimeField(Order.created_at) has no use for "
+            "max_length=5. Leave it out."
+        )
+
+    def test_field_on_its_own_names_the_kind_it_became(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, Field(Order.status, max_length=10)]
+
+        assert refusal(Orders) == (
+            "Orders.fields: Field(Order.status) becomes EnumField, which has no use "
+            "for max_length=10. Leave it out."
+        )
+
+    def test_a_computed_field_takes_no_form_options(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, ComputedField("lines", line_count, read_only=True)]
+
+        assert "has no use for read_only=True" in refusal(Orders)
+
+    def test_an_option_written_as_its_default_is_taken(self) -> None:
+        class Orders(ModelView[Order]):
+            fields = [Order.id, ComputedField("lines", line_count, read_only=False)]
+
+        assert not Orders()._field_for("lines").read_only

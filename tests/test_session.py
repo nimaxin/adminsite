@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import Engine, exc, func, select
+from sqlalchemy import Engine, exc, func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -12,7 +12,7 @@ from adminsite.backends.sqlalchemy import (
 )
 from adminsite.exceptions import AdminSiteError, IntegrityError
 from tests.models import Customer, Order, Product
-from tests.support import spare_product
+from tests.support import REFUSED, spare_product
 
 
 class TestDatabase:
@@ -41,6 +41,18 @@ class TestDatabase:
     def test_anything_else_is_refused(self) -> None:
         with pytest.raises(AdminSiteError, match="engine or a session factory"):
             Database("sqlite://")  # type: ignore[arg-type]
+
+    async def test_a_record_stays_loaded_after_a_commit_whatever_the_factory(
+        self, plain_factory: async_sessionmaker[AsyncSession] | sessionmaker[Session]
+    ) -> None:
+        async with Database(plain_factory).session() as session:
+            product = Product(name="Felt hat", price=Decimal("42.00"))
+            await session.add(product)
+            await session.commit()
+
+            # Read without a query, which an async session would refuse here.
+            assert not inspect(product).expired_attributes
+            assert product.name == "Felt hat"
 
 
 class TestReading:
@@ -176,6 +188,20 @@ class TestRefusedChanges:
                     await session.flush()
 
             assert isinstance(raised.value.__cause__, exc.IntegrityError)
+
+    async def test_its_message_is_for_people_and_holds_no_values(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            await session.add(Customer(name="Twin", email="lena@fischer.de"))
+
+            with pytest.raises(IntegrityError) as raised:
+                await session.commit()
+
+        cause = raised.value.__cause__
+        assert str(raised.value) == REFUSED
+        assert isinstance(cause, exc.IntegrityError)
+        assert str(cause.orig) not in str(raised.value)
 
     async def test_a_refused_commit_is_rolled_back(self, database: Database) -> None:
         rolled_back: list[str] = []

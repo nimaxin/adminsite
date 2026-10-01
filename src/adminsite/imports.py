@@ -11,10 +11,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import EnumField, FileField, ListField, RelationField
+from adminsite.http.export import as_cell
 from adminsite.i18n import gettext as _
+from adminsite.security import RequestAction
+from adminsite.text import plain
 from adminsite.views import ModelView
 
 __all__ = [
@@ -147,12 +151,20 @@ class ImportPlan:
 
 
 def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
-    """The paths a file can fill: the key, then the form's own fields."""
-    readonly = set(view._readonly_paths(request))
+    """The paths a file can fill: the key, then what either form writes.
+
+    A new record takes the create form's fields. A record that exists takes
+    its edit form's, which `check_row` holds each row to.
+    """
+    wanted = set(view._writable_paths(request)) | {
+        path
+        for path in view._form_fields(request, page=RequestAction.EDIT)
+        if not view._locked(path, saved=True)
+    }
     fields = tuple(
         path
-        for path in view._form_fields(request)
-        if path not in readonly
+        for path in view._candidates()
+        if path in wanted
         and view._field_for(path).stored
         and not isinstance(view._field_for(path), FileField)
         and not _is_collection(view, path)
@@ -214,8 +226,21 @@ async def build_plan(
 
     key_name = view._schema.primary_key[0] if len(view._schema.primary_key) == 1 else ""
     existing = await _existing(view, session, rows, key_name, request)
+    added: dict[Any, int] = {}
     for row in rows:
         check_row(view, row, key_name, existing, request)
+        new_key = row.values.get(key_name) if row.action == "create" else None
+        if new_key is None:
+            continue
+        # A second row adding the same key would only fail in the database.
+        first = added.setdefault(new_key, row.number)
+        if first != row.number:
+            row.errors[key_name] = _(
+                "Row {number} already adds a {thing} with the key {key}.",
+                number=first,
+                thing=view.label.lower(),
+                key=row.raw[key_name],
+            )
     return ImportPlan(columns, ignored, rows)
 
 
@@ -226,25 +251,43 @@ async def _existing(
     key_name: str,
     request: Any,
 ) -> dict[str, Any]:
-    """The records the file names by key, found in one query per 500."""
+    """The records the file names by key, found in one query per 500.
+
+    Each is found under the text the file names it by, so 07 finds the
+    record keyed 7.
+    """
     if not key_name:
         return {}
     column = getattr(view.model, key_name)
     python_type = view._schema.field_named(key_name).python_type
-    wanted = []
+    named: dict[Any, list[str]] = {}
     for key in {row.raw[key_name] for row in rows if row.raw.get(key_name)}:
         try:
-            wanted.append(to_column_type(python_type, key))
+            named.setdefault(to_column_type(python_type, key), []).append(key)
         except ValueError:
             continue
+    wanted = list(named)
     found: dict[str, Any] = {}
     scope = view._scope_for(request)
+    # Loaded with the edit form's fields, which each row is held to, and with
+    # every column the file can fill, which a row is compared with.
+    paths = view._loadable(
+        [
+            *view._form_fields(request, page=RequestAction.EDIT),
+            *import_columns(view, request),
+        ]
+    )
     for start in range(0, len(wanted), 500):
         statement = view._repository.base_statement(scope).where(
             column.in_(wanted[start : start + 500])
         )
-        for record in (await session.scalars(statement)).all():
-            found[str(getattr(record, key_name))] = record
+        if paths:
+            statement = statement.options(
+                *build_load_options(view._inspector, view.model, paths)
+            )
+        for record in (await session.scalars(statement)).unique().all():
+            for key in named.get(getattr(record, key_name), ()):
+                found[key] = record
     return found
 
 
@@ -255,20 +298,39 @@ def check_row(
     existing: dict[str, Any],
     request: Any = None,
 ) -> None:
-    """Read one row into values, noting what is wrong with it."""
+    """Read one row into values, noting what is wrong with it.
+
+    A row that changes a record goes by that record's edit form. A column the
+    form does not let this user change may stay as the record has it, so a
+    file exported and imported again goes through, and nothing else. A key
+    people type on the create form that names no record adds one with it.
+    """
     key = row.raw.get(key_name, "") if key_name else ""
-    record = None
-    if key:
-        record = existing.get(key)
-        if record is None:
-            row.errors[key_name] = _(
-                "No {thing} has the key {key}.", thing=view.label.lower(), key=key
-            )
-            return
+    record = existing.get(key) if key else None
+    writable = set(view._writable_paths(request, record))
+    if key and record is None and key_name not in writable:
+        row.errors[key_name] = _(
+            "No {thing} has the key {key}.", thing=view.label.lower(), key=key
+        )
+        return
+    if record is not None:
         row.key = key
 
+    readable = set(view._readable_paths(request)) if record is not None else set()
     for path, text in row.raw.items():
-        if path == key_name:
+        if path == key_name and record is not None:
+            continue
+        if path not in writable:
+            if record is None and text:
+                row.errors[path] = _("This field cannot be written.")
+            elif record is not None and not (
+                _unchanged(view, record, path, text)
+                if path in readable
+                # Compared with a value this user cannot read, a guess would
+                # find it out, so only an empty cell passes.
+                else not text
+            ):
+                row.errors[path] = _("This field cannot be changed.")
             continue
         item = view._field_for(path)
         try:
@@ -278,10 +340,28 @@ def check_row(
 
     if record is None:
         for path in import_columns(view, request):
-            if path == key_name or path in row.raw:
+            if path in row.raw or path not in writable:
                 continue
             if view._field_for(path).required:
                 row.errors[path] = _("Missing, and a new record needs it.")
+
+
+def _unchanged(view: ModelView[Any], record: Any, path: str, text: str) -> bool:
+    """Whether a cell holds what the record has, as a value or as exported."""
+    shown = view._display(record, path)
+    # The export marks text that reads as a formula, and the import trims cells.
+    if text in (shown, as_cell(plain(shown)).strip()):
+        return True
+    item = view._field_for(path)
+    try:
+        value = item.parse(normalize(item, text))
+    except FieldValidationError:
+        return False
+    held = view._value_at(record, path)
+    if isinstance(item, RelationField) and held is not None:
+        # A link is written as its record's key.
+        held = view._inspector.inspect(item.related_model).identity_of(held)
+    return bool(value == held)
 
 
 def normalize(item: Any, text: str) -> str:

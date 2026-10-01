@@ -31,6 +31,10 @@ class WalletView(ModelView[Wallet]):
 
 The same goes for the values an [action](#actions) is run with.
 
+A field kept from someone with [`can_access_field`](permissions.md#fields) is written down in full,
+and left out of what that person reads: on the History tab and the Activity page they see the
+changes to the other fields, and not its old and new values, nor what an export filtered it by.
+
 ## Where the entries go
 
 `audit=True` keeps the log in a SQLite file of its own, `adminsite_audit.db` in the working

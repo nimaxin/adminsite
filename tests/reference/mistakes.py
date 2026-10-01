@@ -4,7 +4,9 @@ The mistakes in a view's fields and settings are in field_mistakes.py.
 
 Each line carries the error mypy has to report there. mypy strict turns an
 ignore it no longer needs into an error of its own, so a mistake that stops
-being caught fails the check.
+being caught fails the check. tests/test_type_mistakes.py reads each line
+again without its ignore and checks mypy's message, so a line refused for
+another reason fails too.
 
 One kind of mistake is missing on purpose: mypy does not check a call written
 inside Annotated[...], so Input(lable="Note") in a parameter's annotation is not
@@ -16,10 +18,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 from starlette.requests import Request
 
-from adminsite import Admin, Inline, ModelView, RecentRecords, SaveContext, Statement
+from adminsite import (
+    Admin,
+    Field,
+    Inline,
+    ModelView,
+    Permission,
+    RecentRecords,
+    SaveContext,
+    Statement,
+)
 from adminsite.actions import Selection, action
-from adminsite.fields import RelationField, default_registry
-from tests.reference.models import Customer, Order
+from adminsite.fields import EnumField, RelationField, default_registry
+from tests.reference.models import Customer, Order, OrderStatus
 
 
 class WrongHooks(ModelView[Order]):
@@ -49,7 +60,11 @@ def old_names(engine: AsyncEngine) -> None:
     Inline(Order.items, extra=1)  # type: ignore[call-arg]
     Inline(Order.items, readonly_fields=["unit_price"])  # type: ignore[call-arg]
     Inline(Order.items, display_template="{quantity}")  # type: ignore[call-arg]
+    Inline(name="items")  # type: ignore[call-arg]
     RelationField(Order.customer, display_template="{name}")  # type: ignore[call-arg]
+    EnumField(Order.status, enum_class=OrderStatus)  # type: ignore[call-arg]
+    Field(Order.note, readonly=True)  # type: ignore[call-arg]
     RecentRecords("Latest", "orders", detail="total")  # type: ignore[call-arg]
     Admin(engine, fields=default_registry)  # type: ignore[call-arg]
+    print(Permission.DETAIL)  # type: ignore[attr-defined]
     print(FieldOptions, SignInRefused, ChoiceField, TextField)

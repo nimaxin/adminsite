@@ -355,19 +355,27 @@ class SQLAlchemyRepository(Generic[M]):
         return (await session.scalars(statement)).unique().first()
 
     async def related(
-        self, session: SessionAdapter, record: Any, path: str, *, limit: int
+        self,
+        session: SessionAdapter,
+        record: Any,
+        path: str,
+        *,
+        limit: int,
+        scope: Scope | None = None,
     ) -> tuple[Sequence[Any], int]:
         """The first records a to-many link holds, and how many it holds in all.
 
-        Two small queries, however many records the link holds.
+        Two small queries, however many records the link holds. With a
+        scope, both leave out the records it leaves out.
         """
         link = getattr(self.model, path)
         relation = link.property
         target = relation.mapper
+        start = select(target.class_)
+        if scope is not None:
+            start = scope(start)
         if relation.secondary is None:
-            condition = with_parent(record, link)
-            first = select(target.class_).where(condition)
-            counting = select(func.count()).select_from(target.class_).where(condition)
+            first = start.where(with_parent(record, link))
         else:
             # Through the link table itself, not an alias of it, so the
             # relationship's own order, such as the link rows' ids, can be
@@ -379,14 +387,13 @@ class SQLAlchemyRepository(Generic[M]):
                     for own, linked in relation.synchronize_pairs
                 )
             )
-            first = (
-                select(target.class_)
-                .join(relation.secondary, relation.secondaryjoin)
-                .where(condition)
+            first = start.join(relation.secondary, relation.secondaryjoin).where(
+                condition
             )
-            counting = (
-                select(func.count()).select_from(relation.secondary).where(condition)
-            )
+        # Counted over the same rows, so the count and the names always agree.
+        counting = select(func.count()).select_from(
+            first.with_only_columns(*target.primary_key).subquery()
+        )
         # The key after the relationship's own order keeps the rest steady.
         ordering = relation.order_by or ()
         first = first.order_by(*ordering, *target.primary_key).limit(limit)
@@ -394,29 +401,10 @@ class SQLAlchemyRepository(Generic[M]):
         total = await session.scalar(counting)
         return records, int(total or 0)
 
-    # A write may be refused by the database, at its own flush or at one that
-    # loading a linked record sets off, and says so with adminsite's error.
-
-    async def create(self, session: SessionAdapter, values: Mapping[str, Any]) -> Any:
-        """Build a record from the given values and put it in the session."""
-        record = self.model()
-        with database_refusals():
-            await self.apply_values(session, record, values)
-            await session.add(record)
-            await session.flush()
-        return record
-
-    async def update(
-        self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
-    ) -> Any:
-        """Change a record, leaving anything not given as it was."""
-        with database_refusals():
-            await self.apply_values(session, record, values)
-            await session.flush()
-        return record
-
     async def delete(self, session: SessionAdapter, record: Any) -> None:
         """Remove a record."""
+        # Refused at its own flush, the delete says so with adminsite's error,
+        # so a bulk delete can name the record still referred to.
         with database_refusals():
             await session.delete(record)
             await session.flush()
@@ -511,19 +499,19 @@ class SQLAlchemyRepository(Generic[M]):
             statement = statement.order_by(
                 column.desc() if sort.descending else column.asc()
             )
-        if spec.sort:
-            # Rows with equal values have no order of their own, and the
-            # database may return them differently on each page.
-            sorted_by = {sort.path for sort in spec.sort}
-            for name in self.schema.primary_key:
-                if name not in sorted_by:
-                    statement = statement.order_by(getattr(self.model, name).asc())
+        # Rows with equal values, or with no sort at all, have no order of
+        # their own, and Postgres may return them differently for each page
+        # of a list or an export. The key gives every row its place.
+        sorted_by = {sort.path for sort in spec.sort}
+        for name in self.schema.primary_key:
+            if name not in sorted_by:
+                statement = statement.order_by(getattr(self.model, name).asc())
         return statement
 
     def key_clause(self, key: Any) -> ColumnElement[bool]:
         """Match a record by its primary key, single or composite."""
         columns = self._primary_key_columns()
-        values = key if isinstance(key, tuple) else (key,)
+        values = self.schema.key_parts(key)
         if len(values) != len(columns):
             # A key with the wrong number of parts, such as /orders/1,2 for a
             # single key, names no record, so the caller answers "not found".
@@ -544,6 +532,10 @@ class SQLAlchemyRepository(Generic[M]):
     def identity_of(self, record: Any) -> str:
         """Write the primary key of a record as one string, for a URL."""
         return self.schema.identity_of(record)
+
+    async def linked(self, session: SessionAdapter, name: str, value: Any) -> Any:
+        """The record a link's key names, or the records a link to many names."""
+        return await self._linked(session, self.schema.relation_named(name), value)
 
     async def _linked(
         self, session: SessionAdapter, relation: RelationSchema, value: Any
@@ -568,7 +560,7 @@ class SQLAlchemyRepository(Generic[M]):
         return record
 
     def _as_key(self, target: ModelSchema, key: Any) -> Any:
-        values = key if isinstance(key, tuple) else (key,)
+        values = target.key_parts(key)
         if len(values) != len(target.primary_key):
             raise RecordNotFoundError(target.model, key)
         try:

@@ -90,17 +90,25 @@ class SaveValues:
             )
         return column.key
 
-    def _value_of(self, path: str) -> Any:
-        if path in self._stored:
-            return self._stored[path]
-        first = path.split(".", 1)[0]
-        if not hasattr(type(self._record), first):
-            if self._form_only(path):
-                return None
+    def _is_column(self, path: str) -> bool:
+        """Whether a path starts at an attribute of the record's model."""
+        return hasattr(type(self._record), path.split(".", 1)[0])
+
+    def _check(self, path: str) -> None:
+        """Refuse a name that is neither a column nor a value the view asks for."""
+        if not self._is_column(path) and not self._form_only(path):
             raise AdminSiteError(
                 f"{type(self._record).__name__} has no column named {path!r}, "
                 "and the view asks for no value by that name."
             )
+
+    def _value_of(self, path: str) -> Any:
+        if path in self._stored:
+            return self._stored[path]
+        self._check(path)
+        if not self._is_column(path):
+            # A value the view asks for that is no column, and was not sent.
+            return None
         value: Any = self._record
         for part in path.split("."):
             if value is None:
@@ -109,6 +117,16 @@ class SaveValues:
                 return [_loaded(item, part, path) for item in value]
             value = _loaded(value, part, path)
         return value
+
+    def _store(self, path: str, value: Any) -> None:
+        self._check(path)
+        if "." in path and self._is_column(path):
+            model = type(self._record).__name__
+            raise AdminSiteError(
+                f"{path!r} is not a column of {model}. A save stores the "
+                f"record's own columns, such as {model}.id."
+            )
+        self._stored[path] = value
 
 
 class SaveValue(Generic[T]):
@@ -122,17 +140,19 @@ class SaveValue(Generic[T]):
         self.path = path
 
     def get(self) -> T:
-        """The value the column has once saved.
+        """The value the save stores in the column.
 
-        That is the value the save stores, or the record's own when the
-        save leaves the column as it is, such as a read-only field.
+        When the save leaves the column as it is, such as a read-only
+        field, that is the record's own value. On a new record, such a
+        column is None until the insert fills in its default, as the
+        record's own attribute is; read it in `after_save`.
         """
         value: T = self._values._value_of(self.path)
         return value
 
     def set(self, value: T) -> None:
         """Store this value instead of the one given."""
-        self._values._stored[self.path] = value
+        self._values._store(self.path, value)
 
     def __repr__(self) -> str:
         return f"SaveValue({self.path!r})"

@@ -94,12 +94,12 @@ plugins:
           other settings: `searchable_fields`, `sortable_fields`, `list_filters`,
           `fields_default_sort` (`[Descending(Order.created_at)]`), `inlines`, `record_title`,
           `page_size`, `count_mode`, `pagination`, `can_create`/`can_edit`/`can_delete`/
-          `can_import`.
+          `can_delete_selected`/`can_view_detail`/`can_import`.
         - Anything that depends on the user is a method taking the request:
           `can_access_field(request, field, action)`, `get_readonly_fields(request, record)`,
           `get_searchable_fields`, `get_list_filters`, `get_actions`, `scope_query` (row level),
-          and `async def allows(action, *, request, record)` with `Permission.VIEW`, `CREATE`,
-          `EDIT`, `DELETE`, `EXPORT`, `IMPORT`, `HISTORY`.
+          and `async def allows(action, *, request, record)` with `Permission.VIEW`,
+          `VIEW_DETAIL`, `CREATE`, `EDIT`, `DELETE`, `EXPORT`, `IMPORT`, `HISTORY`.
         - Business rules go in the `before_save`, `after_save`, `before_delete` and
           `after_delete` hooks, which take a `SaveContext[Order]` or `DeleteContext[Order]` and
           run inside the transaction; raise `RefusedError("...")` to refuse.
@@ -128,7 +128,7 @@ plugins:
           - getting-started.md: Install, mount, sign in, and a first view
         Guide:
           - views.md: Every ModelView setting, per request answers, inlines, big tables, saved views, the command palette
-          - fields.md: Field types, replacing a field, files and pictures, writing a field
+          - fields.md: Field types, choosing a field and its options, badge colours, JSON columns, computed values, form-only inputs, files and pictures, writing a field
           - filters.md: Built in filters and writing your own
           - actions.md: Bulk actions, confirmations and inputs
           - import.md: Importing CSV and Excel files with a preview

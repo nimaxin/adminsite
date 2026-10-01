@@ -158,7 +158,7 @@ class TestFilters:
 
         assert WithFilter()._list_filters(None) == (mine,)
 
-    def test_anything_else_in_list_filter_is_refused(self) -> None:
+    def test_anything_else_in_list_filters_is_refused(self) -> None:
         class Wrong(ModelView[Order]):
             list_filters = (42,)  # type: ignore[assignment]
 
@@ -250,7 +250,7 @@ class TestForms:
     def test_the_listed_form_fields_are_used_in_order(self) -> None:
         assert CustomerView()._form_fields() == ("name", "email", "region")
 
-    def test_readonly_fields_are_reported(self) -> None:
+    def test_read_only_fields_are_reported(self) -> None:
         assert CustomerView()._readonly_paths() == ("email",)
 
 

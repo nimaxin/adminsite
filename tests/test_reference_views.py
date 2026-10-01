@@ -1,4 +1,7 @@
-"""The large reference view runs: its pages, its save hook and its actions."""
+"""The large reference view runs: its pages, its save hook and its actions.
+
+Each test runs on async and sync SQLite.
+"""
 
 import re
 from collections.abc import AsyncIterator
@@ -8,14 +11,13 @@ from typing import Any
 import httpx
 import pytest
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.pool import StaticPool
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
 from adminsite import Admin, ModelView, RefusedError
-from tests.reference.models import Product, ProductStatus, ReferenceBase, Supplier
+from adminsite.backends.sqlalchemy import Database
+from tests.reference.models import Product, ProductStatus, Supplier
 from tests.reference.products import ProductView, SupplierView
 
 
@@ -26,43 +28,39 @@ async def become_manager(admin: Admin, request: Request) -> Response:
 
 
 @pytest.fixture
-async def engine() -> AsyncIterator[AsyncEngine]:
-    engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool)
-    async with engine.begin() as connection:
-        await connection.run_sync(ReferenceBase.metadata.create_all)
-    async with AsyncSession(engine) as session:
+async def catalogue(reference_database: Database) -> Database:
+    """The reference shop with a supplier and two of its products."""
+    async with reference_database.session() as session:
         mill = Supplier(name="Linen Mill", email="hello@mill.example", country="NL")
-        session.add_all(
-            [
-                Product(
-                    sku="SHIRT-1",
-                    name="Linen shirt",
-                    supplier=mill,
-                    status=ProductStatus.LIVE,
-                    price=Decimal("40.00"),
-                    cost=Decimal("20.00"),
-                    stock=3,
-                ),
-                Product(
-                    sku="SCARF-1",
-                    name="Wool scarf",
-                    supplier=mill,
-                    status=ProductStatus.LIVE,
-                    price=Decimal("25.00"),
-                    cost=Decimal("24.00"),
-                    stock=20,
-                ),
-            ]
-        )
+        for product in [
+            Product(
+                sku="SHIRT-1",
+                name="Linen shirt",
+                supplier=mill,
+                status=ProductStatus.LIVE,
+                price=Decimal("40.00"),
+                cost=Decimal("20.00"),
+                stock=3,
+            ),
+            Product(
+                sku="SCARF-1",
+                name="Wool scarf",
+                supplier=mill,
+                status=ProductStatus.LIVE,
+                price=Decimal("25.00"),
+                cost=Decimal("24.00"),
+                stock=20,
+            ),
+        ]:
+            await session.add(product)
         await session.commit()
-    yield engine
-    await engine.dispose()
+    return reference_database
 
 
 @pytest.fixture
-def admin(engine: AsyncEngine) -> Admin:
+def admin(catalogue: Database) -> Admin:
     admin = Admin(
-        engine, views=[ProductView, SupplierView], secret_key="for-the-session"
+        catalogue, views=[ProductView, SupplierView], secret_key="for-the-session"
     )
     admin.add_route("/-/manager", become_manager)
     return admin
@@ -101,9 +99,10 @@ async def run(
     )
 
 
-async def stored(engine: AsyncEngine, sku: str) -> Product:
-    async with AsyncSession(engine) as session:
-        product = await session.scalar(select(Product).where(Product.sku == sku))
+async def stored(database: Database, sku: str) -> Product:
+    async with database.session() as session:
+        found = select(Product).where(Product.sku == sku)
+        product: Product | None = await session.scalar(found)
         assert product is not None
         return product
 
@@ -165,17 +164,17 @@ class TestTheSaveHook:
 
 class TestTheActions:
     async def test_changing_prices_asks_for_a_manager(
-        self, client: httpx.AsyncClient, engine: AsyncEngine
+        self, client: httpx.AsyncClient, catalogue: Database
     ) -> None:
         answer = await run(
             client, "change_prices", {"keys": ["1"], "change.percent": "10"}
         )
 
         assert answer.status_code == 403
-        assert (await stored(engine, "SHIRT-1")).price == Decimal("40.00")
+        assert (await stored(catalogue, "SHIRT-1")).price == Decimal("40.00")
 
     async def test_a_manager_changes_prices_rounded_and_never_below_cost(
-        self, client: httpx.AsyncClient, engine: AsyncEngine
+        self, client: httpx.AsyncClient, catalogue: Database
     ) -> None:
         await client.get("/admin/-/manager")
 
@@ -191,26 +190,26 @@ class TestTheActions:
         )
 
         assert "2 prices changed." in answer.text
-        assert (await stored(engine, "SHIRT-1")).price == Decimal("36.00")
-        assert (await stored(engine, "SCARF-1")).price == Decimal("24.00")
+        assert (await stored(catalogue, "SHIRT-1")).price == Decimal("36.00")
+        assert (await stored(catalogue, "SCARF-1")).price == Decimal("24.00")
 
     async def test_retiring_marks_the_chosen_products(
-        self, client: httpx.AsyncClient, engine: AsyncEngine
+        self, client: httpx.AsyncClient, catalogue: Database
     ) -> None:
         answer = await run(client, "retire", {"keys": ["2"]})
 
         assert "1 products retired." in answer.text
-        assert (await stored(engine, "SCARF-1")).status is ProductStatus.RETIRED
+        assert (await stored(catalogue, "SCARF-1")).status is ProductStatus.RETIRED
 
     async def test_ordering_more_asks_for_a_supplier_and_a_quantity(
-        self, client: httpx.AsyncClient, engine: AsyncEngine
+        self, client: httpx.AsyncClient, catalogue: Database
     ) -> None:
         answer = await run(
             client, "order_more", {"keys": "1", "supplier": "1", "quantity": ""}
         )
 
         assert "Ordered 10 of Linen shirt from Linen Mill." in answer.text
-        assert (await stored(engine, "SHIRT-1")).stock == 13
+        assert (await stored(catalogue, "SHIRT-1")).stock == 13
 
     async def test_counting_runs_its_own_query(self, client: httpx.AsyncClient) -> None:
         answer = await run(client, "count_running_low", {})

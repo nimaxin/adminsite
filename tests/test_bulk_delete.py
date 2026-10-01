@@ -16,7 +16,8 @@ from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views import model_view
 from adminsite.views.writing import DeleteContext
-from tests.models import Product
+from tests.models import Customer, Product
+from tests.support import REFUSED
 
 
 class ProductView(ModelView[Product]):
@@ -190,6 +191,41 @@ class TestWhenOneIsRefused:
         )
         assert {"Spare A", "Linen shirt"} <= await names_left(database)
 
+    @pytest.mark.parametrize("flushes", [False, True])
+    async def test_a_refusal_for_another_reason_blames_no_references(
+        self, database: Database, flushes: bool
+    ) -> None:
+        class Copying(ModelView[Customer]):
+            async def after_delete(self, context: DeleteContext[Customer]) -> None:
+                # An email another customer already has.
+                copy = Customer(name="Copy", email="lena@fischer.de")
+                await context.session.add(copy)
+                if flushes:
+                    await context.session.flush()
+
+        async with database.session() as session:
+            made = [
+                Customer(name=name, email=f"{name.lower()}@example.com")
+                for name in ("First", "Second")
+            ]
+            for customer in made:
+                await session.add(customer)
+            await session.commit()
+            keys = [str(customer.id) for customer in made]
+        app = Starlette()
+        site = Admin(database, views=[Copying], secret_key="for-the-session")
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await delete(client, "customers", keys)
+
+        assert f"Delete was not done. {REFUSED}" in page.text
+        assert "because other records still refer" not in page.text
+        async with database.session() as session:
+            left = set((await session.scalars(select(Customer.name))).all())
+        assert {"First", "Second"} <= left
+
     async def test_an_action_the_database_refuses_changes_nothing(
         self, client: httpx.AsyncClient, database: Database
     ) -> None:
@@ -205,10 +241,7 @@ class TestWhenOneIsRefused:
             follow_redirects=True,
         )
 
-        assert (
-            "Remove was not done, because other records still refer to some of "
-            "these." in page.text
-        )
+        assert f"Remove was not done. {REFUSED}" in page.text
         assert {"Spare A", "Linen shirt"} <= await names_left(database)
 
     async def test_more_than_the_limit_is_refused(

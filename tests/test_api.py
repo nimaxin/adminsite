@@ -5,13 +5,17 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.responses import Response
 
-from adminsite import Admin, ModelView, Permission, Statement
+from adminsite import Admin, Field, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.fields import EnumField
-from tests.models import Customer, Order, Product
+from tests.models import Customer, Order, OrderStatus, Product
+from tests.support import REFUSED
+
+refunded: list[Order] = []
 
 
 class OrderView(ModelView[Order]):
@@ -43,6 +47,10 @@ class CustomerView(ModelView[Customer]):
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         return statement.where(Customer.region != "SE")
 
+    @action("Give the same email")
+    async def same_email(self, selection: Selection[Customer]) -> str:
+        return f"{await selection.update(email='shared@example.com')} changed."
+
 
 class ProductView(ModelView[Product]):
     fields = ["name", "price"]
@@ -59,6 +67,29 @@ class ProductView(ModelView[Product]):
         return f"{await selection.delete()} removed."
 
 
+class RefundView(ModelView[Order]):
+    """Refunds one order at a time, only once it is paid."""
+
+    name = "refunds"
+    fields = ["id", "status"]
+
+    async def allows(
+        self, action: Permission | str, *, request: Any = None, record: Any = None
+    ) -> bool:
+        if action == Permission.EDIT and record is not None:
+            return bool(record.status is OrderStatus.PAID)
+        return await super().allows(action, request=request, record=record)
+
+    @action("Refund", on="record")
+    async def refund(self, order: Order) -> str:
+        refunded.append(order)
+        return f"Refunded {type(order).__name__} {order.id}."
+
+    @action("Receipt", on="record", permission=Permission.VIEW)
+    async def receipt(self, order: Order) -> Response:
+        return Response(f"order {order.id}", media_type="application/zip")
+
+
 def serve(admin: Admin) -> httpx.AsyncClient:
     app = Starlette()
     app.mount("/admin", admin)
@@ -69,7 +100,10 @@ def serve(admin: Admin) -> httpx.AsyncClient:
 
 @pytest.fixture
 async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
-    admin = Admin(database, views=[OrderView, CustomerView, ProductView], api=True)
+    refunded.clear()
+    admin = Admin(
+        database, views=[OrderView, CustomerView, ProductView, RefundView], api=True
+    )
     async with serve(admin) as client:
         yield client
 
@@ -93,8 +127,8 @@ class TestSwitchingOn:
             "status",
         ]
         assert orders["actions"] == [
-            {"name": "add_note", "label": "Add a note"},
-            {"name": "delete_selected", "label": "Delete"},
+            {"name": "add_note", "label": "Add a note", "on": "selection"},
+            {"name": "delete_selected", "label": "Delete", "on": "selection"},
         ]
 
 
@@ -135,6 +169,32 @@ class TestReading:
         assert hidden.status_code == 404
         assert hidden.json() == {"error": "No such record."}
 
+    async def test_a_field_only_a_new_record_takes_is_not_read(
+        self, database: Database
+    ) -> None:
+        class SetOnce(ModelView[Order]):
+            name = "set_once"
+            fields = [
+                Order.id,
+                Order.status,
+                Field(
+                    Order.note,
+                    exclude_from_list=True,
+                    exclude_from_detail=True,
+                    exclude_from_edit=True,
+                ),
+            ]
+
+        async with serve(Admin(database, views=[SetOnce], api=True)) as client:
+            record = (await client.get("/admin/-/api/set_once/1")).json()
+            listed = (await client.get("/admin/-/api/set_once")).json()
+            views = (await client.get("/admin/-/api")).json()["views"]
+
+        assert "note" not in record
+        assert "note" not in listed["items"][0]
+        # The index still says a new record takes it.
+        assert "note" in [field["path"] for field in views[0]["fields"]]
+
 
 class TestWriting:
     async def test_adding_a_record(self, client: httpx.AsyncClient) -> None:
@@ -168,6 +228,22 @@ class TestWriting:
         assert answer.status_code == 200
         assert answer.json()["note"] == "Gift"
         assert answer.json()["status"] == "shipped"
+
+    async def test_a_record_saved_out_of_the_scope_answers_with_its_key(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        changed = await client.patch("/admin/-/api/customers/1", json={"region": "SE"})
+        added = await client.post(
+            "/admin/-/api/customers",
+            json={"name": "Mia", "email": "mia@x.se", "region": "SE"},
+        )
+
+        assert (changed.status_code, changed.json()) == (200, {"key": "1"})
+        assert (added.status_code, added.json()) == (201, {"key": "5"})
+        async with database.session() as session:
+            lena = await session.get(Customer, 1)
+            assert lena is not None
+            assert lena.region == "SE"
 
     async def test_editing_needs_the_permission(
         self, client: httpx.AsyncClient
@@ -237,7 +313,17 @@ class TestActions:
         )
 
         assert answer.status_code == 409
-        assert answer.json() == {"error": "Other records still refer to some of these."}
+        assert answer.json() == {"error": REFUSED}
+
+    async def test_a_value_taken_twice_is_not_blamed_on_references(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await client.post(
+            "/admin/-/api/customers/actions/same_email", json={"keys": ["1", "2"]}
+        )
+
+        assert answer.status_code == 409
+        assert answer.json() == {"error": REFUSED}
 
     async def test_missing_inputs_are_named(self, client: httpx.AsyncClient) -> None:
         answer = await client.post(
@@ -246,6 +332,85 @@ class TestActions:
 
         assert answer.status_code == 422
         assert "tone" in answer.json()["errors"]
+
+    async def test_inputs_have_to_be_an_object(self, client: httpx.AsyncClient) -> None:
+        answer = await client.post(
+            "/admin/-/api/orders/actions/add_note",
+            json={"keys": ["1"], "inputs": ["kind"]},
+        )
+
+        assert answer.status_code == 422
+        assert answer.json() == {"error": "inputs is an object."}
+
+    async def test_the_index_says_what_each_action_runs_on(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        views = (await client.get("/admin/-/api")).json()["views"]
+        refunds = next(view for view in views if view["name"] == "refunds")
+
+        assert {item["name"]: item["on"] for item in refunds["actions"]} == {
+            "receipt": "record",
+            "refund": "record",
+            "delete_selected": "selection",
+        }
+
+
+class TestARecordAction:
+    async def test_it_is_handed_the_record(self, client: httpx.AsyncClient) -> None:
+        answer = await client.post(
+            "/admin/-/api/refunds/actions/refund", json={"keys": ["2"]}
+        )
+
+        assert answer.status_code == 200
+        assert answer.json() == {"message": "Refunded Order 2."}
+
+    async def test_the_records_own_permission_decides(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        # Order 1 is shipped, so it cannot be refunded.
+        answer = await client.post(
+            "/admin/-/api/refunds/actions/refund", json={"keys": ["1"]}
+        )
+
+        assert answer.status_code == 403
+        assert answer.json() == {"error": "You cannot edit Orders."}
+        assert refunded == []
+
+    async def test_it_takes_one_key(self, client: httpx.AsyncClient) -> None:
+        several = await client.post(
+            "/admin/-/api/refunds/actions/refund", json={"keys": ["2", "6"]}
+        )
+        none = await client.post(
+            "/admin/-/api/refunds/actions/refund", json={"everything": True}
+        )
+
+        for answer in (several, none):
+            assert answer.status_code == 422
+            assert answer.json() == {
+                "error": "This action runs on one record. Send its key."
+            }
+        assert refunded == []
+
+    async def test_a_key_it_cannot_find_is_not_found(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await client.post(
+            "/admin/-/api/refunds/actions/refund", json={"keys": ["99"]}
+        )
+
+        assert answer.status_code == 404
+        assert answer.json() == {"error": "No such record."}
+
+    async def test_a_file_it_answers_with_is_sent(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await client.post(
+            "/admin/-/api/refunds/actions/receipt", json={"keys": ["2"]}
+        )
+
+        assert answer.status_code == 200
+        assert answer.headers["content-type"] == "application/zip"
+        assert answer.text == "order 2"
 
 
 class TokenAuth(PasswordAuth):

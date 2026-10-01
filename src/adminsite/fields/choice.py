@@ -1,9 +1,9 @@
 from collections.abc import Sequence
-from dataclasses import KW_ONLY, dataclass
+from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
-from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.exceptions import AdminSiteError, FieldValidationError, renamed_keywords
 from adminsite.fields.base import Field
 from adminsite.fields.tones import NEUTRAL, Tones, tone_number
 from adminsite.i18n import gettext as _
@@ -37,6 +37,11 @@ class EnumField(Field[Any]):
     were picked, which suits a JSON column and an action that asks for a few
     categories.
 
+    On an Enum column, `choices` relabel or narrow its members, each named
+    by its name or its value, and the field still hands over the member.
+    `enum=` on a string column keys the options by each member's value,
+    which is what the column stores.
+
     `tones` says which colour each value's badge is, by name, so a failed
     status is rose wherever it sits among the choices. A value left out is
     grey, and None draws it with no badge. One name, such as "grey", colours
@@ -49,24 +54,46 @@ class EnumField(Field[Any]):
     multiple: bool = False
     tones: Tones | None = None
 
+    # Whether a value is the member of `enum`, as an Enum column and an
+    # action hold it, rather than the member's value, as a string column does.
+    _holds_members: bool = field(init=False, default=True)
+
     widget = "select"
     python_type = str
     error_message = "Choose one of the listed options."
+    unused_options = frozenset({"max_length"})
 
     def __post_init__(self) -> None:
         super().__post_init__()
         self.choices = tuple(self.choices) or self._choices_from_enum(self.enum)
         self._tones = self._read_tones(self.tones)
 
+    def filled_from(self, schema: FieldSchema) -> Self:
+        """A copy with what the column says, holding values as the column does."""
+        filled = super().filled_from(schema)
+        filled._holds_members = _is_enum(schema.python_type)
+        return filled
+
     def column_options(self, schema: FieldSchema) -> dict[str, Any]:
-        """The set of values as well, where neither `enum` nor `choices` is given."""
+        """The column's enum and set of values as well, for those left out.
+
+        An Enum column keeps its enum where choices are given, so they only
+        relabel or narrow its members. A string column stores a member's
+        value, so the options an `enum` gives it are keyed by the value.
+        """
         options = super().column_options(schema)
-        if self.enum is None and not self.choices:
-            python_type = schema.python_type
-            if isinstance(python_type, type) and issubclass(python_type, Enum):
-                options["enum"] = python_type
+        stores_members = _is_enum(schema.python_type)
+        if self.enum is None:
+            if stores_members:
+                options["enum"] = schema.python_type
+            if not self.choices:
+                options["choices"] = tuple(
+                    (value, humanize(value)) for value in schema.enum_values or ()
+                )
+        # Only the options the enum gave are keyed again; written ones stay.
+        elif not stores_members and self.choices == self._choices_from_enum(self.enum):
             options["choices"] = tuple(
-                (value, humanize(value)) for value in schema.enum_values or ()
+                (str(member.value), humanize(member.name)) for member in self.enum
             )
         return options
 
@@ -76,19 +103,16 @@ class EnumField(Field[Any]):
             return ""
         if isinstance(value, list | tuple | set):
             return ", ".join(self.display(one) for one in value)
-        stored = self._stored_value(value)
-        for option, label in self.choices:
-            if option == stored:
-                return label
-        return humanize(stored)
+        chosen = self._choice_for(value)
+        return chosen[1] if chosen else humanize(self._stored_value(value))
 
     def serialize(self, value: Any) -> str:
-        """Show the stored value, which is what the select submits."""
+        """Show the option chosen, which is what the select submits."""
         if value is None:
             return ""
         if isinstance(value, list | tuple | set):
-            return ", ".join(self._stored_value(one) for one in value)
-        return self._stored_value(value)
+            return ", ".join(self._option_for(one) for one in value)
+        return self._option_for(value)
 
     def parse_many(self, raw: Sequence[str] | None) -> list[Any]:
         """Read every option chosen in a select that holds several."""
@@ -124,7 +148,7 @@ class EnumField(Field[Any]):
         """Refuse a field with nothing to choose from, or a tone for a value it lacks.
 
         Checked once the column has filled in its choices, since an Enum
-        column brings its own.
+        column brings its own. With an enum, each choice names a member.
         """
         super().check_options()
         if not self.choices:
@@ -133,6 +157,15 @@ class EnumField(Field[Any]):
                 "choices=[(value, label), ...] or enum=, or use it on a column "
                 "whose type is an Enum."
             )
+        if self.enum is not None:
+            for option, _label in self.choices:
+                if self._member(option) is None:
+                    members = ", ".join(member.name for member in self.enum)
+                    raise AdminSiteError(
+                        f"{self!r}: its choices name {_written(option)}, which is "
+                        f"not a member of {self.enum.__name__}. Name a member by "
+                        f"its name or its value: {members}."
+                    )
         if self.tones is None or isinstance(self.tones, str):
             return
         known = {option.lower() for option, _label in self.choices}
@@ -160,12 +193,14 @@ class EnumField(Field[Any]):
     def _spellings(self, value: Any) -> set[str]:
         """The ways an option can be written for a value, in lower case.
 
-        An enum column may list its members by value while the record holds
-        the member, so either spelling of it counts.
+        A member counts by its name or its value, whether the record holds
+        the member, as an Enum column does, or its value, as a string column
+        given `enum` does.
         """
         wanted = {self._stored_value(value).lower()}
-        if isinstance(value, Enum):
-            wanted.add(str(value.value).lower())
+        member = value if isinstance(value, Enum) else self._member(value)
+        if member is not None:
+            wanted |= {member.name.lower(), str(member.value).lower()}
         return wanted
 
     def values_of(self, value: Any) -> tuple[str, ...]:
@@ -173,20 +208,61 @@ class EnumField(Field[Any]):
         if value is None or value == "":
             return ()
         if isinstance(value, list | tuple | set):
-            return tuple(self._stored_value(one) for one in value)
-        return (self._stored_value(value),)
+            return tuple(self._option_for(one) for one in value)
+        return (self._option_for(value),)
 
     def to_python(self, text: str) -> Any:
-        """Accept a listed option and return it as the model stores it."""
-        allowed = {option for option, _ in self.choices}
-        if allowed and text not in allowed:
-            match = self._match_ignoring_case(text, allowed)
-            if match is None:
+        """Accept a listed option and return it as the model stores it.
+
+        An option may be written in any case, and a member by its name or
+        its value. With an enum, the field returns the member, or the
+        member's value for a column that stores values, such as a string
+        column.
+        """
+        if self.choices:
+            chosen = self._choice_for(text)
+            if chosen is None:
                 raise FieldValidationError(self.name, _(self.error_message))
-            text = match
-        if self.enum is None:
+            text = chosen[0]
+        member = self._member(text)
+        if member is None:
             return text
-        return self.enum[text]
+        return member if self._holds_members else member.value
+
+    def _choice_for(self, value: Any) -> tuple[str, str] | None:
+        """The option and label chosen for one value, or None where none is.
+
+        An option written exactly as the value wins over one that is only
+        another spelling of it.
+        """
+        stored = self._stored_value(value)
+        for choice in self.choices:
+            if choice[0] == stored:
+                return choice
+        wanted = self._spellings(value)
+        for choice in self.choices:
+            if choice[0].lower() in wanted:
+                return choice
+        return None
+
+    def _option_for(self, value: Any) -> str:
+        """The option one value is chosen by, as the select writes it."""
+        chosen = self._choice_for(value)
+        return chosen[0] if chosen else self._stored_value(value)
+
+    def _member(self, written: Any) -> Enum | None:
+        """The member of `enum` an option or a value names, by name or by value."""
+        if self.enum is None:
+            return None
+        text = str(written)
+        for member in self.enum:
+            if text in (member.name, str(member.value)):
+                return member
+        lowered = text.lower()
+        for member in self.enum:
+            if lowered in (member.name.lower(), str(member.value).lower()):
+                return member
+        return None
 
     def _choices_from_enum(
         self, enum: type[Enum] | None
@@ -198,12 +274,13 @@ class EnumField(Field[Any]):
     def _stored_value(self, value: Any) -> str:
         return value.name if isinstance(value, Enum) else str(value)
 
-    def _match_ignoring_case(self, text: str, allowed: set[str]) -> str | None:
-        lowered = text.lower()
-        for option in allowed:
-            if option.lower() == lowered:
-                return option
-        return None
+
+def _is_enum(python_type: Any) -> bool:
+    """Whether a column's type of value is an Enum, whose members it holds."""
+    return isinstance(python_type, type) and issubclass(python_type, Enum)
+
+
+renamed_keywords(EnumField, {"enum_class": "enum"})
 
 
 def _written(value: Any) -> str:

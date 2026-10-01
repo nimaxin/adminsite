@@ -18,7 +18,7 @@ Everything lives under `/admin/-/api`.
 | `GET /-/api/orders/12` | One order. |
 | `PATCH /-/api/orders/12` | Change the fields sent, and only those. |
 | `DELETE /-/api/orders/12` | Delete the order. Answers 204. |
-| `POST /-/api/orders/actions/ship` | Run a bulk action. |
+| `POST /-/api/orders/actions/ship` | Run an action. |
 
 ## Reading
 
@@ -40,9 +40,11 @@ filters by name such as `status=SHIPPED`, `page`, and `limit` up to 500.
 }
 ```
 
-A record carries the fields the list shows, then those of the form, each under its name. A
+A record carries the fields the list shows, then those of the record page and the edit form, each
+under its name. `GET /-/api` lists those, then any more the create form takes. A
 relationship comes as the key of the linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
-cents are lost, dates and times in ISO format, and files as their name and address. With
+cents are lost, dates and times in ISO format, and files as their name and address. A column read
+through a link to many, such as `orders.total`, comes as a list with a value for each record. With
 [keyset pagination](views.md#large-tables), `page` is null and `next` and `previous` are cursors to
 pass back as `after` and `before`.
 
@@ -57,10 +59,15 @@ field, with status 422:
  "errors": {"total": "Enter an amount, for example 12.50.", "colour": "This field cannot be written."}}
 ```
 
-Only the form's fields can be written, read only fields never. Files are uploaded through the form.
+Only the form's fields can be written, read only fields never: the create form's for a `POST`, the
+edit form's for a `PATCH`. A key people type is sent with the `POST` and is read only after, so a
+`PATCH` that sets it answers 422. Files are uploaded through the form.
 A [form-only field](fields.md#inputs-that-are-not-columns), such as a password, can be written and
 is never sent back; a password sent empty in a `PATCH` keeps the one there.
 A hook that refuses, or a delete other records depend on, answers 409 with the reason.
+A `POST` or `PATCH` answers with the record as this user now reads it. A change that takes the
+record out of what `scope_query` lets them read, such as a customer moved to a region they do not
+look after, is still saved, and answers 201 or 200 with only its key: `{"key": "12"}`.
 
 ## Actions
 
@@ -73,11 +80,17 @@ Content-Type: application/json
 
 Send `"everything": true` instead of keys to run the action over every record the query matches,
 as the "select all matching" link does on the list page. The answer is the action's message:
-`{"message": "2 orders marked as shipped."}`. An input that asks for
-[another record](actions.md#another-record) takes its key, or a list of keys for several, and a key
-the user may not pick answers 422 with the reason under the input's name. The fields of a
-[group](actions.md#a-group-of-values) go by their full name, `{"change.percent": "5"}`. A file cannot
-be sent as JSON, so an action that asks for one runs from the admin's pages.
+`{"message": "2 orders marked as shipped."}`, or the file or other response the action answers
+with, as it is. An input that asks for [another record](actions.md#another-record) takes its key,
+or a list of keys for several, and a key the user may not pick answers 422 with the reason under
+the input's name. The fields of a [group](actions.md#a-group-of-values) go by their full name,
+`{"change.percent": "5"}`. An input left out counts as empty. A file cannot be sent as JSON, so an
+action that asks for one runs from the admin's pages.
+
+The index says what each action runs on, as `"on"`. An
+[action on one record](actions.md#on-one-record) takes its one key, `{"keys": ["12"]}`, and the
+record's own permission decides, as on its page. An action on the view takes no keys. Each is
+written to the [audit log](audit.md#actions) as it is from the pages.
 
 ## Signing in
 

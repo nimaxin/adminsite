@@ -46,6 +46,8 @@ class DateField(Field[date | None]):
     widget = "date"
     python_type = date
     error_message = "Enter a date, for example 2026-09-18."
+    column_types = (date,)
+    unused_options = frozenset({"max_length"})
 
     def display(self, value: Any) -> str:
         """Show the date in words."""
@@ -68,6 +70,8 @@ class DateTimeField(Field[datetime | None]):
     widget = "datetime"
     python_type = datetime
     error_message = "Enter a date and time, for example 2026-09-18 14:30."
+    column_types = (datetime,)
+    unused_options = frozenset({"max_length"})
 
     def display(self, value: Any) -> str:
         """Show the date in words, followed by the time."""
@@ -90,6 +94,8 @@ class TimeField(Field[time | None]):
     widget = "time"
     python_type = time
     error_message = "Enter a time, for example 14:30."
+    column_types = (time,)
+    unused_options = frozenset({"max_length"})
 
     def display(self, value: Any) -> str:
         """Show hours and minutes."""

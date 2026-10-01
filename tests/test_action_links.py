@@ -1,5 +1,6 @@
 import re
 from collections.abc import AsyncIterator, Iterator
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,16 @@ class ProductView(ModelView[Product]):
     def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
         # The scarf is off the shelves, so nobody may pick it.
         return statement.where(Product.name != "Wool scarf")
+
+
+@dataclass
+class Giving:
+    product: Product
+
+
+@dataclass
+class Taking:
+    product: Product
 
 
 class OrderView(ModelView[Order]):
@@ -57,6 +68,12 @@ class OrderView(ModelView[Order]):
     async def bundle(self, selection: Selection[Order], products: list[Product]) -> str:
         seen["products"] = products
         return "Bundled."
+
+    @action("Swap")
+    async def swap(
+        self, selection: Selection[Order], *, give: Giving, take: Taking
+    ) -> str:
+        return "Swapped."
 
 
 class ReadOnlyOrderView(ModelView[Order]):
@@ -230,6 +247,15 @@ class TestRunningIt:
 
         assert "Product: choose from the records offered." in answer.text
         assert await note_of(database) is None
+
+    async def test_one_refused_in_a_group_names_the_group(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await run(
+            client, "swap", {"keys": "1", "give.product": "1", "take.product": "3"}
+        )
+
+        assert "Take, Product: choose from the records offered." in answer.text
 
     async def test_it_can_be_required(
         self, client: httpx.AsyncClient, database: Database

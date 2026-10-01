@@ -7,7 +7,7 @@ from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.exceptions import InvalidPathError
 from adminsite.query import CountMode, QuerySpec, Sort
-from tests.models import Customer, Order, OrderItem
+from tests.models import Customer, Order, OrderItem, Shelf
 from tests.support import Backend, count_queries
 
 
@@ -44,6 +44,24 @@ class TestReadingPages:
             assert second.has_previous is True
             assert second.first_position == 4
             assert [row.id for row in first] != [row.id for row in second]
+
+    def test_a_page_with_no_sort_goes_by_the_key(
+        self, orders: SQLAlchemyRepository[Order]
+    ) -> None:
+        # Without it Postgres may return the rows of each page in another
+        # order, so a list or an export would repeat some and miss others.
+        unsorted = str(orders.statement(QuerySpec(limit=3)))
+        sorted_by_total = str(orders.statement(QuerySpec(sort=(Sort("total"),))))
+
+        assert unsorted.endswith("ORDER BY orders.id ASC")
+        assert sorted_by_total.endswith("ORDER BY orders.total ASC, orders.id ASC")
+
+    def test_a_key_of_two_columns_orders_by_both(self) -> None:
+        shelves = SQLAlchemyRepository(Shelf)
+
+        statement = str(shelves.statement(QuerySpec()))
+
+        assert statement.endswith("ORDER BY shelves.aisle ASC, shelves.slot ASC")
 
     async def test_the_last_page_says_there_is_no_next(
         self, database: Database, orders: SQLAlchemyRepository[Order]
@@ -317,6 +335,17 @@ class TestSingleRecords:
         """Such a key names no record, so a page answers "not found"."""
         async with database.session() as session:
             assert await orders.get(session, (1, 2)) is None
+
+    async def test_a_key_of_two_columns_is_read_as_a_url_writes_it(
+        self, database: Database
+    ) -> None:
+        shelves = SQLAlchemyRepository(Shelf)
+        async with database.session() as session:
+            found = await shelves.get(session, "A,1")
+
+            assert found is not None
+            assert shelves.identity_of(found) == "A,1"
+            assert await shelves.get(session, "A,1,2") is None
 
     async def test_a_record_can_name_its_own_key(
         self, database: Database, orders: SQLAlchemyRepository[Order]

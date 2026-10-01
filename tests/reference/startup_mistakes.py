@@ -11,8 +11,12 @@ from starlette.requests import Request
 
 from adminsite import Field, Link, ModelView
 from adminsite.actions import Selection, action
-from adminsite.fields import EnumField
+from adminsite.fields import ComputedField, DecimalField, EnumField, RelationField
 from tests.reference.models import Customer, Order, Product
+
+
+def line_count(order: Order) -> int:
+    return len(order.items)
 
 
 class OrderSchema(BaseModel):
@@ -50,6 +54,19 @@ class TitleTypo(ModelView[Order]):
     record_title = "Order #{nmae}"
 
 
+class TitleThroughALink(ModelView[Order]):
+    record_title = "{customer.name}, #{id}"
+
+
+class ExcludeForeignKey(ModelView[Order]):
+    exclude_fields_from_list = [Order.customer_id]
+
+
+class ExcludeNotShown(ModelView[Order]):
+    fields = [Order.id, Order.status]
+    exclude_fields_from_list = [Order.note]
+
+
 class ExcludedAndHidden(ModelView[Order]):
     fields = [Field(Order.note, exclude_from_list=True, hidden_in_list=True)]
 
@@ -67,6 +84,34 @@ class ToneForUnknownValue(ModelView[Customer]):
     fields = [
         EnumField(Customer.region, choices=[("EU", "Europe")], tones={"US": "blue"})
     ]
+
+
+class ChoiceOfNoMember(ModelView[Order]):
+    fields = [EnumField(Order.status, choices=[("PIAD", "Paid")])]
+
+
+class RelationOnForeignKey(ModelView[Order]):
+    fields = [Order.id, RelationField(Order.customer_id)]
+
+
+class RelationOnColumn(ModelView[Order]):
+    fields = [Order.id, RelationField("note")]
+
+
+class KindOfAnotherType(ModelView[Customer]):
+    fields = [DecimalField("name")]
+
+
+class LengthOfADate(ModelView[Order]):
+    fields = [Field(Order.created_at, max_length=5)]
+
+
+class LengthOfARelation(ModelView[Order]):
+    fields = [RelationField(Order.customer, max_length=3)]
+
+
+class RequiredComputed(ModelView[Order]):
+    fields = [Order.id, ComputedField("lines", line_count, required=True)]
 
 
 class InputNobodyCanDraw(ModelView[Order]):
@@ -176,6 +221,16 @@ class OldGetDetailFields(ModelView[Order]):
         return ["status"]
 
 
+class OldGetColumnChoices(ModelView[Order]):
+    def get_column_choices(self, request: Request) -> list[str]:
+        return ["id"]
+
+
+class OldGetPageSizes(ModelView[Order]):
+    def get_page_sizes(self, request: Request) -> list[int]:
+        return [99]
+
+
 # The words each refusal must contain, besides the view's name. Views of
 # different models share the dict, which is the boundary where Any belongs.
 EXPECTED: dict[type[ModelView[Any]], list[str]] = {
@@ -185,10 +240,20 @@ EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     LinkThatLeadsElsewhere: ["Product.name", "Customer"],
     NotAModel: ["OrderSchema", "mapped"],
     TitleTypo: ["{nmae}", "record_title"],
+    TitleThroughALink: ["record_title", '"customer"', "own columns"],
+    ExcludeForeignKey: ["exclude_fields_from_list", '"customer_id"', '"customer"'],
+    ExcludeNotShown: ["exclude_fields_from_list", '"note"', "id, status"],
     ExcludedAndHidden: ["note", "hidden_in_list", "exclude_from_list"],
     ExcludedByListAndHidden: ["note", "hidden_in_list", "exclude_fields_from_list"],
     ChoicesMissing: ["region", "choices"],
     ToneForUnknownValue: ['"US"', "tones"],
+    ChoiceOfNoMember: ['"PIAD"', "OrderStatus", "PAID"],
+    RelationOnForeignKey: ["Order.customer_id", "RelationField(Order.customer)"],
+    RelationOnColumn: ['RelationField("note")', "customer, items"],
+    KindOfAnotherType: ['DecimalField("name")', "Customer.name holds str"],
+    LengthOfADate: ["DateTimeField", "max_length=5"],
+    LengthOfARelation: ["RelationField(Order.customer)", "max_length=3"],
+    RequiredComputed: ['ComputedField("lines")', "required=True"],
     InputNobodyCanDraw: ["carrier", "Carrier"],
     OldListFilter: ["list_filter", "list_filters"],
     OldPageSizes: ["page_sizes", "page_size_options"],
@@ -212,4 +277,6 @@ EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     OldGetListDisplay: ["defines get_list_display", "can_access_field"],
     OldGetFormFields: ["defines get_form_fields", "can_access_field"],
     OldGetDetailFields: ["defines get_detail_fields", "can_access_field"],
+    OldGetColumnChoices: ["defines get_column_choices", "can_access_field"],
+    OldGetPageSizes: ["defines get_page_sizes", "page_size_options"],
 }

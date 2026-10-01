@@ -47,7 +47,7 @@ from adminsite.fields.scalars import (
 )
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 from adminsite.i18n import gettext as _
-from adminsite.text import humanize, humanize_class
+from adminsite.text import choice_label, humanize_class
 
 __all__ = [
     "DRAWN",
@@ -428,7 +428,7 @@ def _choice_text(value: Any) -> str:
 def _choice_label(value: Any) -> str:
     """An option as a person reads it: card reads Card, and USD stays USD."""
     if isinstance(value, str):
-        return humanize(value) if value == value.lower() else value
+        return choice_label(value)
     return _choice_text(value)
 
 

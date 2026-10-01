@@ -33,7 +33,7 @@ class OrderView(ModelView[Order]):
 | Hook | When it runs |
 |---|---|
 | `before_save` | Before the submitted values are written onto the record. |
-| `after_save` | After the flush, so the record has its primary key, and before the commit. |
+| `after_save` | After the flush, so the record has its primary key and the values the database set in its own columns, and before the commit. |
 | `after_save_committed` | Once the save has committed. |
 | `before_delete` | Before the record is deleted. |
 | `after_delete` | After the delete is flushed, before the commit. |
@@ -42,7 +42,8 @@ class OrderView(ModelView[Order]):
 ## What a hook receives
 
 `SaveContext[Order]` is the context of an order's save, so `context.record` is an `Order` and each
-value has its column's type. It has:
+value has its column's type. A link reads as its record, whether or not the linked model has a
+view. It has:
 
 | Attribute | What it holds |
 |---|---|
@@ -66,11 +67,13 @@ class ProductView(ModelView[Product]):
         context.values[Product.slug].set(slugify(name))
 ```
 
-`get()` gives the value the column has once saved: the one the save stores, or the record's own
-when the save leaves the column as it is, such as a read-only field. `Product.name in
-context.values` tells whether the save stores a value for that column at all. A value the record
-does not hold yet, such as a relation it was loaded without, is refused by name rather than read
-with a query behind your back: put it in the view's fields, or read it with `context.session`.
+`get()` gives the value the save stores in the column, or the record's own when the save leaves the
+column as it is, such as a read-only field. On a new record such a column is `None` until the insert
+fills in its default, whatever its type says, just as the attribute on `context.record` is. Read it
+in `after_save` to see the default. `Product.name in context.values` tells whether the save stores a
+value for that column at all. A value the record does not hold yet, such as a relation it was
+loaded without, is refused by name rather than read with a query behind your back: put it in the
+view's fields, or read it with `context.session`.
 
 `before_save` runs before the values are written onto the record, so that is where to change them.
 Whatever the hook leaves in `context.values` is what is stored, so the database never sees the
@@ -81,8 +84,9 @@ attribute in `after_save` only for things the form does not send.
 A string names a column too, `context.values["slug"]`, and so do the values of
 [inputs that are not columns](fields.md#inputs-that-are-not-columns), such as a password to hash:
 `context.values["password"].get()`. They are never stored on the record: the hooks store them where
-they belong. A name that is neither a column nor such an input is refused, so a typo does not read
-as an empty value.
+they belong. A name that is neither a column nor such an input is refused by `get()` and `set()`
+alike, so a typo neither reads as an empty value nor is silently left unsaved. `set()` takes the
+record's own columns only, not a path such as `"customer.email"`.
 
 ## Refusing
 
@@ -120,7 +124,11 @@ cache to clear. A save that is refused or fails never reaches them.
 
 The change is stored by then, so these hooks cannot undo it. An error in one is written to the
 server's log, under `adminsite`, and the save or delete still succeeds. The transaction is over
-too: read from `context.record`, and write through a session of your own.
+too: read from `context.record`, and write through a session of your own. The record holds what
+was saved, values the database set in its own columns such as an `onupdate` time included, even
+when `after_save` changed the record again. A relation the view does not load stays unloaded, and
+the values the database set on the rows of an [inline](views.md#related-records-in-the-same-form)
+are not read back, so read those through a session of your own too.
 
 When a bulk action deletes the chosen rows, each record's `after_delete_committed` runs once all of
 them are gone, and none runs if one of them was refused.

@@ -89,15 +89,18 @@ That includes a picker on someone else's form. When an order links to a customer
 through `CustomerView`, so it offers only the customers this user may see, and offers none at all
 where they may not open the view. See [Fields](fields.md#links-to-many-records).
 
+The record page reads a link to many records the same way. A customer's page names their orders
+through `OrderView`, so an order its scope hides is neither named nor counted in "and 12 more".
+
 The same holds when the form comes back. A key sent for a link is resolved through the target's
 own view, so a customer outside the user's scope cannot be attached by editing the form, and the
 answer to a key the view will not give up is the same as to a key that does not exist: "Choose a
 record." A model with no view of its own is loaded by key, since there is no view to ask.
 
 Sorting follows it too. `?sort=` in the URL is honoured only for a column the user can read
-somewhere on the view: one on offer in the list, on the record page or in the form. Sorting by
-anything else, such as a column no page shows them, is ignored rather than putting the rows in the
-order of a value the user cannot see.
+somewhere on the view: one on offer in the list, on the record page or in the edit form. Sorting
+by anything else, such as a column no page shows them, is ignored rather than putting the rows in
+the order of a value the user cannot see.
 
 ## Fields
 
@@ -132,13 +135,61 @@ class CustomerView(ModelView[Customer]):
 `EXPORT`, so `action == RequestAction.EXPORT` keeps a column out of the CSV alone. `field.name` is
 the path the field shows, such as `credit_limit` or `customer.email`. A field refused on a page is
 left off it: the list and its Columns menu, the record page, the form and the export. The JSON API
-carries what the list, the record page and the form show this user, and nobody can sort by a field
-they see nowhere.
+carries what the list, the record page and the edit form show this user, and nobody can sort by a
+field they see nowhere. A field on the create form alone shows no record's value, so it counts for
+neither. An [import](import.md) follows the forms too: a row that adds a record goes by the create
+form, and one that changes a record by that record's edit form, where a field this user sees
+nowhere has to be left empty.
+
+A field refused on the list is left out of its search box and its filters too, and the list does
+not start sorted by it, so no search or filter finds records by a value kept from the user. That
+covers the API, the command palette and pickers, which search the same way. A filter of your own
+that names no field stays, so leave it out in `get_list_filters` where it reads such a field. A
+[`RecentRecords`](dashboard.md#recentrecords) card neither shows the field nor sorts by it. A
+field refused on the record page is left out of its History tab and the Activity page, old and new
+values alike, and so is the value an export filtered it by, whatever the filter is named in the
+address, such as `customer__email` for `Link(Order.customer, Customer.email)`.
 
 `get_readonly_fields` answers for one record too, such as the customer of a shipped order, and
 `record` is None on the form for a new one. A field with `read_only=True` is locked for everyone.
 A locked or refused field is ignored when the form comes back, so adding the input back with the
 browser's developer tools changes nothing.
+
+### Inline fields
+
+The fields of an [inline](views.md#related-records-in-the-same-form) are decided by the view it
+belongs to. `can_access_field` is asked about each one by its path from that view, so an order
+line's price is `items.unit_price`, and `get_readonly_fields` locks one with a `Link` from that
+view to the child's column:
+
+```python
+class OrderView(ModelView[Order]):
+    inlines = [
+        Inline(
+            Order.items,
+            fields=[OrderItem.product, OrderItem.quantity, OrderItem.unit_price],
+        )
+    ]
+
+    def can_access_field(
+        self, request: Request, field: BaseField, action: RequestAction
+    ) -> bool:
+        if field.name == "items.unit_price":
+            return request.state.user.can_see_money
+        return True
+
+    def get_readonly_fields(
+        self, request: Request, record: Order | None
+    ) -> list[ColumnReference]:
+        if record is not None and record.status == "shipped":
+            return [Link(Order.items, OrderItem.quantity)]
+        return []
+```
+
+`action` is `RequestAction.CREATE` for a new row, `EDIT` for an existing one and `DETAIL` on the
+record page. A field refused for every row leaves the table, and one refused on some rows only
+leaves those rows' cells empty. `record` is the parent, so the lines of a shipped order are locked
+together.
 
 ## Who is asking
 

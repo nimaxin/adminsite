@@ -508,7 +508,7 @@ class SettingView(ModelView[Setting]):
             help_text="EnumField. The value's form follows the key chosen here.",
         ),
         JSONField(
-            "value",
+            Setting.value,
             schema=setting_schema,
             help_text="JSONField whose schema comes from the record: one for each key.",
         ),
@@ -527,7 +527,7 @@ class CustomerGroupView(ModelView[CustomerGroup]):
     fields = [
         CustomerGroup.name,
         JSONField(
-            "overrides",
+            CustomerGroup.overrides,
             schema=ShopSettings,
             partial=True,
             help_text="JSONField with partial=True: only what is set here is saved.",

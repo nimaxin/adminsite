@@ -388,7 +388,7 @@ class OrdersWithAFilterPerRequest(ModelView[Order]):
 
 
 class TestFiltersAddedPerRequest:
-    async def test_one_only_get_filters_returns_still_narrows_the_list(
+    async def test_one_only_get_list_filters_returns_still_narrows_the_list(
         self, database: Database
     ) -> None:
         async with database.session() as session:

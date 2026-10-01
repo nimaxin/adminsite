@@ -23,7 +23,8 @@ from adminsite.audit.inputs import looks_secret, recorded_inputs
 from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.exceptions import RefusedError
 from adminsite.fields import DecimalField, StringField
-from tests.models import Order, OrderStatus
+from tests.models import Customer, Order, OrderStatus
+from tests.support import REFUSED
 
 
 class OrderView(ModelView[Order]):
@@ -68,6 +69,13 @@ class OrderView(ModelView[Order]):
     async def crash(self, record: Order, session: SessionAdapter) -> str:
         return str(1 // 0)
 
+    @action("Copy the customer", on="record")
+    async def copy_customer(self, record: Order, session: SessionAdapter) -> str:
+        # Committed here, the taken email is refused as adminsite's error.
+        await session.add(Customer(name="Twin", email="lena@fischer.de"))
+        await session.commit()
+        return "Copied."
+
     @action("Download archive")
     async def download(self, selection: Selection[Order]) -> Response:
         records = await selection.records()
@@ -109,6 +117,17 @@ async def client(database: Database, log: AuditLog) -> AsyncIterator[httpx.Async
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
         headers={"user-agent": "Firefox/140"},
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+async def api(database: Database, log: AuditLog) -> AsyncIterator[httpx.AsyncClient]:
+    site = Admin(database, views=[OrderView], audit=log, api=True)
+    app = Starlette()
+    app.mount("/admin", site)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         yield client
 
@@ -263,6 +282,52 @@ class TestEveryAction:
         assert all(entry.action == "Download archive" for entry in found)
 
 
+class TestThroughTheApi:
+    async def test_an_action_on_the_view_is_recorded_once(
+        self, api: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        answer = await api.post("/admin/-/api/orders/actions/sync", json={})
+        again = await api.post(
+            "/admin/-/api/orders/actions/sync", json={"everything": True}
+        )
+
+        found = await entries(log)
+
+        assert answer.json() == again.json() == {"message": "Synced 3 orders."}
+        assert [(entry.view, entry.record_key) for entry in found] == [
+            ("orders", ""),
+            ("orders", ""),
+        ]
+
+    async def test_a_record_action_is_recorded_on_its_record(
+        self, api: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        answer = await api.post(
+            "/admin/-/api/orders/actions/top_up",
+            json={"keys": ["1"], "inputs": {"amount": "50"}},
+        )
+
+        entry = (await entries(log))[0]
+
+        assert answer.json() == {"message": "Topped up."}
+        assert entry.record_key == "1"
+        assert entry.changes["note"][1] == "Topped up by 50"
+
+    async def test_a_record_action_refused_is_recorded_as_refused(
+        self, api: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        answer = await api.post(
+            "/admin/-/api/orders/actions/pay_out", json={"keys": ["1"]}
+        )
+
+        found = await entries(log)
+
+        assert answer.status_code == 403
+        assert [(entry.record_key, entry.succeeded) for entry in found] == [
+            ("1", False)
+        ]
+
+
 class TestWhatFailed:
     async def test_a_refusal_is_recorded_with_its_message(
         self, client: httpx.AsyncClient, log: AuditLog
@@ -286,6 +351,17 @@ class TestWhatFailed:
         found = await entries(log)
 
         assert found[0].error == "It stopped with an error: ZeroDivisionError."
+
+    async def test_a_refusal_by_the_database_keeps_none_of_its_text(
+        self, client: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        await run(client, "copy_customer", {"keys": "1"})
+
+        found = await entries(log)
+
+        # The database's own text names the column, and can hold the value.
+        assert [entry.error for entry in found] == [REFUSED]
+        assert "customers.email" not in repr(found)
 
     async def test_an_action_the_person_may_not_run_is_recorded(
         self, client: httpx.AsyncClient, log: AuditLog, database: Database

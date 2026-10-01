@@ -55,7 +55,7 @@ from adminsite.fields import (
     UUIDField,
 )
 from adminsite.fields.files import UploadField
-from adminsite.text import humanize
+from adminsite.text import choice_label, humanize
 
 __all__ = [
     "ASKS_FOR",
@@ -357,7 +357,13 @@ class _Reader:
     def _handed_kind(
         self, name: str, base: Any, by_position: bool
     ) -> HandedKind | None:
-        """What a typed parameter is handed, or None when it is asked for."""
+        """What a typed parameter is handed, or None when it is asked for.
+
+        What is handed is always there, so `Request | None` is handed too.
+        The record goes to the first parameter typed with the view's model,
+        before the `*` or after it.
+        """
+        base = _optional(base)[0]
         if isinstance(base, type) and issubclass(base, HTTPConnection):
             return REQUEST
         if isinstance(base, type) and issubclass(base, SessionAdapter):
@@ -367,13 +373,15 @@ class _Reader:
         if base is Selection or get_origin(base) is Selection:
             self._check_selection(name, base)
             return SUBJECT
-        if self.subject_handed or not by_position:
+        if self.subject_handed:
             return None
         if self.on == ON_RECORD and (
             isinstance(base, TypeVar)
             or (isinstance(base, type) and issubclass(self.model, base))
         ):
             return SUBJECT
+        if not by_position:
+            return None
         if self.on == ON_SELECTION and base is self.model:
             model = self.model.__name__
             raise AdminSiteError(
@@ -417,18 +425,23 @@ class _Reader:
             hints = get_type_hints(kind, include_extras=True)
         except NameError as error:
             raise self.unreadable(error) from None
+        declared = {part.name: part for part in dataclasses.fields(kind)}
         parts = []
-        for part in dataclasses.fields(kind):
-            if not part.init:
-                continue
-            written = f"{name}.{part.name}"
-            if _is_group(_read_type(hints[part.name])[0]):
+        # What __init__ takes, which holds an InitVar that fields() leaves out.
+        for part_name, parameter in inspect.signature(kind).parameters.items():
+            written = f"{name}.{part_name}"
+            part_hint = hints.get(part_name, Any)
+            if isinstance(part_hint, dataclasses.InitVar):
+                part_hint = part_hint.type
+            if _is_group(_read_type(part_hint)[0]):
                 raise AdminSiteError(
                     f"{self.where}: {written} is a dataclass inside a dataclass. "
                     "Ask for it with a parameter of its own."
                 )
-            self._ask(written, hints[part.name], _default_of(part))
-            parts.append(part.name)
+            part = declared.get(part_name)
+            default = parameter.default if part is None else _default_of(part)
+            self._ask(written, part_hint, default)
+            parts.append(part_name)
         self.groups.append(
             InputGroup(name, options.label or humanize(name), kind, tuple(parts))
         )
@@ -507,7 +520,7 @@ class _Reader:
             return EnumField(name, enum=kind, multiple=multiple, **shared)
         values = get_args(kind) if get_origin(kind) is Literal else ()
         if values and all(isinstance(value, str) for value in values):
-            choices = [(value, humanize(value)) for value in values]
+            choices = [(value, choice_label(value)) for value in values]
             return EnumField(name, choices=choices, multiple=multiple, **shared)
         raise AdminSiteError(
             f"{self.where}: the parameter {name} is typed {type_name(hint)}, "

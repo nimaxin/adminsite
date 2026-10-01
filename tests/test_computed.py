@@ -8,6 +8,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
+from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, Field
 from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
@@ -141,6 +142,10 @@ class TestComputed:
 
         assert 'name="lines"' not in form.text
         assert answer.status_code in (405, 422)
+
+    def test_it_cannot_be_form_only(self) -> None:
+        with pytest.raises(AdminSiteError, match="cannot be form_only"):
+            ComputedField("lines", lambda order: len(order.items), form_only=True)
 
     async def test_the_api_reads_it(self, client: httpx.AsyncClient) -> None:
         body = (await client.get("/admin/-/api/orders/1")).json()

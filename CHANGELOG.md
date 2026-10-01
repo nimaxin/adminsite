@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Before upgrading:
+
+- A project that overrides `_table.html`, `detail.html`, `_toolbar.html`, `_list_menus.html`,
+  `import_preview.html`, `_action_forms.html` or `dashboard/recent.html` should start its copy
+  again from the new one. They call the view's methods by their new names, such as
+  `view.get_record_title`, and an action's dialog draws its inputs, files included, with
+  `_action_inputs.html`.
+
+What changed:
+
 - `JSONField("settings", schema=ShopSettings)` edits a JSON column as a form built from a Pydantic
   type or a JSON Schema: a switch for a yes or no, a number input that keeps to its limits, the
   picker for a few fixed values, tables for lists of objects and for maps. Saving checks the
@@ -27,26 +37,36 @@
   leaves one out by a flag on the field, such as `exclude_from_list=True`, or by a list on the view,
   such as `exclude_fields_from_export`; `hidden_in_list=True` keeps a column in the Columns menu but
   off the list until someone turns it on. Forms leave out columns of related models, computed
-  fields and keys the database numbers by themselves. `searchable_fields`, `sortable_fields` and
-  `fields_default_sort` join them, and `Inline` takes attributes too: `Inline(Order.items,
-  fields=[OrderItem.product])`. A view that lists no fields shows every column on every page,
-  its key on the record page included.
+  fields, and keys the database or the model fills in, such as an autoincrement id or a `uuid4`
+  default. `searchable_fields`, `sortable_fields` and `fields_default_sort` join them, and
+  `Inline` takes attributes too: `Inline(Order.items, fields=[OrderItem.product])`. A view that
+  lists no fields shows every column on every page, its key on the record page included.
+  `sortable_fields` left out sorts by every column on the list, and `[]` sorts by none, as in
+  starlette-admin.
 - `list_display`, `form_fields`, `detail_fields`, `list_columns`, `exclude` and `readonly_fields`
   are gone: list the fields once in `fields`, leave one off a page with the `exclude_fields_from_`
   lists or flags, and give a field `hidden_in_list=True` or `read_only=True`. A computed field is
-  shown and never edited, so no form has it any more. `get_list_display`, `get_form_fields` and
-  `get_detail_fields` are gone too: `can_access_field` decides who sees a field. A view that still
-  sets or defines one of these stops the admin when it starts, saying what to write instead.
-- A key people type, such as a code or the two columns of a composite key, is now in the form of a
-  view that lists no fields, so such records can be created there. A key the database numbers
-  stays out.
+  shown and never edited, so no form has it any more, and `form_only=True` on one is refused.
+  `get_list_display`, `get_form_fields`, `get_detail_fields` and `get_column_choices` are gone
+  too: `can_access_field` decides who sees a field. So is `get_page_sizes`: list the sizes in
+  `page_size_options`. A view that still sets or defines one of these stops the admin when it
+  starts, saying what to write instead.
+- A key people type, such as a code or the two columns of a composite key, is on the form for a
+  new record, required, and read only once the record exists, so saving a form never moves a
+  record to another key; a JSON `PATCH` that sets one answers 422. So is a link made only of key
+  columns, such as the customer of a profile keyed by it. A key the database or the model fills in
+  stays off both forms, and `read_only=True` on a key locks it on both, as in starlette-admin. If
+  a hook changes a key, the edit page and the JSON API follow the record to its new key.
 - Fields take the column they show and typed options, all keywords: `Field(Order.created_at,
   label="Placed")` is the field adminsite picks for the column, with your options, and a kind such
   as `DecimalField(Order.total, read_only=True)` chooses it. Whatever the options leave out comes
   from the column, so a field you write keeps its column's length, whether it may be empty, an
   enum's choices and a relationship's model. A type checker refuses a text field on a number
   column, a misspelt option, an option by position, a tone that does not exist, and a
-  `ComputedField` written for another model.
+  `ComputedField` written for another model. `EnumField(Order.status, choices=[...])` on an Enum
+  column keeps the column's enum, the choices relabelling or narrowing its members, and
+  `EnumField(Customer.region, enum=Region)` on a string column stores each member's value, as
+  starlette-admin does.
 - A field written in a view without `required` now takes it from its column, as the field adminsite
   picks does, where it used to mean not required. Give `required=False` to keep a field optional.
 - `TextField`, `ChoiceField` and `Computed` are now `TextAreaField`, `EnumField` and
@@ -61,20 +81,27 @@
   listing the model's columns and relationships. So do a relationship or a computed field in
   `searchable_fields`, `sortable_fields` or `fields_default_sort`, a sort through a relationship
   holding many records, a field both hidden in the list and excluded from it, a choice field with
-  nothing to choose from, and a class that is not a mapped model.
+  nothing to choose from, a field kind that does not fit its column, such as
+  `RelationField(Order.customer_id)`, an option the kind never reads, such as `max_length` on a
+  date, an exclude list naming a field the view does not show, `RelationField(view=...)` naming a
+  view the admin does not have, and a class that is not a mapped model.
 - A tone given for a value a choice field does not have is refused when the view is built, once
   the column has given its choices, rather than when the field is written.
 - `record_title = "Order #{id}"` names a view's records, in place of `display_template`, and
   `get_record_title(record)` in place of `title_of`. A name in braces the model does not have, in a
   view's title, an inline's or a link's, stops the admin with the model's columns listed, where it
-  used to show as nothing.
+  used to show as nothing. A title reads the model's own columns: a relationship in braces, such
+  as `{customer.name}`, stops the admin too, since a page loads a record without its links.
 - `can_access_field(request, field, action)` decides who sees which field on which page, as in
   starlette-admin: the list and its Columns menu, the record page, the create and edit forms and the
-  export, each named by `RequestAction`. A refused field is left out of the JSON API as well, is
-  never read back from a form, and cannot be sorted by.
+  export, each named by `RequestAction`. A refused field is never read back from a form, and is
+  left out of the JSON API, the search box, the filters and their counts, sorting, the History tab
+  and the Activity page, and a `RecentRecords` card. The JSON API and `?sort=` follow the list,
+  the record page and the edit form.
 - `get_readonly_fields(request, record)` takes attributes, `[Order.customer, Order.status]`, and a
   misspelt name it returns is refused rather than ignored. `can_view_detail` and
-  `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`.
+  `Permission.VIEW_DETAIL` replace `can_detail` and `Permission.DETAIL`, and `Permission.DETAIL`
+  raises an error naming the new name.
 - A field for a column of a related model is named by its path, `customer.email`, rather than by
   the column alone, whether adminsite works it out or `Field(Link(...))` gives it.
 - An action asks for its values with typed parameters, as FastAPI does: `carrier: Literal["DHL",
@@ -82,21 +109,28 @@
   its fields under one heading, and `UploadFile` a file, which no action could ask for before. The
   values reach the method typed, and `Annotated[str, Input(label="Reason", multiline=True)]` words
   an input. A parameter typed `Request`, `AsyncSession` or `SessionAdapter` is handed the request or
-  the session, and a record action's record goes to the parameter typed with the model. A type
-  no dialog can ask for stops the admin when it starts, naming the parameter. `inputs=` and
-  untyped `(record, session)` methods still work.
+  the session, and a record action's record goes to the first parameter typed with the model,
+  before or after the `*`. A type no dialog can ask for stops the admin when it starts, naming the
+  parameter. `inputs=` and untyped `(record, session)` methods still work, and when `get_actions`
+  replaces an action's inputs, its other typed parameters are still asked for.
 - A link to many records that is required, such as an action's `stockists: list[Supplier]` with no
   default, now needs at least one record chosen, as a choice of several already did.
 - `Selection[Order]` names the model of the rows an action runs over, so `records()` returns
   orders. A bare `Selection` now needs its model under mypy's strict mode, as a bare `list` does.
+  `records(paths=...)` takes columns as attributes too.
 - A save hook takes `SaveContext[Order]`, so `context.record` is an order, and reads and changes
   each value by its column, typed as the column is: `context.values[Order.status].get()` and
   `context.values[Order.note].set(...)`. A column the save leaves as it is reads as the record has
   it. `context.values.get("name")` and `context.set("slug", ...)` are gone; a string still names a
-  column, or an input that is no column, as `context.values["password"].get()`.
+  column, or an input that is no column, as `context.values["password"].get()`, and `set()`
+  refuses any other name, as `get()` does. A link reads as its record, even when the linked model
+  has no view. On a new record, a column the save leaves out reads as None until the insert fills
+  in its default.
 - `after_save_committed` and `after_delete_committed` run once a change has committed, for an email
   or a webhook that must only follow a change that was kept. An error in one is logged, and the
-  change stands.
+  change stands. `context.record` holds what was saved, with the values the database set in its
+  own columns, even after `after_save` changed it, and stays loaded after the commit whatever the
+  session factory says. Values the database sets on an inline's rows are not read back.
 - `RefusedError(..., field=Order.note)` names the field by its attribute, or by `Link(...)`, as well
   as by its name.
 - `scope_query` takes and returns `Statement`, so returning a new select in place of the one given
@@ -125,7 +159,8 @@
   the admin: set `can_delete_selected = False` and add an action of your own.
 - `Inline(extra=1)` is `Inline(blank_rows=1)`, `Admin(fields=...)` is `Admin(field_registry=...)`,
   `RecentRecords(detail="total")` is `RecentRecords(value="total")`, `SignInRefused` is
-  `SignInRefusedError`, and a field class's `blank_keeps` is `keeps_value_when_blank`.
+  `SignInRefusedError`, and a field class's `blank_keeps` is `keeps_value_when_blank`. Each old
+  keyword raises an error naming the new one.
 - Every module lists what it offers in `__all__`, so an editor completing `adminsite.files` no
   longer offers `Path` or `re`.
 - adminsite's types hold on SQLAlchemy 2.0 as well as 2.1, and CI now runs mypy and the tests on
@@ -133,9 +168,17 @@
 - The guides, the README and the docstrings write views this way, and CI type-checks every example
   in them under mypy's strict mode. Examples that could not have run are fixed: the audit log is
   read through the `AuditLog` given to the admin, and a SQLite listener goes on a sync engine.
-- `Inline(fields=...)` takes fields as a view's `fields` does, so `Field(OrderItem.unit_price,
-  read_only=True)` shows a value the row never edits; `readonly_fields=` is gone. `Inline` and
-  `RelationField` take `record_title` in place of `display_template`, as a view does.
+- `Inline(fields=...)` takes fields as a view's `fields` does, so `Field(OrderItem.added_at,
+  read_only=True)` shows a value the row never edits; `readonly_fields=` is gone. A row follows a
+  view's pages: an existing row has the edit page's fields, a new row the create page's, and the
+  record page the detail fields, a `Link` among them. A row leaves out only what the inline's
+  relationship fills in, so another link to the parent's model, such as a match's away team,
+  stays in the rows, and a relationship with no link back no longer asks each new row for the
+  parent's key. The parent's `can_access_field` decides a row's fields, asked by their path such
+  as `items.unit_price`, and its `get_readonly_fields` locks one with `Link(Order.items,
+  OrderItem.unit_price)`. A refused link shows in its row's cell, and a mistake in an inline's
+  fields names the view and the setting. `Inline` and `RelationField` take `record_title` in place
+  of `display_template`, as a view does.
 - A `ComputedField` loader is typed as taking a `SessionAdapter`, so an editor completes
   `session.execute` in it.
 - A key with the wrong number of parts, such as `/shelves/A` for a key of two columns, answers "not
@@ -146,9 +189,57 @@
 - The counts beside a list's filters count only the rows `scope_query` lets the user see. They
   counted every row in the table, which told a user how many records they may not open.
 - A change the database refuses, such as a second customer with the same email, raises
-  `adminsite.exceptions.IntegrityError` from `SessionAdapter.transaction()`, `commit()` and the
-  view's saves and deletes, with SQLAlchemy's error as its cause. A commit that fails is rolled
-  back.
+  `adminsite.exceptions.IntegrityError` from `SessionAdapter.transaction()` and `commit()`, with
+  SQLAlchemy's error as its cause. Its message is worded for people and holds none of the
+  database's text, so no refused value reaches a page or the audit log. A commit that fails is
+  rolled back.
+- A save, an action or a delete the database refuses says so and names the likely causes: a value
+  that must be unique is taken, a required value is missing, or other records still refer to one
+  being removed. A delete the database refuses for itself still says other records refer to it.
+  A save used to blame a clash with another record, and an action or a delete other records
+  referring to them, whatever the cause.
+- An import that changes existing records follows their edit form. A column that form does not let
+  this user change, through `exclude_from_edit`, `can_access_field` or `get_readonly_fields`, may
+  only hold what the record already has, so an exported file imported back still goes through,
+  and a column this user reads on no page may only be left empty. Any other value shows in the
+  preview as "This field cannot be changed." and the row is skipped. A column only the edit form
+  has can be imported into existing records.
+- An import adds a record whose key people type, such as a country's code, when a row names a key
+  no record has. A row that leaves that key blank, a file without its column, or a second row
+  adding the same key shows as a problem in the preview, where it used to fail at the database or
+  answer with a server error. A key the database fills in still has to name a record that exists.
+- The JSON API runs an action on one record or on the view the way the pages do: a record action
+  takes its one key, is handed the record and asks the record's own permission, and an action on
+  the view is written to the audit log once. The index says what each action runs on, as `on`.
+  An action that answers with a file sends the file, and an `inputs` that is not an object
+  answers 422.
+- The record page names the records of a link to many, and counts the rest, through the linked
+  model's own view, so records its `scope_query` hides are neither named nor counted.
+- A relationship on the list, such as `Order.customer`, and a column reached through a link to
+  many no longer get a sort link, which answered with a server error. A column read through a
+  link to many, such as `Link(Customer.orders, Order.total)`, shows each record's value however
+  many links it goes through, and the JSON API sends the values as a list. A number answered with
+  a server error, a column further along showed the wrong value, and the API answered with a
+  server error.
+- A JSON `PATCH` or `POST` that saves a record outside what `scope_query` lets the user read
+  answers 200 or 201 with only the record's key. It saved the change, then answered with a server
+  error.
+- A foreign key whose database column has its own name, such as `mapped_column("personId",
+  ForeignKey(...))`, shows as its relationship in a view's default fields, like any other foreign
+  key, and a link held by the other model, such as a person's passport, no longer takes the place
+  of the model's own key there. `RelationSchema.local_columns` holds attribute names rather than
+  database column names, and the new `remote_columns` holds the linked model's.
+- A key of two columns written as text, such as `A,1`, finds its record everywhere: a link to such
+  a model with no view saves, and the JSON API answers 201 rather than 500 after creating such a
+  record.
+- A list, an export or a picker over a view with no sort goes by the record's key. It had no order,
+  so on Postgres a page could repeat rows of another, and an export could repeat some rows and
+  leave out others.
+- Creating a record through a session factory you give, such as
+  `Admin(async_sessionmaker(engine))`, no longer answers 500 once the record is saved.
+- `after_save` can read a value the database set during the save, such as an `onupdate` time. On
+  an async engine, reading one failed the save.
+- `SQLAlchemyRepository.create` and `.update`, which nothing called, are gone.
 - A setting from another admin, such as Django's `list_display` or `search_fields`, is refused with
   words for someone who never used an older adminsite: "OrderView sets list_display, a setting
   adminsite does not have."

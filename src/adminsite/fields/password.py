@@ -16,7 +16,7 @@ class PasswordField(StringField):
     class UserView(ModelView[User]):
         fields = [
             User.email,
-            PasswordField("password", required=True, exclude_from_detail=True),
+            PasswordField("password", required=True),
         ]
 
         async def before_save(self, context: SaveContext[User]) -> None:

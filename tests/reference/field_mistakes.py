@@ -2,7 +2,9 @@
 
 Each line carries the error mypy has to report there. mypy strict turns an
 ignore it no longer needs into an error of its own, so a mistake that stops
-being caught fails the check.
+being caught fails the check. tests/test_type_mistakes.py reads each line
+again without its ignore and checks mypy's message, so a line refused for
+another reason fails too.
 """
 
 from adminsite import Descending, Field, ModelView

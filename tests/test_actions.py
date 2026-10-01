@@ -13,7 +13,8 @@ from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import EnumField, StringField
 from adminsite.query import QuerySpec
 from adminsite.security import Permission
-from tests.models import Order, OrderStatus, Product
+from tests.models import Customer, Order, OrderStatus, Product
+from tests.support import REFUSED, Backend, count_queries
 
 REQUEST = Request({"type": "http", "headers": []})
 
@@ -64,6 +65,14 @@ class OrderView(ModelView[Order]):
 
 class ProductView(ModelView[Product]):
     fields = ["id", "name", "price"]
+
+
+class CustomerView(ModelView[Customer]):
+    fields = ["name", "email"]
+
+    @action("Give the same email")
+    async def same_email(self, selection: Selection[Customer]) -> str:
+        return f"{await selection.update(email='shared@example.com')} changed."
 
 
 @pytest.fixture
@@ -194,6 +203,30 @@ class TestRunningActions:
         answer = await client.post("/admin/orders/action/fly", data={"keys": "1"})
 
         assert answer.status_code == 404
+
+    async def test_a_value_taken_twice_is_not_blamed_on_references(
+        self, database: Database
+    ) -> None:
+        site = Admin(database, views=[CustomerView], secret_key="for-the-messages")
+        app = Starlette()
+        app.mount("/admin", site)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as session_client:
+            page = await session_client.get("/admin/customers")
+            token = re.search(r'name="_csrf" value="([^"]+)"', page.text)
+            assert token is not None
+
+            answer = await session_client.post(
+                "/admin/customers/action/same_email",
+                data={"keys": ["1", "2"], "_csrf": token.group(1)},
+                follow_redirects=True,
+            )
+
+        assert f"Give the same email was not done. {REFUSED}" in answer.text
+        async with database.session() as session:
+            emails = await session.scalars(select(Customer.email))
+            assert "shared@example.com" not in list(emails)
 
 
 class TestActionInputs:
@@ -335,6 +368,38 @@ class TestSelection:
                 select(func.count()).select_from(Order).where(Order.note.is_not(None))
             )
             assert noted == 1
+
+    async def test_records_load_the_links_named_by_attribute(
+        self, backend: Backend
+    ) -> None:
+        view = OrderView()
+        async with backend.database.session() as session:
+            selection = Selection(
+                view=view, session=session, spec=QuerySpec(), keys=("1", "3")
+            )
+            with count_queries(backend) as queries:
+                orders = await selection.records(paths=[Order.customer])
+                loaded = queries.count
+                names = sorted(order.customer.name for order in orders)
+
+        assert names == ["Lena Fischer", "Marco Rossi"]
+        assert queries.count == loaded
+
+    async def test_records_refuse_a_column_of_another_model(
+        self, database: Database
+    ) -> None:
+        view = OrderView()
+        async with database.session() as session:
+            selection = Selection(
+                view=view, session=session, spec=QuerySpec(), keys=("1",)
+            )
+
+            with pytest.raises(AdminSiteError) as raised:
+                await selection.records(paths=[Customer.name])
+
+        assert str(raised.value).startswith(
+            "Customer.name is a column of Customer, not of Order."
+        )
 
 
 class TestExport:

@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import date
-from typing import Annotated
+from typing import Annotated, assert_type
 
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -147,7 +147,8 @@ class OrderView(ModelView[Order]):
 
     @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
     async def mark_shipped(self, selection: Selection[Order]) -> str:
-        orders = await selection.records()
+        assert_type(selection.request, Request | None)
+        orders = await selection.records(paths=[Order.customer])
         for order in orders:
             order.status = OrderStatus.SHIPPED
         return f"{len(orders)} orders marked as shipped."

@@ -79,7 +79,7 @@ class PromotionView(ModelView[Promotion]):
         ComputedField("runs_until", runs_until, label="Runs"),
         # Not a column: typed in the form, stored by the hook below as a hash.
         # secret_code_hash is left out of fields, so no page shows it.
-        PasswordField("secret_code", exclude_from_list=True, exclude_from_detail=True),
+        PasswordField("secret_code"),
     ]
 
     async def before_save(self, context: SaveContext[Promotion]) -> None:

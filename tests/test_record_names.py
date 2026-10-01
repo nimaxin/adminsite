@@ -67,12 +67,6 @@ class TestTheName:
 
         assert NamedItemView().get_record_title(item) == "2 pieces"
 
-    def test_the_old_name_still_names_it(self) -> None:
-        class Named(ModelView[OrderItem]):
-            record_title = "{quantity} pieces"
-
-        assert Named().get_record_title(OrderItem(id=1, quantity=2)) == "2 pieces"
-
 
 class NamedCustomers(ModelView[Customer]):
     def get_record_title(self, customer: Customer, /) -> str:

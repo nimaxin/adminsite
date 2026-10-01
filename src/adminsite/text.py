@@ -9,6 +9,7 @@ __all__ = [
     "Html",
     "RecordValues",
     "as_text",
+    "choice_label",
     "humanize",
     "humanize_class",
     "names_itself",
@@ -31,6 +32,11 @@ def humanize(name: str) -> str:
         return name
     first, *rest = words
     return " ".join([first.capitalize(), *[word.lower() for word in rest]])
+
+
+def choice_label(value: str) -> str:
+    """An option as a person reads it: card reads Card, and USD stays USD."""
+    return humanize(value) if value == value.lower() else value
 
 
 def humanize_class(name: str) -> str:
@@ -69,7 +75,7 @@ def names_itself(record: Any) -> bool:
 def template_names(template: str) -> list[str]:
     """The attributes a template such as `{name} ({email})` reads, in order.
 
-    `{customer.name}` reads `customer`. Raises ValueError for a template
+    `{created_at.year}` reads `created_at`. Raises ValueError for a template
     `str.format` cannot read, and for braces that name no attribute.
     """
     names = []

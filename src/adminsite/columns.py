@@ -37,9 +37,11 @@ class Link(Generic[V_co]):
         return f"Link({describe(self.relation)}, {describe(self.column)})"
 
 
-# A column named by its attribute, by a Link, or by its name as a string,
-# such as Order.total, Link(Order.customer, Customer.email) or "total".
 ColumnReference: TypeAlias = str | QueryableAttribute[Any] | Link[Any]
+"""A column named by its attribute, by a `Link`, or by its name as a string.
+
+Such as `Order.total`, `Link(Order.customer, Customer.email)` or `"total"`.
+"""
 
 
 @dataclass(frozen=True, eq=False)

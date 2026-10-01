@@ -31,6 +31,7 @@ class StringField(Field[str | None]):
     widget = "text"
     python_type = str
     error_message = "Enter some text."
+    column_types = (str,)
 
 
 @dataclass(eq=False, repr=False)
@@ -54,6 +55,8 @@ class IntegerField(Field[int | None]):
     widget = "number"
     python_type = int
     error_message = "Enter a whole number."
+    column_types = (int,)
+    unused_options = frozenset({"max_length"})
 
 
 @dataclass(eq=False, repr=False)
@@ -63,6 +66,9 @@ class FloatField(Field[float | None]):
     widget = "number"
     python_type = float
     error_message = "Enter a number."
+    # A type checker takes an int where a float is asked for, and so does this.
+    column_types = (float, int)
+    unused_options = frozenset({"max_length"})
 
 
 @dataclass(eq=False, repr=False)
@@ -72,6 +78,8 @@ class DecimalField(Field[Decimal | None]):
     widget = "number"
     python_type = Decimal
     error_message = "Enter an amount, for example 12.50."
+    column_types = (Decimal,)
+    unused_options = frozenset({"max_length"})
 
     def display(self, value: Any) -> str:
         """Show two decimal places and group the thousands."""
@@ -101,6 +109,8 @@ class BooleanField(Field[bool | None]):
     widget = "checkbox"
     python_type = bool
     error_message = "Choose yes or no."
+    column_types = (bool,)
+    unused_options = frozenset({"max_length"})
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -152,3 +162,5 @@ class UUIDField(Field[UUID | None]):
     widget = "text"
     python_type = UUID
     error_message = "Enter a valid UUID."
+    column_types = (UUID,)
+    unused_options = frozenset({"max_length"})

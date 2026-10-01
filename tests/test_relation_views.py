@@ -5,14 +5,14 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import create_engine, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView, Statement
+from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
-from tests.models import Customer, Order, OrderStatus
+from tests.models import Customer, Order, OrderItem, OrderStatus
 from tests.support import Backend, count_queries
 
 
@@ -125,6 +125,70 @@ class TestAFieldThatNamesItsView:
             admin.views.for_relation(field)
 
 
+class BuyerView(ModelView[Customer]):
+    name = "buyers"
+
+
+class TestAViewALinkNamesIsCheckedAtStartup:
+    def refusal(self, *views: type[ModelView[Any]]) -> str:
+        admin = Admin(create_engine("sqlite://"), views=views)
+        with pytest.raises(AdminSiteError) as raised:
+            admin.app  # noqa: B018  # built for the error it raises
+        return str(raised.value)
+
+    def test_a_misspelt_name(self) -> None:
+        class TypoView(ModelView[Order]):
+            fields = [RelationField(Order.customer, view="custmers")]
+
+        assert self.refusal(CustomerView, BuyerView, TypoView) == (
+            "TypoView.fields: The field 'customer' names the view 'custmers', "
+            "which is not registered with this admin. The views of Customer: "
+            "'customers', 'buyers'."
+        )
+
+    def test_a_class_that_is_not_registered(self) -> None:
+        class WalletView(ModelView[Order]):
+            fields = [RelationField(Order.customer, view=BuyerView)]
+
+        assert self.refusal(CustomerView, WalletView).startswith(
+            "WalletView.fields: The field 'customer' names the view BuyerView, "
+            "which is not registered with this admin."
+        )
+
+    def test_a_view_of_another_model(self) -> None:
+        class MixedView(ModelView[Order]):
+            name = "mixed"
+            fields = [RelationField(Order.customer, view="orders")]
+
+        assert self.refusal(OrderView, MixedView) == (
+            "MixedView.fields: The field 'customer' names the view 'orders', which "
+            "shows Order, not Customer. No view of Customer is registered."
+        )
+
+    def test_a_field_of_an_inline(self) -> None:
+        class WithLines(ModelView[Order]):
+            inlines = [
+                Inline(
+                    Order.items,
+                    fields=[RelationField(OrderItem.product, view="prodcts")],
+                )
+            ]
+
+        assert self.refusal(WithLines).startswith(
+            "WithLines.inlines[0].fields: The field 'product' names the view "
+            "'prodcts', which is not registered with this admin."
+        )
+
+    def test_a_view_registered_after_the_one_naming_it(self) -> None:
+        class WalletView(ModelView[Order]):
+            fields = [RelationField(Order.customer, view=BuyerView)]
+
+        admin = Admin(create_engine("sqlite://"), views=[WalletView])
+        admin.add_view(BuyerView)
+
+        assert isinstance(admin.app, Starlette)
+
+
 class TestALinkWithoutAView:
     async def test_it_opens_the_view_that_holds_the_record(
         self, client: httpx.AsyncClient, database: Database
@@ -171,6 +235,61 @@ class TestAToManyLinkOnTheRecordPage:
         assert all("limit" in item or "count(" in item for item in orders)
 
 
+class OpenOrderView(ModelView[Order]):
+    """Every order but the refunded ones."""
+
+    name = "open_orders"
+    record_title = "Order #{id}"
+
+    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+        return statement.where(Order.status != OrderStatus.REFUNDED)
+
+
+@pytest.fixture
+async def open_orders(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    admin = Admin(database, views=[CustomerView, OpenOrderView])
+    app = Starlette()
+    app.mount("/admin", admin)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client
+
+
+class TestAToManyLinkThroughAScopedView:
+    async def test_it_names_and_counts_only_what_the_scope_shows(
+        self, open_orders: httpx.AsyncClient, backend: Backend
+    ) -> None:
+        aisha, _order = await customer_and_order(backend.database, "aisha@khan.co.uk")
+        async with backend.database.session() as session:
+            for day in range(1, 31):
+                status = OrderStatus.PAID if day % 4 else OrderStatus.REFUNDED
+                await session.add(
+                    Order(
+                        customer_id=aisha,
+                        status=status,
+                        created_at=datetime(2026, 8, day % 28 + 1),
+                    )
+                )
+            await session.commit()
+            hers = select(Order.id, Order.status).where(Order.customer_id == aisha)
+            rows = (await session.execute(hers)).all()
+        refunded = [key for key, status in rows if status is OrderStatus.REFUNDED]
+        shown = len(rows) - len(refunded)
+
+        with count_queries(backend) as queries:
+            page = await open_orders.get(f"/admin/customers/{aisha}")
+
+        assert page.status_code == 200
+        assert shown > 20
+        assert f"and {shown - 20:,} more" in page.text
+        named = {int(key) for key in re.findall(r"Order #(\d+)\b", page.text)}
+        assert len(named) == 20
+        assert not named & set(refunded)
+        orders = [item for item in queries.statements if "FROM orders" in item]
+        assert len(orders) == 2
+
+
 class CustomerFormView(ModelView[Customer]):
     """A to-many link on the form, which the record page shows as well."""
 
@@ -190,9 +309,26 @@ class CountedOrderView(ModelView[Order]):
     ]
 
 
+class NeedsByAttributeView(ModelView[Order]):
+    """The same field, its needs written as an attribute, as the docs write them."""
+
+    name = "needs_by_attribute"
+    record_title = "Order #{id}"
+    fields = [
+        "status",
+        "items",
+        ComputedField(
+            "item_count", lambda order: len(order.items), needs=[Order.items]
+        ),
+    ]
+
+
 @pytest.fixture
 async def pages(database: Database) -> AsyncIterator[httpx.AsyncClient]:
-    admin = Admin(database, views=[CustomerView, CustomerFormView, CountedOrderView])
+    admin = Admin(
+        database,
+        views=[CustomerView, CustomerFormView, CountedOrderView, NeedsByAttributeView],
+    )
     app = Starlette()
     app.mount("/admin", admin)
     async with httpx.AsyncClient(
@@ -243,6 +379,15 @@ class TestAComputedFieldThatReadsAShownLink:
         self, pages: httpx.AsyncClient
     ) -> None:
         page = await pages.get("/admin/counted_orders/1")
+
+        assert page.status_code == 200
+        assert value_of(page, "Item count") == "2"
+        assert value_of(page, "Items").startswith("Order item #")
+
+    async def test_its_needs_may_name_the_link_by_attribute(
+        self, pages: httpx.AsyncClient
+    ) -> None:
+        page = await pages.get("/admin/needs_by_attribute/1")
 
         assert page.status_code == 200
         assert value_of(page, "Item count") == "2"

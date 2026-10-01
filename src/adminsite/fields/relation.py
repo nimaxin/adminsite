@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.exceptions import AdminSiteError, FieldValidationError, renamed_keywords
 from adminsite.fields.base import Field
 from adminsite.i18n import gettext as _
 from adminsite.schema import RelationSchema
@@ -40,6 +40,7 @@ class RelationField(Field[Any]):
     widget = "relation"
     python_type = str
     error_message = "Choose a record."
+    unused_options = frozenset({"max_length"})
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -104,3 +105,6 @@ class RelationField(Field[Any]):
         if not keys and self.required:
             raise FieldValidationError(self.name, _("This field is required."))
         return keys
+
+
+renamed_keywords(RelationField, {"display_template": "record_title"})

@@ -1,15 +1,17 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from adminsite.audit import AuditEntry, AuditEvent
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import DateTimeField
 from adminsite.i18n import gettext as _
+from adminsite.security import RequestAction
 from adminsite.text import humanize
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.views import ModelView
 
 __all__ = [
     "ChangeLine",
@@ -51,11 +53,25 @@ class HistoryItem:
     given: Sequence[GivenLine] = ()
 
 
-def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]:
-    """Turn audit entries into lines a person can read."""
+def describe(
+    admin: "Admin", entries: Sequence[AuditEntry], request: Any = None
+) -> list[HistoryItem]:
+    """Turn audit entries into lines a person can read.
+
+    A field the entry's view keeps from this user on the record page is left
+    out, its old and new values with it.
+    """
     items = []
+    filters: dict[str, dict[str, str]] = {}
     for entry in entries:
         view = admin.views.find(entry.view)
+        # An export names each filter as the URL does, which need not be the
+        # path of the field it reads, such as customer__email.
+        reads: dict[str, str] = {}
+        if entry.event is AuditEvent.EXPORTED and view is not None:
+            if view.name not in filters:
+                filters[view.name] = _filter_fields(view, request)
+            reads = filters[view.name]
         items.append(
             HistoryItem(
                 entry=entry,
@@ -69,11 +85,13 @@ def describe(admin: "Admin", entries: Sequence[AuditEntry]) -> list[HistoryItem]
                         after=_text(after),
                     )
                     for name, (before, after) in entry.changes.items()
+                    if _readable(view, request, name)
                 ],
                 view_label=view.label if view is not None else humanize(entry.view),
                 given=[
                     GivenLine(label=_given_label(view, name), value=_given_text(value))
                     for name, value in entry.inputs.items()
+                    if _readable(view, request, reads.get(name, name))
                 ],
             )
         )
@@ -102,6 +120,24 @@ def _verb(entry: AuditEntry, view: object) -> str:
             return _("ran {action}", action=entry.action)
         return _("ran an action")
     return _("changed")
+
+
+def _readable(view: "ModelView[Any] | None", request: Any, name: str) -> bool:
+    """Whether this user sees the field an entry names on the record page."""
+    return view is None or view._can_access_path(request, name, RequestAction.DETAIL)
+
+
+def _filter_fields(view: "ModelView[Any]", request: Any) -> dict[str, str]:
+    """The path each of the view's filters reads, by the filter's name."""
+    named = view.get_list_filters(request)
+    # Built before can_access_field leaves any out, so a filter kept from
+    # this user still maps to the field it reads.
+    offered = (
+        ()
+        if named is view.list_filters
+        else view._built_filters("get_list_filters", named)
+    )
+    return {item.name: item.path for item in (*view._filters, *offered)}
 
 
 def _label(view: object, name: str) -> str:

@@ -4,12 +4,15 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, update
 from sqlalchemy.sql import Executable
+from starlette.requests import Request
 
 from adminsite.audit.entry import Change, diff
 from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.backends.sqlalchemy.values import to_column_type
+from adminsite.columns import ColumnReference, path_of
 from adminsite.query import QuerySpec
+from adminsite.security import RequestAction
 
 if TYPE_CHECKING:
     from adminsite.views import ModelView
@@ -37,7 +40,7 @@ class Selection(Generic[M]):
     spec: QuerySpec
     keys: Sequence[str] = ()
     everything: bool = False
-    request: Any = None
+    request: Request | None = None
     # What update and delete changed, per record key, for the audit log.
     changes: dict[str, dict[str, Change]] = field(default_factory=dict)
 
@@ -46,6 +49,7 @@ class Selection(Generic[M]):
         """The repository of the view this selection belongs to."""
         return self.view._repository
 
+    # Any: one column for each part of the primary key, of whatever types.
     def statement(self) -> Select[Any]:
         """A statement selecting the primary keys this covers."""
         columns = [
@@ -69,21 +73,26 @@ class Selection(Generic[M]):
         counted = select(func.count()).select_from(self.statement().subquery())
         return int(await self.session.scalar(counted) or 0)
 
-    async def records(self, *, paths: Sequence[str] = ()) -> list[M]:
+    async def records(self, *, paths: Sequence[ColumnReference] = ()) -> list[M]:
         """Load the records, for work that needs each one in turn.
 
-        `paths` names links to load with them, such as `customer`, so work
-        on each record never waits on a query of its own.
+        `paths` names links to load with them, such as `Order.customer`, so
+        work on each record never waits on a query of its own.
         """
         statement = self._repository.base_statement(
             self.view._scope_for(self.request)
         ).where(self._covered())
         if paths:
             statement = statement.options(
-                *build_load_options(self._repository.inspector, self.view.model, paths)
+                *build_load_options(
+                    self._repository.inspector,
+                    self.view.model,
+                    [path_of(entry, self.view.model) for entry in paths],
+                )
             )
         return list((await self.session.scalars(statement)).unique().all())
 
+    # Any: each column takes a value of its own type.
     async def update(self, **values: Any) -> int:
         """Change every row this covers, in one statement.
 
@@ -102,7 +111,9 @@ class Selection(Generic[M]):
         if self.view._audit_log is not None:
             paths = [
                 path
-                for path in self.view._form_fields(self.request)
+                for path in self.view._form_fields(
+                    self.request, page=RequestAction.EDIT
+                )
                 if path in self.view._schema.fields
             ]
             await self._remember(paths, after=None)

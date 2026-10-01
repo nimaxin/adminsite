@@ -1,5 +1,6 @@
 """Fields written with typed options, completed from their columns."""
 
+import enum
 from decimal import Decimal
 
 import pytest
@@ -133,6 +134,53 @@ class TestEnumField:
 
         assert Regions()._field_for("region").display("EU") == "Europe"
 
+    def test_choices_on_an_enum_column_keep_its_enum(self) -> None:
+        class Statuses(ModelView[Order]):
+            fields = [
+                EnumField(
+                    Order.status, choices=[("PENDING", "Waiting"), ("PAID", "Paid up")]
+                )
+            ]
+
+        item = Statuses()._field_for("status")
+
+        assert isinstance(item, EnumField)
+        assert item.enum is OrderStatus
+        assert item.parse("PAID") is OrderStatus.PAID
+        assert item.display(OrderStatus.PAID) == "Paid up"
+
+    def test_a_choice_may_name_a_member_by_its_value(self) -> None:
+        class Statuses(ModelView[Order]):
+            fields = [
+                EnumField(
+                    Order.status, choices=[("pending", "Waiting"), ("paid", "Paid up")]
+                )
+            ]
+
+        item = Statuses()._field_for("status")
+
+        assert isinstance(item, EnumField)
+        assert item.display(OrderStatus.PAID) == "Paid up"
+        assert item.values_of(OrderStatus.PAID) == ("paid",)
+        assert item.parse("paid") is OrderStatus.PAID
+
+    def test_an_enum_on_a_string_column_is_stored_as_its_value(self) -> None:
+        class Region(enum.Enum):
+            GERMANY = "DE"
+            ITALY = "IT"
+
+        class Regions(ModelView[Customer]):
+            fields = [EnumField(Customer.region, enum=Region)]
+
+        item = Regions()._field_for("region")
+
+        assert isinstance(item, EnumField)
+        assert item.choices == (("DE", "Germany"), ("IT", "Italy"))
+        assert item.parse("DE") == "DE"
+        assert type(item.parse("GERMANY")) is str
+        assert item.display("IT") == "Italy"
+        assert item.values_of("IT") == ("IT",)
+
     def test_a_tone_is_checked_once_the_choices_are_known(self) -> None:
         class Wrong(ModelView[Order]):
             fields = [EnumField(Order.status, tones={"lost": "rose"})]
@@ -235,5 +283,6 @@ class TestOptionsAreKeywords:
             Field(Order.note, "Note")  # type: ignore[call-arg]
 
     def test_a_misspelt_option_is_refused(self) -> None:
-        with pytest.raises(TypeError, match="label"):
+        # Only Python 3.13 and later add "Did you mean 'label'?".
+        with pytest.raises(TypeError, match="unexpected keyword argument 'lable'"):
             Field(Order.note, lable="Note")  # type: ignore[call-arg]

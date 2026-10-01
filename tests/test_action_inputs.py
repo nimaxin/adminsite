@@ -62,6 +62,8 @@ class PerRequestView(ModelView[Order]):
             dataclasses.replace(
                 item, inputs=(EnumField("target", choices=choices, default="south"),)
             )
+            if item.name == "move"
+            else item
             for item in found
         )
 

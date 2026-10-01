@@ -113,7 +113,7 @@ class TestPickingColumns:
 
         assert view._pick_columns([]) == ("id", "status", "total")
 
-    def test_the_extras_follow_the_list_columns(self) -> None:
+    def test_the_hidden_columns_follow_the_shown_ones(self) -> None:
         view = OrderView()
 
         assert view._column_choices() == (

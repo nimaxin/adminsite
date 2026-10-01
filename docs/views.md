@@ -50,7 +50,8 @@ the module that holds your views:
 A setting names a column by its attribute, `Order.total`, or by its name as a string, `"total"`.
 `Link(Order.customer, Customer.email)` is a column of a related model, which a string writes as
 `"customer.email"`. Links nest to go further: `Link(OrderItem.order, Link(Order.customer,
-Customer.name))`.
+Customer.name))`. Through a link to many, such as `Link(Customer.orders, Link(Order.items,
+OrderItem.quantity))`, a column holds the value of every record it reaches, shown as `1, 2, 1`.
 
 A sort takes the same, and `Descending(Order.created_at)`, or the string `"-created_at"`, sorts from
 the highest value down, so newest first.
@@ -67,8 +68,8 @@ status, total, note, created_at. Its relationships: customer, items.
 So does an attribute of another model, a link whose relation does not lead to its column, one
 string where a list belongs, such as `searchable_fields = "note"`, and a name a setting cannot use:
 a relationship or a computed field in `searchable_fields`, `sortable_fields` or
-`fields_default_sort`, a sort through a relationship holding many records, or a related model's
-column in `deferred_fields`.
+`fields_default_sort`, a sort through a relationship holding many records, a related model's
+column in `deferred_fields`, or a relationship in a `record_title`.
 
 ## Fields
 
@@ -83,7 +84,11 @@ With `fields` empty, the view shows every column the model has, and a foreign ke
 A relationship does two jobs: `Order.customer` shows the customer's name in the list and a picker
 in the form. A column of a related model, such as `Link(Order.customer, Customer.email)`, is shown
 and never edited, as is a computed field, so forms leave both out. They leave out a key the
-database numbers too; a key people choose, such as a product code, stays in the form.
+database or the model fills in too, such as an autoincrement id or a `uuid4` default. A key people
+choose, such as a product code, is on the form for a new record, required, and read only once the
+record exists, since its URL, its history and the rows pointing at it depend on it. So is a link
+made only of key columns, such as the customer of a profile keyed by its customer. A hook can still
+change a key, and the page follows the record to it.
 
 A page leaves a field out by a flag on the field or a list on the view, which mean the same:
 
@@ -101,6 +106,10 @@ class ProductView(ModelView[Product]):
     exclude_fields_from_list = [Product.description]
     exclude_fields_from_export = [Product.cost]
 ```
+
+A list names only fields the view shows: leaving off one it never shows would do nothing, so that
+stops the admin when it starts. With `fields` empty, a foreign key is shown as its relationship, so
+leave the customer off with `Order.customer`, not `Order.customer_id`.
 
 `hidden_in_list=True` keeps a column off the list until someone turns it on in the
 [Columns menu](#choosing-columns). A field hidden in the list and excluded from it at once asks for
@@ -130,9 +139,11 @@ its record pages, in its export, in its audit log and in its pickers. A customer
 `record_title`, as `RelationField(Order.customer, record_title="{email}")`, keeps it.
 
 Each name in braces is checked against the model when the admin starts, so
-`record_title = "Order #{nmae}"` stops it with a message listing the columns the model has.
-`{customer.name}` reads through a link. A name no template can build comes from
-`get_record_title`:
+`record_title = "Order #{nmae}"` stops it with a message listing the columns the model has. The
+names are the model's own columns. A relationship, as in `{customer.name}`, stops the admin too,
+since every page that names an order would have to load its customer as well. A column's own
+attribute, such as `{created_at.year}`, is fine. A name no template can build comes from
+`get_record_title`, which gets the record with its columns loaded, not its links:
 
 ```python
 class SupplierView(ModelView[Supplier]):
@@ -148,9 +159,9 @@ The record is passed by position, so the parameter can be named after the model.
 
 | Setting | What it does |
 |---|---|
-| `searchable_fields` | The columns the search box looks in. Text matches anywhere in the value, numbers match exactly. |
-| `sortable_fields` | The columns people can sort the list by. Every stored column when left empty. |
-| `fields_default_sort` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. |
+| `searchable_fields` | The columns the search box looks in. Text matches anywhere in the value, numbers match exactly. With none, the list has no search box. |
+| `sortable_fields` | The columns people can sort the list by. Left out, every column the list shows, but no relationship and no column reached through one holding many records. An empty list sorts by none. |
+| `fields_default_sort` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. Left out, the list goes by the record's key. |
 | `list_filters` | Columns, or filters you built yourself. See [Filters](filters.md). |
 | `page_size` | Rows per page. 25 unless you say otherwise. |
 | `page_size_options` | The sizes people may switch between. Empty leaves the size fixed. |
@@ -325,7 +336,8 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | `can_view_detail`, `can_export` | Switch off the record page and the CSV export. |
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
-if someone adds the input back by hand.
+if someone adds the input back by hand. `read_only=True` locks a key as well, on the form for a new
+record too, as in starlette-admin, so the model or a hook fills it in.
 
 ### The record page
 
@@ -346,7 +358,8 @@ a form, so it needs no `read_only=True`.
 
 A link to many records, such as `invoices` above, is the exception. It is never loaded whole,
 since a user may have thousands: the page names the first 20 and says how many more there are, in
-two small queries.
+two small queries. Both read through the linked model's own view, so its `scope_query` applies to
+the names and to the count.
 
 ### Related records in the same form
 
@@ -374,7 +387,7 @@ the error next to the cell, and a list of every problem at the top of the form.
 
 | Option | What it does |
 |---|---|
-| `fields` | The child's fields, in order, written as a view's are, so `Field(OrderItem.unit_price, read_only=True)` is shown and not edited. Defaults to every field except the link back to the parent. |
+| `fields` | The child's fields, in order, written as a view's are, so `Field(OrderItem.added_at, read_only=True)` is shown and not edited. Defaults to every field except what the relationship fills in. |
 | `label` | The heading above the table. Defaults to the relationship's name. |
 | `blank_rows` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
 | `can_delete` | Whether rows can be removed. |
@@ -382,6 +395,24 @@ the error next to the cell, and a list of every problem at the top of the form.
 
 The relationship has to hold a list. Blank rows that stay empty are ignored, and a required field
 only counts once something else in the row is filled in. The detail page lists the children too.
+
+The relationship fills in the child's columns it joins on, such as `OrderItem.order_id`, so the rows
+never show them, nor a link made of them, such as `OrderItem.order`, even when `fields` names one.
+That holds for a child with no relationship back to the parent too, and for a column that is part of
+the child's key. Another link to the parent's model is a field like any other: in
+`Inline(Team.home_matches, fields=[Match.away_team, Match.week])` each row picks the away team.
+
+The fields behave as they do on a view. A new row takes the create page's fields and an existing
+child the edit page's, and the table on the record page shows the record page's, so
+`exclude_from_edit=True` sets a value once, when the row is added. A `Link` is shown on the record
+page and never edited. The parent's `can_access_field` and `get_readonly_fields` answer for the
+children too, naming each field by its path from the parent, such as `items.unit_price`: see
+[Permissions](permissions.md#inline-fields).
+
+A read-only or locked field is never read from the form, a new row's included, so a new child takes
+its value from somewhere else, such as a default on the model: `added_at` above would be declared
+with `server_default=func.now()`. A required column with no default cannot be read only here, since
+no new row could be saved.
 
 Removing a row deletes that child record. A key sent for a row that belongs to another parent is
 refused.
@@ -488,7 +519,9 @@ class WalletView(ModelView[Wallet]):
 ```
 
 The owner's card then opens `BuyerView`, and the picker lists buyers. `view` also takes the name in
-a view's URL, such as `"buyers"`.
+a view's URL, such as `"buyers"`. A view the admin does not have, misspelt or never registered, or
+a view of another model, stops the admin before its first page, with the views of that model
+listed.
 
 Without `view`, a card for a record the first view's scope leaves out opens the first view that
 does hold it, rather than a page that answers 404.

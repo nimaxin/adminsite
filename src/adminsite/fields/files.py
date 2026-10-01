@@ -73,6 +73,8 @@ class FileField(Field[str | None]):
     max_size: int = 10 * MEGABYTE
 
     widget = "file"
+    column_types = (str,)
+    unused_options = frozenset({"max_length"})
 
     def display(self, value: Any) -> str:
         """The file's original name."""

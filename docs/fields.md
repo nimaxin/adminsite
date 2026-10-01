@@ -82,18 +82,34 @@ model a relationship links to. So choosing a kind never means saying those again
 give wins over the column.
 
 `EnumField` on a string column takes its options from `choices=[("S", "Small"), ("L", "Large")]`,
-or from an Enum given as `enum=`. A choice field with none of them, on a column that is not an
-Enum, has nothing to offer, and stops the admin when it starts.
+or from an Enum given as `enum=`. A string column stores a member's value, so the options an enum
+gives it are keyed by the value: `EnumField(Shirt.size, enum=Size)` saves `"l"` for `Size.LARGE`.
+A choice field with none of them, on a column that is not an Enum, has nothing to offer, and stops
+the admin when it starts.
+
+On an Enum column, `choices` relabel or narrow the column's members, and the field still hands
+your hooks the member. A choice names a member by its name or by its value, in any case, so
+`("PAID", "Paid up")` and `("paid", "Paid up")` both stand for `OrderStatus.PAID`. A choice that
+names no member stops the admin when it starts.
 
 The column is named by its attribute, by a [`Link`](views.md#naming-columns) for a column of a
 related model, or by its name as a string. Options are keywords, each with its type, so a type
 checker refuses `Field(Order.note, lable="Note")`, `Field(Order.note, "Note")` and
 `TextAreaField(Order.total)` on a `Decimal` column, and Python refuses a misspelt option when the
-module is imported.
+module is imported. A column named by a string gets past the type checker, so the admin checks the
+kind against the column when it starts: `TextAreaField("total")` stops it, and so does
+`RelationField(Order.customer_id)`, which names the key instead of the relationship,
+`Order.customer`. A column of a type of your own, such as a `TypeDecorator`, names no Python type to
+check against, so any kind may show it: `DateTimeField("starts_at")` on a `TZDateTime` column gives
+it a date and time picker.
 
 Every field takes `label`, `help_text`, `required`, `read_only`, `max_length`, `default`, `format`,
 `secret` and `form_only`, and the flags that leave it off a page, as under
-[Fields](views.md#fields). `read_only` shows the value in the form and never reads it back.
+[Fields](views.md#fields). A kind refuses one it never reads when the admin starts. `max_length`
+means nothing to a number, a date or a time, a yes or no, a UUID, a choice, a relationship, a JSON
+document, a list or a file. A `ComputedField` is never in a form and never saved, so it takes no
+`required`, `read_only`, `max_length`, `secret`, `form_only`, `exclude_from_create` or
+`exclude_from_edit`. `read_only` shows the value in the form and never reads it back.
 `default` is what a new record's form starts with, and what an action's dialog opens with. `secret`
 says whether the [audit log](audit.md#secrets) keeps `***` instead of the value, in what a save
 changed and in what an action was run with; left out, a name such as `password_hash` or `api_key`
@@ -155,7 +171,7 @@ the last chip.
 For a table of up to 100 records the whole list is in the page and narrows as you type. Above that
 the list is searched on the server, twenty records at a time, and says so when more match. A link
 that holds a single record works the same way above 100 records: the box shows the record's name,
-typing searches for another, and picking replaces it. Below 100 it is a plain select. A
+typing searches for another, and picking replaces it. Below 100 it is a plain select. An
 `EnumField` with `multiple=True` gets the same picker, over its options.
 
 The search box is the only way the picker can work on a large table, so the records it offers are
@@ -167,10 +183,11 @@ here as on any other page. A user who may see only their own region's customers 
 the picker, and a view nobody may open offers nothing at all. Where the other model has no view of
 its own, there is nothing to ask and its records are read directly.
 
-The search looks in the target view's `searchable_fields`. Where it names none, it looks in the text
-columns the records are named by, which the picker is already showing. So a column a view keeps off
-its pages cannot be read a letter at a time through a picker, and a target with neither
-`searchable_fields` nor a `record_title` cannot be narrowed at all.
+The search looks in the target view's `searchable_fields`, less any its `can_access_field` keeps
+from the user on the list. Where that leaves none, it looks in the text columns the records are
+named by, which the picker is already showing. So a column a view keeps off its pages cannot be
+read a letter at a time through a picker, and a target with neither `searchable_fields` nor a
+`record_title` cannot be narrowed at all.
 
 ### When the order means something
 
@@ -441,11 +458,13 @@ class GroupView(ModelView[Group]):
 ```
 
 A record the answer leaves out gets `default`, here 0 for a group with no members. The value shows
-in the list, on the record page, on the form, in the export and in the API, each loading it the
-same way. A composite key is looked up as a tuple of its values.
+in the list, on the record page, in the export and in the API, each loading it the same way. A
+composite key is looked up as a tuple of its values.
 
 A computed value is never written, sorted or filtered: its column has no sort link, the form
-leaves it out, and so do imports and the API's writes. The API still reads it.
+leaves it out, and so do imports and the API's writes. The API still reads it. A `ComputedField`
+cannot be `form_only`: an input that is not a column is a field of its own, as the next section
+shows.
 
 ## Inputs that are not columns
 

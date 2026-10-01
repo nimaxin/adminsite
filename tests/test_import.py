@@ -9,7 +9,7 @@ from openpyxl import Workbook
 from sqlalchemy import func, select
 from starlette.applications import Starlette
 
-from adminsite import Admin, ModelView
+from adminsite import Admin, BaseField, Field, ModelView, RequestAction
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.imports import (
@@ -162,6 +162,151 @@ class TestThePlan:
             await plan_for(database, CustomerView(), "colour,size\nred,M\n")
 
 
+class EditRules(ModelView[Customer]):
+    """Sets the email once, keeps region from the edit form, locks Lena's name."""
+
+    name = "edit_rules"
+    fields = [
+        Customer.name,
+        Field(Customer.email, exclude_from_edit=True),
+        Customer.region,
+        Field(Customer.is_active, exclude_from_create=True),
+    ]
+    can_import = True
+
+    def can_access_field(
+        self, request: Any, field: BaseField, action: RequestAction
+    ) -> bool:
+        return field.name != "region" or action is not RequestAction.EDIT
+
+    def get_readonly_fields(self, request: Any, record: Customer | None) -> list[Any]:
+        if record is not None and record.id == 1:
+            return [Customer.name]
+        return []
+
+
+class OrderCorrections(ModelView[Order]):
+    """Sets an order's customer once."""
+
+    name = "order_corrections"
+    fields = [Field(Order.customer, exclude_from_edit=True), Order.status]
+    can_import = True
+
+
+class NoteOnce(ModelView[Order]):
+    """Writes an order's note once, so a file may only hold the note it has."""
+
+    name = "note_once"
+    fields = [Order.id, Order.status, Field(Order.note, exclude_from_edit=True)]
+    can_import = True
+
+
+class TestTheEditFormsRules:
+    def test_the_columns_are_what_either_form_writes(self) -> None:
+        assert import_columns(EditRules()) == (
+            "id",
+            "name",
+            "email",
+            "region",
+            "is_active",
+        )
+
+    async def test_a_change_is_held_to_the_records_edit_form(
+        self, database: Database
+    ) -> None:
+        plan = await plan_for(
+            database, EditRules(), "id,email,region,name\n1,a@b.c,US,X\n"
+        )
+
+        cannot = "This field cannot be changed."
+        assert plan.rows[0].errors == {
+            "email": cannot,
+            "region": cannot,
+            "name": cannot,
+        }
+        assert plan.count("error") == 1
+
+    async def test_what_the_record_already_holds_goes_through(
+        self, database: Database
+    ) -> None:
+        plan = await plan_for(
+            database,
+            EditRules(),
+            "id,email,region,name\n"
+            "1,lena@fischer.de,DE,Lena Fischer\n"
+            "2,marco@rossi.it,IT,Marco R.\n",
+        )
+
+        lena, marco = plan.rows
+        assert (lena.action, lena.values) == ("update", {})
+        assert (marco.action, marco.values) == ("update", {"name": "Marco R."})
+
+    async def test_an_exported_file_goes_through(self, database: Database) -> None:
+        notes = ["- fragile", "+49 (30) 1234 5678", "@front desk", "back door "]
+        async with database.session() as session:
+            for key, note in enumerate(notes, start=1):
+                order = await session.get(Order, key)
+                assert order is not None
+                order.note = note
+            await session.commit()
+        app = Starlette()
+        app.mount("/admin", Admin(database, views=[NoteOnce]))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            exported = await client.get("/admin/note_once/export")
+
+        table = read_table("a.csv", exported.content)
+        assert table[1] == ["1", "Shipped", "'- fragile"]
+        async with database.session() as session:
+            plan = await build_plan(NoteOnce(), session, table)
+
+        assert [row.errors for row in plan.rows] == [{}] * 7
+        assert plan.count("update") == 7
+
+    async def test_a_link_may_hold_its_records_key_or_its_name(
+        self, database: Database
+    ) -> None:
+        plan = await plan_for(
+            database,
+            OrderCorrections(),
+            "id,customer,status\n1,1,Paid\n2,Lena Fischer,Paid\n3,1,Paid\n",
+        )
+
+        assert [row.errors for row in plan.rows] == [
+            {},
+            {},
+            {"customer": "This field cannot be changed."},
+        ]
+
+    async def test_only_a_record_that_exists_takes_a_column_of_the_edit_form(
+        self, database: Database
+    ) -> None:
+        plan = await plan_for(
+            database,
+            EditRules(),
+            "id,name,email,is_active\n2,Marco,marco@rossi.it,no\n,Mia,mia@x.nl,yes\n",
+        )
+
+        marco, mia = plan.rows
+        assert marco.values == {"name": "Marco", "is_active": False}
+        assert mia.errors == {"is_active": "This field cannot be written."}
+
+    async def test_a_new_record_goes_by_the_create_form(
+        self, database: Database
+    ) -> None:
+        plan = await plan_for(
+            database, EditRules(), "id,name,email,region\n,Mia,mia@x.nl,NL\n"
+        )
+
+        assert plan.rows[0].action == "create"
+        assert plan.rows[0].values == {
+            "name": "Mia",
+            "email": "mia@x.nl",
+            "region": "NL",
+        }
+
+
 class TestKeptFiles:
     def test_a_kept_file_comes_back_once(self) -> None:
         view = CustomerView()
@@ -270,6 +415,45 @@ class TestImportPages:
             lena = await session.get(Customer, 1)
             assert lena is not None
             assert lena.name == "Lena F."
+
+    async def test_a_change_the_edit_form_refuses_is_never_made(
+        self, database: Database
+    ) -> None:
+        admin = Admin(database, views=[EditRules], secret_key="for-the-session")
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            form = await client.get("/admin/edit_rules/import")
+            page = await client.post(
+                "/admin/edit_rules/import",
+                data={"_csrf": token_in(form)},
+                files={
+                    "file": (
+                        "a.csv",
+                        b"id,email,region,name\n1,a@b.c,US,X\n,mia@x.nl,NL,Mia\n",
+                    )
+                },
+            )
+            action = re.search(r'action="(/admin/edit_rules/import/[^"]+)"', page.text)
+            assert action is not None
+            done = await client.post(
+                action.group(1), data={"_csrf": token_in(page)}, follow_redirects=True
+            )
+
+        assert "This field cannot be changed." in page.text
+        assert "Imported 1 new and changed 0 customers." in done.text
+        assert "Skipped 1 rows with problems." in done.text
+        async with database.session() as session:
+            lena = await session.get(Customer, 1)
+            assert lena is not None
+            assert (lena.name, lena.email, lena.region) == (
+                "Lena Fischer",
+                "lena@fischer.de",
+                "DE",
+            )
+            assert await customers(database) == 5
 
     async def test_a_file_can_be_imported_once(self, client: httpx.AsyncClient) -> None:
         page = await preview(client, "name,email\nMia,mia@x.nl\n")
