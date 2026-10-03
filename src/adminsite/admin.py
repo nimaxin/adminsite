@@ -68,6 +68,57 @@ class Admin:
     admin.add_view(OrderView)
     app.mount("/admin", admin)
     ```
+
+    Args:
+        source: Where the records live: an engine, an async engine, or a
+            session factory for either. Sync and async behave the same.
+        title: The name in the sidebar, the browser tab and the sign in
+            page. It names the session cookie too.
+        banner: One line above every page and the sign in page, such as
+            "Staging: changes here are not real". Escaped, unless given as
+            `Html`.
+        views: The views to show, each a class such as `OrderView`, an
+            alias such as `ModelView[Tag]`, or a view already built.
+        inspector: Reads the models' columns and relationships. Rarely
+            needed.
+        field_registry: Picks the field for each type of column. Left out,
+            `adminsite.fields.default_registry`, where a project registers
+            fields of its own.
+        template_dirs: Folders searched for templates before the built in
+            ones, to override one of the admin's or to add your own.
+        auth: Decides who may sign in. Left out, the admin is open to
+            anyone who can reach it.
+        secret_key: Signs the session cookie. Required with `auth`; keep it
+            out of your repository.
+        audit: True to write down who changed what in a SQLite file of its
+            own, or an `AuditStore`, such as `AuditLog(engine)`, to keep it
+            elsewhere.
+        saved_views: True to let people save lists they come back to, in a
+            SQLite file of their own, or a `SavedViews` that keeps them
+            elsewhere.
+        session_cookie: The session cookie's name. Left out, one made from
+            the title, so two admins in one app keep separate sessions.
+        pages: Pages of your own, each an `AdminPage` class or instance.
+        plugins: Plugins, each set up as the admin is built.
+        dashboard: The cards on the overview page. Left out, how many
+            records each view holds; an empty list, no cards.
+        api: True to answer JSON under /-/api, through the same views and
+            permissions as the pages.
+        session_https_only: True to send the session cookie over HTTPS
+            only. Switch it on wherever the admin is served over HTTPS.
+        session_max_age: How long the session cookie lasts, in seconds; two
+            weeks unless you say. None keeps it for the browser session.
+        language: The language the admin speaks, such as "fa", and the
+            default for anyone whose browser asks for none of `languages`.
+        languages: More languages people may switch to, in a menu at the
+            foot of the sidebar. The first visit follows the browser.
+        translations: Your own wording, by language and then by the English
+            text, such as `{"en": {"Username": "Email"}}`. It wins over the
+            built in translations, and adds a language adminsite does not
+            ship.
+
+    Raises:
+        AdminSiteError: When `auth` is given without a `secret_key`.
     """
 
     def __init__(
@@ -101,8 +152,6 @@ class Admin:
             )
         self.database = source if isinstance(source, Database) else Database(source)
         self.title = title
-        # One line above every page and the sign in page, such as a warning
-        # that this copy is a staging one. Escaped, unless given as Html.
         self.banner = banner
         self.inspector = inspector or SQLAlchemyInspector()
         self.field_registry = field_registry or default_registry
@@ -146,7 +195,14 @@ class Admin:
             self.use(plugin)
 
     def add_view(self, view: ModelView[Any] | type[ModelView[Any]]) -> ModelView[Any]:
-        """Register a view, given as its class, `ModelView[Tag]` or an instance."""
+        """Register a view, given as its class, `ModelView[Tag]` or an instance.
+
+        Args:
+            view: The view, as `views` takes it.
+
+        Returns:
+            The view as the admin built it.
+        """
         built = (
             view
             if isinstance(view, ModelView)
@@ -160,7 +216,18 @@ class Admin:
         return self.views.add(built)
 
     def add_page(self, page: AdminPage | type[AdminPage]) -> AdminPage:
-        """Add a page of your own, served at /-/ and its name."""
+        """Add a page of your own, served at /-/ and its name.
+
+        Args:
+            page: The page, as an `AdminPage` class or instance.
+
+        Returns:
+            The page as the admin built it.
+
+        Raises:
+            AdminSiteError: When a page of that name is already there, or
+                the admin keeps the name for itself.
+        """
         built = page() if isinstance(page, type) else page
         if built.name in RESERVED_PAGES or built.name in self.pages:
             raise AdminSiteError(f"A page is already called {built.name!r}.")
@@ -169,7 +236,14 @@ class Admin:
         return built
 
     def use(self, plugin: Plugin) -> Plugin:
-        """Let a plugin add what it brings."""
+        """Let a plugin add what it brings, by calling its `setup`.
+
+        Args:
+            plugin: The plugin.
+
+        Returns:
+            The same plugin.
+        """
         plugin.setup(self)
         self.plugins.append(plugin)
         return plugin
@@ -187,6 +261,18 @@ class Admin:
 
         The path has to start with /-/, which no model name can take, and
         the route sits behind the admin's sign in unless `guarded` is off.
+
+        Args:
+            path: The path under the admin, such as "/-/reports/export".
+            endpoint: An async function given the admin and the request,
+                which answers with a response.
+            methods: The HTTP methods it answers.
+            name: The route's name, for building its URL.
+            guarded: False to answer people who have not signed in.
+
+        Raises:
+            AdminSiteError: When the path is not under /-/, or the admin has
+                already answered its first request.
         """
         if not path.startswith("/-/"):
             raise AdminSiteError(f"Extra routes live under /-/, not at {path!r}.")
@@ -197,22 +283,44 @@ class Admin:
         )
 
     def add_static(self, name: str, directory: str | Path) -> None:
-        """Serve a folder of files at /-/static/ and the name."""
+        """Serve a folder of files at /-/static/ and the name.
+
+        Args:
+            name: The folder's name in the URL.
+            directory: The folder on disk.
+
+        Raises:
+            AdminSiteError: When the admin has already answered its first
+                request.
+        """
         self._before_start("static files")
         self._extra_routes.append(
             Mount(f"/-/static/{name}", app=StaticFiles(directory=directory))
         )
 
     def add_template_dir(self, directory: str | Path) -> None:
-        """Look for templates in one more folder, before the built in ones."""
+        """Look for templates in one more folder, before the built in ones.
+
+        Args:
+            directory: The folder on disk.
+        """
         self.templates.add_directory(directory)
 
     def add_stylesheet(self, href: str) -> None:
-        """Load a stylesheet on every page. A relative path starts at the admin."""
+        """Load a stylesheet on every page.
+
+        Args:
+            href: The stylesheet's address. A relative one starts at the
+                admin, such as "-/static/reports/reports.css".
+        """
         self.stylesheets.append(href)
 
     def add_script(self, src: str) -> None:
-        """Load a script on every page. A relative path starts at the admin."""
+        """Load a script on every page.
+
+        Args:
+            src: The script's address. A relative one starts at the admin.
+        """
         self.scripts.append(src)
 
     async def pages_allowing(self, request: Request) -> list[AdminPage]:
@@ -578,7 +686,20 @@ class Admin:
         context: dict[str, Any] | None = None,
         status_code: int = 200,
     ) -> Response:
-        """Render a template of your own, found in the admin's template dirs."""
+        """Render a template of your own, found in the admin's template dirs.
+
+        The template gets what every page of the admin has, such as the
+        sidebar, as well as `context`.
+
+        Args:
+            name: The template's path inside one of the template folders.
+            request: The request being answered.
+            context: More values for the template.
+            status_code: The response's status.
+
+        Returns:
+            The page, as an HTML response.
+        """
         return await self.templates.render(
             name, request, self, context, status_code, own=False
         )

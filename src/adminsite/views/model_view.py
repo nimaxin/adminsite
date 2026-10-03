@@ -95,85 +95,177 @@ class ModelView(Generic[M]):
     methods and `can_access_field` answer per request, for when the answer
     depends on who is asking. A view with no settings needs no class:
     register `ModelView[Tag]`.
+
+    Args:
+        inspector: Reads the model's columns and relationships. The admin
+            passes its own when it builds the view from its class.
+        registry: Picks the field for each type of column. The admin
+            passes its `field_registry` when it builds the view from its
+            class.
     """
 
     model: type[M]
+    """The model the view shows, taken from `ModelView[Order]`."""
     # The type parameter that stands for the model in a view that is generic
     # itself, such as class ShopView(ModelView[M]), so a class written as
     # ShopView[Order] can find its model.
     _model_parameter: ClassVar[object] = None
 
     name: str = ""
+    """The view's name in its URLs, such as `orders` in /admin/orders.
+
+    Left empty, the model's name, plural and in snake case: `order_items`.
+    Two views of one model each need a name of their own.
+    """
     label: str = ""
+    """What one record is called in headings and buttons, such as "Order".
+
+    Left empty, the model's name in words: `OrderItem` reads "Order item".
+    """
     label_plural: str = ""
+    """What the records are called in the sidebar and the list's heading.
+
+    Left empty, the model's name in words, made plural: "Order items".
+    """
     group: str = ""
+    """The sidebar section the view sits under, such as "Sales".
+
+    Views with no group sit together, under no heading.
+    """
     icon: str = ""
-    # How a record is named in headings, links to it and the history, such
-    # as "Order #{id}". Left empty, the model's own __str__, or the view's
-    # label and the record's key.
+    """The view's icon in the sidebar: inline SVG markup, or a picture's address.
+
+    Markup goes into the page as it is, so keep it to icons you control. A
+    relative address starts at the admin, so a plugin's `add_static` folder
+    works.
+    """
     record_title: str = ""
+    """How a record is named in headings, links to it and the history.
 
-    # Every field of the view, in order, for every page. Columns are named by
-    # attribute, Order.total, by Link for a column of a related model, or by
-    # name as a string, "total" or "customer.email"; a field sets options.
-    # Left empty, the view shows every column the model has. A field's value
-    # type differs from one to the next, hence Field[Any].
+    A template of the model's columns, such as `"Order #{id}"` or
+    `"{name} ({email})"`, each name checked when the admin starts. Left
+    empty, the model's own `__str__`, or else the view's label and the
+    record's key, "Order #12". Links from other models name the record the
+    same way. `get_record_title` names one no template can.
+    """
+
+    # A field's value type differs from one to the next, hence Field[Any].
     fields: Sequence[ColumnReference | Field[Any] | ComputedField[M, Any]] = ()
-    # Fields left off one page, as the exclude_from_ flags on a field do.
+    """Every field of the view, once, in the order each page shows them.
+
+    A column is named by its attribute, `Order.total`, by a `Link` for a
+    column of a related model, or by its name as a string, `"total"` or
+    `"customer.email"`. A field, such as `Field(Order.total,
+    read_only=True)`, gives the column options. Left empty, the view shows
+    every column of the model, a foreign key as its relationship.
+    """
     exclude_fields_from_list: Sequence[ColumnReference] = ()
+    """Fields left off the list, as `exclude_from_list` on a field does."""
     exclude_fields_from_detail: Sequence[ColumnReference] = ()
+    """Fields left off the record page, as `exclude_from_detail` on a field does."""
     exclude_fields_from_create: Sequence[ColumnReference] = ()
+    """Fields left off the form for a new record, as `exclude_from_create` does."""
     exclude_fields_from_edit: Sequence[ColumnReference] = ()
+    """Fields left off the edit form, as `exclude_from_edit` on a field does."""
     exclude_fields_from_export: Sequence[ColumnReference] = ()
+    """Fields left out of the CSV export, as `exclude_from_export` on a field does."""
     searchable_fields: Sequence[ColumnReference] = ()
-    # The columns the list can be sorted by. Left out, every stored column;
-    # an empty list, none.
+    """The columns the search box looks in.
+
+    Text matches anywhere in the value, a number only exactly. Left empty,
+    the list has no search box, and the command palette skips the view.
+    """
     sortable_fields: Sequence[ColumnReference] | None = None
-    # Descending(Order.created_at), or "-created_at", sorts newest first.
+    """The columns people may sort the list by.
+
+    Left out, every column the list shows, but no relationship and no
+    column reached through one holding many records. An empty list, none.
+    """
     fields_default_sort: Sequence[ColumnReference | Descending] = ()
+    """The order the list starts in.
 
-    # The filters beside the list: a column, which gets the filter that
-    # suits its type, or a filter of your own.
+    `Descending(Order.created_at)`, or `"-created_at"`, sorts newest first.
+    Left empty, the list goes by the record's key.
+    """
+
     list_filters: Sequence[ColumnReference | SQLFilter[M]] = ()
+    """The filters beside the list.
+
+    A column gets the filter that suits its type; a `SQLFilter` of your own
+    decides for itself.
+    """
     page_size: int = 25
-    # The sizes people may switch between. Empty leaves the size fixed.
+    """How many rows a page of the list holds."""
     page_size_options: Sequence[int] = ()
+    """The page sizes people may switch between, such as `[25, 100, 500]`.
+
+    Left empty, the size stays at `page_size`.
+    """
     count_mode: CountMode = CountMode.EXACT
-    # Whether the command palette looks through this view's records.
+    """How hard the list works to say how many records match.
+
+    `CountMode.ESTIMATED` suits a table of millions of rows on Postgres or
+    MySQL, and `CountMode.NONE` skips the count.
+    """
     global_search: bool = True
+    """Whether the command palette looks through this view's records."""
     pagination: Pagination = Pagination.OFFSET
+    """How the list moves between pages: page numbers, or a keyset for big tables."""
 
-    # Columns the list does not read, such as a large JSON payload, left out
-    # of its query. The record page and the form load them as usual.
     deferred_fields: Sequence[ColumnReference] = ()
+    """Columns the list leaves out of its query, such as a large JSON payload.
 
-    # Child records edited inside this model's form.
+    The record page, the form and the API load them as usual. A column the
+    list shows is loaded whatever this says, as is anything `record_title`
+    reads.
+    """
+
     inlines: Sequence[Inline] = ()
-    # How the forms and the record page arrange the fields: panels, fieldsets,
-    # rows and tabs. Left empty, one field under another, in the order of
-    # fields. A field the layout leaves out comes last.
+    """Child records edited inside this model's form, such as order lines."""
     form_layout: Sequence[LayoutEntry] = ()
+    """How the forms and the record page arrange the fields.
+
+    Panels, fieldsets, rows and tabs, built from `PanelWidget`,
+    `FieldsetWidget`, `RowWidget` and `TabsWidget`; a tuple is a row and a
+    list a column. Left empty, one field under another, in the order of
+    `fields`. A field the layout leaves out comes last.
+    """
 
     can_create: bool = True
+    """Whether records can be added. `allows` decides per user."""
     can_view_detail: bool = True
+    """Whether records have a page of their own. Without it, rows open the form."""
     can_export: bool = True
+    """Whether the list can be downloaded as CSV."""
     can_edit: bool = True
+    """Whether records can be changed."""
     can_delete: bool = True
-    # Whether the chosen rows can be deleted together, from the bar that
-    # rises when rows are ticked. can_delete has to allow it too.
+    """Whether records can be deleted."""
     can_delete_selected: bool = True
-    # Importing is off until you switch it on: it writes many records at once.
+    """Whether the ticked rows can be deleted together.
+
+    The Delete action then sits in the bar that rises when rows are ticked.
+    `can_delete` has to allow it too.
+    """
     can_import: bool = False
+    """Whether records can be imported from a CSV or Excel file.
+
+    Off until you switch it on, since it writes many records at once.
+    """
     import_limit: int = 10_000
+    """The most rows one imported file may hold."""
 
     # The other views of the same admin, set when the view is registered,
     # so a link can be checked against the view of the model it points at.
     _views: "ViewRegistry | None" = None
 
-    # False leaves the view out of the sidebar, the command palette's pages
-    # and the overview's counts. Its pages, links and pickers stay as they
-    # are, for a view whose records are only opened from other records.
     in_sidebar: bool = True
+    """Whether the view is listed in the sidebar.
+
+    False leaves it out of the sidebar, the command palette's pages and the
+    overview's counts, for a view whose records are only opened from other
+    records. Its pages, links and pickers stay as they are.
+    """
 
     # Set by the admin when auditing is switched on.
     _audit_log: "AuditStore | None" = None
@@ -224,9 +316,7 @@ class ModelView(Generic[M]):
                 f"class {view}(ModelView[YourModel])."
             ) from None
 
-        self.name = self.name or pluralize(snake_case(self.model.__name__))
-        self.label = self.label or self._schema.label
-        self.label_plural = self.label_plural or self._schema.label_plural
+        self._fill_names()
 
         # The settings as the paths the rest of adminsite works with.
         self._settings = SettingsReader(self, self._schema, self._inspector)
@@ -280,6 +370,14 @@ class ModelView(Generic[M]):
             self, self._fields, self._pages, self._links, self._audit, self._inspector
         )
 
+    def _fill_names(self) -> None:
+        """Name the view after its model wherever no name was given."""
+        # Outside __init__, so the Reference page shows each setting's own
+        # default rather than this line.
+        self.name = self.name or pluralize(snake_case(self.model.__name__))
+        self.label = self.label or self._schema.label
+        self.label_plural = self.label_plural or self._schema.label_plural
+
     # Reading the configuration. Override these when the answer depends on
     # the request, for example to hide a column from some people.
 
@@ -291,13 +389,31 @@ class ModelView(Generic[M]):
         Every field is shown to everyone by default. Answer False to keep one
         from someone, such as a cost price from staff who are not managers:
         it leaves the page, the export and the API, and no form reads it
-        back. `field.name` is the path it shows, such as "total" or
-        "customer.email".
+        back.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+            field: The field, whose `name` is the path it shows, such as
+                "total" or "customer.email".
+            action: The page asking, such as `RequestAction.LIST`.
+
+        Returns:
+            True to show the field, False to keep it from this user.
         """
         return True
 
     def get_searchable_fields(self, request: Request) -> Sequence[ColumnReference]:
-        """The columns the search box looks in, for this user."""
+        """The columns the search box looks in, for this user.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            Columns, as `searchable_fields` names them; that setting by
+            default.
+        """
         return self.searchable_fields
 
     def search_condition(
@@ -309,24 +425,59 @@ class ModelView(Generic[M]):
         large table cannot answer from an index. Return a condition of your
         own, such as an exact match on a normalised phone number, and the
         list, its count, the export, "select all matching", the command
-        palette and pickers all use it. Return None to fall back.
+        palette and pickers all use it.
+
+        Args:
+            term: What was typed into the search box.
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            A condition on the view's model, or None for the usual search.
         """
         return None
 
     def get_list_filters(
         self, request: Request
     ) -> Sequence[ColumnReference | SQLFilter[M]]:
-        """The filters offered beside the list, for this user."""
+        """The filters offered beside the list, for this user.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            Columns and filters, as `list_filters` takes them; that setting
+            by default.
+        """
         return self.list_filters
 
     def get_fields_default_sort(
         self, request: Request
     ) -> Sequence[ColumnReference | Descending]:
-        """The order the list starts in, for this user."""
+        """The order the list starts in, for this user.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            Columns, any of them `Descending`, as `fields_default_sort`
+            takes them; that setting by default.
+        """
         return self.fields_default_sort
 
     def get_deferred_fields(self, request: Request) -> Sequence[ColumnReference]:
-        """The columns the list leaves out of its query, for this user."""
+        """The columns the list leaves out of its query, for this user.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            Columns, as `deferred_fields` names them; that setting by
+            default.
+        """
         return self.deferred_fields
 
     def get_readonly_fields(
@@ -335,17 +486,32 @@ class ModelView(Generic[M]):
         """Fields shown on this record's form but not editable there.
 
         A field with `read_only=True` is never editable. Answer with more
-        for one record or one user, such as the customer of a shipped order;
-        `record` is None on the form for a new record.
+        for one record or one user, such as the customer of a shipped order.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+            record: The record on the form, or None on the form for a new
+                record.
+
+        Returns:
+            The fields to lock as well, named as in `fields`. None by
+            default.
         """
         return []
 
     def get_inlines(self, request: Request, record: M | None) -> Sequence[Inline]:
         """The child records edited inside the form, for this user and record.
 
-        `record` is None on the form for a new record. Each inline returned
-        has to be one of `inlines`, whose rows are checked when the admin
-        starts.
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+            record: The record on the form, or None on the form for a new
+                record.
+
+        Returns:
+            Inlines from `inlines`, whose rows are checked when the admin
+            starts; all of them by default.
         """
         return self.inlines
 
@@ -355,8 +521,17 @@ class ModelView(Generic[M]):
         """The values form-only fields start from, by name.
 
         Nothing by default, so they start empty. Answer with, say, settings
-        kept as rows of another table, to edit them as one value; `record`
-        is None on the form for a new record.
+        kept as rows of another table, to edit them as one value.
+
+        Args:
+            session: The session the form is read in.
+            record: The record on the form, or None on the form for a new
+                record.
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            Each form-only field's starting value, by the field's name.
         """
         return {}
 
@@ -366,6 +541,14 @@ class ModelView(Generic[M]):
         `record_title` first, then the model's own `__str__`. A model with
         neither is named by the view's label and the record's key, "Order
         #12", rather than by where it sits in memory.
+
+        Args:
+            record: The record, with its columns loaded but not its links.
+                It is passed by position, so the parameter may be named
+                after the model.
+
+        Returns:
+            The record's name.
         """
         if self._settings.record_title:
             return self._settings.record_title.format_map(RecordValues(record))
@@ -382,6 +565,14 @@ class ModelView(Generic[M]):
 
         Delete comes last, where the view allows deleting several at once,
         unless the view has an action of its own by that name.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            The view's actions, each a method marked with `@action`. The
+            permission each one asks for is checked as well.
         """
         found = list(self._actions.marked.values())
         deletes = self.can_delete and self.can_delete_selected
@@ -400,8 +591,20 @@ class ModelView(Generic[M]):
     ) -> bool:
         """Whether the current user may do this, to this record.
 
-        `record` is None when the question is about the view as a whole,
-        such as whether its list may be exported.
+        By default it answers from the `can_` settings, such as `can_edit`,
+        and allows everything else.
+
+        Args:
+            action: What the user wants to do: a `Permission`, such as
+                `Permission.EDIT`, or the permission an action asks for.
+            request: The request, with the signed in user on
+                `request.state.user`.
+            record: The record the question is about, or None when it is
+                about the view as a whole, such as whether its list may be
+                exported.
+
+        Returns:
+            True when the user may.
         """
         name = permission_name(action)
         if name == Permission.CREATE:
@@ -430,7 +633,17 @@ class ModelView(Generic[M]):
 
         This runs on the list, the count, a single record, an export and a
         bulk action, so a row can never leak through a path that forgot to
-        check.
+        check. A record it leaves out reads as Hidden where another view
+        links to it.
+
+        Args:
+            statement: A select of the view's model, about to run.
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            The statement, narrowed, such as with a `where`. Unchanged by
+            default.
         """
         return statement
 
@@ -444,12 +657,31 @@ class ModelView(Generic[M]):
         """Runs before the values are written.
 
         `context.values[Order.slug].set(...)` stores something other than
-        what was submitted. Raise `RefusedError` to refuse the save, naming
-        a field to put the message beside it.
+        what was submitted.
+
+        Args:
+            context: The record, the values about to be written, the
+                session and the request.
+
+        Raises:
+            RefusedError: To refuse the save, with a message for the user.
+                Name a field to put the message beside its input.
         """
 
     async def after_save(self, context: SaveContext[M]) -> None:
-        """Runs after the flush, while the transaction is still open."""
+        """Runs after the flush, while the transaction is still open.
+
+        The record has its primary key by now, and the values the database
+        set in its own columns.
+
+        Args:
+            context: The record, the values written, the session and the
+                request.
+
+        Raises:
+            RefusedError: To roll the save back, with a message for the
+                user.
+        """
 
     async def after_save_committed(self, context: SaveContext[M]) -> None:
         """Runs once the save has committed, such as to send an email.
@@ -457,19 +689,40 @@ class ModelView(Generic[M]):
         The change is stored by now, so nothing here can undo it: an error is
         written to the server's log, and the save still succeeds. The
         transaction is over, so write through a session of your own.
+
+        Args:
+            context: The record, the values written and the request.
         """
 
     async def before_delete(self, context: DeleteContext[M]) -> None:
-        """Runs before a record is deleted. Raise to refuse the delete."""
+        """Runs before a record is deleted.
+
+        Args:
+            context: The record, the session and the request.
+
+        Raises:
+            RefusedError: To refuse the delete, with a message for the user.
+        """
 
     async def after_delete(self, context: DeleteContext[M]) -> None:
-        """Runs after the delete, while the transaction is still open."""
+        """Runs after the delete, while the transaction is still open.
+
+        Args:
+            context: The record, the session and the request.
+
+        Raises:
+            RefusedError: To roll the delete back, with a message for the
+                user.
+        """
 
     async def after_delete_committed(self, context: DeleteContext[M]) -> None:
         """Runs once the delete has committed.
 
         As with `after_save_committed`, an error here is logged and the
         delete still stands.
+
+        Args:
+            context: The record and the request.
         """
 
     def __repr__(self) -> str:

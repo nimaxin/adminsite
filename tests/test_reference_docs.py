@@ -24,8 +24,6 @@ import pytest
 REFERENCE = Path(__file__).parent.parent / "docs" / "reference.md"
 # Written up one step at a time; each step takes its objects off this list.
 NOT_YET: set[str] = {
-    "adminsite.Admin",
-    "adminsite.ModelView",
     "adminsite.RequestAction",
     "adminsite.Link",
     "adminsite.Descending",

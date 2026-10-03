@@ -152,6 +152,9 @@ plugins:
           paths: [src]
           options:
             docstring_style: google
+            # A Returns section is one answer, however many lines it takes.
+            docstring_options:
+              returns_multiple_items: false
             show_source: false
             show_root_heading: true
             show_signature_annotations: true

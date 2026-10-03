@@ -20,27 +20,6 @@ The classes you use most, with their signatures and docstrings.
 ## Views
 
 ::: adminsite.ModelView
-    options:
-      members:
-        - can_access_field
-        - get_readonly_fields
-        - get_searchable_fields
-        - get_list_filters
-        - get_fields_default_sort
-        - get_actions
-        - get_deferred_fields
-        - get_inlines
-        - form_only_values
-        - allows
-        - scope_query
-        - search_condition
-        - before_save
-        - after_save
-        - after_save_committed
-        - before_delete
-        - after_delete
-        - after_delete_committed
-        - get_record_title
 
 ::: adminsite.RequestAction
 
