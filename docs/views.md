@@ -328,6 +328,7 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 | Setting | What it does |
 |---|---|
 | `fields` | The fields, in order, as under [Fields](#fields). A relationship, such as `Order.customer`, gives a picker. |
+| `form_layout` | Panels, rows and tabs for the forms and the record page, as under [Arranging the fields](#arranging-the-fields). |
 | `read_only=True` on a field | Shown, but never read back from what was submitted. `get_readonly_fields(request, record)` locks more for one user or one record. |
 | `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
 | `can_view_detail`, `can_export` | Switch off the record page and the CSV export. |
@@ -338,8 +339,9 @@ record too, as in starlette-admin, so the model or a hook fills it in.
 
 ### The record page
 
-The record page shows every field, and the forms the ones that can be edited. A field nobody should
-post back is left off the forms:
+The record page lists the fields as a table, a row per field with its label beside its value, and
+the forms show the ones that can be edited, one to a line. A field nobody should post back is left
+off the forms:
 
 ```python
 class UserView(ModelView[User]):
@@ -357,6 +359,55 @@ A link to many records, such as `invoices` above, is the exception. It is never 
 since a user may have thousands: the page names the first 20 and says how many more there are, in
 two small queries. Both read through the linked model's own view, so its `scope_query` applies to
 the names and to the count.
+
+A linked record's name links to its own page wherever its view lets this user open it, for a link
+to one record and for each record a link to many names. With the [audit log](audit.md) on, a line
+under the title says who changed the record last.
+
+### Arranging the fields
+
+A model with many fields reads better in groups. `form_layout` arranges the create and edit forms,
+and the record page follows the same panels, so a field stays where it was when you press Edit:
+
+```python
+from adminsite import PanelWidget, TabsWidget
+
+
+class ProductView(ModelView[Product]):
+    fields = [
+        Product.name,
+        Product.slug,
+        Product.description,
+        Product.price,
+        Product.cost,
+        Product.photo,
+        Product.datasheet,
+    ]
+    form_layout = [
+        PanelWidget(
+            "Product",
+            [(Product.name, Product.slug), Product.description],
+            description="What customers see in the shop.",
+        ),
+        PanelWidget("Price", [(Product.price, Product.cost)]),
+        TabsWidget([("Photo", [Product.photo]), ("Datasheet", [Product.datasheet])]),
+    ]
+```
+
+| Entry | What it draws |
+|---|---|
+| A field, by attribute or name | The field, on a line of its own. |
+| `PanelWidget(title, children, description="", collapsible=False, collapsed=False)` | A titled card. Holding one field, it leaves that field's label to its title. A folded panel opens when it holds a mistake. |
+| `FieldsetWidget(legend, children)` | A bordered group with a caption, inside a card. |
+| `RowWidget(children)`, or a tuple | Fields side by side on a wide screen, one under the other on a phone. |
+| A list | Fields one under the other, such as a column inside a row. |
+| `TabsWidget([(label, children), ...])` | One tab at a time. The form opens on the first tab holding a mistake and marks each that holds one; the record page shows each tab as a card of its own. |
+
+The names and the shorthand are starlette-admin's. A field the layout leaves out comes last, so
+none is ever lost; one placed twice, or one that is not among `fields`, stops the admin starting
+with a message saying where it is. Each page still shows only what it would show anyway: a field
+left off the edit form, or kept from this user by `can_access_field`, leaves the layout too, and a
+panel left empty is not drawn. [Inlines](#related-records-in-the-same-form) come after the layout.
 
 ### Related records in the same form
 

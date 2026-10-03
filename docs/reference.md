@@ -52,6 +52,14 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.Inline
 
+::: adminsite.PanelWidget
+
+::: adminsite.FieldsetWidget
+
+::: adminsite.RowWidget
+
+::: adminsite.TabsWidget
+
 ::: adminsite.CountMode
 
 ::: adminsite.Pagination

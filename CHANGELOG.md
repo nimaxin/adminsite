@@ -4,9 +4,11 @@
 
 Before upgrading:
 
-- A project that overrides `_table.html`, `detail.html`, `_toolbar.html`, `_list_menus.html` or
+- A project that overrides `_table.html`, `detail.html`, `form.html`, `_field.html`,
+  `_inlines.html`, `_values.html`, `widgets/readonly.html`, `_toolbar.html`, `_list_menus.html` or
   `import_preview.html` should start its copy again from the new one. They reach a view's fields
-  through `view._fields` and its pages through `view._pages`.
+  through `view._fields` and its pages through `view._pages`, and the record page and the forms are
+  drawn from the view's layout.
 
 What changed:
 
