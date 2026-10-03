@@ -33,19 +33,24 @@ class EnumField(Field[Any]):
     EnumField(Product.size, choices=[("S", "Small"), ("L", "Large")])
     ```
 
-    With `multiple=True` it holds several options at once, in the order they
-    were picked, which suits a JSON column and an action that asks for a few
-    categories.
+    Every option of `BaseField` applies as well, but `max_length`.
 
-    On an Enum column, `choices` relabel or narrow its members, each named
-    by its name or its value, and the field still hands over the member.
-    `enum=` on a string column keys the options by each member's value,
-    which is what the column stores.
-
-    `tones` says which colour each value's badge is, by name, so a failed
-    status is rose wherever it sits among the choices. A value left out is
-    grey, and None draws it with no badge. One name, such as "grey", colours
-    every value alike. Without it, a value takes the tone of its place.
+    Args:
+        column: The column, as `Field` takes it.
+        enum: The Enum whose members are the options, for a string column.
+            The options are keyed by each member's value, which is what the
+            column stores.
+        choices: The options as (value, label) pairs. On an Enum column they
+            relabel or narrow its members, each named by its name or its
+            value, and the field still hands over the member.
+        multiple: Whether it holds several options at once, in the order
+            they were picked, which suits a JSON column and an action that
+            asks for a few categories.
+        tones: Which colour each value's badge is, by name, so a failed
+            status is rose wherever it sits among the choices. A value left
+            out is grey, and None draws it with no badge. One name, such as
+            "grey", colours every value alike. Left out, a value takes the
+            tone of its place.
     """
 
     _: KW_ONLY

@@ -21,20 +21,32 @@ class RelationField(Field[Any]):
     """A link to one or many other records: `RelationField(Order.customer)`.
 
     The relationship says which model it links to and whether it holds many
-    records. `view` names the view its links open and its picker lists
-    from, for a model shown by more than one view; left out, the first view
-    of that model.
+    records. Every option of `BaseField` applies as well, but `max_length`.
+
+    Args:
+        column: The relationship, such as `Order.customer`, or its name.
+        target: The model of the linked records. The view fills it in from
+            the relationship.
+        collection: Whether it links to many records. The view fills it in
+            from the relationship.
+        record_title: How each linked record is named here, such as
+            `"{name} ({email})"`. Left out, as the linked view names it.
+        view: The view its links open and its picker lists from, as a class
+            or by its name, for a model shown by more than one view. Left
+            out, the first view registered for that model.
+        ordered: For a link to many whose order means something, such as
+            servers tried in turn. The form can put its records in order,
+            and saving writes the link again in that order when it changed.
+
+    Raises:
+        AdminSiteError: When `ordered` is given for a link to one record.
     """
 
     _: KW_ONLY
-    # The model of the linked records. Left out, the relationship's.
     target: type[Any] | None = None
     collection: bool = False
     record_title: str | None = None
     view: "type[ModelView[Any]] | str | None" = None
-    # For a link to many whose order means something, such as servers tried
-    # in turn: the form can put its records in order, and saving writes the
-    # link again in that order when it changed.
     ordered: bool = False
 
     widget = "relation"

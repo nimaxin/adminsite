@@ -63,13 +63,24 @@ class FileField(Field[str | None]):
     ```python
     FileField(Product.datasheet, storage=LocalStorage("uploads"), accept=".pdf")
     ```
+
+    The form shows the current file with a box to remove it. A new upload
+    replaces the old file, which is deleted once the save has committed;
+    deleting the record keeps its files. Every option of `BaseField`
+    applies as well, but `max_length`.
+
+    Args:
+        column: The string column that keeps the file's key.
+        storage: Where the files go, such as `LocalStorage("uploads")`.
+        accept: The types taken, as a browser's `accept` takes them:
+            extensions such as ".pdf", types such as "application/pdf", or
+            "image/*". Checked on the server too.
+        max_size: The largest file taken, in bytes: 10 MB unless you say.
     """
 
     _: KW_ONLY
     storage: FileStorage
-    # The types a browser offers to pick, as its accept attribute takes them.
     accept: str = ""
-    # The largest file taken, in bytes.
     max_size: int = 10 * MEGABYTE
 
     widget = "file"
@@ -169,7 +180,9 @@ class ImageField(FileField):
     """An uploaded picture, shown as a thumbnail in the list and the form.
 
     Takes PNG, JPEG, GIF and WebP, checked by the file's first bytes, not
-    just its name. SVG is left out on purpose: it can carry script.
+    just its name. SVG is left out on purpose: it can carry script. The
+    options are `FileField`'s, with `accept` set to those four types and
+    `max_size` to 5 MB.
     """
 
     _: KW_ONLY

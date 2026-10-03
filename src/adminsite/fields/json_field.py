@@ -68,16 +68,22 @@ class JSONField(Field[Any]):
     JSONField(Shop.settings, schema=ShopSettings)
     ```
 
-    The schema can come from a function given the record, for a table whose
-    rows hold documents of different shapes; it may return None where the
-    record has no schema, and the form is then a code box. With
-    `partial=True` each property may be left unset, and only those set are
-    saved, as an override that changes a few settings keeps them.
+    Every option of `BaseField` applies as well, but `max_length`.
+
+    Args:
+        column: The JSON column, as `Field` takes it.
+        schema: A Pydantic type or a JSON Schema dict to build the form
+            from and check the document against. Or a function given the
+            record that answers with either, for a table whose rows hold
+            documents of different shapes; it may answer None where the
+            record has none, and the form is then a code box.
+        partial: Whether each property may be left unset, and only those
+            set are saved, as an override that changes a few settings keeps
+            them.
     """
 
     _: KW_ONLY
-    # A Pydantic type, a JSON Schema dict, or a function given the record
-    # that answers with either. Any, since each of those is its own type.
+    # Any, since each kind of schema is its own type.
     schema: Any = None
     partial: bool = False
 

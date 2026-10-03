@@ -45,14 +45,6 @@ NOT_YET: set[str] = {
     "adminsite.backends.sqlalchemy.SQLFilter",
     "adminsite.filters.FilterOption",
     "adminsite.filters.FilterValue",
-    "adminsite.Field",
-    "adminsite.BaseField",
-    "adminsite.fields.ComputedField",
-    "adminsite.fields.EnumField",
-    "adminsite.fields.RelationField",
-    "adminsite.fields.JSONField",
-    "adminsite.fields.FileField",
-    "adminsite.fields.ImageField",
     "adminsite.files.FileStorage",
     "adminsite.files.LocalStorage",
     "adminsite.AdminPage",
@@ -92,16 +84,23 @@ def resolve(target: str) -> Any:
 
 
 def shown() -> Iterator[tuple[str, list[str] | None]]:
-    """Each object the page shows, with the members it names, if it names any."""
+    """Each object the page shows, with the members it names, if it names any.
+
+    `members: false` shows none, and no `members` at all shows every one.
+    """
     text = REFERENCE.read_text(encoding="utf-8")
     for block in re.split(r"^::: ", text, flags=re.MULTILINE)[1:]:
         target, *rest = block.split("\n")
         options = "\n".join(line for line in rest[: _indented(rest)])
-        listed = re.findall(r"^ +- (\w+)$", options, flags=re.MULTILINE)
+        listed: list[str] | None = re.findall(
+            r"^ +- (\w+)$", options, flags=re.MULTILINE
+        )
         inline = re.search(r"members: \[(.*)\]", options)
         if inline:
             listed = [name.strip() for name in inline.group(1).split(",")]
-        yield target.strip(), listed or None
+        elif not listed and not re.search(r"members: false", options):
+            listed = None
+        yield target.strip(), listed
 
 
 def _indented(lines: list[str]) -> int:
@@ -225,9 +224,10 @@ def gaps(target: str, members: list[str] | None) -> list[str]:
         # A type alias or a type variable, described where it is written.
         return []
     problems = class_gaps(found)
-    names = members or [name for name in vars(found) if not name.startswith("_")]
-    for name in names:
-        member = inspect.getattr_static(found, name)
+    if members is None:
+        members = [name for name in vars(found) if not name.startswith("_")]
+    for name in members:
+        member = inspect.getattr_static(found, name, None)
         if isinstance(member, staticmethod | classmethod):
             member = member.__func__
         if inspect.isfunction(member):

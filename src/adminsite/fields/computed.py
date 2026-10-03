@@ -45,16 +45,12 @@ class ComputedField(BaseField, Generic[M, V]):
     ```
 
     It shows in the list, on the record page and in the export, and is
-    never written, sorted or filtered. `needs` names what the function
-    reads, so it is loaded with the page instead of one query per row. The
-    function takes the view's model, so one written for another model is a
-    type error.
+    never written, sorted or filtered. The function takes the view's model,
+    so one written for another model is a type error.
 
     A value that takes a query, such as a count of related rows, comes from
-    `load` instead: an async function given the session and every record on
-    the page, which answers with each record's value by its primary key. It
-    runs once for the page, however many rows it holds. A record it leaves
-    out gets `default`.
+    `load` instead, which runs once for the page, however many rows it
+    holds:
 
     ```python
     from collections.abc import Sequence
@@ -73,6 +69,25 @@ class ComputedField(BaseField, Generic[M, V]):
 
     ComputedField("orders", load=order_counts, default=0)
     ```
+
+    It takes `label`, `help_text`, `format`, `hidden_in_list` and the flags
+    that leave it off the list, the record page or the export, as
+    `BaseField` describes them.
+
+    Args:
+        name: The field's name, such as "capacity". Its label is made
+            from it, unless `label` is given.
+        getter: A function given the record, which answers with the value.
+        needs: What the function reads, such as `Product.slots`, loaded
+            with the page instead of one query per row.
+        load: An async function given the session and every record on the
+            page, which answers with each record's value by its primary
+            key, a tuple for a composite key. Give it or `getter`, not both.
+        default: The value of a record `load` leaves out.
+
+    Raises:
+        AdminSiteError: When it is given both `getter` and `load`, or
+            neither, or `form_only`.
     """
 
     name: str

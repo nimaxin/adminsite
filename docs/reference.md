@@ -76,23 +76,52 @@ The classes you use most, with their signatures and docstrings.
 ## Fields
 
 ::: adminsite.Field
+    options:
+      members: [column_types]
 
 ::: adminsite.BaseField
+    options:
+      members:
+        - name
+        - widget
+        - python_type
+        - error_message
+        - stored
+        - keeps_value_when_blank
+        - unused_options
+        - display
+        - text_for
+        - hint
+        - serialize
+        - parse
+        - to_python
+        - check_options
 
 ::: adminsite.fields.ComputedField
+    options:
+      members: false
 
 ::: adminsite.fields.EnumField
+    options:
+      members: false
 
 ::: adminsite.fields.RelationField
+    options:
+      members: false
 
 ::: adminsite.Html
 
-
 ::: adminsite.fields.JSONField
+    options:
+      members: false
 
 ::: adminsite.fields.FileField
+    options:
+      members: false
 
 ::: adminsite.fields.ImageField
+    options:
+      members: false
 
 ::: adminsite.files.FileStorage
 
