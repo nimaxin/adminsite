@@ -1,7 +1,7 @@
 """The fields a view shows: the one for each path, and how it reads a record."""
 
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import inspect as sqlalchemy_inspect
 
@@ -32,8 +32,11 @@ if TYPE_CHECKING:
 
 __all__ = ["ViewFields"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
 
-class ViewFields:
+
+class ViewFields(Generic[M]):
     """The field for each path a view shows, and how it reads a record.
 
     A field is built from its column when first asked for, with the options
@@ -42,14 +45,14 @@ class ViewFields:
 
     def __init__(
         self,
-        view: "ModelView[Any]",
+        view: "ModelView[M]",
         settings: SettingsReader,
         inspector: SQLAlchemyInspector,
         registry: FieldRegistry,
-        repository: SQLAlchemyRepository[Any],
+        repository: SQLAlchemyRepository[M],
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._settings = settings
         self._inspector = inspector
         self._registry = registry
@@ -171,7 +174,7 @@ class ViewFields:
             return list(getattr(item, "needs", ()))
         return [path_of(needed, self._model) for needed in item.needs]
 
-    def value_at(self, record: Any, path: str) -> Any:
+    def value_at(self, record: M, path: str) -> Any:
         """Read the value a path points at, following links as it goes.
 
         Past a link to many it reads a value for each record, in one flat
@@ -201,7 +204,7 @@ class ViewFields:
             value = found
         return value
 
-    def display(self, record: Any, path: str) -> str:
+    def display(self, record: M, path: str) -> str:
         """The text shown in a cell."""
         item = self.field_for(path)
         if item.form_only:
@@ -228,11 +231,12 @@ class ViewFields:
             item, record, views=self._view._views, inspector=self._inspector
         )
 
-    def identity_of(self, record: Any) -> str:
+    def identity_of(self, record: M) -> str:
         """The key of a record, as it appears in a URL."""
         return self._repository.identity_of(record)
 
-    def key_value(self, record: Any) -> Any:
+    def key_value(self, record: M) -> Any:
         """A record's primary key as its columns hold it: a tuple when composite."""
-        identity: tuple[Any, ...] = sqlalchemy_inspect(record).identity or ()
+        state = sqlalchemy_inspect(record, raiseerr=True)
+        identity: tuple[Any, ...] = state.identity or ()
         return identity[0] if len(identity) == 1 else tuple(identity)

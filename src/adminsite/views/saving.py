@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import inspect as sqlalchemy_inspect
 from starlette.requests import Request
@@ -40,26 +40,29 @@ if TYPE_CHECKING:
 
 __all__ = ["BULK_DELETE_LIMIT", "Saver"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
+
 # The most records one Delete removes, each loaded and run through the
 # hooks inside a single transaction.
 BULK_DELETE_LIMIT = 1000
 
 
-class Saver:
+class Saver(Generic[M]):
     """A view's saves and deletes, each in one transaction with its hooks."""
 
     def __init__(
         self,
-        view: "ModelView[Any]",
-        fields: ViewFields,
-        pages: PageFields,
+        view: "ModelView[M]",
+        fields: ViewFields[M],
+        pages: PageFields[M],
         links: Links,
-        audit: AuditRecorder,
-        repository: SQLAlchemyRepository[Any],
+        audit: AuditRecorder[M],
+        repository: SQLAlchemyRepository[M],
         inspector: SQLAlchemyInspector,
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._fields = fields
         self._pages = pages
         self._links = links
@@ -72,10 +75,10 @@ class Saver:
         session: SessionAdapter,
         values: Mapping[str, Any],
         *,
-        record: Any = None,
+        record: M | None = None,
         request: Request,
         inline_rows: Mapping[str, Sequence[InlineRow]] | None = None,
-    ) -> Any:
+    ) -> M:
         """Create or change a record, running the hooks in one transaction.
 
         A hook that raises rolls the whole save back, so business rules can
@@ -150,7 +153,7 @@ class Saver:
         return target
 
     async def _clear_reordered(
-        self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
+        self, session: SessionAdapter, record: M, values: Mapping[str, Any]
     ) -> None:
         """Empty each ordered link whose new order a plain save would lose.
 
@@ -185,7 +188,7 @@ class Saver:
             await session.flush()
 
     async def _store_files(
-        self, session: SessionAdapter, values: Mapping[str, Any], record: Any
+        self, session: SessionAdapter, values: Mapping[str, Any], record: M | None
     ) -> tuple[dict[str, Any], list[tuple[FileField, str]]]:
         """Store new uploads and swap them for their keys.
 
@@ -221,7 +224,7 @@ class Saver:
     async def _apply_inlines(
         self,
         session: SessionAdapter,
-        parent: Any,
+        parent: M,
         inline_rows: Mapping[str, Sequence[InlineRow]],
         request: Request,
     ) -> None:
@@ -259,7 +262,7 @@ class Saver:
                 await child_view._repository.apply_values(session, existing, values)
 
     async def delete(
-        self, session: SessionAdapter, record: Any, *, request: Request
+        self, session: SessionAdapter, record: M, *, request: Request
     ) -> None:
         """Delete a record, running the hooks in one transaction."""
         await self._view._ensure(Permission.DELETE, request=request, record=record)
@@ -285,7 +288,7 @@ class Saver:
             ) from error
 
     async def _delete_within(
-        self, session: SessionAdapter, record: Any, *, request: Request
+        self, session: SessionAdapter, record: M, *, request: Request
     ) -> None:
         """Delete one record inside a transaction the caller holds open."""
         await self._view._ensure(Permission.DELETE, request=request, record=record)
@@ -332,7 +335,7 @@ class Saver:
             ],
         )
 
-    async def delete_selected(self, selection: Selection[Any]) -> str:
+    async def delete_selected(self, selection: Selection[M]) -> str:
         """Delete the chosen records, each as a single delete would, all or none.
 
         Every record goes through `allows`, `before_delete` and

@@ -1,7 +1,7 @@
 """A submitted form, its inline rows and an action's inputs, read into values."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import TYPE_CHECKING, Generic, TypeGuard, TypeVar
 
 from sqlalchemy.orm import class_mapper
 from starlette.requests import Request
@@ -21,15 +21,18 @@ if TYPE_CHECKING:
 
 __all__ = ["FormParser"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
 
-class FormParser:
+
+class FormParser(Generic[M]):
     """A view's forms read back into values, each checked as its field says."""
 
     def __init__(
-        self, view: "ModelView[Any]", fields: ViewFields, pages: PageFields
+        self, view: "ModelView[M]", fields: ViewFields[M], pages: PageFields[M]
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._fields = fields
         self._pages = pages
 
@@ -37,13 +40,13 @@ class FormParser:
         self,
         data: FormData,
         *,
-        record: Any = None,
+        record: M | None = None,
         request: Request,
     ) -> FormResult:
         """Read a submitted form into values, collecting any messages."""
         result = FormResult()
         readonly = set(self._pages.readonly_paths(request, record))
-        draft: Any = None
+        draft: M | None = None
 
         for path in self._pages.form_fields(request, record):
             item = self._fields.field_for(path)
@@ -95,7 +98,7 @@ class FormParser:
         data: FormData,
         errors: dict[str, str],
         request: Request,
-        record: Any = None,
+        record: M | None = None,
     ) -> list[InlineRow]:
         """Read one inline's rows back from the form.
 
@@ -140,7 +143,7 @@ class FormParser:
             rows.append(row)
         return rows
 
-    def draft_record(self, data: FormData, request: Request) -> Any:
+    def draft_record(self, data: FormData, request: Request) -> M:
         """An unsaved record holding the plain values a form holds so far.
 
         A JSON field whose schema comes from the record is given this while

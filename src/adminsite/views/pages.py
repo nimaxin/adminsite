@@ -1,7 +1,7 @@
 """Which fields each page of a view shows, to whom, and which it locks."""
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
 
@@ -20,12 +20,15 @@ if TYPE_CHECKING:
 
 __all__ = ["PageFields"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
+
 # The pages an inline's rows are on: a new row's form, an existing one's, and
 # the parent's record page.
 _ROW_PAGES = (RequestAction.CREATE, RequestAction.EDIT, RequestAction.DETAIL)
 
 
-class PageFields:
+class PageFields(Generic[M]):
     """Which fields each page of a view shows this user, and which it locks.
 
     Each answer is for one request, since `can_access_field` and the view's
@@ -34,15 +37,15 @@ class PageFields:
 
     def __init__(
         self,
-        view: "ModelView[Any]",
+        view: "ModelView[M]",
         settings: SettingsReader,
-        fields: ViewFields,
+        fields: ViewFields[M],
         inspector: SQLAlchemyInspector,
         schema: ModelSchema,
         inline_views: Mapping[str, "ModelView[Any]"],
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._settings = settings
         self._fields = fields
         self._inspector = inspector
@@ -189,7 +192,7 @@ class PageFields:
     def form_fields(
         self,
         request: Request,
-        record: Any = None,
+        record: M | None = None,
         *,
         page: RequestAction | None = None,
     ) -> tuple[str, ...]:
@@ -209,7 +212,9 @@ class PageFields:
         ]
         return self.accessible(request, placed, page)
 
-    def detail_fields(self, request: Request, record: Any = None) -> tuple[str, ...]:
+    def detail_fields(
+        self, request: Request, record: M | None = None
+    ) -> tuple[str, ...]:
         """What the record page shows, for this user.
 
         A form-only field, such as a password to set, has nothing to show.
@@ -234,7 +239,9 @@ class PageFields:
             RequestAction.EXPORT,
         )
 
-    def readonly_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
+    def readonly_paths(
+        self, request: Request, record: M | None = None
+    ) -> tuple[str, ...]:
         """The paths shown but not editable, named for the record or by themselves."""
         named = self._settings.paths(
             "get_readonly_fields",
@@ -269,7 +276,9 @@ class PageFields:
             and set(relation.local_columns) <= keys
         )
 
-    def writable_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
+    def writable_paths(
+        self, request: Request, record: M | None = None
+    ) -> tuple[str, ...]:
         """The fields a form reads back: a new record's, or `record`'s."""
         readonly = set(self.readonly_paths(request, record))
         return tuple(
@@ -277,7 +286,7 @@ class PageFields:
         )
 
     def inline_readonly(
-        self, inline: Inline, request: Request, record: Any = None
+        self, inline: Inline, request: Request, record: M | None = None
     ) -> set[str]:
         """The child's paths this view locks, named from here as items.unit_price."""
         prefix = f"{inline.name}."
@@ -287,7 +296,7 @@ class PageFields:
             if path.startswith(prefix)
         }
 
-    def load_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
+    def load_paths(self, request: Request, record: M | None = None) -> tuple[str, ...]:
         """Everything a record page shows, so it can be loaded in one go."""
         paths = list(self.form_fields(request, record, page=RequestAction.EDIT))
         for path in self.detail_fields(request, record):

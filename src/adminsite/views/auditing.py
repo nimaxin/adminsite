@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import inspect as sqlalchemy_inspect
 from starlette.requests import Request
@@ -21,15 +21,18 @@ if TYPE_CHECKING:
 
 __all__ = ["AuditRecorder"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
 
-class AuditRecorder:
+
+class AuditRecorder(Generic[M]):
     """The entries a view writes to the audit log, saved with the change or after it."""
 
-    def __init__(self, view: "ModelView[Any]", fields: ViewFields) -> None:
+    def __init__(self, view: "ModelView[M]", fields: ViewFields[M]) -> None:
         self._view = view
         self._fields = fields
 
-    def snapshot(self, record: Any, paths: Sequence[str]) -> dict[str, Any]:
+    def snapshot(self, record: M, paths: Sequence[str]) -> dict[str, Any]:
         """What a record shows for these paths, as the history records it.
 
         Only what is already loaded is read. Touching anything else would
@@ -62,7 +65,7 @@ class AuditRecorder:
     def record_save(
         self,
         session: SessionAdapter,
-        record: Any,
+        record: M,
         before: Mapping[str, Any],
         paths: Sequence[str],
         request: Request,

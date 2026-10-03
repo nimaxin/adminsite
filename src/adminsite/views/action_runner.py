@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import uuid4
 
 from markupsafe import Markup
@@ -38,24 +38,27 @@ if TYPE_CHECKING:
 
 __all__ = ["DELETE_ACTION", "ActionRunner"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
+
 # The name of the built-in action that deletes the chosen rows.
 DELETE_ACTION = "delete_selected"
 
 
-class ActionRunner:
+class ActionRunner(Generic[M]):
     """A view's actions: the one asked for, run, answered and written down."""
 
     def __init__(
         self,
-        view: "ModelView[Any]",
-        fields: ViewFields,
-        pages: PageFields,
+        view: "ModelView[M]",
+        fields: ViewFields[M],
+        pages: PageFields[M],
         links: Links,
-        audit: AuditRecorder,
+        audit: AuditRecorder[M],
         inspector: SQLAlchemyInspector,
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._fields = fields
         self._pages = pages
         self._links = links
@@ -139,7 +142,7 @@ class ActionRunner:
     async def run_on_record(
         self,
         found: Action,
-        record: Any,
+        record: M,
         session: SessionAdapter,
         *,
         request: Request,
@@ -209,7 +212,7 @@ class ActionRunner:
     async def run_on_selection(
         self,
         found: Action,
-        selection: Selection[Any],
+        selection: Selection[M],
         *,
         request: Request,
         values: Mapping[str, Any] | None = None,

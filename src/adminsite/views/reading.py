@@ -1,7 +1,7 @@
 """What a view reads: its pages of records, one record, and what goes with them."""
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
 
@@ -25,21 +25,24 @@ if TYPE_CHECKING:
 
 __all__ = ["Reader"]
 
+# The model of the view this part belongs to.
+M = TypeVar("M")
 
-class Reader:
+
+class Reader(Generic[M]):
     """What a view reads, always within its scope and after its permission check."""
 
     def __init__(
         self,
-        view: "ModelView[Any]",
+        view: "ModelView[M]",
         settings: SettingsReader,
-        fields: ViewFields,
-        pages: PageFields,
-        repository: SQLAlchemyRepository[Any],
+        fields: ViewFields[M],
+        pages: PageFields[M],
+        repository: SQLAlchemyRepository[M],
         schema: ModelSchema,
     ) -> None:
         self._view = view
-        self._model: type[Any] = view.model
+        self._model: type[M] = view.model
         self._settings = settings
         self._fields = fields
         self._pages = pages
@@ -120,7 +123,7 @@ class Reader:
         *,
         paths: Sequence[str] = (),
         request: Request,
-    ) -> Any | None:
+    ) -> M | None:
         """Load one record, or nothing if it is missing or out of scope."""
         await self._view._ensure(Permission.VIEW, request=request)
         return await self._repository.get(
@@ -147,7 +150,7 @@ class Reader:
     async def fetch_related(
         self,
         session: SessionAdapter,
-        record: Any,
+        record: M,
         path: str,
         *,
         limit: int,
@@ -177,7 +180,7 @@ class Reader:
     async def load_values(
         self,
         session: SessionAdapter,
-        records: Sequence[Any],
+        records: Sequence[M],
         paths: Sequence[str],
         *,
         request: Request,
