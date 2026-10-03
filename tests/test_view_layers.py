@@ -18,7 +18,7 @@ PACKAGE = "adminsite.views"
 # From the bottom up. A module in a row imports only modules of the rows
 # before it.
 LAYERS = [
-    ["checks", "naming"],
+    ["checks", "naming", "layout"],
     ["settings"],
     ["view_fields", "inline"],
     ["pages", "writing"],

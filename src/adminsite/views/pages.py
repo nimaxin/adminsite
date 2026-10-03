@@ -12,6 +12,7 @@ from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
 from adminsite.security import RequestAction
 from adminsite.views.inline import Inline
+from adminsite.views.layout import Placed, arrange
 from adminsite.views.settings import SettingsReader
 from adminsite.views.view_fields import ViewFields
 
@@ -211,6 +212,10 @@ class PageFields(Generic[M]):
             if self.editable(path) and not self.excluded_from(page, path)
         ]
         return self.accessible(request, placed, page)
+
+    def arranged(self, paths: Sequence[str], *, form: bool) -> tuple[Placed, ...]:
+        """The layout of a page showing these paths: a form, or the record page."""
+        return arrange(self._settings.form_layout, paths, form=form)
 
     def detail_fields(
         self, request: Request, record: M | None = None

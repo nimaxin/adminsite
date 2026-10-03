@@ -20,7 +20,9 @@
           {% if document is not none %}x-data="{ view: 'form' }"{% endif %}
           {% if row.redraw_url|default("") %}id="{{ field_id }}-part" hx-post="{{ row.redraw_url }}" hx-swap="outerHTML"
             hx-trigger="change[!target.closest('#{{ field_id }}-part')] from:closest form"{% endif %}>
-  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium {% if document is not none %}w-full{% endif %}" id="{{ field_id }}-label">
+  {#- A panel whose one field this is names it already, so the label is kept
+      for screen readers only. -#}
+  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium {% if document is not none %}w-full{% endif %} {% if hide_label|default(false) %}sr-only{% endif %}" id="{{ field_id }}-label">
     {{ row.label }}
     {% if row.readonly %}
       <span class="inline-flex items-center gap-1 text-xs font-normal text-muted">{{ icons.icon("lock", 12) }}{{ _('read only') }}</span>

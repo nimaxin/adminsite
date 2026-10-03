@@ -1,5 +1,6 @@
 {% extends "adminsite/base.html" %}
 {% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_form_layout.html" as layout_of with context %}
 
 {#- Every problem in one place at the top, each a link to its field, so a
     mistake at the bottom of a long form is never missed. -#}
@@ -70,17 +71,55 @@
       </div>
     {% endif %}
 
-    {% if rows %}
-      <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="form-title">
-        <h2 id="form-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
-        {#- One field to a line, in the order of the view's fields. -#}
-        <div class="flex flex-col gap-5 p-5">
-          {% for row in rows %}
-            {% include "adminsite/_field.html" %}
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
+    {#- A card for each panel and each set of tabs the view's layout has, and
+        one for each run of fields outside them: with no layout, one card of
+        every field, one to a line, in the order of the view's fields. -#}
+    {% set by_path = {} %}
+    {% for one in rows %}{% set ignored = by_path.update({one.path: one}) %}{% endfor %}
+    {#- A field with a mistake, its own or one inside the document it holds. -#}
+    {% set wrong = rows|selectattr("problems")|map(attribute="path")|list %}
+    {% for card in layout %}
+      {% if card.kind == "panel" and card.collapsible %}
+        {#- Open where it holds a mistake, so the mistake is never folded away. -#}
+        <details class="group rounded-box border border-base-300 bg-base-100 shadow-quiet"
+                 {% if not card.collapsed or card.paths()|select("in", wrong)|list %}open{% endif %}>
+          <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-3.5">
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold">{{ card.title }}</span>
+              {% if card.description %}<span class="block pt-0.5 text-[13px] text-muted">{{ card.description }}</span>{% endif %}
+            </span>
+            <span class="text-muted transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90">{{ icons.icon("chevron-right", 16) }}</span>
+          </summary>
+          <div class="flex flex-col gap-5 border-t border-line p-5">
+            {% for piece in card.children %}{{ layout_of.part(piece, by_path, wrong) }}{% endfor %}
+          </div>
+        </details>
+      {% elif card.kind == "panel" %}
+        <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="panel-{{ loop.index }}">
+          <div class="border-b border-line px-5 py-3.5">
+            <h2 id="panel-{{ loop.index }}" class="text-sm font-semibold">{{ card.title }}</h2>
+            {% if card.description %}<p class="pt-0.5 text-[13px] text-muted">{{ card.description }}</p>{% endif %}
+          </div>
+          <div class="flex flex-col gap-5 p-5">
+            {% for piece in card.children %}{{ layout_of.part(piece, by_path, wrong) }}{% endfor %}
+          </div>
+        </section>
+      {% elif card.kind == "tabs" %}
+        <section class="rounded-box border border-base-300 bg-base-100 px-5 pt-3 pb-5 shadow-quiet" aria-label="{{ view.label }}">
+          {{ layout_of.part(card, by_path, wrong) }}
+        </section>
+      {% else %}
+        <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet"
+                 {% if loop.first %}aria-labelledby="form-title"{% else %}aria-label="{{ view.label }}"{% endif %}>
+          {% if loop.first %}
+            <h2 id="form-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
+          {% endif %}
+          <div class="flex flex-col gap-5 p-5">
+            {% for piece in card.children %}{{ layout_of.part(piece, by_path, wrong) }}{% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    {% endfor %}
 
     {% include "adminsite/_inlines.html" %}
 

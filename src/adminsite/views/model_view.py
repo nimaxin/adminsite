@@ -58,6 +58,7 @@ from adminsite.views.action_runner import DELETE_ACTION, ActionRunner
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.form_parsing import FormParser
 from adminsite.views.inline import Inline, InlineViews
+from adminsite.views.layout import LayoutEntry
 from adminsite.views.links import Links
 from adminsite.views.pages import PageFields
 from adminsite.views.reading import Reader
@@ -148,6 +149,10 @@ class ModelView(Generic[M]):
 
     # Child records edited inside this model's form.
     inlines: Sequence[Inline] = ()
+    # How the forms and the record page arrange the fields: panels, fieldsets,
+    # rows and tabs. Left empty, one field under another, in the order of
+    # fields. A field the layout leaves out comes last.
+    form_layout: Sequence[LayoutEntry] = ()
 
     can_create: bool = True
     can_view_detail: bool = True

@@ -20,6 +20,7 @@ __all__ = [
     "check_list_flags",
     "check_options_used",
     "check_path",
+    "check_placed",
     "check_title",
 ]
 
@@ -228,6 +229,22 @@ def check_excluded(
                 "shows, so leaving it off does nothing. The view's fields: "
                 f"{', '.join(shown)}."
             )
+
+
+def check_placed(
+    view: str, setting: str, path: str, fields: Sequence[str], placed: set[str]
+) -> None:
+    """Refuse a layout placing a field twice, or one the view does not show."""
+    if path not in fields:
+        raise AdminSiteError(
+            f"{view}.{setting} places {path!r}, which is not one of the view's "
+            "fields. Add it to fields, or take it out of the layout."
+        )
+    if path in placed:
+        raise AdminSiteError(
+            f"{view}.{setting} places {path!r} a second time. Each field goes in "
+            "one place."
+        )
 
 
 def check_list_flags(

@@ -37,6 +37,7 @@ own; `tests/test_view_layers.py` fails otherwise.
 | --- | --- | --- | --- |
 | 1 | `checks.py` | | The startup checks, and the messages they stop the admin with |
 | 1 | `naming.py` | | How a linked record is named |
+| 1 | `layout.py` | | `PanelWidget`, `FieldsetWidget`, `RowWidget`, `TabsWidget`, and arranging them for one page |
 | 2 | `settings.py` | `view._settings` | The settings read into paths and checked, once, at startup |
 | 3 | `view_fields.py` | `view._fields` | The field for each path, and what a record holds and shows there |
 | 3 | `inline.py` | `view._inline_views` | `Inline`, `InlineRow`, and the child view of each inline |
@@ -62,6 +63,8 @@ Where a change goes:
   the work, such as `Saver` for a save.
 - **A rule about which fields a page shows:** `PageFields`, which the pages, the export, the
   import and the API all ask.
+- **Where a page puts its fields:** `form_layout`, read in `SettingsReader` and arranged for each
+  page by `PageFields.arranged`; the form and the record page draw what it returns.
 - **A new module:** a row in `LAYERS` in `tests/test_view_layers.py`, and in the table above.
 
 ## Commands

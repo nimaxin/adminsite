@@ -19,7 +19,14 @@ from adminsite.fields import BaseField, ComputedField, Field
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
 from adminsite.security import RequestAction
-from adminsite.views.checks import Takes, check_excluded, check_path, check_title
+from adminsite.views.checks import (
+    Takes,
+    check_excluded,
+    check_path,
+    check_placed,
+    check_title,
+)
+from adminsite.views.layout import Placed, read_layout
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
@@ -98,6 +105,8 @@ class SettingsReader:
             if name in schema.fields and schema.fields[name].has_default
         )
         self.list_filters = self.filters("list_filters", view.list_filters)
+        # Where the forms and the record page put each field.
+        self.form_layout = self._read_layout(view.form_layout)
 
     def entries(self, setting: str, entries: Sequence[T]) -> Sequence[T]:
         """A setting's entries, refusing one string where a list belongs.
@@ -196,6 +205,19 @@ class SettingsReader:
             for path, item in self.overrides.items()
             if not isinstance(item, Field) or item.form_only
         }
+
+    def _read_layout(self, entries: Sequence[Any]) -> tuple[Placed, ...]:
+        """`form_layout` read into parts, each field it places checked once."""
+        placed: set[str] = set()
+
+        def placed_path(entry: Any, where: str) -> str:
+            path = self.converted(where, entry, path_of)
+            self.check(where, path, self._model, "fields")
+            check_placed(self._name, where, path, self.candidates, placed)
+            placed.add(path)
+            return path
+
+        return read_layout(entries, placed_path, owner=self._name)
 
     def _read_fields(self, fields: Sequence[Any]) -> tuple[str, ...]:
         """The paths `fields` places, in order, keeping the fields it sets.

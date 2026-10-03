@@ -75,7 +75,22 @@
 {% block content %}
 {% include "adminsite/_action_forms.html" %}
 {#- The status beside the name leaves the rows, unless it is all they hold. -#}
-{% set shown_rows = rows|rejectattr("0", "equalto", first.path)|list if first.path and rows|length > 1 else rows %}
+{% set skipped = first.path if first.path and rows|length > 1 else none %}
+{% set by_path = {} %}
+{% for row in rows %}{% set ignored = by_path.update({row[0]: row}) %}{% endfor %}
+{#- A table for each panel of the view's layout, and each tab, with its
+    fields in the order placed; the fields outside them make a table of
+    their own, the first named after the model. -#}
+{% set sections = [] %}
+{% for card in layout %}
+  {% if card.kind == "tabs" %}
+    {% for tab in card.children %}
+      {% set ignored = sections.append((tab.title, "", tab.paths())) %}
+    {% endfor %}
+  {% else %}
+    {% set ignored = sections.append((card.title or (view.label if loop.first else ""), card.description, card.paths())) %}
+  {% endif %}
+{% endfor %}
 <div class="flex flex-1 flex-col" x-data="{ tab: 'details' }">
   {% if history is not none %}
     <div role="tablist" aria-label="{{ _('Sections') }}" class="flex gap-5 border-b border-base-300 px-4 lg:px-7">
@@ -99,73 +114,83 @@
   <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
     <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" x-show="tab === 'details'"
          class="flex max-w-5xl flex-col gap-5">
-      {% if shown_rows %}
-        {#- A row per field, its label in a column of its own, so the labels
-            read down one line and the values line up beside them. -#}
-        <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="fields-title">
-          <h2 id="fields-title" class="px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
-          <dl>
-            {% for path, label, value, url in shown_rows %}
-              {% set item = view._fields.field_for(path) %}
-              {#- A JSON document with a schema it fits reads as labelled values. -#}
-              {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
-              {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
-              <div class="grid gap-1 border-t border-line px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4"
-                   {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
-                <dt class="text-[13px] leading-5 text-muted">{{ label }}</dt>
-                <dd class="min-w-0 break-words leading-5">
-                  {% if reading is not none %}
-                    <div class="mb-2 flex justify-end">
-                      {%- with switch_views = [("values", _("Values")), ("json", "JSON")], switch_label = label -%}
-                        {% include "adminsite/_document_switch.html" %}
-                      {%- endwith -%}
-                    </div>
-                  {% endif %}
-                  {% if item.widget in ("file", "image") and value %}
-                    {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
-                    {% if item.widget == "image" %}
-                      <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>
-                    {% else %}
-                      <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
-                    {% endif %}
-                  {% elif url and value %}
-                    <a class="text-link hover:underline" href="{{ url }}">{{ value }}</a>
-                  {% elif path in many and many[path].names %}
-                    {#- Each record a link to many holds opens its own page. -#}
-                    {%- for name, opens in many[path].names -%}
-                      {%- if opens -%}
-                        <a class="text-link hover:underline" href="{{ opens }}">{{ name }}</a>
-                      {%- else -%}
-                        {{ name }}
-                      {%- endif -%}
-                      {%- if not loop.last %}, {% endif -%}
-                    {%- endfor -%}
-                    {%- if many[path].more > 0 %}{{ _(" and {count} more", count="{:,}".format(many[path].more)) }}{% endif -%}
-                  {% elif item.widget in ("select", "checkbox") and value %}
-                    {{ values.badge_or_text(item, view._fields.value_at(record, path), value) }}
-                  {% elif item.widget == "number" and value %}
-                    <span class="tabular-nums">{{ value }}</span>
-                  {% elif item.widget == "json" and stored is not none %}
-                    {% with outline = item.outline(stored), pretty = item.laid_out(stored) %}
-                      {% if reading is not none %}
-                        {% with shown = reading.shown(stored) %}{% include "adminsite/_document_view.html" %}{% endwith %}
-                      {% else %}
-                        {% include "adminsite/_json.html" %}
-                      {% endif %}
-                    {% endwith %}
-                  {% elif item.widget == "textarea" and value %}
-                    <div class="max-w-prose whitespace-pre-line">{{ value }}</div>
-                  {% elif value %}
-                    {{ value }}
-                  {% else %}
-                    <span class="text-muted">—</span>
-                  {% endif %}
-                </dd>
+      {% for title, description, paths in sections %}
+        {% set listed = paths|reject("equalto", skipped)|list %}
+        {% if listed %}
+          {#- A row per field, its label in a column of its own, so the labels
+              read down one line and the values line up beside them. -#}
+          <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
+                   {% if title %}aria-labelledby="fields-{{ loop.index }}"{% else %}aria-label="{{ view.label }}"{% endif %}>
+            {% if title %}
+              <div class="px-5 py-3.5">
+                <h2 id="fields-{{ loop.index }}" class="text-sm font-semibold">{{ title }}</h2>
+                {% if description %}<p class="pt-0.5 text-[13px] text-muted">{{ description }}</p>{% endif %}
               </div>
-            {% endfor %}
-          </dl>
-        </section>
-      {% endif %}
+            {% endif %}
+            <dl>
+              {% for path in listed %}
+                {% set path, label, value, url = by_path[path] %}
+                {% set item = view._fields.field_for(path) %}
+                {#- A JSON document with a schema it fits reads as labelled values. -#}
+                {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
+                {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
+                <div class="grid gap-1 px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4 {% if title or not loop.first %}border-t border-line{% endif %}"
+                     {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
+                  <dt class="text-[13px] leading-5 text-muted">{{ label }}</dt>
+                  <dd class="min-w-0 break-words leading-5">
+                    {% if reading is not none %}
+                      <div class="mb-2 flex justify-end">
+                        {%- with switch_views = [("values", _("Values")), ("json", "JSON")], switch_label = label -%}
+                          {% include "adminsite/_document_switch.html" %}
+                        {%- endwith -%}
+                      </div>
+                    {% endif %}
+                    {% if item.widget in ("file", "image") and value %}
+                      {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
+                      {% if item.widget == "image" %}
+                        <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>
+                      {% else %}
+                        <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
+                      {% endif %}
+                    {% elif url and value %}
+                      <a class="text-link hover:underline" href="{{ url }}">{{ value }}</a>
+                    {% elif path in many and many[path].names %}
+                      {#- Each record a link to many holds opens its own page. -#}
+                      {%- for name, opens in many[path].names -%}
+                        {%- if opens -%}
+                          <a class="text-link hover:underline" href="{{ opens }}">{{ name }}</a>
+                        {%- else -%}
+                          {{ name }}
+                        {%- endif -%}
+                        {%- if not loop.last %}, {% endif -%}
+                      {%- endfor -%}
+                      {%- if many[path].more > 0 %}{{ _(" and {count} more", count="{:,}".format(many[path].more)) }}{% endif -%}
+                    {% elif item.widget in ("select", "checkbox") and value %}
+                      {{ values.badge_or_text(item, view._fields.value_at(record, path), value) }}
+                    {% elif item.widget == "number" and value %}
+                      <span class="tabular-nums">{{ value }}</span>
+                    {% elif item.widget == "json" and stored is not none %}
+                      {% with outline = item.outline(stored), pretty = item.laid_out(stored) %}
+                        {% if reading is not none %}
+                          {% with shown = reading.shown(stored) %}{% include "adminsite/_document_view.html" %}{% endwith %}
+                        {% else %}
+                          {% include "adminsite/_json.html" %}
+                        {% endif %}
+                      {% endwith %}
+                    {% elif item.widget == "textarea" and value %}
+                      <div class="max-w-prose whitespace-pre-line">{{ value }}</div>
+                    {% elif value %}
+                      {{ value }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </dd>
+                </div>
+              {% endfor %}
+            </dl>
+          </section>
+        {% endif %}
+      {% endfor %}
 
       {% for table in children %}
         <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"

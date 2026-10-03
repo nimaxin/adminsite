@@ -27,7 +27,7 @@ from sqlalchemy.pool import StaticPool
 from starlette.datastructures import UploadFile
 from typing_extensions import TypedDict
 
-from adminsite import Admin, Inline, ModelView, SaveContext
+from adminsite import Admin, Inline, ModelView, PanelWidget, SaveContext, TabsWidget
 from adminsite.actions import Input, Selection, action
 from adminsite.auth import hash_password
 from adminsite.fields import (
@@ -443,6 +443,55 @@ class ShowcaseView(ModelView[Showcase]):
     record_title = "{name}"
     # The list shows a few; the rest wait in the Columns menu.
     fields = showcase_fields(uploads)
+    # The forms and the record page in panels: a tuple puts fields side by
+    # side, and the documents and files share a set of tabs.
+    form_layout = [
+        PanelWidget(
+            "Product",
+            [
+                Showcase.name,
+                Showcase.summary,
+                (Showcase.email, "password"),
+                (Showcase.status, Showcase.size),
+                Showcase.colours,
+            ],
+            description="What customers see in the shop.",
+        ),
+        PanelWidget(
+            "Stock and price",
+            [
+                (Showcase.quantity, Showcase.weight, Showcase.price),
+                (Showcase.in_stock, Showcase.flagged),
+                "stock_value",
+            ],
+        ),
+        PanelWidget(
+            "Dates",
+            [
+                (Showcase.released_on, Showcase.opens_at),
+                Showcase.updated_at,
+                Showcase.created_at,
+                Showcase.serial,
+            ],
+        ),
+        PanelWidget(
+            "Suppliers",
+            [
+                Showcase.category,
+                Showcase.supplier,
+                Showcase.labels,
+                Showcase.stockists,
+                Showcase.servers,
+            ],
+            description="Who makes it, who sells it, and where it is served from.",
+        ),
+        TabsWidget(
+            [
+                ("Documents", [Showcase.specs, Showcase.settings, Showcase.scores]),
+                ("Files", [Showcase.manual, Showcase.photo]),
+            ]
+        ),
+    ]
     searchable_fields = [Showcase.name, Showcase.email, Showcase.summary]
     list_filters = [
         Showcase.status,

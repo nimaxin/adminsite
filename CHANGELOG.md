@@ -21,6 +21,11 @@ What changed:
 - A form's Save, Cancel and Delete sit in one bar at its foot, which stays in view while a long
   form scrolls; the buttons in the header are gone. On a phone each child row of an inline is a
   small group of fields, one under the other.
+- `form_layout` arranges a view's forms and its record page, as starlette-admin's does: `PanelWidget`
+  for a titled card, `FieldsetWidget` for a bordered group, `RowWidget` or a tuple for fields side
+  by side, a list for a column and `TabsWidget` for tabs. A field the layout leaves out comes last;
+  one placed twice, or not among the view's fields, stops the admin starting. The field gallery
+  uses it (#33).
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.

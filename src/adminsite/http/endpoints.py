@@ -408,6 +408,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": key,
             "heading": view.get_record_title(record),
             "rows": rows,
+            "layout": view._pages.arranged(paths, form=False),
             "many": many,
             "children": child_tables(view, record, request),
             "history": history,
@@ -876,6 +877,8 @@ def form_context(
     return {
         "view": view,
         "rows": rows,
+        # Where the view places each field: its panels, rows and tabs.
+        "layout": view._pages.arranged([row.path for row in rows], form=True),
         "record": record,
         "key": key,
         "heading": view.get_record_title(record)
