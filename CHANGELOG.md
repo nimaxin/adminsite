@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a11
+
+A record page that reads like the list: a table of fields, each label beside its value. Forms in
+one column with a save bar that stays in view, and `form_layout` for panels, rows and tabs. A
+linked record that its own view's `scope_query` hides now shows as Hidden, where before its name
+and values showed.
 
 Before upgrading:
 
