@@ -130,6 +130,17 @@
                     {% endif %}
                   {% elif url and value %}
                     <a class="text-link hover:underline" href="{{ url }}">{{ value }}</a>
+                  {% elif path in many and many[path].names %}
+                    {#- Each record a link to many holds opens its own page. -#}
+                    {%- for name, opens in many[path].names -%}
+                      {%- if opens -%}
+                        <a class="text-link hover:underline" href="{{ opens }}">{{ name }}</a>
+                      {%- else -%}
+                        {{ name }}
+                      {%- endif -%}
+                      {%- if not loop.last %}, {% endif -%}
+                    {%- endfor -%}
+                    {%- if many[path].more > 0 %}{{ _(" and {count} more", count="{:,}".format(many[path].more)) }}{% endif -%}
                   {% elif item.widget in ("select", "checkbox") and value %}
                     {{ values.badge_or_text(item, view._fields.value_at(record, path), value) }}
                   {% elif item.widget == "number" and value %}

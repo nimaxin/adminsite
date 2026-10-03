@@ -30,6 +30,11 @@ TAGS = (
 )
 
 
+def text_of(page: httpx.Response) -> str:
+    """The page as it reads, without its markup."""
+    return html.unescape(re.sub(r"<[^>]+>", "", page.text))
+
+
 class ArticleView(ModelView[Article]):
     fields = ["title", "tags"]
 
@@ -157,7 +162,15 @@ class TestTheRecordPage:
     ) -> None:
         page = await client.get(f"/admin/articles/{keys['article']}")
 
-        assert "Science and technology, Breaking news" in page.text
+        assert "Science and technology, Breaking news" in text_of(page)
+
+    async def test_each_record_opens_its_own_page(
+        self, client: httpx.AsyncClient, keys: dict[str, str]
+    ) -> None:
+        page = await client.get(f"/admin/articles/{keys['article']}")
+
+        science = keys["Science and technology"]
+        assert f'href="/admin/tags/{science}">Science and technology</a>' in page.text
 
 
 class PublicTagView(ModelView[Tag]):
@@ -196,8 +209,8 @@ class TestTheRecordPageThroughAScopedView:
         page = await public.get(f"/admin/articles/{key}")
 
         assert page.status_code == 200
-        assert "Shown 0, Shown 1" in page.text
-        assert "and 2 more" in page.text
+        assert "Shown 0, Shown 1" in text_of(page)
+        assert "and 2 more" in text_of(page)
         assert "Hidden" not in page.text
 
 
@@ -269,7 +282,7 @@ class TestAnOrderedLink:
             "Science and technology",
         ]
         assert chips(form) == ["Breaking news", "Science and technology"]
-        assert "Breaking news, Science and technology" in page.text
+        assert "Breaking news, Science and technology" in text_of(page)
 
     async def test_adding_one_at_the_end_keeps_the_rows_there(
         self, ordered: httpx.AsyncClient, database: Database, keys: dict[str, str]

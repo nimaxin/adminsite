@@ -1,4 +1,5 @@
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl
 
@@ -65,6 +66,7 @@ if TYPE_CHECKING:
 __all__ = [
     "HISTORY_LIMIT",
     "MANY_LINKS_SHOWN",
+    "LinkedMany",
     "action_lookup",
     "activity",
     "after_save",
@@ -102,7 +104,7 @@ __all__ = [
     "looked_up",
     "lookup",
     "many_links",
-    "many_links_text",
+    "many_links_named",
     "note_sign_in",
     "perform",
     "read_form",
@@ -365,14 +367,14 @@ async def detail(admin: "Admin", request: Request) -> Response:
     async with admin.database.session() as session:
         await view._reader.load_values(session, [record], paths, request=request)
     opens = await link_urls(admin, view, record, paths, request)
-    shown = await many_links_text(admin, view, record, counted, request)
+    many = await many_links_named(admin, view, record, counted, request)
     # A to-many link was named above, even when it holds nothing: the record
     # never loaded it, so reading it now would fail.
     rows = [
         (
             path,
             view._fields.label_for(path),
-            shown[path] if path in shown else view._fields.display(record, path),
+            many[path].text if path in many else view._fields.display(record, path),
             opens.get(path, ""),
         )
         for path in paths
@@ -406,6 +408,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": key,
             "heading": view.get_record_title(record),
             "rows": rows,
+            "many": many,
             "children": child_tables(view, record, request),
             "history": history,
             "older_history": older_history,
@@ -457,16 +460,34 @@ def computed_needs(view: ModelView[Any], paths: Sequence[str]) -> set[str]:
     }
 
 
-async def many_links_text(
+@dataclass(frozen=True)
+class LinkedMany:
+    """The first records a link to many holds, and how many more it holds."""
+
+    # Each record's name, and its page, or "" where no view opens it.
+    names: list[tuple[str, str]]
+    more: int
+
+    @property
+    def text(self) -> str:
+        """The names as one line, saying how many more there are."""
+        text = ", ".join(name for name, _url in self.names)
+        if self.more > 0:
+            text += _(" and {count} more", count=f"{self.more:,}")
+        return text
+
+
+async def many_links_named(
     admin: "Admin",
     view: ModelView[Any],
     record: Any,
     paths: set[str],
     request: Request,
-) -> dict[str, str]:
-    """The first names of each to-many link, and how many more it holds."""
+) -> dict[str, LinkedMany]:
+    """The first records of each to-many link, named, each with its own page."""
     if not paths:
         return {}
+    urls = Urls(request)
     shown = {}
     async with admin.database.session() as session:
         for path in sorted(paths):
@@ -476,11 +497,21 @@ async def many_links_text(
             records, total = await view._reader.fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
-            names = ", ".join(view._fields.name_linked(item, one) for one in records)
-            rest = total - len(records)
-            if rest > 0:
-                names += _(" and {count} more", count=f"{rest:,}")
-            shown[path] = names
+            # The records were read through this view, so it opens them too,
+            # and asking it costs no query per record.
+            target = admin.views.for_relation(item)
+            names = []
+            for one in records:
+                opens = (
+                    urls.detail(target, target._fields.identity_of(one))
+                    if target is not None
+                    and await target.allows(
+                        Permission.VIEW_DETAIL, request=request, record=one
+                    )
+                    else ""
+                )
+                names.append((view._fields.name_linked(item, one), opens))
+            shown[path] = LinkedMany(names, total - len(records))
     return shown
 
 
