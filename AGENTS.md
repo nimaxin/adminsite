@@ -54,10 +54,10 @@ own; `tests/test_view_layers.py` fails otherwise.
 
 Where a change goes:
 
-- **A setting that names columns:** an attribute on `ModelView`, read into paths in
-  `SettingsReader.__init__`, which checks every name. When the answer can depend on the request,
-  add a `get_` method beside it; `PageFields` calls it and checks an answer other than the
-  setting itself through `SettingsReader`.
+- **A setting that names columns:** an attribute on `ModelView`, with a docstring under it, read
+  into paths in `SettingsReader.__init__`, which checks every name. When the answer can depend on
+  the request, add a `get_` method beside it; `PageFields` calls it and checks an answer other
+  than the setting itself through `SettingsReader`.
 - **A startup check:** a function in `checks.py`, called where the setting is read.
 - **A hook:** a method on `ModelView` that does nothing by default, called by the part that does
   the work, such as `Saver` for a save.
@@ -131,6 +131,13 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 - Names read as words: `fetch_page`, `can_import`, `saved_for`. No abbreviations.
 - Docstrings say what a thing is or does in one line. Comments explain why, and only where the code
   cannot.
+- What `docs/reference.md` shows is documented in full, in Google style, because the Reference
+  page and editors read it from there: `Args:` for each parameter, the constructor's in the class
+  docstring; `Returns:` for what it answers; `Raises:` for an error the caller is meant to handle;
+  and a docstring under each attribute people set or read, such as a setting of `ModelView`.
+  Options a class inherits are described once, on the class they come from.
+  `tests/test_reference_docs.py` fails on a gap. Everything else keeps its one line, plus a
+  sentence for a parameter whose name and type do not say enough.
 - Messages tell people what happened and what to do: "Keep the file under 5 MB.", not
   "Error: file size exceeded".
 - ruff at 88 columns and mypy strict are the rules; do not silence them without a reason in a
