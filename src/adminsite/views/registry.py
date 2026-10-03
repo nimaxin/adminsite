@@ -28,7 +28,7 @@ class ViewRegistry:
         built._views = self
         # The rows an inline edits name their links as this admin's views do.
         for inline in built.inlines:
-            built._inline_view(inline.name)._views = self
+            built._inline_views[inline.name]._views = self
         self._views.append(built)
         self._by_name[built.name] = built
         return built
@@ -100,7 +100,7 @@ class ViewRegistry:
             owners = [(f"{type(view).__name__}.fields", view)] + [
                 (
                     f"{type(view).__name__}.inlines[{index}].fields",
-                    view._inline_view(inline.name),
+                    view._inline_views[inline.name],
                 )
                 for index, inline in enumerate(view.inlines)
             ]

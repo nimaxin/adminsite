@@ -95,7 +95,7 @@ class TestDeclaring:
             name = "everything"
             inlines = (Inline("items"),)
 
-        fields = Everything()._inline_view("items")._pages.form_fields()
+        fields = Everything()._inline_views["items"]._pages.form_fields()
 
         assert "order" not in fields
         assert "product" in fields
@@ -834,7 +834,7 @@ class TestWhatTheParentFills:
         class EveryMatchTeamView(ModelView[Team]):
             inlines = [Inline(Team.home_matches)]
 
-        child = EveryMatchTeamView()._inline_view("home_matches")
+        child = EveryMatchTeamView()._inline_views["home_matches"]
 
         assert child._pages.form_fields() == ("away_team", "week")
         assert child._pages.detail_fields() == ("id", "away_team", "week")
@@ -848,20 +848,20 @@ class TestWhatTheParentFills:
                 )
             ]
 
-        child = HostTeamView()._inline_view("home_matches")
+        child = HostTeamView()._inline_views["home_matches"]
 
         assert child._pages.form_fields() == ("week",)
         assert child._pages.detail_fields() == ("week",)
 
     def test_another_link_to_the_parent_stays(self) -> None:
-        child = TeamView()._inline_view("home_matches")
+        child = TeamView()._inline_views["home_matches"]
 
         assert child._pages.form_fields() == ("away_team", "week")
         assert child._pages.form_fields(record=Match(id=1)) == ("away_team", "week")
         assert child._pages.detail_fields() == ("away_team", "week")
 
     def test_with_no_link_back_the_column_is_left_out(self) -> None:
-        child = TeamView()._inline_view("players")
+        child = TeamView()._inline_views["players"]
 
         assert child._pages.form_fields() == ("name",)
         assert child._pages.detail_fields() == ("id", "name")

@@ -229,7 +229,7 @@ class Saver:
             rows = inline_rows.get(inline.name)
             if not rows:
                 continue
-            child_view = self._view._inline_view(inline.name)
+            child_view = self._view._inline_views[inline.name]
             children = getattr(parent, inline.name)
             by_key = {
                 child_view._fields.identity_of(child): child for child in children

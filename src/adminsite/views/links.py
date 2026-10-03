@@ -80,7 +80,7 @@ class Links:
                 session,
                 row.values,
                 request,
-                fields_of=self._view._inline_view(inline.name),
+                fields_of=self._view._inline_views[inline.name],
             )
         except RefusedError as error:
             if not error.field or row.index is None:

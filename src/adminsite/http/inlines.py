@@ -153,7 +153,7 @@ async def build_inline_tables(
     errors = errors or {}
     tables = []
     for inline in view.get_inlines(request, record):
-        child = view._inline_view(inline.name)
+        child = view._inline_views[inline.name]
         children = list(getattr(record, inline.name, None) or []) if record else []
         if submitted is not None:
             rows = _rows_from_form(inline, child, children, submitted)
@@ -264,7 +264,7 @@ def child_tables(
     """The children of a record, read only, for its detail page."""
     tables = []
     for inline in view.get_inlines(request, record):
-        child = view._inline_view(inline.name)
+        child = view._inline_views[inline.name]
         paths = child._pages.detail_fields(request)
         children = list(getattr(record, inline.name, None) or [])
         tables.append(

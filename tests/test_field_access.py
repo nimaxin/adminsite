@@ -680,7 +680,7 @@ class TestInlineFields:
                 asked.append((field.name, action))
                 return True
 
-        child = Asking()._inline_view("items")
+        child = Asking()._inline_views["items"]
         child._pages.form_fields()
         child._pages.form_fields(record=OrderItem(id=1))
         child._pages.detail_fields()

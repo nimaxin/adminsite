@@ -393,8 +393,8 @@ class TestAnExcludeList:
         class Chosen(ModelView[Order]):
             inlines = [Inline(Order.items, fields=[OrderItem.product])]
 
-        assert "order" not in Every()._inline_view("items")._pages.form_fields()
-        assert Chosen()._inline_view("items")._pages.form_fields() == ("product",)
+        assert "order" not in Every()._inline_views["items"]._pages.form_fields()
+        assert Chosen()._inline_views["items"]._pages.form_fields() == ("product",)
 
 
 class TestAField:

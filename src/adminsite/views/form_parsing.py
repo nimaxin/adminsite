@@ -102,7 +102,7 @@ class FormParser:
         edit page's, less those the child or this view locks, as a view's
         form does.
         """
-        child = self._view._inline_view(inline.name)
+        child = self._view._inline_views[inline.name]
         locked = self._pages.inline_readonly(inline, request, record)
         children = {
             child._fields.identity_of(found): found

@@ -1,6 +1,5 @@
 import types
 from collections.abc import Mapping, Sequence
-from copy import copy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -33,8 +32,6 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.columns import (
     ColumnReference,
     Descending,
-    describe,
-    path_of,
 )
 from adminsite.exceptions import (
     AdminSiteError,
@@ -50,7 +47,6 @@ from adminsite.fields import (
 )
 from adminsite.i18n import gettext as _
 from adminsite.query import CountMode, Pagination
-from adminsite.schema import RelationDirection
 from adminsite.security import Permission, RequestAction, permission_name
 from adminsite.text import (
     RecordValues,
@@ -60,16 +56,13 @@ from adminsite.text import (
 )
 from adminsite.views.action_runner import DELETE_ACTION, ActionRunner
 from adminsite.views.auditing import AuditRecorder
-from adminsite.views.checks import (
-    check_title,
-)
 from adminsite.views.form_parsing import FormParser
-from adminsite.views.inline import Inline
+from adminsite.views.inline import Inline, InlineViews
 from adminsite.views.links import Links
 from adminsite.views.pages import PageFields
 from adminsite.views.reading import Reader
 from adminsite.views.saving import Saver
-from adminsite.views.settings import SettingsReader, default_paths
+from adminsite.views.settings import SettingsReader
 from adminsite.views.view_fields import ViewFields
 from adminsite.views.writing import (
     DeleteContext,
@@ -233,12 +226,9 @@ class ModelView(Generic[M]):
         # The settings as the paths the rest of adminsite works with.
         self._settings = SettingsReader(self, self._schema, self._inspector)
 
-        self._inline_views = {
-            inline.name: self._build_inline_view(inline, f"inlines[{index}]")
-            for index, inline in enumerate(
-                self._settings.entries("inlines", self.inlines)
-            )
-        }
+        self._inline_views = InlineViews(
+            self, self._settings, self._schema, self._inspector, self._registry
+        )
         self._repository = SQLAlchemyRepository(
             self.model, self._inspector, self._settings.list_filters
         )
@@ -346,100 +336,6 @@ class ModelView(Generic[M]):
         """
         return self.inlines
 
-    def _inline_view(self, name: str) -> "ModelView[Any]":
-        """The view that reads and writes one inline's children."""
-        try:
-            return self._inline_views[name]
-        except KeyError:
-            raise AdminSiteError(
-                f"{type(self).__name__} has no inline called {name!r}."
-            ) from None
-
-    def _build_inline_view(self, inline: Inline, setting: str) -> "ModelView[Any]":
-        self._settings.converted(setting, inline.relation, path_of)
-        self._settings.check(setting, inline.name, self.model, "paths")
-        relation = self._schema.relation_named(inline.name)
-        if not relation.collection:
-            raise AdminSiteError(
-                f"{type(self).__name__}.inlines names {inline.name!r}, which "
-                "holds one record. An inline needs a relationship holding many."
-            )
-        if inline.record_title:
-            check_title(
-                f"{type(self).__name__}.{setting}.record_title: "
-                f"{describe(inline.record_title)}",
-                inline.record_title,
-                relation.target,
-                self._inspector,
-            )
-        # The relationship fills in the child's columns it joins on, and so
-        # every link of the child made of them, the link back among them. None
-        # of them appears in the child rows. Another link to the parent does.
-        target = self._inspector.inspect(relation.target)
-        joined = set(relation.remote_columns)
-        filled = [
-            *relation.remote_columns,
-            *(
-                found.name
-                for found in target.relations.values()
-                if found.direction is RelationDirection.MANY_TO_ONE
-                and found.local_columns
-                and set(found.local_columns) <= joined
-            ),
-        ]
-        # Checked here, so a mistake names the parent's setting. The child view
-        # takes the entries as they are, fields with their options included.
-        entries = self._settings.entries(f"{setting}.fields", inline.fields)
-        named = self._settings.paths(
-            f"{setting}.fields",
-            [
-                entry.column if isinstance(entry, Field) else entry
-                for entry in entries
-                if not (isinstance(entry, Field) and entry.form_only)
-            ],
-            relation.target,
-        )
-        # Left off only where the rows show it, since an exclude list names
-        # only fields the view shows.
-        shown = named if entries else default_paths(target)
-        filled = [name for name in filled if name in shown]
-
-        def can_access_field(
-            child: ModelView[Any], request: Any, field: BaseField, action: RequestAction
-        ) -> bool:
-            # This view answers for its children, asked about each field by
-            # its path from here, such as items.unit_price.
-            asked = copy(field)
-            asked.name = f"{inline.name}.{field.name}"
-            return self.can_access_field(request, asked, action)
-
-        namespace: dict[str, Any] = {
-            "model": relation.target,
-            "name": f"{self.name}__{inline.name}",
-            "fields": list(entries),
-            "exclude_fields_from_detail": filled,
-            "exclude_fields_from_create": filled,
-            "exclude_fields_from_edit": filled,
-            "record_title": inline.record_title,
-            "can_access_field": can_access_field,
-        }
-        child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
-        try:
-            built: ModelView[Any] = child_class(self._inspector, self._registry)
-        except AdminSiteError as error:
-            # The child's class is made here, so a mistake names the setting
-            # it was written in rather than a class nobody wrote.
-            said = str(error)
-            generated = f"{child_class.__name__}."
-            if said.startswith(generated):
-                said = f".{said.removeprefix(generated)}"
-            else:
-                said = f": {said}"
-            raise AdminSiteError(f"{type(self).__name__}.{setting}{said}") from None
-        return built
-
-    # Turning paths into fields and values.
-
     async def form_only_values(
         self, session: SessionAdapter, record: M | None, *, request: Request
     ) -> Mapping[str, Any]:
@@ -479,6 +375,10 @@ class ModelView(Generic[M]):
         if deletes and DELETE_ACTION not in self._actions.marked:
             found.append(self._actions.delete_action())
         return found
+
+    async def _delete_selected(self, selection: Selection[M]) -> str:
+        """Delete the chosen records: the built-in Delete action."""
+        return await self._saver.delete_selected(selection)
 
     # Permissions. Four levels: the view, the action, the field and the row.
 
@@ -525,9 +425,7 @@ class ModelView(Generic[M]):
         """The scope as a function, ready to hand to the repository."""
         return lambda statement: self.scope_query(statement, request=request)
 
-    async def _delete_selected(self, selection: Selection[M]) -> str:
-        """Delete the chosen records: the built-in Delete action."""
-        return await self._saver.delete_selected(selection)
+    # Hooks around saves and deletes.
 
     async def before_save(self, context: SaveContext[M]) -> None:
         """Runs before the values are written.

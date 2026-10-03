@@ -304,7 +304,7 @@ class TestWhichKeysAreTyped:
                 )
             ]
 
-        child = MemberView()._inline_view("visits")
+        child = MemberView()._inline_views["visits"]
 
         assert child._pages.form_fields() == ("number", "note")
 
@@ -319,8 +319,8 @@ class TestWhichKeysAreTyped:
         class MemberView(ModelView[Member]):
             inlines = [Inline(Member.notes)]
 
-        named = MemberWithNotesView()._inline_view("notes")
-        default = MemberView()._inline_view("notes")
+        named = MemberWithNotesView()._inline_views["notes"]
+        default = MemberView()._inline_views["notes"]
 
         assert named._pages.form_fields() == ("number", "body")
         assert default._pages.form_fields() == ("number", "body")
@@ -330,7 +330,7 @@ class TestWhichKeysAreTyped:
     def test_an_inline_leaves_out_the_key_with_no_link_back(
         self, view: type[ModelView[Member]]
     ) -> None:
-        child = view()._inline_view("stops")
+        child = view()._inline_views["stops"]
 
         assert child._pages.form_fields() == ("number", "place")
         assert child._pages.readonly_paths(None, Stop(member_id=1, number=1)) == (

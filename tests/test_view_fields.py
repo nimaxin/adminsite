@@ -197,7 +197,7 @@ class TestInlinesTakeAttributes:
         view = WithLines()
 
         assert view.inlines[0].name == "items"
-        assert view._inline_view("items")._pages.form_fields() == (
+        assert view._inline_views["items"]._pages.form_fields() == (
             "product",
             "quantity",
         )
