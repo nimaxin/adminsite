@@ -142,12 +142,11 @@ def _filter_fields(view: "ModelView[Any]", request: Any) -> dict[str, str]:
     return {item.name: item.path for item in (*view._settings.list_filters, *offered)}
 
 
-def _label(view: object, name: str) -> str:
-    label_for = getattr(view, "_label_for", None)
-    if label_for is None:
+def _label(view: "ModelView[Any] | None", name: str) -> str:
+    if view is None:
         return humanize(name)
     try:
-        return str(label_for(name))
+        return view._fields.label_for(name)
     except AdminSiteError:
         # The field has gone from the model since the entry was written.
         return humanize(name)
@@ -159,7 +158,7 @@ def _text(value: object) -> str:
     return str(value)
 
 
-def _given_label(view: object, name: str) -> str:
+def _given_label(view: "ModelView[Any] | None", name: str) -> str:
     # The parts of a list's address an export names, beside its filters.
     if name == "q":
         return _("Search")

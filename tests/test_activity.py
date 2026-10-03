@@ -11,7 +11,9 @@ from adminsite import Admin, ModelView
 from adminsite.audit import AuditEntry, AuditEvent, AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
+from adminsite.fields import Field
 from adminsite.http.activity import position_of, read_position
+from adminsite.http.history import describe
 from tests.models import Order, Product
 
 ITEM = re.compile(r'<li class="relative mb-6')
@@ -24,6 +26,25 @@ class OrderView(ModelView[Order]):
 
 class ProductView(ModelView[Product]):
     pass
+
+
+class LabelledProducts(ModelView[Product]):
+    name = "labelled_products"
+    fields = ["name", Field(Product.price, label="Price in euros")]
+
+
+def test_a_change_is_named_by_the_fields_label(database: Database) -> None:
+    site = Admin(database, title="Shop", views=[LabelledProducts])
+    entry = AuditEntry(
+        view="labelled_products",
+        record_key="1",
+        event=AuditEvent.UPDATED,
+        changes={"price": ("10.00", "15.00")},
+    )
+
+    (item,) = describe(site, [entry])
+
+    assert [line.label for line in item.lines] == ["Price in euros"]
 
 
 @pytest.fixture
