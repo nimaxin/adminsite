@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The Reference page documents every parameter, setting and return value of the public API,
+  from the docstrings, so an editor shows the same when you hover over `Admin(`, `Field(` or a
+  setting of `ModelView`. The guide pages link there instead of listing each option again.
+
 ## 0.1.0a11
 
 A record page that reads like the list: a table of fields, each label beside its value. Forms in

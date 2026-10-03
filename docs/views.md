@@ -117,13 +117,10 @@ two different things, and stops the admin when it starts.
 
 ## Naming
 
-| Setting | Default | Used for |
-|---|---|---|
-| `name` | the model name, plural and snake case: `orders`, `order_items` | the URL |
-| `label` | `Order`, `Order item` | headings and buttons |
-| `label_plural` | `Orders`, `Order items` | the sidebar and the list heading |
-| `group` | none | the sidebar section the view sits under |
-| `record_title` | `str(record)`, or `Order #12` | how a record is named elsewhere, for example `"{name} ({email})"` |
+`name` is the view's part of the URL, `label` and `label_plural` what its records are called in
+headings, buttons and the sidebar, and `group` the sidebar section it sits under. Each one left out
+is worked out from the model, as [`ModelView`][adminsite.ModelView] says. `record_title` says how a
+record is named everywhere else, for example `"{name} ({email})"`.
 
 Without a `record_title`, a record is named by its model's `__str__`. A model without one, as
 SQLAlchemy models start out, is named by the view's label and the record's key, `Order #12`,
@@ -154,19 +151,10 @@ The record is passed by position, so the parameter can be named after the model.
 
 ## The list
 
-| Setting | What it does |
-|---|---|
-| `searchable_fields` | The columns the search box looks in. Text matches anywhere in the value, numbers match exactly. With none, the list has no search box. |
-| `sortable_fields` | The columns people can sort the list by. Left out, every column the list shows, but no relationship and no column reached through one holding many records. An empty list sorts by none. |
-| `fields_default_sort` | The starting order. `Descending(Order.created_at)` or `"-created_at"` means newest first. Left out, the list goes by the record's key. |
-| `list_filters` | Columns, or filters you built yourself. See [Filters](filters.md). |
-| `page_size` | Rows per page. 25 unless you say otherwise. |
-| `page_size_options` | The sizes people may switch between. Empty leaves the size fixed. |
-| `count_mode` | `EXACT` counts every match, `ESTIMATED` guesses on big tables, `NONE` skips the count. |
-| `deferred_fields` | Columns the list never shows, left out of its query. |
-| `global_search` | Whether the command palette searches this view. On by default. |
-| `icon` | The sidebar icon: inline SVG markup, or the address of a picture. |
-| `pagination` | `Pagination.OFFSET` for page numbers, `Pagination.KEYSET` for big tables. |
+The list is shaped by `searchable_fields`, `sortable_fields`, `fields_default_sort`,
+`list_filters` (see [Filters](filters.md)), `page_size`, `page_size_options`, `count_mode`,
+`pagination`, `deferred_fields` and `global_search`. [`ModelView`][adminsite.ModelView] says what each
+one takes and what it does left out; the sections below show them at work.
 
 Anything the list shows is loaded with the page. `customer.name` joins the customer into the same
 query; a path through a collection such as `items.quantity` costs one more query for the whole
@@ -325,13 +313,12 @@ index on the columns you sort by, primary key last, such as `(created_at, id)`.
 
 ## The form
 
-| Setting | What it does |
-|---|---|
-| `fields` | The fields, in order, as under [Fields](#fields). A relationship, such as `Order.customer`, gives a picker. |
-| `form_layout` | Panels, rows and tabs for the forms and the record page, as under [Arranging the fields](#arranging-the-fields). |
-| `read_only=True` on a field | Shown, but never read back from what was submitted. `get_readonly_fields(request, record)` locks more for one user or one record. |
-| `can_create`, `can_edit`, `can_delete` | Switch those pages off. See [Permissions](permissions.md). |
-| `can_view_detail`, `can_export` | Switch off the record page and the CSV export. |
+The forms show the view's `fields` in order, as under [Fields](#fields), arranged by
+`form_layout` as under [Arranging the fields](#arranging-the-fields). A relationship, such as
+`Order.customer`, gives a picker. `read_only=True` on a field shows it and never reads it back, and
+`get_readonly_fields(request, record)` locks more for one user or one record. `can_create`,
+`can_edit` and `can_delete` switch those pages off, and `can_view_detail` and `can_export` the
+record page and the CSV export; see [Permissions](permissions.md).
 
 A readonly field is safe against a tampered form: its value is never taken from the request, even
 if someone adds the input back by hand. `read_only=True` locks a key as well, on the form for a new
@@ -433,13 +420,9 @@ gets no empty row under them. Everything is saved in one transaction with the or
 that fails to validate keeps the order unsaved too, and the page comes back with what was typed,
 the error next to the cell, and a list of every problem at the top of the form.
 
-| Option | What it does |
-|---|---|
-| `fields` | The child's fields, in order, written as a view's are, so `Field(OrderItem.added_at, read_only=True)` is shown and not edited. Defaults to every field except what the relationship fills in. |
-| `label` | The heading above the table. Defaults to the relationship's name. |
-| `blank_rows` | How many blank rows a table starts with while it has no rows yet. Defaults to 1. |
-| `can_delete` | Whether rows can be removed. |
-| `record_title` | How a child is named, as on a view. |
+`fields` lists the child's fields as a view's are, so `Field(OrderItem.added_at, read_only=True)`
+is shown and not edited. [`Inline`][adminsite.Inline] describes it and the other options: `label`,
+`blank_rows`, `can_delete` and `record_title`.
 
 The relationship has to hold a list. Blank rows that stay empty are ignored, and a required field
 only counts once something else in the row is filled in. The detail page lists the children too.

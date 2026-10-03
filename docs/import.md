@@ -64,7 +64,5 @@ after the import says which rows were refused and why.
 Between the preview and the import the file waits in the server's temporary folder for up to an
 hour. It belongs to the person who uploaded it and can be imported once.
 
-| Setting | What it does |
-|---|---|
-| `can_import` | Switches importing on. `Permission.IMPORT` in `allows` decides per user. |
-| `import_limit` | The most rows one file may hold. 10,000 unless you say. |
+`can_import` switches importing on, and `Permission.IMPORT` in `allows` decides per user.
+`import_limit` is the most rows one file may hold, 10,000 unless you say.

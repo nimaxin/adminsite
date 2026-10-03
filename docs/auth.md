@@ -56,14 +56,11 @@ class StaffAuth(AuthProvider):
             return await session.get(User, int(key))
 ```
 
-| Method | What it does |
-|---|---|
-| `verify(username, password)` | Returns the user for these details, or `None`, or raises `SignInRefusedError`. |
-| `identity(user)` | The short string kept in the session cookie. |
-| `load_user(key)` | Turns that string back into a user on each request. |
-| `sign_in_failed(request, username)` | Runs when a sign in fails, and returns what to say. |
-| `sign_in_values(request)` | What the sign in form starts with. Nothing unless you say. |
-| `may_read_sign_ins(request, reads_everything=...)` | Whether this person sees sign ins on the Activity page. |
+`verify` returns the user, `None`, or raises `SignInRefusedError`. `identity` turns the user into
+the short string kept in the session cookie, and `load_user` turns it back on each request.
+`sign_in_failed`, `sign_in_values` and `may_read_sign_ins` decide what a failed sign in says, what
+the form starts with, and who sees sign ins on the Activity page. See
+[`AuthProvider`][adminsite.auth.AuthProvider].
 
 `SignInRefusedError(reason, user=...)` refuses a sign in and says why. The reason goes to the
 [audit log](audit.md), filed under that user, and the person signing in is told only what

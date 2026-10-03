@@ -22,15 +22,11 @@ Ticking every row on the page offers "Select all 12,408 matching". The selection
 row the current search and filters match, not only the page.
 
 A `Selection` is a query, not a list of records, so an action over twelve thousand rows is still
-one statement. It gives you:
-
-| Method | What it does |
-|---|---|
-| `await selection.update(**values)` | Changes every covered row in one `UPDATE`, and returns how many. |
-| `await selection.delete()` | Deletes every covered row in one `DELETE`, and returns how many. |
-| `await selection.count()` | How many rows it covers. |
-| `await selection.records(paths=[Order.customer])` | Loads the records, for work that needs each one, with the links `paths` names. A `Selection[Order]` loads orders. |
-| `selection.statement()` | A `select()` of the covered primary keys, to use in your own queries. |
+one statement. `await selection.update(**values)` and `await selection.delete()` change or delete
+every covered row in one statement and say how many, `await selection.count()` counts them, `await
+selection.records(paths=[Order.customer])` loads them for work that needs each one, and
+`selection.statement()` is a `select()` of their keys for your own queries. See
+[`Selection`][adminsite.actions.Selection].
 
 `update` and `delete` never load the records, so they skip the save hooks, and a delete relies on
 the database for cascades. Give a child table's foreign key `ondelete="CASCADE"` where children
@@ -103,15 +99,9 @@ field of one.
 A `Literal`'s options read as they are written, `"DHL"` as DHL, and one in lower case as words:
 `"next_day"` reads "Next day".
 
-`Annotated[..., Input(...)]` words an input:
-
-| Option | What it does |
-|---|---|
-| `label` | The text above the input. Defaults to the parameter's name, `tracking_number` reading "Tracking number". |
-| `help_text` | A line under the input. |
-| `multiline` | A box of several lines, for a `str`. |
-| `accept`, `max_size` | For an `UploadFile`: the types offered, such as `".csv"`, and the largest file, in bytes. |
-| `secret` | Keeps the value out of the [audit log](audit.md#actions), for one not named like a password. |
+`Annotated[..., Input(...)]` words an input: its `label` and `help_text`, `multiline` for a box,
+`accept` and `max_size` for a file, and `secret` to keep the value out of the
+[audit log](audit.md#actions). See [`Input`][adminsite.actions.Input].
 
 A type adminsite cannot ask for, such as a class of your own, stops the admin when it starts, with
 the parameter's name and the types it can ask for. So does an option the type has no use for, such
@@ -261,15 +251,10 @@ rather than accepted because the class said so.
 
 ## Options
 
-| Option | What it does |
-|---|---|
-| `label` | The button text. Defaults to the method name, `mark_paid` reading "Mark paid". |
-| `confirm` | A question asked in a dialog before it runs. |
-| `inputs` | Fields to ask for as they are, each passed to the parameter of its name. The parameters' types usually say enough. |
-| `dangerous` | Draws the button in red. |
-| `permission` | What the user needs to run it. `Permission.EDIT` unless you say otherwise. |
-| `name` | The name in the URL, if the method name will not do. |
-| `audit_answer` | `False` keeps the answer out of the [audit log](audit.md#actions), for one that holds a secret shown once. |
+`@action` takes the button's `label`, a `confirm` question, `inputs` to ask for as they are,
+`dangerous` for a red button, the `permission` it needs, its `name` in the URL, and `audit_answer`
+to keep a secret answer out of the [audit log](audit.md#actions).
+[`@action`][adminsite.actions.action.action] says what each one does.
 
 ## Refusing
 
@@ -368,11 +353,9 @@ class AccountView(ModelView[Account]):
         )
 ```
 
-| Option | What it does |
-|---|---|
-| `sticky` | Keeps the message on screen until it is closed. |
-| `link`, `link_text` | An address to follow, written after the text. |
-| `copy` | A value shown with a button that copies it. The message stays, and the audit log never keeps the value. |
+`sticky` keeps it on screen until it is closed, `link` and `link_text` add an address to follow,
+and `copy` a value with a button that copies it, which the audit log never keeps. See
+[`Message`][adminsite.Message].
 
 The text is escaped. Return `Html(...)`, or give it as the message's text, for markup of your own.
 The JSON API answers with the message, the link and the value to copy as fields of its reply.

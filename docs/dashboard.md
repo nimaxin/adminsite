@@ -57,14 +57,10 @@ The function is the way to reach anything else: another database, an API, a cach
 
 ### Stat
 
-A single number.
-
-| Option | What it does |
-|---|---|
-| `format` | How the value is written, such as `"{:,}"` or `"€{:,.2f}"`. |
-| `previous` | A second source for the period before. The card then shows the change, such as "+12% on the period before", in green or red. |
-| `hint` | A line of text under the number, when there is no change to show. |
-| `link` | Where clicking the card goes. A relative link starts at the admin, so `"orders?status=PAID"` opens the filtered list. |
+A single number, written in its `format`, such as `"€{:,.2f}"`. Give it `previous`, a second
+source for the period before, and it shows the change, such as "+12% on the period before", in
+green or red. `link` makes the card open a page: `"orders?status=PAID"` opens the filtered list.
+See [`Stat`][adminsite.Stat].
 
 ### Chart
 
@@ -81,11 +77,8 @@ The latest records of a view, each linking to its page. It reads through the vie
 view's `can_access_field` keeps from the user on the list is not shown as `value`, and not used as
 `sort`: the view's own ordering applies instead.
 
-| Option | What it does |
-|---|---|
-| `sort` | The order, such as `"-created_at"`. The view's `fields_default_sort` if left out. |
-| `value` | A path shown at the right of each record, such as `"total"`. |
-| `limit` | How many records. Five unless you say. |
+`sort` sets the order, `value` a path shown beside each record, such as `"total"`, and `limit` how
+many records; see [`RecentRecords`][adminsite.RecentRecords].
 
 ### ModelCounts
 

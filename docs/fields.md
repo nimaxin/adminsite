@@ -103,22 +103,16 @@ kind against the column when it starts: `TextAreaField("total")` stops it, and s
 check against, so any kind may show it: `DateTimeField("starts_at")` on a `TZDateTime` column gives
 it a date and time picker.
 
-Every field takes `label`, `help_text`, `required`, `read_only`, `max_length`, `default`, `format`,
-`secret` and `form_only`, and the flags that leave it off a page, as under
-[Fields](views.md#fields). A kind refuses one it never reads when the admin starts. `max_length`
-means nothing to a number, a date or a time, a yes or no, a UUID, a choice, a relationship, a JSON
-document, a list or a file. A `ComputedField` is never in a form and never saved, so it takes no
-`required`, `read_only`, `max_length`, `secret`, `form_only`, `exclude_from_create` or
-`exclude_from_edit`. `read_only` shows the value in the form and never reads it back.
-`default` is what a new record's form starts with, and what an action's dialog opens with. `secret`
-says whether the [audit log](audit.md#secrets) keeps `***` instead of the value, in what a save
-changed and in what an action was run with; left out, a name such as `password_hash` or `api_key`
-decides. `form_only` is for [an input that is not a column](#inputs-that-are-not-columns).
+Every field takes the options [`BaseField`][adminsite.BaseField] lists, such as `label`,
+`help_text`, `read_only`, `default`, `format`, `secret` and the flags that leave it off a page. A
+kind refuses one it never reads when the admin starts: `max_length` means nothing to a number, a
+date or a time, a yes or no, a UUID, a choice, a relationship, a JSON document, a list or a file,
+and a `ComputedField` is never in a form, so it takes nothing about one. `form_only` is for
+[an input that is not a column](#inputs-that-are-not-columns).
 
-`format` is how a value is written wherever it is shown, as `str.format` takes it, the same way a
-dashboard's `Stat` and `Chart` take it. With `format="€{:,.2f}"` the list, the record page, the
-export and the overview's cards read `€1,234.50`. The form's input keeps the plain number, since
-that is what it reads back.
+With `format="€{:,.2f}"` the list, the record page, the export and the overview's cards read
+`€1,234.50`, as a dashboard's `Stat` and `Chart` do with theirs. The form's input keeps the plain
+number, since that is what it reads back.
 
 A label you give is used as it stands. Without one, a column of a related model names the relation
 as well, so `Link(Order.customer, Customer.name)` reads Customer name.
@@ -633,11 +627,9 @@ class ProductView(ModelView[Product]):
 The form gets a file input with the current file, a thumbnail for pictures and a box to remove
 it. The list shows a thumbnail or a link, and the detail page a larger picture.
 
-| Option | What it does |
-|---|---|
-| `storage` | Where the files go. |
-| `accept` | The types taken, as in a browser's `accept`: extensions such as `.pdf`, types such as `application/pdf`, or `image/*`. Checked on the server too. |
-| `max_size` | The largest file in bytes. 10 MB for files and 5 MB for pictures unless you say. |
+`storage` says where the files go, `accept` which types are taken, checked on the server too, and
+`max_size` the largest file: 10 MB for files and 5 MB for pictures unless you say. See
+[`FileField`][adminsite.fields.FileField].
 
 `ImageField` takes PNG, JPEG, GIF and WebP, and checks the file's first bytes, so a script renamed
 to `.png` is refused. SVG is left out because it can carry script.

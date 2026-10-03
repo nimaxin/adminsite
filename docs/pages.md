@@ -54,12 +54,8 @@ The admin's styles are [daisyUI](https://daisyui.com) components, so a page can 
 stats and tables as the rest of the admin. `page` is the page object; `urls`, `user` and
 `csrf_input` are there as on every page.
 
-| Setting | What it does |
-|---|---|
-| `name` | The URL, `/-/` and the name. Defaults to the class name in snake case, without `Page`. |
-| `label` | The sidebar text. Defaults to the name, spaced out. |
-| `group` | The sidebar section. Pages share groups with views. |
-| `template` | The template to render. |
+A page's `name` is its URL, `label` its text in the sidebar, `group` the sidebar section it
+shares with views, and `template` what it renders; see [`AdminPage`][adminsite.AdminPage].
 
 ### Who may open it
 
@@ -124,14 +120,11 @@ class Reports(Plugin):
 admin = Admin(engine, plugins=[Reports()])
 ```
 
-| Method | What it adds |
-|---|---|
-| `add_view(view)` | A model view. |
-| `add_page(page)` | A page of your own. |
-| `add_route(path, endpoint, methods=("GET",), guarded=True)` | Any endpoint, called as `endpoint(admin, request)`. The path starts with `/-/`, so it never meets a model's URL. `guarded=False` leaves it outside the sign in, for a health check or a webhook. |
-| `add_template_dir(path)` | A folder of templates, searched before the admin's own, so a plugin can also replace one of them. |
-| `add_static(name, path)` | A folder served at `/-/static/` and the name. |
-| `add_stylesheet(href)`, `add_script(src)` | A stylesheet or script on every page. A relative path starts at the admin, a full URL is used as it is. |
+A plugin adds views with `add_view`, pages with `add_page`, any endpoint under `/-/` with
+`add_route`, templates with `add_template_dir`, which a plugin can also use to replace one of the
+admin's, a folder of files with `add_static`, and a stylesheet or script on every page with
+`add_stylesheet` and `add_script`. `add_route(..., guarded=False)` leaves a route outside the sign
+in, for a health check or a webhook. [`Admin`][adminsite.Admin] says what each takes.
 
 The same methods work on the admin directly, without a plugin. Routes and static files have to be
 added before the admin answers its first request, since the routes are fixed from then on.
