@@ -15,6 +15,8 @@ What changed:
   like any name that does not exist.
 - `context.request` in the save and delete hooks, and `selection.request` in an action, are
   typed `Request` rather than `Request | None`: they always hold the request.
+- The signed-in user is on `request.state.user`, as the permission examples in the docs read it.
+  The sign in page no longer asks each view's `allows` while nobody is signed in.
 
 ## 0.1.0a10
 

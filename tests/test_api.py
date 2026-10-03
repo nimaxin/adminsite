@@ -457,6 +457,31 @@ class TestSigningIn:
         assert changed.status_code == 200
         assert wrong.status_code == 401
 
+    async def test_a_view_reads_who_the_token_is_for(self, database: Database) -> None:
+        class RobotOrders(ModelView[Order]):
+            async def allows(
+                self,
+                action: Permission | str,
+                *,
+                request: Request,
+                record: Order | None,
+            ) -> bool:
+                return bool(request.state.user == "robot")
+
+        admin = Admin(
+            database,
+            views=[RobotOrders],
+            api=True,
+            auth=TokenAuth({"nima": hash_password("letmein")}),
+            secret_key="for-the-session",
+        )
+        async with serve(admin) as client:
+            answer = await client.get(
+                "/admin/-/api/orders", headers={"Authorization": "Bearer s3cret"}
+            )
+
+        assert answer.status_code == 200
+
     async def test_a_session_needs_the_form_token_to_change_things(
         self, guarded: httpx.AsyncClient
     ) -> None:

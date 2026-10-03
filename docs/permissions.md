@@ -193,6 +193,6 @@ together.
 
 ## Who is asking
 
-When signing in is set up, the user is on `request.scope["user_record"]`, as your
-[auth provider](auth.md) loaded it. If your application already puts the user on `request.state`
-with its own middleware, use that instead; adminsite passes the same request through.
+When signing in is set up, the user is on `request.state.user`, as your [auth provider](auth.md)
+loaded it. An application that signs people in with its own middleware instead can put its user
+there too; adminsite passes the same request through.

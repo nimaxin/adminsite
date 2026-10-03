@@ -16,6 +16,7 @@ from adminsite.auth import (
 )
 from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import AdminSiteError
+from adminsite.security import Permission
 from tests.models import Product
 
 SECRET = "a-secret-for-the-tests"
@@ -133,6 +134,35 @@ class TestSigningIn:
         response = await client.get("/admin/products")
 
         assert "nima" in response.text
+
+    async def test_a_view_reads_who_is_signed_in(self, database: Database) -> None:
+        class OnlyNima(ModelView[Product]):
+            async def allows(
+                self,
+                action: Permission | str,
+                *,
+                request: Request,
+                record: Product | None,
+            ) -> bool:
+                return bool(request.state.user == "nima")
+
+        site = Admin(
+            database,
+            title="Shop",
+            views=[OnlyNima],
+            auth=PasswordAuth({"nima": hash_password("letmein")}),
+            secret_key=SECRET,
+        )
+        app = Starlette()
+        app.mount("/admin", site)
+        client = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        )
+        await sign_in(client)
+
+        response = await client.get("/admin/products")
+
+        assert response.status_code == 200
 
     async def test_signing_out_ends_the_session(
         self, client: httpx.AsyncClient

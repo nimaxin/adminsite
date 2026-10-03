@@ -70,7 +70,7 @@ class StaffAuth(AuthProvider):
 `sign_in_failed` returns. `PasswordAuth` gives "There is no such username." or "The password was
 wrong."
 
-The loaded user is on `request.scope["user_record"]`, for your [permission](permissions.md) checks.
+The loaded user is on `request.state.user`, for your [permission](permissions.md) checks.
 Its `str()` is what the sidebar and the audit log show, and `identity(user)` is the key the audit
 log files it under.
 

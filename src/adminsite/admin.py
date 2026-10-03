@@ -529,6 +529,7 @@ class Admin:
                             status_code=401,
                             headers={"WWW-Authenticate": "Bearer"},
                         )
+                    request.state.user = user
                     request.scope["user_record"] = user
                     request.scope[USER_KEY] = self.auth.identity(user)
                 # A browser sends the session cookie by itself, so a change
@@ -594,6 +595,7 @@ class Admin:
                     user = await self.auth.current_user(request)
                     if user is None:
                         return RedirectResponse(Urls(request).login(), status_code=303)
+                    request.state.user = user
                     request.scope["user_record"] = user
                     request.scope[USER_KEY] = self.auth.identity(user)
                 answer: Response = await endpoint(self, request)

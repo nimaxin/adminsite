@@ -80,14 +80,19 @@ class Templates:
         path = f"{TEMPLATE_ROOT}/{name}" if own else name
         language = request.scope.get("adminsite_language", admin.language)
         template = self.environment.get_template(path)
+        # Nobody is signed in on the sign in page, so there is no sidebar to
+        # work out, and no view to ask what a missing user may open.
+        signed_out = admin.auth is not None and "user_record" not in request.scope
         values: dict[str, Any] = {
             "request": request,
             "admin": admin,
             "title": admin.title,
             "urls": Urls(request),
             # The sidebar leaves out what this user may not open.
-            "groups": await navigation(admin, request),
-            "show_activity": bool(await admin.history_views(request)),
+            "groups": [] if signed_out else await navigation(admin, request),
+            "show_activity": (
+                not signed_out and bool(await admin.history_views(request))
+            ),
             "user": request.scope.get("user_record"),
             "csrf_input": hidden_input(request),
             "messages": read_messages(request),
