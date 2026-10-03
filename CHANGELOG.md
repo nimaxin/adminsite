@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+Before upgrading:
+
+- A project that overrides `_table.html`, `detail.html`, `_toolbar.html`, `_list_menus.html` or
+  `import_preview.html` should start its copy again from the new one. They reach a view's fields
+  through `view._fields` and its pages through `view._pages`.
+
+What changed:
+
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.

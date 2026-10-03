@@ -21,6 +21,11 @@ uv run uvicorn examples.shop:app --reload
 Then open http://127.0.0.1:8000/admin and sign in as nima / letmein. The demo that runs online is
 the same shop, served by `demo/app.py`; [demo/README.md](demo/README.md) describes it.
 
+## Finding your way
+
+[AGENTS.md](AGENTS.md) maps the package, and `views/` part by part: what each part of `ModelView`
+does, and where a new setting, check, hook or page rule goes.
+
 ## Checking a change
 
 ```

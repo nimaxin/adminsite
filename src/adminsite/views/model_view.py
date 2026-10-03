@@ -227,7 +227,12 @@ class ModelView(Generic[M]):
         self._settings = SettingsReader(self, self._schema, self._inspector)
 
         self._inline_views = InlineViews(
-            self, self._settings, self._schema, self._inspector, self._registry
+            self,
+            ModelView,
+            self._settings,
+            self._schema,
+            self._inspector,
+            self._registry,
         )
         self._repository = SQLAlchemyRepository(
             self.model, self._inspector, self._settings.list_filters

@@ -100,6 +100,7 @@ class InlineViews(dict[str, "ModelView[Any]"]):
     def __init__(
         self,
         view: "ModelView[Any]",
+        base: "type[ModelView[Any]]",
         settings: "SettingsReader",
         schema: "ModelSchema",
         inspector: "SQLAlchemyInspector",
@@ -107,6 +108,9 @@ class InlineViews(dict[str, "ModelView[Any]"]):
     ) -> None:
         super().__init__()
         self._view = view
+        # The class each child view is built from, ModelView itself, handed
+        # over since model_view imports this module for Inline.
+        self._base = base
         self._settings = settings
         self._schema = schema
         self._inspector = inspector
@@ -121,10 +125,6 @@ class InlineViews(dict[str, "ModelView[Any]"]):
 
     def _build(self, inline: Inline, setting: str) -> "ModelView[Any]":
         """Build the view that reads and writes one inline's children."""
-        # model_view imports this module for Inline, so ModelView is
-        # imported here, once both modules are loaded.
-        from adminsite.views.model_view import ModelView
-
         self._settings.converted(setting, inline.relation, path_of)
         self._settings.check(setting, inline.name, self._view.model, "paths")
         relation = self._schema.relation_named(inline.name)
@@ -174,7 +174,7 @@ class InlineViews(dict[str, "ModelView[Any]"]):
         filled = [name for name in filled if name in shown]
 
         def can_access_field(
-            child: ModelView[Any],
+            child: "ModelView[Any]",
             request: Request,
             field: BaseField,
             action: RequestAction,
@@ -195,7 +195,9 @@ class InlineViews(dict[str, "ModelView[Any]"]):
             "record_title": inline.record_title,
             "can_access_field": can_access_field,
         }
-        child_class = type(f"{relation.target.__name__}Inline", (ModelView,), namespace)
+        child_class = type(
+            f"{relation.target.__name__}Inline", (self._base,), namespace
+        )
         try:
             built: ModelView[Any] = child_class(self._inspector, self._registry)
         except AdminSiteError as error:

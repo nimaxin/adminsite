@@ -9,8 +9,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 ## Layout
 
 - `src/adminsite/` is the package. `admin.py` builds the app and its routes, `views/` holds
-  `ModelView`, `http/` holds the endpoints, `backends/sqlalchemy/` holds everything that touches
-  SQLAlchemy, `fields/` and `filters/` are what they say.
+  `ModelView` and the parts it is built from (below), `http/` holds the endpoints,
+  `backends/sqlalchemy/` holds everything that touches SQLAlchemy, `fields/` and `filters/` are
+  what they say.
 - `src/adminsite/templates/adminsite/` holds the Jinja templates; `widgets/` has one file per form
   control.
 - `src/adminsite/static/adminsite.css` is built from `frontend/` and committed. HTMX and Alpine are
@@ -23,6 +24,45 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
   describes the server.
 - `tests/` runs every database test on SQLite async and sync, and on Postgres and MySQL when their
   URLs are set.
+
+## Inside views/
+
+`ModelView` keeps what users write: the settings, the `get_` methods, `allows`, `scope_query`,
+`get_actions` and the hooks. The work is done by parts it builds in `__init__`, from the bottom row
+up, each handed the parts it uses. Templates and `http/` reach a part through the view, such as
+`view._pages.form_fields(request, record)`. A module imports only modules of the rows below its
+own; `tests/test_view_layers.py` fails otherwise.
+
+| Row | Module | The view holds it as | What it does |
+| --- | --- | --- | --- |
+| 1 | `checks.py` | | The startup checks, and the messages they stop the admin with |
+| 1 | `naming.py` | | How a linked record is named |
+| 2 | `settings.py` | `view._settings` | The settings read into paths and checked, once, at startup |
+| 3 | `view_fields.py` | `view._fields` | The field for each path, and what a record holds and shows there |
+| 3 | `inline.py` | `view._inline_views` | `Inline`, `InlineRow`, and the child view of each inline |
+| 4 | `pages.py` | `view._pages` | The fields each page shows this user, and which of them are editable |
+| 4 | `writing.py` | | `SaveContext`, `DeleteContext` and `SaveValues`, which the hooks get |
+| 5 | `reading.py` | `view._reader` | Pages of records, one record, filter choices and computed values |
+| 5 | `form_parsing.py` | `view._forms` | A submitted form, its inline rows and an action's inputs, as values |
+| 5 | `auditing.py` | `view._audit` | The entries a change writes to the audit log |
+| 6 | `links.py` | `view._links` | The records a submitted link names, read through the linked view |
+| 7 | `saving.py` | `view._saver` | A save or a delete in one transaction, with its hooks and files |
+| 7 | `action_runner.py` | `view._actions` | The actions offered to a request, run and written down |
+| 8 | `model_view.py` | | `ModelView` itself |
+| 9 | `registry.py`, `picker.py` | | The admin's views; the records a link may offer |
+
+Where a change goes:
+
+- **A setting that names columns:** an attribute on `ModelView`, read into paths in
+  `SettingsReader.__init__`, which checks every name. When the answer can depend on the request,
+  add a `get_` method beside it; `PageFields` calls it and checks an answer other than the
+  setting itself through `SettingsReader`.
+- **A startup check:** a function in `checks.py`, called where the setting is read.
+- **A hook:** a method on `ModelView` that does nothing by default, called by the part that does
+  the work, such as `Saver` for a save.
+- **A rule about which fields a page shows:** `PageFields`, which the pages, the export, the
+  import and the API all ask.
+- **A new module:** a row in `LAYERS` in `tests/test_view_layers.py`, and in the table above.
 
 ## Commands
 
