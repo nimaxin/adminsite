@@ -8,6 +8,7 @@ import httpx
 import pytest
 from sqlalchemy import select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.actions import Selection, action
@@ -33,7 +34,7 @@ class LockedProducts(ModelView[Product]):
     name = "locked"
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.DELETE and record is not None:
             return bool(record.name != "Locked")

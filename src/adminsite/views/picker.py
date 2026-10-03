@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
@@ -40,7 +42,7 @@ class Picker:
     views: "ViewRegistry"
     inspector: SQLAlchemyInspector
     item: RelationField
-    request: Any = None
+    request: Request
 
     @property
     def view(self) -> ModelView[Any] | None:

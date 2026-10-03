@@ -29,13 +29,12 @@ from adminsite.audit import AuditLog
 from adminsite.backends.sqlalchemy import Database, TextFilter
 from adminsite.imports import build_plan, import_columns, read_table
 from tests.models import Customer, Order, OrderItem, OrderStatus, Shelf
+from tests.support import request_from
 
 
-def role_of(request: Any) -> str:
-    """Who is asking: a header on a request, or the string a test passes."""
-    if isinstance(request, Request):
-        return request.headers.get("x-role", "")
-    return str(request or "")
+def role_of(request: Request) -> str:
+    """Who is asking: the x-role header over HTTP, or the user a test signs in."""
+    return request.headers.get("x-role") or str(request.scope.get("user_record", ""))
 
 
 class Orders(ModelView[Order]):
@@ -49,7 +48,7 @@ class Orders(ModelView[Order]):
     ]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name != "total" or role_of(request) == "manager"
 
@@ -61,7 +60,7 @@ class NotedOrders(ModelView[Order]):
     fields = [Order.id, Order.customer, Order.status, Order.note]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return (
             field.name != "note"
@@ -79,15 +78,20 @@ class TestEachPage:
             view._pages.detail_fields,
             view._pages.form_fields,
         ):
-            assert "total" not in page("staff")
-            assert "total" in page("manager")
+            assert "total" not in page(request_from("staff"))
+            assert "total" in page(request_from("manager"))
 
     def test_the_edit_form_and_the_export_ask_too(self) -> None:
         view = Orders()
 
-        assert "total" not in view._pages.form_fields("staff", Order(id=1))
-        assert view._pages.exported(["id", "total"], "staff") == ("id",)
-        assert view._pages.exported(["id", "total"], "manager") == ("id", "total")
+        assert "total" not in view._pages.form_fields(
+            request_from("staff"), Order(id=1)
+        )
+        assert view._pages.exported(["id", "total"], request_from("staff")) == ("id",)
+        assert view._pages.exported(["id", "total"], request_from("manager")) == (
+            "id",
+            "total",
+        )
 
     def test_each_page_is_named_to_it(self) -> None:
         asked: list[tuple[str, RequestAction]] = []
@@ -96,17 +100,17 @@ class TestEachPage:
             fields = [Order.id, Order.status]
 
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
                 asked.append((field.name, action))
                 return True
 
         view = Asking()
-        view._pages.list_fields()
-        view._pages.detail_fields()
-        view._pages.form_fields()
-        view._pages.form_fields(record=Order(id=1))
-        view._pages.exported(["id"])
+        view._pages.list_fields(request_from())
+        view._pages.detail_fields(request_from())
+        view._pages.form_fields(request_from())
+        view._pages.form_fields(request_from(), record=Order(id=1))
+        view._pages.exported(["id"], request_from())
 
         assert {action for _name, action in asked} == set(RequestAction)
 
@@ -117,12 +121,12 @@ class TestEachPage:
             fields = [Order.id, Link(Order.customer, Customer.email), "customer.name"]
 
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
                 names.add(field.name)
                 return True
 
-        Asking()._pages.list_fields()
+        Asking()._pages.list_fields(request_from())
 
         assert names == {"id", "customer.email", "customer.name"}
 
@@ -132,26 +136,28 @@ class TestEachPage:
 
         view = Offered()
 
-        assert view._pages.column_choices("staff") == ("id",)
-        assert view._pages.column_choices("manager") == ("id", "total")
+        assert view._pages.column_choices(request_from("staff")) == ("id",)
+        assert view._pages.column_choices(request_from("manager")) == ("id", "total")
 
     def test_the_list_cannot_be_sorted_by_it(self) -> None:
         view = Orders()
 
-        assert "total" not in view._pages.readable_paths("staff")
-        assert "total" in view._pages.readable_paths("manager")
+        assert "total" not in view._pages.readable_paths(request_from("staff"))
+        assert "total" in view._pages.readable_paths(request_from("manager"))
 
     def test_the_create_form_alone_does_not_make_it_readable(self) -> None:
         view = NotedOrders()
 
-        assert "note" in view._pages.form_fields("staff")
-        assert "note" not in view._pages.readable_paths("staff")
-        assert "note" in view._pages.readable_paths("manager")
+        assert "note" in view._pages.form_fields(request_from("staff"))
+        assert "note" not in view._pages.readable_paths(request_from("staff"))
+        assert "note" in view._pages.readable_paths(request_from("manager"))
 
     def test_the_form_does_not_read_it_back(self) -> None:
         submitted = {"customer": "1", "status": "paid", "total": "0", "note": ""}
 
-        result = Orders()._forms.parse(submitted, record=Order(id=1), request="staff")
+        result = Orders()._forms.parse(
+            submitted, record=Order(id=1), request=request_from("staff")
+        )
 
         assert "total" not in result.values
         assert result.values["status"] == OrderStatus.PAID
@@ -264,7 +270,7 @@ class SupportOrders(ModelView[Order]):
     fields = [Order.id, Order.status, Order.customer]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name != "customer" or action is RequestAction.EDIT
 
@@ -292,7 +298,7 @@ class ImportedCustomers(ModelView[Customer]):
     can_import = True
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         if field.name == "email":
             return False
@@ -307,7 +313,7 @@ class StatusOnce(ModelView[Order]):
     can_import = True
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return (
             field.name != "status"
@@ -324,7 +330,11 @@ class TestAnImport:
         async with serve(admin) as client:
             template = await client.get("/admin/imported_customers/import/template")
 
-        assert import_columns(ImportedCustomers(), "staff") == ("id", "name", "region")
+        assert import_columns(ImportedCustomers(), request_from("staff")) == (
+            "id",
+            "name",
+            "region",
+        )
         assert template.text.strip() == "id,name,region"
 
     async def test_a_field_nobody_shows_them_is_never_compared(
@@ -336,7 +346,7 @@ class TestAnImport:
                 StatusOnce(),
                 session,
                 read_table("a.csv", guesses.encode()),
-                request="staff",
+                request=request_from("staff"),
             )
 
         cannot = {"status": "This field cannot be changed."}
@@ -353,7 +363,7 @@ class Narrowed(ModelView[Order]):
     fields_default_sort = [Descending(Order.total)]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name not in ("total", "note") or role_of(request) == "manager"
 
@@ -367,14 +377,18 @@ class TestSearchFiltersAndSort:
     def test_a_refused_field_is_not_searched(self) -> None:
         view = Narrowed()
 
-        assert view._pages.search_paths("staff") == ()
-        assert view._pages.search_paths("manager") == ("note",)
+        assert view._pages.search_paths(request_from("staff")) == ()
+        assert view._pages.search_paths(request_from("manager")) == ("note",)
 
     def test_nor_offered_as_a_filter(self) -> None:
         view = Narrowed()
 
-        assert [item.name for item in view._pages.list_filters("staff")] == ["status"]
-        assert [item.name for item in view._pages.list_filters("manager")] == [
+        assert [
+            item.name for item in view._pages.list_filters(request_from("staff"))
+        ] == ["status"]
+        assert [
+            item.name for item in view._pages.list_filters(request_from("manager"))
+        ] == [
             "status",
             "total",
         ]
@@ -382,16 +396,18 @@ class TestSearchFiltersAndSort:
     def test_nor_sorted_by_at_first(self) -> None:
         view = Narrowed()
 
-        assert view._pages.default_sort("staff") == ()
-        assert view._pages.default_sort("manager") == (Sort("total", descending=True),)
+        assert view._pages.default_sort(request_from("staff")) == ()
+        assert view._pages.default_sort(request_from("manager")) == (
+            Sort("total", descending=True),
+        )
 
     def test_a_filter_that_names_no_field_is_kept(self) -> None:
         class Custom(Narrowed):
             list_filters = [TextFilter("anything", label="Anything")]
 
-        assert [item.name for item in Custom()._pages.list_filters("staff")] == [
-            "anything"
-        ]
+        assert [
+            item.name for item in Custom()._pages.list_filters(request_from("staff"))
+        ] == ["anything"]
 
 
 @pytest.fixture
@@ -526,7 +542,7 @@ class TestTheHistory:
             ]
 
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
                 refused = field.name in ("note", "customer.email")
                 return not refused or role_of(request) == "manager"
@@ -559,7 +575,7 @@ class TestGetReadonlyFields:
             fields = [Order.customer, Order.status, Order.note]
 
             def get_readonly_fields(
-                self, request: Any, record: Order | None
+                self, request: Request, record: Order | None
             ) -> list[Any]:
                 if record is not None and record.status is OrderStatus.SHIPPED:
                     return [Order.customer, Order.status]
@@ -569,10 +585,15 @@ class TestGetReadonlyFields:
         shipped = Order(id=1, status=OrderStatus.SHIPPED)
         pending = Order(id=2, status=OrderStatus.PENDING)
 
-        assert view._pages.readonly_paths(None, shipped) == ("customer", "status")
-        assert view._pages.readonly_paths(None, pending) == ()
+        assert view._pages.readonly_paths(request_from(), shipped) == (
+            "customer",
+            "status",
+        )
+        assert view._pages.readonly_paths(request_from(), pending) == ()
         result = view._forms.parse(
-            {"customer": "2", "status": "paid", "note": "Gift"}, record=shipped
+            {"customer": "2", "status": "paid", "note": "Gift"},
+            record=shipped,
+            request=request_from(),
         )
         assert result.values == {"note": "Gift"}
 
@@ -580,7 +601,7 @@ class TestGetReadonlyFields:
         class Fixed(ModelView[Order]):
             fields = [Order.status, Field(Order.total, read_only=True)]
 
-        assert Fixed()._pages.readonly_paths(None, Order(id=1)) == ("total",)
+        assert Fixed()._pages.readonly_paths(request_from(), Order(id=1)) == ("total",)
 
     def test_a_key_marked_read_only_is_locked_on_both_forms(self) -> None:
         class Locked(ModelView[Shelf]):
@@ -589,22 +610,24 @@ class TestGetReadonlyFields:
         view = Locked()
         shelf = Shelf(aisle="A", slot=1)
         result = view._forms.parse(
-            {"aisle": "Z", "slot": "2", "label": "Linen"}, record=shelf
+            {"aisle": "Z", "slot": "2", "label": "Linen"},
+            record=shelf,
+            request=request_from(),
         )
 
-        assert view._pages.readonly_paths() == ("aisle",)
-        assert view._pages.readonly_paths(None, shelf) == ("aisle", "slot")
+        assert view._pages.readonly_paths(request_from()) == ("aisle",)
+        assert view._pages.readonly_paths(request_from(), shelf) == ("aisle", "slot")
         assert result.values == {"label": "Linen"}
 
     def test_a_misspelt_name_is_refused(self) -> None:
         class Misspelt(ModelView[Order]):
             def get_readonly_fields(
-                self, request: Any, record: Order | None
+                self, request: Request, record: Order | None
             ) -> list[str]:
                 return ["stauts"]
 
         with pytest.raises(AdminSiteError) as raised:
-            Misspelt()._pages.readonly_paths()
+            Misspelt()._pages.readonly_paths(request_from())
 
         assert str(raised.value).startswith(
             "Misspelt.get_readonly_fields: Order has no column or relationship "
@@ -625,7 +648,7 @@ class OrderLines(ModelView[Order]):
     ]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name != "items.unit_price" or role_of(request) == "manager"
 
@@ -675,15 +698,15 @@ class TestInlineFields:
             inlines = [Inline(Order.items, fields=[OrderItem.quantity])]
 
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
                 asked.append((field.name, action))
                 return True
 
         child = Asking()._inline_views["items"]
-        child._pages.form_fields()
-        child._pages.form_fields(record=OrderItem(id=1))
-        child._pages.detail_fields()
+        child._pages.form_fields(request_from())
+        child._pages.form_fields(request_from(), record=OrderItem(id=1))
+        child._pages.detail_fields(request_from())
 
         assert asked == [
             ("items.quantity", RequestAction.CREATE),
@@ -732,7 +755,7 @@ class TestInlineFields:
     ) -> None:
         class NewLinesPriced(OrderLines):
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
                 return field.name != "items.unit_price" or action != RequestAction.EDIT
 
@@ -749,11 +772,11 @@ class ShippedLinesLocked(OrderLines):
     """Orders whose lines keep their price once the order has shipped."""
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return True
 
-    def get_readonly_fields(self, request: Any, record: Order | None) -> list[Any]:
+    def get_readonly_fields(self, request: Request, record: Order | None) -> list[Any]:
         if record is not None and record.status is OrderStatus.SHIPPED:
             return [Link(Order.items, OrderItem.unit_price)]
         return []

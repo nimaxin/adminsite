@@ -19,6 +19,7 @@ from adminsite import Admin, ModelView, RefusedError
 from adminsite.backends.sqlalchemy import Database
 from tests.reference.models import Product, ProductStatus, Supplier
 from tests.reference.products import ProductView, SupplierView
+from tests.support import request_from
 
 
 async def become_manager(admin: Admin, request: Request) -> Response:
@@ -139,6 +140,7 @@ class TestTheSaveHook:
                     "price": Decimal("40.00"),
                     "cost": Decimal("20.00"),
                 },
+                request=request_from(),
             )
 
         assert record.sku == "SHIRT-2"
@@ -157,6 +159,7 @@ class TestTheSaveHook:
                         "price": Decimal("10.00"),
                         "cost": Decimal("20.00"),
                     },
+                    request=request_from(),
                 )
 
         assert refused.value.field == "price"

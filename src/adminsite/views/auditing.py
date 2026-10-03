@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import inspect as sqlalchemy_inspect
+from starlette.requests import Request
 
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
@@ -64,7 +65,7 @@ class AuditRecorder:
         record: Any,
         before: Mapping[str, Any],
         paths: Sequence[str],
-        request: Any,
+        request: Request,
         *,
         created: bool,
     ) -> None:

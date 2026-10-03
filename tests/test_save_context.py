@@ -40,7 +40,7 @@ from tests.models import (
     Product,
     Tag,
 )
-from tests.support import Backend, count_queries, spare_product
+from tests.support import Backend, count_queries, request_from, spare_product
 
 events: list[str] = []
 seen: dict[str, Any] = {}
@@ -119,7 +119,9 @@ class TestTheValues:
 
         async with database.session() as session:
             await Reading()._saver.save(
-                session, {"name": "Scarf", "price": Decimal("12.5")}
+                session,
+                {"name": "Scarf", "price": Decimal("12.5")},
+                request=request_from(),
             )
 
         assert seen["price"] == Decimal("12.5")
@@ -140,7 +142,9 @@ class TestTheValues:
         async with database.session() as session:
             record = await session.get(Product, 1)
             assert record is not None
-            await Reading()._saver.save(session, {"price": Decimal("1")}, record=record)
+            await Reading()._saver.save(
+                session, {"price": Decimal("1")}, record=record, request=request_from()
+            )
 
         assert seen["name"] == record.name
         assert seen["given"] == (False, True)
@@ -155,7 +159,9 @@ class TestTheValues:
                 seen["description"] = context.values[Product.description].get()
 
         async with database.session() as session:
-            await Reading()._saver.save(session, {"name": "Scarf", "price": Decimal(1)})
+            await Reading()._saver.save(
+                session, {"name": "Scarf", "price": Decimal(1)}, request=request_from()
+            )
 
         assert seen["description"] is None
 
@@ -173,7 +179,9 @@ class TestTheValues:
 
         async with database.session() as session:
             await Reading()._saver.save(
-                session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+                session,
+                {"customer": "2", "created_at": datetime(2026, 9, 30)},
+                request=request_from(),
             )
 
         # As the record's own attribute is, though the column holds no None.
@@ -192,7 +200,7 @@ class TestTheValues:
 
         async with database.session() as session:
             record = await Describing()._saver.save(
-                session, {"name": "Scarf", "price": Decimal(1)}
+                session, {"name": "Scarf", "price": Decimal(1)}, request=request_from()
             )
 
         stored = await product(database, record.id)
@@ -211,7 +219,9 @@ class TestTheValues:
                 context.values[Account.password_hash].set("hashed")
 
         async with database.session() as session:
-            await AccountView()._saver.save(session, {"email": "ana@example.com"})
+            await AccountView()._saver.save(
+                session, {"email": "ana@example.com"}, request=request_from()
+            )
 
         assert seen == {"password": None, "given": False}
 
@@ -227,7 +237,9 @@ class TestTheValues:
         async with database.session() as session:
             with pytest.raises(AdminSiteError) as raised:
                 await Mixing()._saver.save(
-                    session, {"name": "Scarf", "price": Decimal(1)}
+                    session,
+                    {"name": "Scarf", "price": Decimal(1)},
+                    request=request_from(),
                 )
 
         assert str(raised.value) == (
@@ -245,7 +257,9 @@ class TestTheValues:
         async with database.session() as session:
             with pytest.raises(AdminSiteError, match="Product has no column named"):
                 await Misspelling()._saver.save(
-                    session, {"name": "Scarf", "price": Decimal(1)}
+                    session,
+                    {"name": "Scarf", "price": Decimal(1)},
+                    request=request_from(),
                 )
 
     @pytest.mark.parametrize("created", [True, False])
@@ -262,7 +276,10 @@ class TestTheValues:
             record = None if created else await session.get(Product, 1)
             with pytest.raises(AdminSiteError) as raised:
                 await Misspelling()._saver.save(
-                    session, {"name": "Scarf", "price": Decimal(1)}, record=record
+                    session,
+                    {"name": "Scarf", "price": Decimal(1)},
+                    record=record,
+                    request=request_from(),
                 )
 
         assert str(raised.value) == (
@@ -282,7 +299,9 @@ class TestTheValues:
         async with database.session() as session:
             with pytest.raises(AdminSiteError) as raised:
                 await Reaching()._saver.save(
-                    session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+                    session,
+                    {"customer": "2", "created_at": datetime(2026, 9, 30)},
+                    request=request_from(),
                 )
 
         assert str(raised.value) == (
@@ -304,7 +323,10 @@ class TestTheValues:
             assert record is not None
             with pytest.raises(AdminSiteError) as raised:
                 await Reading()._saver.save(
-                    session, {"status": OrderStatus.PAID}, record=record
+                    session,
+                    {"status": OrderStatus.PAID},
+                    record=record,
+                    request=request_from(),
                 )
 
         assert str(raised.value) == (
@@ -326,9 +348,16 @@ class TestTheValues:
 
         view = Reading()
         async with database.session() as session:
-            record = await view._reader.fetch_record(session, 1, paths=["customer"])
+            record = await view._reader.fetch_record(
+                session, 1, paths=["customer"], request=request_from()
+            )
             assert record is not None
-            await view._saver.save(session, {"status": OrderStatus.PAID}, record=record)
+            await view._saver.save(
+                session,
+                {"status": OrderStatus.PAID},
+                record=record,
+                request=request_from(),
+            )
 
         assert isinstance(seen["customer"], Customer)
         assert seen["customer"].id == record.customer_id
@@ -338,7 +367,9 @@ class TestTheValues:
     ) -> None:
         async with database.session() as session:
             await Ordering()._saver.save(
-                session, {"customer": "2", "created_at": datetime(2026, 9, 30)}
+                session,
+                {"customer": "2", "created_at": datetime(2026, 9, 30)},
+                request=request_from(),
             )
 
         assert isinstance(seen["customer"], Customer)
@@ -359,7 +390,9 @@ class TestTheValues:
                 await session.add(tag)
             await session.commit()
             keys = [str(tag.id) for tag in tags]
-            await Tagging()._saver.save(session, {"title": "New in", "tags": keys})
+            await Tagging()._saver.save(
+                session, {"title": "New in", "tags": keys}, request=request_from()
+            )
 
         assert [tag.name for tag in seen["tags"]] == ["Linen", "Summer"]
 
@@ -419,7 +452,9 @@ class TestRefusedByAttribute:
 class TestCommittedHooks:
     async def test_a_save_reaches_it_once_committed(self, database: Database) -> None:
         async with database.session() as session:
-            await Watched()._saver.save(session, {"name": "Scarf", "price": Decimal(1)})
+            await Watched()._saver.save(
+                session, {"name": "Scarf", "price": Decimal(1)}, request=request_from()
+            )
 
         assert events == [
             "before_save",
@@ -434,7 +469,9 @@ class TestCommittedHooks:
     ) -> None:
         async with database.session() as session:
             record = await session.get(Product, 1)
-            await Watched()._saver.save(session, {"price": Decimal(2)}, record=record)
+            await Watched()._saver.save(
+                session, {"price": Decimal(2)}, record=record, request=request_from()
+            )
 
         assert seen["created"] is False
 
@@ -447,7 +484,9 @@ class TestCommittedHooks:
         async with database.session() as session:
             with pytest.raises(RefusedError):
                 await Refusing()._saver.save(
-                    session, {"name": "Scarf", "price": Decimal(1)}
+                    session,
+                    {"name": "Scarf", "price": Decimal(1)},
+                    request=request_from(),
                 )
 
         assert events == ["before_save", "after_save"]
@@ -462,7 +501,9 @@ class TestCommittedHooks:
         with caplog.at_level(logging.ERROR, logger="adminsite"):
             async with database.session() as session:
                 record = await Failing()._saver.save(
-                    session, {"name": "Scarf", "price": Decimal(1)}
+                    session,
+                    {"name": "Scarf", "price": Decimal(1)},
+                    request=request_from(),
                 )
 
         assert await product(database, record.id) is not None
@@ -471,10 +512,10 @@ class TestCommittedHooks:
     async def test_a_delete_reaches_it_once_committed(self, database: Database) -> None:
         async with database.session() as session:
             record = await Watched()._saver.save(
-                session, {"name": "Scarf", "price": Decimal(1)}
+                session, {"name": "Scarf", "price": Decimal(1)}, request=request_from()
             )
             events.clear()
-            await Watched()._saver.delete(session, record)
+            await Watched()._saver.delete(session, record, request=request_from())
 
         assert events == [
             "before_delete",
@@ -493,7 +534,9 @@ class TestCommittedHooks:
                 str(
                     (
                         await view._saver.save(
-                            session, {"name": name, "price": Decimal(1)}
+                            session,
+                            {"name": name, "price": Decimal(1)},
+                            request=request_from(),
                         )
                     ).id
                 )
@@ -501,7 +544,11 @@ class TestCommittedHooks:
             ]
             events.clear()
             selection = Selection(
-                view=view, session=session, spec=QuerySpec(), keys=keys
+                view=view,
+                session=session,
+                spec=QuerySpec(),
+                keys=keys,
+                request=request_from(),
             )
             async with session.transaction():
                 await view._delete_selected(selection)
@@ -572,7 +619,9 @@ class TestCommittedHooks:
         with caplog.at_level(logging.ERROR, logger="adminsite"):
             async with database.session() as session:
                 record = await session.get(Draft, draft.id)
-                await Stamped()._saver.save(session, {"title": "About"}, record=record)
+                await Stamped()._saver.save(
+                    session, {"title": "About"}, record=record, request=request_from()
+                )
 
         assert isinstance(seen["in the save"], datetime)
         assert isinstance(seen["once committed"], datetime)
@@ -600,7 +649,9 @@ class TestCommittedHooks:
         with caplog.at_level(logging.ERROR, logger="adminsite"):
             async with database.session() as session:
                 record = await session.get(Draft, draft.id)
-                await Checked()._saver.save(session, {"title": "About"}, record=record)
+                await Checked()._saver.save(
+                    session, {"title": "About"}, record=record, request=request_from()
+                )
 
         assert "Work that waited on a commit failed." not in caplog.text
         assert isinstance(seen["once committed"], datetime)

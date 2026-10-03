@@ -2,6 +2,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.audit import AuditEntry, AuditEvent
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import DateTimeField
@@ -54,7 +56,7 @@ class HistoryItem:
 
 
 def describe(
-    admin: "Admin", entries: Sequence[AuditEntry], request: Any = None
+    admin: "Admin", entries: Sequence[AuditEntry], request: Request
 ) -> list[HistoryItem]:
     """Turn audit entries into lines a person can read.
 
@@ -122,14 +124,14 @@ def _verb(entry: AuditEntry, view: object) -> str:
     return _("changed")
 
 
-def _readable(view: "ModelView[Any] | None", request: Any, name: str) -> bool:
+def _readable(view: "ModelView[Any] | None", request: Request, name: str) -> bool:
     """Whether this user sees the field an entry names on the record page."""
     return view is None or view._pages.can_access_path(
         request, name, RequestAction.DETAIL
     )
 
 
-def _filter_fields(view: "ModelView[Any]", request: Any) -> dict[str, str]:
+def _filter_fields(view: "ModelView[Any]", request: Request) -> dict[str, str]:
     """The path each of the view's filters reads, by the filter's name."""
     named = view.get_list_filters(request)
     # Built before can_access_field leaves any out, so a filter kept from

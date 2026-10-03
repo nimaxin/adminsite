@@ -3,6 +3,8 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.backends.sqlalchemy.filters import SQLFilter
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.exceptions import AdminSiteError
@@ -48,7 +50,7 @@ class PageFields:
         self._inline_views = inline_views
 
     def accessible(
-        self, request: Any, paths: Sequence[str], action: RequestAction
+        self, request: Request, paths: Sequence[str], action: RequestAction
     ) -> tuple[str, ...]:
         """The paths among these whose fields this user sees on this page."""
         return tuple(
@@ -59,7 +61,9 @@ class PageFields:
             )
         )
 
-    def can_access_path(self, request: Any, path: str, action: RequestAction) -> bool:
+    def can_access_path(
+        self, request: Request, path: str, action: RequestAction
+    ) -> bool:
         """Whether this user sees what a path holds on this page.
 
         A path that names no field has nothing to ask about: a filter of
@@ -72,7 +76,7 @@ class PageFields:
             return True
         return self._view.can_access_field(request, field, action)
 
-    def list_fields(self, request: Any = None) -> tuple[str, ...]:
+    def list_fields(self, request: Request) -> tuple[str, ...]:
         """The columns the list shows, for this user."""
         shown = [
             path
@@ -81,7 +85,7 @@ class PageFields:
         ]
         return self.accessible(request, shown, RequestAction.LIST)
 
-    def column_choices(self, request: Any = None) -> tuple[str, ...]:
+    def column_choices(self, request: Request) -> tuple[str, ...]:
         """The columns the picker offers: the list's own, then the hidden ones."""
         hidden = [
             path
@@ -92,9 +96,7 @@ class PageFields:
             request, hidden, RequestAction.LIST
         )
 
-    def pick_columns(
-        self, picked: Sequence[str], request: Any = None
-    ) -> tuple[str, ...]:
+    def pick_columns(self, picked: Sequence[str], request: Request) -> tuple[str, ...]:
         """The columns to show for what someone picked.
 
         Only columns on offer count, so a column hidden from this user cannot
@@ -104,13 +106,13 @@ class PageFields:
         chosen = tuple(path for path in self.column_choices(request) if path in wanted)
         return chosen or self.list_fields(request)
 
-    def page_sizes(self, request: Any = None) -> tuple[int, ...]:
+    def page_sizes(self, request: Request) -> tuple[int, ...]:
         """The page sizes on offer, the view's own size among them."""
         if not self._view.page_size_options:
             return ()
         return tuple(sorted({*self._view.page_size_options, self._view.page_size}))
 
-    def pick_page_size(self, wanted: int | None, request: Any = None) -> int:
+    def pick_page_size(self, wanted: int | None, request: Request) -> int:
         """The rows per page for what someone picked.
 
         Only a size on offer counts, so nobody can ask for a million rows
@@ -121,7 +123,7 @@ class PageFields:
             return int(wanted or self._view.page_size)
         return self._view.page_size
 
-    def search_paths(self, request: Any) -> tuple[str, ...]:
+    def search_paths(self, request: Request) -> tuple[str, ...]:
         """The paths the search box looks in, checked like the setting.
 
         A field this user cannot see on the list is not searched, or a
@@ -136,7 +138,7 @@ class PageFields:
             )
         return self.accessible(request, paths, RequestAction.LIST)
 
-    def list_filters(self, request: Any) -> tuple[SQLFilter[Any], ...]:
+    def list_filters(self, request: Request) -> tuple[SQLFilter[Any], ...]:
         """The filters offered beside the list, each built and checked.
 
         A filter on a field this user cannot see on the list is left out,
@@ -154,7 +156,7 @@ class PageFields:
             if self.can_access_path(request, item.path, RequestAction.LIST)
         )
 
-    def default_sort(self, request: Any) -> tuple[Sort, ...]:
+    def default_sort(self, request: Request) -> tuple[Sort, ...]:
         """The order the list starts in, checked like the setting.
 
         A sort by a field this user cannot see on the list is dropped, so
@@ -186,7 +188,7 @@ class PageFields:
 
     def form_fields(
         self,
-        request: Any = None,
+        request: Request,
         record: Any = None,
         *,
         page: RequestAction | None = None,
@@ -207,7 +209,7 @@ class PageFields:
         ]
         return self.accessible(request, placed, page)
 
-    def detail_fields(self, request: Any = None, record: Any = None) -> tuple[str, ...]:
+    def detail_fields(self, request: Request, record: Any = None) -> tuple[str, ...]:
         """What the record page shows, for this user.
 
         A form-only field, such as a password to set, has nothing to show.
@@ -220,7 +222,7 @@ class PageFields:
         ]
         return self.accessible(request, shown, RequestAction.DETAIL)
 
-    def exported(self, paths: Sequence[str], request: Any = None) -> tuple[str, ...]:
+    def exported(self, paths: Sequence[str], request: Request) -> tuple[str, ...]:
         """The columns of a list that go into its export."""
         return self.accessible(
             request,
@@ -232,9 +234,7 @@ class PageFields:
             RequestAction.EXPORT,
         )
 
-    def readonly_paths(
-        self, request: Any = None, record: Any = None
-    ) -> tuple[str, ...]:
+    def readonly_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
         """The paths shown but not editable, named for the record or by themselves."""
         named = self._settings.paths(
             "get_readonly_fields",
@@ -269,9 +269,7 @@ class PageFields:
             and set(relation.local_columns) <= keys
         )
 
-    def writable_paths(
-        self, request: Any = None, record: Any = None
-    ) -> tuple[str, ...]:
+    def writable_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
         """The fields a form reads back: a new record's, or `record`'s."""
         readonly = set(self.readonly_paths(request, record))
         return tuple(
@@ -279,7 +277,7 @@ class PageFields:
         )
 
     def inline_readonly(
-        self, inline: Inline, request: Any = None, record: Any = None
+        self, inline: Inline, request: Request, record: Any = None
     ) -> set[str]:
         """The child's paths this view locks, named from here as items.unit_price."""
         prefix = f"{inline.name}."
@@ -289,7 +287,7 @@ class PageFields:
             if path.startswith(prefix)
         }
 
-    def load_paths(self, request: Any = None, record: Any = None) -> tuple[str, ...]:
+    def load_paths(self, request: Request, record: Any = None) -> tuple[str, ...]:
         """Everything a record page shows, so it can be loaded in one go."""
         paths = list(self.form_fields(request, record, page=RequestAction.EDIT))
         for path in self.detail_fields(request, record):
@@ -331,7 +329,7 @@ class PageFields:
                     wanted.append(needed)
         return wanted
 
-    def readable_paths(self, request: Any = None) -> tuple[str, ...]:
+    def readable_paths(self, request: Request) -> tuple[str, ...]:
         """Every path this user may read on some page of the view.
 
         The create form shows no record's values, so only the edit form counts.

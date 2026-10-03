@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import QueryableAttribute
+from starlette.requests import Request
 
 from adminsite.columns import describe, path_of
 from adminsite.exceptions import AdminSiteError
@@ -173,7 +174,10 @@ class InlineViews(dict[str, "ModelView[Any]"]):
         filled = [name for name in filled if name in shown]
 
         def can_access_field(
-            child: ModelView[Any], request: Any, field: BaseField, action: RequestAction
+            child: ModelView[Any],
+            request: Request,
+            field: BaseField,
+            action: RequestAction,
         ) -> bool:
             # This view answers for its children, asked about each field by
             # its path from here, such as items.unit_price.

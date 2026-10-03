@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.auth import (
@@ -258,7 +259,7 @@ class TestCustomProvider:
 class TestAFailedAttempt:
     async def test_the_provider_decides_what_it_says(self, database: Database) -> None:
         class QuietAuth(PasswordAuth):
-            async def sign_in_failed(self, request: Any, username: str) -> str:
+            async def sign_in_failed(self, request: Request, username: str) -> str:
                 return "Ask the office for a new password."
 
         app = Starlette()
@@ -288,7 +289,7 @@ class TestAFailedAttempt:
         tried: list[str] = []
 
         class WatchfulAuth(PasswordAuth):
-            async def sign_in_failed(self, request: Any, username: str) -> str:
+            async def sign_in_failed(self, request: Request, username: str) -> str:
                 tried.append(username)
                 return await super().sign_in_failed(request, username)
 
@@ -379,7 +380,7 @@ class TestPasswordHashing:
 
 
 class FilledIn(PasswordAuth):
-    async def sign_in_values(self, request: Any) -> dict[str, str]:
+    async def sign_in_values(self, request: Request) -> dict[str, str]:
         return {"username": "demo", "password": "demo"}
 
 

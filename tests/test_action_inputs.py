@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
@@ -55,7 +56,7 @@ class PerRequestView(ModelView[Order]):
         seen.update(values)
         return "Moved."
 
-    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+    def get_actions(self, request: Request) -> tuple[Any, ...]:
         found = super().get_actions(request)
         choices = (("north", "North"), ("south", "South"))
         return tuple(

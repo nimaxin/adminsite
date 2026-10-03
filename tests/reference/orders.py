@@ -147,7 +147,7 @@ class OrderView(ModelView[Order]):
 
     @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
     async def mark_shipped(self, selection: Selection[Order]) -> str:
-        assert_type(selection.request, Request | None)
+        assert_type(selection.request, Request)
         orders = await selection.records(paths=[Order.customer])
         for order in orders:
             order.status = OrderStatus.SHIPPED

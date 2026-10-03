@@ -3,6 +3,8 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
@@ -47,7 +49,7 @@ class Reader:
     def build_spec(
         self,
         *,
-        request: Any = None,
+        request: Request,
         search: str = "",
         filters: Sequence[FilterValue] = (),
         sort: Sequence[Sort] = (),
@@ -81,7 +83,7 @@ class Reader:
         )
         return spec.page(page)
 
-    def _deferred(self, request: Any, loaded: Sequence[str]) -> tuple[str, ...]:
+    def _deferred(self, request: Request, loaded: Sequence[str]) -> tuple[str, ...]:
         """The columns to leave out of this query.
 
         A column the page reads is never left out, whatever the view says,
@@ -103,7 +105,7 @@ class Reader:
         return set(template_names(self._settings.record_title))
 
     async def fetch_page(
-        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
+        self, session: SessionAdapter, spec: QuerySpec, *, request: Request
     ) -> Page:
         """Read one page, within the scope and after a permission check."""
         await self._view._ensure(Permission.VIEW, request=request)
@@ -117,7 +119,7 @@ class Reader:
         key: Any,
         *,
         paths: Sequence[str] = (),
-        request: Any = None,
+        request: Request,
     ) -> Any | None:
         """Load one record, or nothing if it is missing or out of scope."""
         await self._view._ensure(Permission.VIEW, request=request)
@@ -126,7 +128,7 @@ class Reader:
         )
 
     async def filter_options(
-        self, session: SessionAdapter, spec: QuerySpec, *, request: Any = None
+        self, session: SessionAdapter, spec: QuerySpec, *, request: Request
     ) -> list[tuple[SQLFilter[Any], Sequence[FilterOption]]]:
         """Each filter beside the list, with the choices it offers.
 
@@ -149,7 +151,7 @@ class Reader:
         path: str,
         *,
         limit: int,
-        request: Any = None,
+        request: Request,
     ) -> tuple[Sequence[Any], int]:
         """The first records a to-many link of this record holds, and the total.
 
@@ -178,7 +180,7 @@ class Reader:
         records: Sequence[Any],
         paths: Sequence[str],
         *,
-        request: Any = None,
+        request: Request,
     ) -> None:
         """Run the loaders of the computed fields among `paths`, once for all.
 

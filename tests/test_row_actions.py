@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
 from adminsite import Admin, ModelView, Permission
@@ -15,6 +16,7 @@ from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderStatus
+from tests.support import request_from
 
 CARRIERS = (("dhl", "DHL"), ("ups", "UPS"))
 
@@ -65,7 +67,7 @@ class OrderView(ModelView[Order]):
         return f"{await selection.update(note='seen')} noted."
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         # Shipped orders are finished: no confirming them again.
         if action == Permission.EDIT and record is not None:
@@ -122,14 +124,19 @@ class TestDeclaring:
     def test_an_action_runs_on_one_of_three_things(self) -> None:
         view = OrderView()
 
-        assert [item.name for item in view._actions.on("record")] == [
+        assert [item.name for item in view._actions.on("record", request_from())] == [
             "confirm",
             "download",
             "refuse",
             "ship",
         ]
-        assert [item.name for item in view._actions.on("view")] == ["summary", "sync"]
-        assert [item.name for item in view._actions.on("selection")] == [
+        assert [item.name for item in view._actions.on("view", request_from())] == [
+            "summary",
+            "sync",
+        ]
+        assert [
+            item.name for item in view._actions.on("selection", request_from())
+        ] == [
             "note",
             "delete_selected",
         ]

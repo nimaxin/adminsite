@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.backends.sqlalchemy import Database
@@ -14,7 +15,7 @@ class CustomerView(ModelView[Customer]):
     record_title = "{name} ({email})"
     searchable_fields = ("name", "email")
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Customer.region != "SE")
 
 
@@ -34,7 +35,7 @@ class SecretView(ModelView[Product]):
     searchable_fields = ("name",)
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         return False
 

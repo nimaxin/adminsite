@@ -19,7 +19,7 @@ from adminsite import (
     ViewRegistry,
 )
 from tests.models import Customer, Order, OrderItem, Product
-from tests.support import Backend
+from tests.support import Backend, request_from
 
 M = TypeVar("M")
 K = TypeVar("K")
@@ -122,29 +122,29 @@ class TestSettingsNameColumnsByAttribute:
 
         view = OrderView()
 
-        assert view._pages.list_fields() == (
+        assert view._pages.list_fields(request_from()) == (
             "id",
             "customer.name",
             "status",
             "customer.email",
         )
-        assert view._pages.column_choices()[-1] == "note"
-        assert view._pages.search_paths(None) == ("id", "customer.email")
-        assert view._pages.form_fields() == ("customer", "status", "note")
-        assert view._pages.readonly_paths()[0] == "status"
+        assert view._pages.column_choices(request_from())[-1] == "note"
+        assert view._pages.search_paths(request_from()) == ("id", "customer.email")
+        assert view._pages.form_fields(request_from()) == ("customer", "status", "note")
+        assert view._pages.readonly_paths(request_from())[0] == "status"
         assert view._settings.deferred_fields == ("note",)
 
     def test_a_link_can_go_through_several_relations(self) -> None:
         class ItemView(ModelView[OrderItem]):
             fields = [Link(OrderItem.order, Link(Order.customer, Customer.name))]
 
-        assert ItemView()._pages.list_fields() == ("order.customer.name",)
+        assert ItemView()._pages.list_fields(request_from()) == ("order.customer.name",)
 
     def test_excluded_attributes_leave_the_default_columns(self) -> None:
         class OrderView(ModelView[Order]):
             exclude_fields_from_list = [Order.note, Order.created_at]
 
-        shown = OrderView()._pages.list_fields()
+        shown = OrderView()._pages.list_fields(request_from())
 
         assert "note" not in shown
         assert "created_at" not in shown
@@ -154,7 +154,7 @@ class TestSettingsNameColumnsByAttribute:
         class OrderView(ModelView[Order]):
             list_filters = [Order.status, Link(Order.customer, Customer.region)]
 
-        paths = [item.path for item in OrderView()._pages.list_filters(None)]
+        paths = [item.path for item in OrderView()._pages.list_filters(request_from())]
 
         assert paths == ["status", "customer.region"]
 
@@ -169,7 +169,7 @@ class TestSorts:
                 Descending(Link(Order.customer, Customer.name)),
             ]
 
-        assert OrderView()._pages.default_sort(None) == (
+        assert OrderView()._pages.default_sort(request_from()) == (
             Sort("created_at", descending=True),
             Sort("total", descending=True),
             Sort("id"),

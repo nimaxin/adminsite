@@ -14,10 +14,6 @@ from tests.models import Customer, Order, Product
 ICON = '<svg viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>'
 
 
-# Outside a real request, a bare one.
-REQUEST = Request({"type": "http", "headers": []})
-
-
 class OrderView(ModelView[Order]):
     fields = ["id", "status", "total"]
     searchable_fields = ("customer.name",)
@@ -37,7 +33,7 @@ class QuietView(ModelView[Customer]):
 
 class ManagerOnlyExport(ModelView[Product]):
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.EXPORT:
             return False

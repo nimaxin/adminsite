@@ -38,6 +38,7 @@ from adminsite.fields import (
 )
 from adminsite.fields.files import UploadField
 from tests.models import Customer, Order, OrderStatus
+from tests.support import request_from
 
 seen: dict[str, Any] = {}
 
@@ -203,7 +204,7 @@ class Moves(ModelView[Order]):
         seen["reason"] = reason
         return f"Done by hand: {reason}."
 
-    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+    def get_actions(self, request: Request) -> tuple[Any, ...]:
         choices = (("north", "North"), ("south", "South"))
         return (
             *(
@@ -223,7 +224,7 @@ class Twice(OrderView):
 
     name = "twice"
 
-    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+    def get_actions(self, request: Request) -> tuple[Any, ...]:
         found = super().get_actions(request)
         return (
             *found,
@@ -243,7 +244,7 @@ class Mistaken(ModelView[Order]):
     async def by_hand(self, selection: Selection[Order]) -> str:
         return "Done by hand."
 
-    def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+    def get_actions(self, request: Request) -> tuple[Any, ...]:
         return (
             *super().get_actions(request),
             Action(
@@ -319,7 +320,10 @@ async def order_status(database: Database, key: int) -> OrderStatus:
 
 
 def inputs_of(name: str) -> dict[str, Any]:
-    return {item.name: item for item in OrderView()._actions.named(name).inputs}
+    return {
+        item.name: item
+        for item in OrderView()._actions.named(name, request_from()).inputs
+    }
 
 
 class TestWhatTheDialogAsksFor:
@@ -391,7 +395,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        (carrier,) = Shipping()._actions.named("ship").inputs
+        (carrier,) = Shipping()._actions.named("ship", request_from()).inputs
 
         assert isinstance(carrier, EnumField)
         assert carrier.choices == (
@@ -415,13 +419,13 @@ class TestWhatTheDialogAsksFor:
         assert list(inputs_of("sign")) == ["signed.note", "signed.initials"]
 
     def test_the_record_goes_to_its_type_after_the_star(self) -> None:
-        stamp = OrderView()._actions.named("stamp")
+        stamp = OrderView()._actions.named("stamp", request_from())
 
         assert stamp.inputs == ()
         assert stamp.needs_dialog is False
 
     def test_what_is_handed_may_be_typed_optional(self) -> None:
-        look = OrderView()._actions.named("look")
+        look = OrderView()._actions.named("look", request_from())
 
         assert look.inputs == ()
         assert look.call is not None
@@ -450,7 +454,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        asked = Notes()._actions.named("note").inputs
+        asked = Notes()._actions.named("note", request_from()).inputs
 
         assert [(item.label, item.required) for item in asked] == [
             ("Inside", False),
@@ -469,7 +473,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        carriers, customers = Offers()._actions.named("offer").inputs
+        carriers, customers = Offers()._actions.named("offer", request_from()).inputs
 
         assert isinstance(carriers, EnumField)
         assert carriers.multiple is True
@@ -486,7 +490,9 @@ class TestWhatTheDialogAsksFor:
                 return ""
 
         view = Offers()
-        read = view._forms.parse_action_inputs(view._actions.named("offer"), {})
+        read = view._forms.parse_action_inputs(
+            view._actions.named("offer", request_from()), {}
+        )
 
         assert read.errors == {"customers": "This field is required."}
 

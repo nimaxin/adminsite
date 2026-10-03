@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from starlette.requests import Request
+
 from adminsite.backends.sqlalchemy.loader import build_load_options
 from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.exceptions import AdminSiteError, FieldValidationError
@@ -150,7 +152,7 @@ class ImportPlan:
         return [row for row in self.rows if not row.errors]
 
 
-def import_columns(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
+def import_columns(view: ModelView[Any], request: Request) -> tuple[str, ...]:
     """The paths a file can fill: the key, then what either form writes.
 
     A new record takes the create form's fields. A record that exists takes
@@ -179,7 +181,7 @@ def _is_collection(view: ModelView[Any], path: str) -> bool:
 
 
 def match_headers(
-    view: ModelView[Any], headers: Sequence[str], request: Any = None
+    view: ModelView[Any], headers: Sequence[str], request: Request
 ) -> tuple[list[str | None], list[str]]:
     """Match each header to a path, by its name or its label, ignoring case."""
     known: dict[str, str] = {}
@@ -204,7 +206,7 @@ async def build_plan(
     session: Any,
     table: Sequence[Sequence[str]],
     *,
-    request: Any = None,
+    request: Request,
 ) -> ImportPlan:
     """Check every row of a table against the view, without writing anything."""
     header, *body = table
@@ -249,7 +251,7 @@ async def _existing(
     session: Any,
     rows: Sequence[ImportRow],
     key_name: str,
-    request: Any,
+    request: Request,
 ) -> dict[str, Any]:
     """The records the file names by key, found in one query per 500.
 
@@ -296,7 +298,7 @@ def check_row(
     row: ImportRow,
     key_name: str,
     existing: dict[str, Any],
-    request: Any = None,
+    request: Request,
 ) -> None:
     """Read one row into values, noting what is wrong with it.
 
@@ -429,7 +431,7 @@ def _forget_old_plans() -> None:
             continue
 
 
-def template_csv(view: ModelView[Any], request: Any = None) -> str:
+def template_csv(view: ModelView[Any], request: Request) -> str:
     """A header row naming every column a file can fill."""
     buffer = io.StringIO()
     csv.writer(buffer).writerow(import_columns(view, request))

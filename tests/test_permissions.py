@@ -13,9 +13,7 @@ from adminsite.exceptions import PermissionDeniedError
 from adminsite.security import Permission, RequestAction
 from adminsite.views import ModelView
 from tests.models import Customer, Order, OrderStatus
-
-# Outside a real request, a bare one.
-REQUEST = Request({"type": "http", "headers": []})
+from tests.support import request_from
 
 
 class GermanOrders(ModelView[Order]):
@@ -23,8 +21,8 @@ class GermanOrders(ModelView[Order]):
 
     fields = ["id", "customer.name", "status"]
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
-        region = request or "DE"
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        region = request.scope.get("user_record") or "DE"
         return statement.where(Order.customer.has(Customer.region == region))
 
 
@@ -40,10 +38,10 @@ class ReadOnlyOrders(ModelView[Order]):
 
 class ByRole(ModelView[Order]):
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.DELETE:
-            return bool(request == "manager")
+            return bool(request.scope.get("user_record") == "manager")
         if action == Permission.EDIT and record is not None:
             return bool(record.status != "shipped")
         return True
@@ -53,22 +51,29 @@ class HidesAColumn(ModelView[Customer]):
     fields = ["name", "email", "region"]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
-        hidden = request == "support" and action is RequestAction.LIST
+        hidden = (
+            request.scope.get("user_record") == "support"
+            and action is RequestAction.LIST
+        )
         return not (hidden and field.name == "email")
 
     def get_readonly_fields(
-        self, request: Any = None, record: Any = None
+        self, request: Request, record: Any = None
     ) -> tuple[str, ...]:
-        return ("email",) if request == "support" else ()
+        return ("email",) if request.scope.get("user_record") == "support" else ()
 
 
 class TestRowScope:
     async def test_the_list_only_shows_rows_in_scope(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._reader.fetch_page(session, view._reader.build_spec())
+            page = await view._reader.fetch_page(
+                session,
+                view._reader.build_spec(request=request_from()),
+                request=request_from(),
+            )
 
             assert len(page) == 2
             assert {row.customer.name for row in page} == {"Lena Fischer"}
@@ -79,7 +84,9 @@ class TestRowScope:
         view = GermanOrders()
         async with database.session() as session:
             page = await view._reader.fetch_page(
-                session, view._reader.build_spec().replace(limit=1)
+                session,
+                view._reader.build_spec(request=request_from()).replace(limit=1),
+                request=request_from(),
             )
 
             assert page.total == 2
@@ -88,7 +95,9 @@ class TestRowScope:
         view = GermanOrders()
         async with database.session() as session:
             page = await view._reader.fetch_page(
-                session, view._reader.build_spec(), request="IT"
+                session,
+                view._reader.build_spec(request=request_from()),
+                request=request_from("IT"),
             )
 
             assert {row.customer.name for row in page} == {"Marco Rossi"}
@@ -103,15 +112,29 @@ class TestRowScope:
             )
             assert italian is not None
 
-            assert await view._reader.fetch_record(session, italian.id) is None
+            assert (
+                await view._reader.fetch_record(
+                    session, italian.id, request=request_from()
+                )
+                is None
+            )
 
     async def test_a_row_inside_the_scope_opens(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            page = await view._reader.fetch_page(session, view._reader.build_spec())
+            page = await view._reader.fetch_page(
+                session,
+                view._reader.build_spec(request=request_from()),
+                request=request_from(),
+            )
             wanted = page.rows[0]
 
-            assert await view._reader.fetch_record(session, wanted.id) is not None
+            assert (
+                await view._reader.fetch_record(
+                    session, wanted.id, request=request_from()
+                )
+                is not None
+            )
 
     async def test_filter_counts_only_count_rows_in_scope(
         self, database: Database
@@ -120,7 +143,9 @@ class TestRowScope:
         view = GermanOrdersByStatus()
         async with database.session() as session:
             ((_status, options),) = await view._reader.filter_options(
-                session, view._reader.build_spec()
+                session,
+                view._reader.build_spec(request=request_from()),
+                request=request_from(),
             )
 
             counts = {option.value: option.count for option in options}
@@ -134,10 +159,10 @@ class TestRowScope:
     async def test_the_scope_also_narrows_the_search(self, database: Database) -> None:
         view = GermanOrders()
         async with database.session() as session:
-            spec = view._reader.build_spec(search="rossi")
+            spec = view._reader.build_spec(search="rossi", request=request_from())
             spec = spec.replace(search_paths=("customer.name",))
 
-            page = await view._reader.fetch_page(session, spec)
+            page = await view._reader.fetch_page(session, spec, request=request_from())
 
             assert len(page) == 0
 
@@ -146,13 +171,21 @@ class TestActionPermissions:
     async def test_flags_refuse_the_action(self, database: Database) -> None:
         view = ReadOnlyOrders()
 
-        assert await view.allows(Permission.VIEW, request=REQUEST, record=None) is True
         assert (
-            await view.allows(Permission.CREATE, request=REQUEST, record=None) is False
+            await view.allows(Permission.VIEW, request=request_from(), record=None)
+            is True
         )
-        assert await view.allows(Permission.EDIT, request=REQUEST, record=None) is False
         assert (
-            await view.allows(Permission.DELETE, request=REQUEST, record=None) is False
+            await view.allows(Permission.CREATE, request=request_from(), record=None)
+            is False
+        )
+        assert (
+            await view.allows(Permission.EDIT, request=request_from(), record=None)
+            is False
+        )
+        assert (
+            await view.allows(Permission.DELETE, request=request_from(), record=None)
+            is False
         )
 
     async def test_saving_is_refused_when_creating_is_not_allowed(
@@ -161,7 +194,7 @@ class TestActionPermissions:
         view = ReadOnlyOrders()
         async with database.session() as session:
             with pytest.raises(PermissionDeniedError, match="You cannot create"):
-                await view._saver.save(session, {"note": "new"})
+                await view._saver.save(session, {"note": "new"}, request=request_from())
 
     async def test_deleting_is_refused(self, database: Database) -> None:
         view = ReadOnlyOrders()
@@ -170,13 +203,19 @@ class TestActionPermissions:
             assert record is not None
 
             with pytest.raises(PermissionDeniedError, match="You cannot delete"):
-                await view._saver.delete(session, record)
+                await view._saver.delete(session, record, request=request_from())
 
     async def test_permission_can_depend_on_the_user(self, database: Database) -> None:
         view = ByRole()
 
-        assert await view.allows(Permission.DELETE, request="manager") is True
-        assert await view.allows(Permission.DELETE, request="support") is False
+        assert (
+            await view.allows(Permission.DELETE, request=request_from("manager"))
+            is True
+        )
+        assert (
+            await view.allows(Permission.DELETE, request=request_from("support"))
+            is False
+        )
 
     async def test_permission_can_depend_on_the_record(
         self, database: Database
@@ -185,8 +224,14 @@ class TestActionPermissions:
         shipped = Order(status="shipped")
         pending = Order(status="pending")
 
-        assert await view.allows(Permission.EDIT, record=shipped) is False
-        assert await view.allows(Permission.EDIT, record=pending) is True
+        assert (
+            await view.allows(Permission.EDIT, record=shipped, request=request_from())
+            is False
+        )
+        assert (
+            await view.allows(Permission.EDIT, record=pending, request=request_from())
+            is True
+        )
 
     async def test_a_refused_delete_leaves_the_record(self, database: Database) -> None:
         view = ByRole()
@@ -196,7 +241,9 @@ class TestActionPermissions:
             key = record.id
 
             with pytest.raises(PermissionDeniedError):
-                await view._saver.delete(session, record, request="support")
+                await view._saver.delete(
+                    session, record, request=request_from("support")
+                )
 
             assert await session.get(Order, key) is not None
 
@@ -205,21 +252,25 @@ class TestFieldPermissions:
     def test_a_column_can_be_hidden_from_some_people(self) -> None:
         view = HidesAColumn()
 
-        assert view._pages.list_fields("support") == ("name", "region")
-        assert view._pages.list_fields("manager") == ("name", "email", "region")
+        assert view._pages.list_fields(request_from("support")) == ("name", "region")
+        assert view._pages.list_fields(request_from("manager")) == (
+            "name",
+            "email",
+            "region",
+        )
 
     def test_a_field_can_be_locked_for_some_people(self) -> None:
         view = HidesAColumn()
 
-        assert view.get_readonly_fields("support") == ("email",)
-        assert view.get_readonly_fields("manager") == ()
+        assert view.get_readonly_fields(request_from("support")) == ("email",)
+        assert view.get_readonly_fields(request_from("manager")) == ()
 
     def test_a_locked_field_is_ignored_when_the_form_comes_back(self) -> None:
         view = HidesAColumn()
 
         result = view._forms.parse(
             {"name": "Lena", "email": "changed@example.com", "region": "DE"},
-            request="support",
+            request=request_from("support"),
         )
 
         assert "email" not in result.values
@@ -245,7 +296,7 @@ class TestButtonsFollowPermissions:
                 self,
                 action: Permission | str,
                 *,
-                request: Any = None,
+                request: Request,
                 record: Any = None,
             ) -> bool:
                 return action != Permission.DELETE
@@ -266,7 +317,7 @@ class TestButtonsFollowPermissions:
                 self,
                 action: Permission | str,
                 *,
-                request: Any = None,
+                request: Request,
                 record: Any = None,
             ) -> bool:
                 if action == Permission.DELETE and record is not None:

@@ -3,6 +3,8 @@
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
 from adminsite.backends.sqlalchemy.session import SessionAdapter
@@ -28,7 +30,7 @@ class Links:
         self,
         session: SessionAdapter,
         values: Mapping[str, Any],
-        request: Any,
+        request: Request,
         *,
         fields_of: "ModelView[Any] | None" = None,
     ) -> dict[str, Any]:
@@ -69,7 +71,7 @@ class Links:
         return resolved
 
     async def row_values(
-        self, session: SessionAdapter, inline: Inline, row: InlineRow, request: Any
+        self, session: SessionAdapter, inline: Inline, row: InlineRow, request: Request
     ) -> dict[str, Any]:
         """A child row's values with the records its links name.
 
@@ -90,7 +92,11 @@ class Links:
             ) from error
 
     async def linked_through(
-        self, target: "ModelView[Any]", session: SessionAdapter, key: Any, request: Any
+        self,
+        target: "ModelView[Any]",
+        session: SessionAdapter,
+        key: Any,
+        request: Request,
     ) -> Any | None:
         """One linked record, if the target's view lets this user see it."""
         wanted = key

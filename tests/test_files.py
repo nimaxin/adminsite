@@ -17,6 +17,7 @@ from adminsite.fields.files import UNCHANGED, NewFile
 from adminsite.files import LocalStorage, name_of, safe_name
 from adminsite.views.writing import SaveContext
 from tests.models import Product
+from tests.support import request_from
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -303,6 +304,7 @@ class TestAFailedSave:
                     session,
                     {"description": NewFile(upload("a.png", PNG, "image/png"))},
                     record=record,
+                    request=request_from(),
                 )
 
         assert files_in(storage) == []

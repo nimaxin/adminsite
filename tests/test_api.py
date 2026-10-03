@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite import Admin, Field, ModelView, Permission, Statement
@@ -44,7 +45,7 @@ class OrderView(ModelView[Order]):
 class CustomerView(ModelView[Customer]):
     fields = ["name", "email", "region"]
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Customer.region != "SE")
 
     @action("Give the same email")
@@ -56,7 +57,7 @@ class ProductView(ModelView[Product]):
     fields = ["name", "price"]
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.EDIT:
             return False
@@ -74,7 +75,7 @@ class RefundView(ModelView[Order]):
     fields = ["id", "status"]
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.EDIT and record is not None:
             return bool(record.status is OrderStatus.PAID)

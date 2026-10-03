@@ -15,6 +15,7 @@ from adminsite.fields import Field
 from adminsite.http.activity import position_of, read_position
 from adminsite.http.history import describe
 from tests.models import Order, Product
+from tests.support import request_from
 
 ITEM = re.compile(r'<li class="relative mb-6')
 MONDAY = datetime(2026, 9, 14)
@@ -42,7 +43,7 @@ def test_a_change_is_named_by_the_fields_label(database: Database) -> None:
         changes={"price": ("10.00", "15.00")},
     )
 
-    (item,) = describe(site, [entry])
+    (item,) = describe(site, [entry], request=request_from())
 
     assert [line.label for line in item.lines] == ["Price in euros"]
 

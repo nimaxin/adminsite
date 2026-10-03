@@ -1,10 +1,10 @@
 import re
 from collections.abc import AsyncIterator
-from typing import Any
 
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, BaseField, ModelView, RequestAction
 from adminsite.backends.sqlalchemy import Database
@@ -29,7 +29,7 @@ class PerUserView(ModelView[Order]):
     fields = ["customer", "status", "total", "note", "created_at"]
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         if action is not RequestAction.DETAIL or request.query_params.get("full"):
             return True

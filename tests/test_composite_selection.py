@@ -15,6 +15,7 @@ from adminsite.audit import AuditLog
 from adminsite.backends.sqlalchemy import Database
 from adminsite.backends.sqlalchemy.session import SessionAdapter
 from tests.models import Shelf
+from tests.support import request_from
 
 
 class ShelfView(ModelView[Shelf]):
@@ -35,7 +36,11 @@ def chosen(
     view: ModelView[Shelf], session: SessionAdapter, *keys: str
 ) -> Selection[Shelf]:
     return Selection(
-        view=view, session=session, spec=view._reader.build_spec(), keys=keys
+        view=view,
+        session=session,
+        spec=view._reader.build_spec(request=request_from()),
+        keys=keys,
+        request=request_from(),
     )
 
 
@@ -106,8 +111,9 @@ class TestWhatASelectionCovers:
             selection = Selection(
                 view=view,
                 session=session,
-                spec=view._reader.build_spec(),
+                spec=view._reader.build_spec(request=request_from()),
                 everything=True,
+                request=request_from(),
             )
 
             assert await selection.count() == 3

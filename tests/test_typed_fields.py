@@ -15,6 +15,7 @@ from adminsite.fields import (
     TextAreaField,
 )
 from tests.models import Customer, Order, OrderStatus
+from tests.support import request_from
 
 
 def line_count(order: Order) -> int:
@@ -97,7 +98,7 @@ class TestFieldOnItsOwn:
         class Fixed(ModelView[Order]):
             fields = [Order.customer, Field(Order.total, read_only=True)]
 
-        assert Fixed()._pages.readonly_paths() == ("total",)
+        assert Fixed()._pages.readonly_paths(request_from()) == ("total",)
 
     def test_a_column_of_a_related_model(self) -> None:
         class Contact(ModelView[Order]):
@@ -109,7 +110,11 @@ class TestFieldOnItsOwn:
 
         view = Contact()
 
-        assert view._pages.list_fields() == ("id", "customer.email", "customer.name")
+        assert view._pages.list_fields(request_from()) == (
+            "id",
+            "customer.email",
+            "customer.name",
+        )
         assert view._fields.field_for("customer.email").format == "<{}>"
         # Named by its path, as can_access_field reads it.
         assert view._fields.field_for("customer.email").name == "customer.email"

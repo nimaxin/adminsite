@@ -3,6 +3,7 @@ from decimal import Decimal
 from types import TracebackType
 
 from sqlalchemy import Engine, event
+from starlette.requests import Request
 
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Product
@@ -57,6 +58,22 @@ class QueryCounter:
         traceback: TracebackType | None,
     ) -> None:
         event.remove(self.engine, "before_cursor_execute", self._record)
+
+
+def request_from(user: object = None) -> Request:
+    """A request from this user, kept where sign in keeps it: scope["user_record"].
+
+    Left out, a request from no one signed in.
+    """
+    scope: dict[str, object] = {
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "headers": [],
+    }
+    if user is not None:
+        scope["user_record"] = user
+    return Request(scope)
 
 
 def count_queries(backend: Backend) -> QueryCounter:

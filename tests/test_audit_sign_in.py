@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
@@ -25,7 +26,7 @@ class OrderView(ModelView[Order]):
     """Orders, whose history the clerk may not read."""
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         user = request.scope.get("user_record") if request is not None else None
         if action == Permission.HISTORY and user == "clerk":
@@ -62,7 +63,9 @@ class SaysNothing(AuthProvider):
 class AuditorToo(PasswordAuth):
     """Lets the clerk see who signed in, though not every model's history."""
 
-    async def may_read_sign_ins(self, request: Any, *, reads_everything: bool) -> bool:
+    async def may_read_sign_ins(
+        self, request: Request, *, reads_everything: bool
+    ) -> bool:
         return True
 
 

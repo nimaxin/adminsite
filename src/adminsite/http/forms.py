@@ -1,6 +1,8 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.actions.action import Action
 from adminsite.fields import (
     BaseField,
@@ -39,7 +41,7 @@ async def build_rows(
     record: Any = None,
     submitted: Mapping[str, Any] | None = None,
     errors: Mapping[str, str] | None = None,
-    request: Any = None,
+    request: Request,
     typed: Mapping[str, Any] | None = None,
 ) -> list[FormRow]:
     """Build the form, filled from the record or from what was submitted.
@@ -150,7 +152,7 @@ async def _fill_relation(
     row: FormRow,
     item: RelationField,
     current: Any,
-    request: Any = None,
+    request: Request,
 ) -> None:
     """Give a relation field either a list of records or a search box."""
     picker = Picker(admin.views, admin.inspector, item, request)
@@ -242,7 +244,7 @@ async def rows_for_actions(
     admin: "Admin",
     view: ModelView[Any],
     actions: Sequence[Action],
-    request: Any = None,
+    request: Request,
 ) -> dict[str, list[FormRow]]:
     """The rows each action's dialog asks for, by the action's name.
 

@@ -196,8 +196,7 @@ class SaveContext(Generic[M]):
     values: SaveValues
     # Whether the save adds a new record rather than changing one.
     created: bool
-    # None when the save was not made from a request, such as in a test.
-    request: Request | None = None
+    request: Request
 
 
 @dataclass
@@ -210,5 +209,4 @@ class DeleteContext(Generic[M]):
 
     session: SessionAdapter
     record: M
-    # None when the delete was not made from a request, such as in a test.
-    request: Request | None = None
+    request: Request

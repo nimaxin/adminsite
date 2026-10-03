@@ -5,6 +5,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import inspect as sqlalchemy_inspect
+from starlette.requests import Request
 
 from adminsite.actions.selection import Selection
 from adminsite.audit.actor import actor_of
@@ -72,7 +73,7 @@ class Saver:
         values: Mapping[str, Any],
         *,
         record: Any = None,
-        request: Any = None,
+        request: Request,
         inline_rows: Mapping[str, Sequence[InlineRow]] | None = None,
     ) -> Any:
         """Create or change a record, running the hooks in one transaction.
@@ -222,7 +223,7 @@ class Saver:
         session: SessionAdapter,
         parent: Any,
         inline_rows: Mapping[str, Sequence[InlineRow]],
-        request: Any = None,
+        request: Request,
     ) -> None:
         """Add, change and remove child records as the form asked."""
         for inline in self._view.inlines:
@@ -258,7 +259,7 @@ class Saver:
                 await child_view._repository.apply_values(session, existing, values)
 
     async def delete(
-        self, session: SessionAdapter, record: Any, *, request: Any = None
+        self, session: SessionAdapter, record: Any, *, request: Request
     ) -> None:
         """Delete a record, running the hooks in one transaction."""
         await self._view._ensure(Permission.DELETE, request=request, record=record)
@@ -284,7 +285,7 @@ class Saver:
             ) from error
 
     async def _delete_within(
-        self, session: SessionAdapter, record: Any, *, request: Any = None
+        self, session: SessionAdapter, record: Any, *, request: Request
     ) -> None:
         """Delete one record inside a transaction the caller holds open."""
         await self._view._ensure(Permission.DELETE, request=request, record=record)

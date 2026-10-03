@@ -82,7 +82,7 @@ def find(admin: "Admin", request: Request) -> ModelView[Any]:
     return view
 
 
-def api_paths(view: ModelView[Any], request: Any = None) -> tuple[str, ...]:
+def api_paths(view: ModelView[Any], request: Request) -> tuple[str, ...]:
     """The fields a record carries: the list's, the record page's, the edit form's."""
     paths: list[str] = []
     for path in (
@@ -166,7 +166,7 @@ def read_values(
     body: dict[str, Any],
     *,
     record: Any = None,
-    request: Any = None,
+    request: Request,
 ) -> dict[str, Any]:
     """Check the fields sent against the form's own fields.
 
@@ -364,7 +364,7 @@ async def save(
     session: "SessionAdapter",
     values: dict[str, Any],
     record: Any,
-    request: Any,
+    request: Request,
 ) -> Any:
     """Save through the view, turning refusals into API errors."""
     try:

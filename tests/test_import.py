@@ -8,6 +8,7 @@ import pytest
 from openpyxl import Workbook
 from sqlalchemy import func, select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, BaseField, Field, ModelView, RequestAction
 from adminsite.backends.sqlalchemy import Database
@@ -23,6 +24,7 @@ from adminsite.imports import (
 )
 from adminsite.views.writing import SaveContext
 from tests.models import Customer, Order
+from tests.support import request_from
 
 
 class CustomerView(ModelView[Customer]):
@@ -89,7 +91,7 @@ class TestReading:
 
 class TestColumns:
     def test_the_key_comes_first(self) -> None:
-        assert import_columns(CustomerView()) == (
+        assert import_columns(CustomerView(), request_from()) == (
             "id",
             "name",
             "email",
@@ -99,7 +101,7 @@ class TestColumns:
 
     def test_headers_match_by_name_or_label(self) -> None:
         matched, ignored = match_headers(
-            CustomerView(), ["NAME", "Is active", "notes", "name"]
+            CustomerView(), ["NAME", "Is active", "notes", "name"], request_from()
         )
 
         assert matched == ["name", "is_active", None, None]
@@ -108,7 +110,9 @@ class TestColumns:
 
 async def plan_for(database: Database, view: ModelView[Any], csv: str) -> Any:
     async with database.session() as session:
-        return await build_plan(view, session, read_table("a.csv", csv.encode()))
+        return await build_plan(
+            view, session, read_table("a.csv", csv.encode()), request=request_from()
+        )
 
 
 class TestThePlan:
@@ -175,11 +179,13 @@ class EditRules(ModelView[Customer]):
     can_import = True
 
     def can_access_field(
-        self, request: Any, field: BaseField, action: RequestAction
+        self, request: Request, field: BaseField, action: RequestAction
     ) -> bool:
         return field.name != "region" or action is not RequestAction.EDIT
 
-    def get_readonly_fields(self, request: Any, record: Customer | None) -> list[Any]:
+    def get_readonly_fields(
+        self, request: Request, record: Customer | None
+    ) -> list[Any]:
         if record is not None and record.id == 1:
             return [Customer.name]
         return []
@@ -203,7 +209,7 @@ class NoteOnce(ModelView[Order]):
 
 class TestTheEditFormsRules:
     def test_the_columns_are_what_either_form_writes(self) -> None:
-        assert import_columns(EditRules()) == (
+        assert import_columns(EditRules(), request_from()) == (
             "id",
             "name",
             "email",
@@ -259,7 +265,7 @@ class TestTheEditFormsRules:
         table = read_table("a.csv", exported.content)
         assert table[1] == ["1", "Shipped", "'- fragile"]
         async with database.session() as session:
-            plan = await build_plan(NoteOnce(), session, table)
+            plan = await build_plan(NoteOnce(), session, table, request=request_from())
 
         assert [row.errors for row in plan.rows] == [{}] * 7
         assert plan.count("update") == 7

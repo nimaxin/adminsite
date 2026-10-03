@@ -2,13 +2,13 @@ import html
 import json
 import re
 from collections.abc import AsyncIterator
-from typing import Any
 
 import httpx
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
@@ -165,7 +165,7 @@ class PublicTagView(ModelView[Tag]):
 
     record_title = "{name}"
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Tag.name.not_like("Hidden%"))
 
 

@@ -15,7 +15,7 @@ from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
 from adminsite.views.picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
-from tests.support import Backend, count_queries
+from tests.support import Backend, count_queries, request_from
 
 
 class OrderView(ModelView[Order]):
@@ -95,13 +95,13 @@ class TestDeclaring:
             name = "everything"
             inlines = (Inline("items"),)
 
-        fields = Everything()._inline_views["items"]._pages.form_fields()
+        fields = Everything()._inline_views["items"]._pages.form_fields(request_from())
 
         assert "order" not in fields
         assert "product" in fields
 
     def test_the_children_are_loaded_with_the_record(self, view: OrderView) -> None:
-        paths = view._pages.load_paths()
+        paths = view._pages.load_paths(request_from())
 
         assert "items" in paths
         assert "items.product" in paths
@@ -115,7 +115,8 @@ class TestReadingTheForm:
                 **lines(
                     {"key": "1", "product": "2", "quantity": "3", "unit_price": "24.00"}
                 ),
-            }
+            },
+            request=request_from(),
         )
 
         [row] = result.inline_rows["items"]
@@ -128,7 +129,8 @@ class TestReadingTheForm:
             {
                 **EDIT_FORM,
                 **lines({"key": "", "product": "", "quantity": "", "unit_price": ""}),
-            }
+            },
+            request=request_from(),
         )
 
         assert result.inline_rows["items"] == []
@@ -141,7 +143,8 @@ class TestReadingTheForm:
                 **lines(
                     {"key": "", "product": "1", "quantity": "lots", "unit_price": "1"}
                 ),
-            }
+            },
+            request=request_from(),
         )
 
         assert result.errors == {"items-0-quantity": "Enter a whole number."}
@@ -151,7 +154,8 @@ class TestReadingTheForm:
             {
                 **EDIT_FORM,
                 **lines({"key": "1", "delete": "on", "quantity": "nonsense"}),
-            }
+            },
+            request=request_from(),
         )
 
         [row] = result.inline_rows["items"]
@@ -163,7 +167,10 @@ class TestSaving:
     async def test_a_line_is_changed(self, database: Database, view: OrderView) -> None:
         async with database.session() as session:
             order = await view._reader.fetch_record(
-                session, 1, paths=view._pages.load_paths()
+                session,
+                1,
+                paths=view._pages.load_paths(request_from()),
+                request=request_from(),
             )
             assert order is not None
             first = order.items[0]
@@ -178,11 +185,16 @@ class TestSaving:
                             "unit_price": "59.00",
                         }
                     ),
-                }
+                },
+                request=request_from(),
             )
 
             await view._saver.save(
-                session, result.values, record=order, inline_rows=result.inline_rows
+                session,
+                result.values,
+                record=order,
+                inline_rows=result.inline_rows,
+                request=request_from(),
             )
 
         assert (await items_of(database, 1))[0].quantity == 9
@@ -191,7 +203,10 @@ class TestSaving:
         before = len(await items_of(database, 1))
         async with database.session() as session:
             order = await view._reader.fetch_record(
-                session, 1, paths=view._pages.load_paths()
+                session,
+                1,
+                paths=view._pages.load_paths(request_from()),
+                request=request_from(),
             )
             assert order is not None
             result = view._forms.parse(
@@ -205,11 +220,16 @@ class TestSaving:
                             "unit_price": "38.50",
                         }
                     ),
-                }
+                },
+                request=request_from(),
             )
 
             await view._saver.save(
-                session, result.values, record=order, inline_rows=result.inline_rows
+                session,
+                result.values,
+                record=order,
+                inline_rows=result.inline_rows,
+                request=request_from(),
             )
 
         after = await items_of(database, 1)
@@ -220,15 +240,23 @@ class TestSaving:
         existing = await items_of(database, 1)
         async with database.session() as session:
             order = await view._reader.fetch_record(
-                session, 1, paths=view._pages.load_paths()
+                session,
+                1,
+                paths=view._pages.load_paths(request_from()),
+                request=request_from(),
             )
             assert order is not None
             result = view._forms.parse(
-                {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})}
+                {**EDIT_FORM, **lines({"key": str(existing[0].id), "delete": "on"})},
+                request=request_from(),
             )
 
             await view._saver.save(
-                session, result.values, record=order, inline_rows=result.inline_rows
+                session,
+                result.values,
+                record=order,
+                inline_rows=result.inline_rows,
+                request=request_from(),
             )
 
         remaining = await items_of(database, 1)
@@ -256,11 +284,15 @@ class TestSaving:
                             "unit_price": "24.00",
                         },
                     ),
-                }
+                },
+                request=request_from(),
             )
 
             order = await view._saver.save(
-                session, result.values, inline_rows=result.inline_rows
+                session,
+                result.values,
+                inline_rows=result.inline_rows,
+                request=request_from(),
             )
             key = order.id
 
@@ -272,7 +304,10 @@ class TestSaving:
         someone_elses = (await items_of(database, 2))[0]
         async with database.session() as session:
             order = await view._reader.fetch_record(
-                session, 1, paths=view._pages.load_paths()
+                session,
+                1,
+                paths=view._pages.load_paths(request_from()),
+                request=request_from(),
             )
             assert order is not None
             result = view._forms.parse(
@@ -286,7 +321,8 @@ class TestSaving:
                             "unit_price": "1.00",
                         }
                     ),
-                }
+                },
+                request=request_from(),
             )
 
             with pytest.raises(RecordNotFoundError):
@@ -295,6 +331,7 @@ class TestSaving:
                     result.values,
                     record=order,
                     inline_rows=result.inline_rows,
+                    request=request_from(),
                 )
 
         assert (await items_of(database, 2))[0].quantity == someone_elses.quantity
@@ -456,7 +493,10 @@ class TestAReadOnlyField:
         view = PricedOrderView()
         async with database.session() as session:
             order = await view._reader.fetch_record(
-                session, 1, paths=view._pages.load_paths()
+                session,
+                1,
+                paths=view._pages.load_paths(request_from()),
+                request=request_from(),
             )
             assert order is not None
             first = order.items[0]
@@ -472,10 +512,15 @@ class TestAReadOnlyField:
                             "unit_price": "0.01",
                         }
                     ),
-                }
+                },
+                request=request_from(),
             )
             await view._saver.save(
-                session, result.values, record=order, inline_rows=result.inline_rows
+                session,
+                result.values,
+                record=order,
+                inline_rows=result.inline_rows,
+                request=request_from(),
             )
 
         saved = (await items_of(database, 1))[0]
@@ -836,8 +881,8 @@ class TestWhatTheParentFills:
 
         child = EveryMatchTeamView()._inline_views["home_matches"]
 
-        assert child._pages.form_fields() == ("away_team", "week")
-        assert child._pages.detail_fields() == ("id", "away_team", "week")
+        assert child._pages.form_fields(request_from()) == ("away_team", "week")
+        assert child._pages.detail_fields(request_from()) == ("id", "away_team", "week")
 
     def test_a_link_over_its_column_named_in_the_fields_is_left_out(self) -> None:
         class HostTeamView(ModelView[Team]):
@@ -850,21 +895,24 @@ class TestWhatTheParentFills:
 
         child = HostTeamView()._inline_views["home_matches"]
 
-        assert child._pages.form_fields() == ("week",)
-        assert child._pages.detail_fields() == ("week",)
+        assert child._pages.form_fields(request_from()) == ("week",)
+        assert child._pages.detail_fields(request_from()) == ("week",)
 
     def test_another_link_to_the_parent_stays(self) -> None:
         child = TeamView()._inline_views["home_matches"]
 
-        assert child._pages.form_fields() == ("away_team", "week")
-        assert child._pages.form_fields(record=Match(id=1)) == ("away_team", "week")
-        assert child._pages.detail_fields() == ("away_team", "week")
+        assert child._pages.form_fields(request_from()) == ("away_team", "week")
+        assert child._pages.form_fields(request_from(), record=Match(id=1)) == (
+            "away_team",
+            "week",
+        )
+        assert child._pages.detail_fields(request_from()) == ("away_team", "week")
 
     def test_with_no_link_back_the_column_is_left_out(self) -> None:
         child = TeamView()._inline_views["players"]
 
-        assert child._pages.form_fields() == ("name",)
-        assert child._pages.detail_fields() == ("id", "name")
+        assert child._pages.form_fields(request_from()) == ("name",)
+        assert child._pages.detail_fields(request_from()) == ("id", "name")
 
     async def test_rows_save_with_another_link_to_the_parent(
         self, teams: Database

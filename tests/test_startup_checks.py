@@ -28,6 +28,7 @@ from adminsite.fields import (
 from tests.models import Customer, Order, OrderItem
 from tests.reference import startup_mistakes
 from tests.reference.startup_mistakes import EXPECTED
+from tests.support import request_from
 
 
 def line_count(order: Order) -> int:
@@ -147,7 +148,7 @@ class TestAName:
             fields = ["lines", Order.id, ComputedField("lines", line_count)]
             exclude_fields_from_export = ["lines"]
 
-        assert Excluded()._pages.exported(["id", "lines"]) == ("id",)
+        assert Excluded()._pages.exported(["id", "lines"], request_from()) == ("id",)
 
     def test_a_filter_is_checked(self) -> None:
         class Filtered(ModelView[Order]):
@@ -393,8 +394,12 @@ class TestAnExcludeList:
         class Chosen(ModelView[Order]):
             inlines = [Inline(Order.items, fields=[OrderItem.product])]
 
-        assert "order" not in Every()._inline_views["items"]._pages.form_fields()
-        assert Chosen()._inline_views["items"]._pages.form_fields() == ("product",)
+        assert "order" not in Every()._inline_views["items"]._pages.form_fields(
+            request_from()
+        )
+        assert Chosen()._inline_views["items"]._pages.form_fields(request_from()) == (
+            "product",
+        )
 
 
 class TestAField:

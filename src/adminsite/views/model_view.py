@@ -406,7 +406,7 @@ class ModelView(Generic[M]):
         return True
 
     async def _ensure(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: M | None = None
     ) -> None:
         """Raise unless the current user may do this."""
         if not await self.allows(action, request=request, record=record):
@@ -421,7 +421,7 @@ class ModelView(Generic[M]):
         """
         return statement
 
-    def _scope_for(self, request: Any = None) -> Scope:
+    def _scope_for(self, request: Request) -> Scope:
         """The scope as a function, ready to hand to the repository."""
         return lambda statement: self.scope_query(statement, request=request)
 

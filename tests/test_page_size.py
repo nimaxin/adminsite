@@ -8,6 +8,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
 from tests.models import Customer, Order
+from tests.support import request_from
 
 
 class OrderView(ModelView[Order]):
@@ -45,15 +46,15 @@ def rows(page: httpx.Response) -> int:
 
 class TestChoosing:
     def test_the_views_own_size_is_among_them(self) -> None:
-        assert OrderView()._pages.page_sizes() == (3, 5, 100)
-        assert CustomerView()._pages.page_sizes() == ()
+        assert OrderView()._pages.page_sizes(request_from()) == (3, 5, 100)
+        assert CustomerView()._pages.page_sizes(request_from()) == ()
 
     def test_only_a_size_on_offer_counts(self) -> None:
         view = OrderView()
 
-        assert view._pages.pick_page_size(5) == 5
-        assert view._pages.pick_page_size(1000) == 3
-        assert view._pages.pick_page_size(None) == 3
+        assert view._pages.pick_page_size(5, request_from()) == 5
+        assert view._pages.pick_page_size(1000, request_from()) == 3
+        assert view._pages.pick_page_size(None, request_from()) == 3
 
 
 class TestOnThePage:

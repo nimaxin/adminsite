@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from starlette.requests import Request
 
 from adminsite.backends.sqlalchemy import (
     ChoiceFilter,
@@ -17,6 +18,7 @@ from adminsite.query import CountMode, Sort
 from adminsite.security import RequestAction
 from adminsite.views import ModelView, ViewRegistry
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
+from tests.support import request_from
 
 
 class OrderView(ModelView[Order]):
@@ -86,7 +88,7 @@ class TestNaming:
 
 class TestColumns:
     def test_the_listed_columns_are_used(self, orders: OrderView) -> None:
-        assert orders._pages.list_fields() == (
+        assert orders._pages.list_fields(request_from()) == (
             "id",
             "customer.name",
             "status",
@@ -97,7 +99,12 @@ class TestColumns:
     def test_without_a_list_every_column_is_shown(self) -> None:
         view = ProductView()
 
-        assert view._pages.list_fields() == ("id", "name", "price", "description")
+        assert view._pages.list_fields(request_from()) == (
+            "id",
+            "name",
+            "price",
+            "description",
+        )
 
     def test_headings_read_like_words(self, orders: OrderView) -> None:
         assert orders._fields.label_for("created_at") == "Created at"
@@ -141,7 +148,7 @@ class TestReadingValues:
 
 class TestFilters:
     def test_a_filter_is_built_for_each_listed_path(self, orders: OrderView) -> None:
-        kinds = [type(item) for item in orders._pages.list_filters(None)]
+        kinds = [type(item) for item in orders._pages.list_filters(request_from())]
 
         assert kinds == [
             ChoiceFilter,
@@ -156,7 +163,7 @@ class TestFilters:
         class WithFilter(ModelView[Order]):
             list_filters = (mine,)
 
-        assert WithFilter()._pages.list_filters(None) == (mine,)
+        assert WithFilter()._pages.list_filters(request_from()) == (mine,)
 
     def test_anything_else_in_list_filters_is_refused(self) -> None:
         class Wrong(ModelView[Order]):
@@ -168,24 +175,26 @@ class TestFilters:
 
 class TestBuildingAQuery:
     def test_the_query_asks_for_what_the_list_shows(self, orders: OrderView) -> None:
-        spec = orders._reader.build_spec()
+        spec = orders._reader.build_spec(request=request_from())
 
-        assert spec.paths == orders._pages.list_fields()
-        assert spec.search_paths == orders._pages.search_paths(None)
+        assert spec.paths == orders._pages.list_fields(request_from())
+        assert spec.search_paths == orders._pages.search_paths(request_from())
         assert spec.limit == 3
         assert spec.count is CountMode.EXACT
 
     def test_the_view_ordering_is_used_unless_asked_otherwise(
         self, orders: OrderView
     ) -> None:
-        assert orders._reader.build_spec().sort == (
+        assert orders._reader.build_spec(request=request_from()).sort == (
             Sort("created_at", descending=True),
         )
-        assert orders._reader.build_spec(sort=[Sort("total")]).sort == (Sort("total"),)
+        assert orders._reader.build_spec(
+            sort=[Sort("total")], request=request_from()
+        ).sort == (Sort("total"),)
 
     def test_pages_move_the_offset(self, orders: OrderView) -> None:
-        assert orders._reader.build_spec(page=1).offset == 0
-        assert orders._reader.build_spec(page=3).offset == 6
+        assert orders._reader.build_spec(page=1, request=request_from()).offset == 0
+        assert orders._reader.build_spec(page=3, request=request_from()).offset == 6
 
     async def test_the_query_reads_what_it_asked_for(
         self, database: Database, orders: OrderView
@@ -194,6 +203,7 @@ class TestBuildingAQuery:
             spec = orders._reader.build_spec(
                 search="lena",
                 filters=[FilterValue("status", ("SHIPPED",))],
+                request=request_from(),
             )
             page = await orders._repository.list(session, spec)
 
@@ -207,7 +217,9 @@ class TestBuildingAQuery:
         self, database: Database, orders: OrderView
     ) -> None:
         async with database.session() as session:
-            page = await orders._repository.list(session, orders._reader.build_spec())
+            page = await orders._repository.list(
+                session, orders._reader.build_spec(request=request_from())
+            )
 
             assert len(page) == 3
             assert page.total == 7
@@ -215,13 +227,13 @@ class TestBuildingAQuery:
 
 class TestForms:
     def test_the_form_skips_the_key(self) -> None:
-        assert "id" not in ProductView()._pages.form_fields()
+        assert "id" not in ProductView()._pages.form_fields(request_from())
 
     def test_a_foreign_key_becomes_its_link_in_the_form(self) -> None:
         class PlainOrders(ModelView[Order]):
             pass
 
-        fields = PlainOrders()._pages.form_fields()
+        fields = PlainOrders()._pages.form_fields(request_from())
 
         assert "customer" in fields
         assert "customer_id" not in fields
@@ -230,7 +242,7 @@ class TestForms:
         class PlainOrders(ModelView[Order]):
             pass
 
-        columns = PlainOrders()._pages.list_fields()
+        columns = PlainOrders()._pages.list_fields(request_from())
 
         assert columns.index("customer") == 1
         assert "customer_id" not in columns
@@ -247,15 +259,19 @@ class TestForms:
 
         view = ShortProducts()
 
-        assert "description" not in view._pages.list_fields()
-        assert "description" not in view._pages.form_fields()
-        assert "description" not in view._pages.detail_fields()
+        assert "description" not in view._pages.list_fields(request_from())
+        assert "description" not in view._pages.form_fields(request_from())
+        assert "description" not in view._pages.detail_fields(request_from())
 
     def test_the_listed_form_fields_are_used_in_order(self) -> None:
-        assert CustomerView()._pages.form_fields() == ("name", "email", "region")
+        assert CustomerView()._pages.form_fields(request_from()) == (
+            "name",
+            "email",
+            "region",
+        )
 
     def test_read_only_fields_are_reported(self) -> None:
-        assert CustomerView()._pages.readonly_paths() == ("email",)
+        assert CustomerView()._pages.readonly_paths(request_from()) == ("email",)
 
 
 class TestOverriding:
@@ -264,14 +280,16 @@ class TestOverriding:
             fields = ["name", "email", "region"]
 
             def can_access_field(
-                self, request: Any, field: BaseField, action: RequestAction
+                self, request: Request, field: BaseField, action: RequestAction
             ) -> bool:
-                return request != "staff" or field.name == "name"
+                return (
+                    request.scope.get("user_record") != "staff" or field.name == "name"
+                )
 
         view = StaffView()
 
-        assert view._pages.list_fields("staff") == ("name",)
-        assert view._pages.list_fields() == ("name", "email", "region")
+        assert view._pages.list_fields(request_from("staff")) == ("name",)
+        assert view._pages.list_fields(request_from()) == ("name", "email", "region")
 
 
 class TestRegistry:

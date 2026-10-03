@@ -46,7 +46,7 @@ class GuardedOrderView(ModelView[Order]):
 
 class CustomerView(ModelView[Customer]):
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         return False
 

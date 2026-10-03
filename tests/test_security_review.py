@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.actions import Selection, action
@@ -46,14 +47,14 @@ class GermanCustomers(ModelView[Customer]):
 
     record_title = "{name}"
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Customer.region == "DE")
 
 
 class OneProduct(ModelView[Product]):
     record_title = "{name}"
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Product.id == 1)
 
 
@@ -206,7 +207,7 @@ class TestAnActionLeftOut:
             async def purge(self, selection: Selection[Order]) -> str:
                 return "gone"
 
-            def get_actions(self, request: Any = None) -> tuple[Any, ...]:
+            def get_actions(self, request: Request) -> tuple[Any, ...]:
                 return ()
 
         admin = Admin(database, views=[ShyOrders], secret_key="a-secret")

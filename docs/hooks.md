@@ -51,7 +51,7 @@ view. It has:
 | `record` | The record being saved. On create, a new instance. |
 | `values` | The values the save stores, each read and changed by its column. |
 | `created` | Whether this is a new record. |
-| `request` | The request, to see who is asking. None when the save was not made from one. |
+| `request` | The request, to see who is asking. |
 
 `DeleteContext[Order]` has `session`, `record` and `request`.
 

@@ -5,6 +5,8 @@
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.
+- `context.request` in the save and delete hooks, and `selection.request` in an action, are
+  typed `Request` rather than `Request | None`: they always hold the request.
 
 ## 0.1.0a10
 

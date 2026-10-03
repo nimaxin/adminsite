@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from markupsafe import Markup
+from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite.actions.action import Action, action_of
@@ -78,7 +79,7 @@ class ActionRunner:
             writes_own_audit=True,
         )
 
-    def on(self, target: str, request: Any = None) -> tuple[Action, ...]:
+    def on(self, target: str, request: Request) -> tuple[Action, ...]:
         """The actions of one kind: over a selection, a record or the view."""
         return tuple(
             self._asking_all(item)
@@ -111,7 +112,7 @@ class ActionRunner:
         inputs = (*[given.pop(one.name, one) for one in asked], *given.values())
         return replace(item, inputs=inputs, call=call)
 
-    def find(self, name: str, request: Any = None) -> Action | None:
+    def find(self, name: str, request: Request) -> Action | None:
         """The action of this name offered to this request, or None.
 
         It looks through `get_actions`, so an action built for this request,
@@ -126,7 +127,7 @@ class ActionRunner:
         # asking for it by name either.
         return None
 
-    def named(self, name: str, request: Any = None) -> Action:
+    def named(self, name: str, request: Request) -> Action:
         """Find an action by name, or say it is not there."""
         found = self.find(name, request)
         if found is None:
@@ -141,7 +142,7 @@ class ActionRunner:
         record: Any,
         session: SessionAdapter,
         *,
-        request: Any = None,
+        request: Request,
         values: Mapping[str, Any] | None = None,
     ) -> Any:
         """Run an action on one record, and say what to tell the user."""
@@ -184,7 +185,7 @@ class ActionRunner:
         found: Action,
         session: SessionAdapter,
         *,
-        request: Any = None,
+        request: Request,
         values: Mapping[str, Any] | None = None,
     ) -> Any:
         """Run an action that acts on the view, not on any record."""
@@ -210,7 +211,7 @@ class ActionRunner:
         found: Action,
         selection: Selection[Any],
         *,
-        request: Any = None,
+        request: Request,
         values: Mapping[str, Any] | None = None,
     ) -> Any:
         """Run an action over a selection, and say what to tell the user.
@@ -263,7 +264,7 @@ class ActionRunner:
         session: SessionAdapter,
         values: Mapping[str, Any],
         *,
-        request: Any = None,
+        request: Request,
     ) -> dict[str, Any]:
         """The values an action was given, with the records its links name.
 
@@ -290,7 +291,7 @@ class ActionRunner:
         item: RelationField,
         session: SessionAdapter,
         key: Any,
-        request: Any,
+        request: Request,
         label: str,
     ) -> Any:
         """The record a link input names, or a refusal naming the input."""
@@ -316,7 +317,7 @@ class ActionRunner:
         session: SessionAdapter,
         values: Mapping[str, Any] | None,
         entry: AuditEntry,
-        request: Any,
+        request: Request,
     ) -> tuple[dict[str, Any], AuditEntry]:
         """What the method is given, and the entry that writes it down.
 
@@ -341,7 +342,7 @@ class ActionRunner:
         self,
         found: Action,
         subject: Any,
-        request: Any,
+        request: Request,
         session: SessionAdapter,
         values: Mapping[str, Any],
     ) -> Any:
@@ -391,7 +392,7 @@ class ActionRunner:
     def _entry(
         self,
         found: Action,
-        request: Any,
+        request: Request,
         values: Mapping[str, Any] | None,
         key: str,
         title: str | None,

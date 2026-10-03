@@ -4,7 +4,6 @@ import httpx
 import pytest
 from sqlalchemy import func, select
 from starlette.applications import Starlette
-from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
@@ -14,9 +13,7 @@ from adminsite.fields import EnumField, StringField
 from adminsite.query import QuerySpec
 from adminsite.security import Permission
 from tests.models import Customer, Order, OrderStatus, Product
-from tests.support import REFUSED, Backend, count_queries
-
-REQUEST = Request({"type": "http", "headers": []})
+from tests.support import REFUSED, Backend, count_queries, request_from
 
 
 class OrderView(ModelView[Order]):
@@ -104,7 +101,7 @@ async def status_count(database: Database, status: OrderStatus) -> int:
 
 class TestDeclaringActions:
     def test_actions_are_found_on_the_view(self) -> None:
-        names = [item.name for item in OrderView().get_actions(REQUEST)]
+        names = [item.name for item in OrderView().get_actions(request_from())]
 
         assert set(names) == {
             "ship",
@@ -118,7 +115,7 @@ class TestDeclaringActions:
         assert names[-1] == "delete_selected"
 
     def test_an_action_with_inputs_opens_a_dialog(self) -> None:
-        found = OrderView()._actions.named("add_note")
+        found = OrderView()._actions.named("add_note", request_from())
 
         assert found.needs_dialog is True
         assert [item.name for item in found.inputs] == ["text", "urgency"]
@@ -128,14 +125,17 @@ class TestDeclaringActions:
             action("Broken", inputs=[StringField("keys")])
 
     def test_an_action_carries_its_label_and_confirmation(self) -> None:
-        ship = OrderView()._actions.named("ship")
+        ship = OrderView()._actions.named("ship", request_from())
 
         assert ship.label == "Mark as shipped"
         assert ship.needs_confirming is True
         assert ship.dangerous is False
 
     def test_a_label_is_made_from_the_name_when_none_is_given(self) -> None:
-        assert OrderView()._actions.named("one_by_one").label == "Count one by one"
+        assert (
+            OrderView()._actions.named("one_by_one", request_from()).label
+            == "Count one by one"
+        )
 
 
 class TestRunningActions:
@@ -331,9 +331,14 @@ class TestSelection:
                 session=session,
                 spec=QuerySpec(),
                 everything=True,
+                request=request_from(),
             )
             picked = Selection(
-                view=view, session=session, spec=QuerySpec(), keys=("1", "2")
+                view=view,
+                session=session,
+                spec=QuerySpec(),
+                keys=("1", "2"),
+                request=request_from(),
             )
 
             assert await everything.count() == 7
@@ -343,10 +348,14 @@ class TestSelection:
         self, database: Database
     ) -> None:
         view = OrderView()
-        spec = view._reader.build_spec(search="lena")
+        spec = view._reader.build_spec(search="lena", request=request_from())
         async with database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=spec, everything=True
+                view=view,
+                session=session,
+                spec=spec,
+                everything=True,
+                request=request_from(),
             )
 
             assert await selection.count() == 2
@@ -357,7 +366,11 @@ class TestSelection:
         view = OrderView()
         async with database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=QuerySpec(), keys=("1",)
+                view=view,
+                session=session,
+                spec=QuerySpec(),
+                keys=("1",),
+                request=request_from(),
             )
 
             changed = await selection.update(note="looked at")
@@ -375,7 +388,11 @@ class TestSelection:
         view = OrderView()
         async with backend.database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=QuerySpec(), keys=("1", "3")
+                view=view,
+                session=session,
+                spec=QuerySpec(),
+                keys=("1", "3"),
+                request=request_from(),
             )
             with count_queries(backend) as queries:
                 orders = await selection.records(paths=[Order.customer])
@@ -391,7 +408,11 @@ class TestSelection:
         view = OrderView()
         async with database.session() as session:
             selection = Selection(
-                view=view, session=session, spec=QuerySpec(), keys=("1",)
+                view=view,
+                session=session,
+                spec=QuerySpec(),
+                keys=("1",),
+                request=request_from(),
             )
 
             with pytest.raises(AdminSiteError) as raised:

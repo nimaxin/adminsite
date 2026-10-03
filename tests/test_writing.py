@@ -11,7 +11,7 @@ from adminsite.query import QuerySpec
 from adminsite.views import ModelView
 from adminsite.views.writing import DeleteContext, SaveContext
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
-from tests.support import REFUSED, spare_product
+from tests.support import REFUSED, request_from, spare_product
 
 
 class ProductView(ModelView[Product]):
@@ -45,7 +45,8 @@ def orders() -> OrderView:
 class TestReadingAForm:
     def test_values_come_back_converted(self, products: ProductView) -> None:
         result = products._forms.parse(
-            {"name": "Felt hat", "price": "42.50", "description": ""}
+            {"name": "Felt hat", "price": "42.50", "description": ""},
+            request=request_from(),
         )
 
         assert result.ok is True
@@ -56,13 +57,17 @@ class TestReadingAForm:
         }
 
     def test_a_bad_value_becomes_a_message(self, products: ProductView) -> None:
-        result = products._forms.parse({"name": "Hat", "price": "free"})
+        result = products._forms.parse(
+            {"name": "Hat", "price": "free"}, request=request_from()
+        )
 
         assert result.ok is False
         assert result.errors == {"price": "Enter an amount, for example 12.50."}
 
     def test_a_missing_required_value_is_reported(self, products: ProductView) -> None:
-        result = products._forms.parse({"name": "", "price": "10.00"})
+        result = products._forms.parse(
+            {"name": "", "price": "10.00"}, request=request_from()
+        )
 
         assert result.errors == {"name": "This field is required."}
 
@@ -75,7 +80,8 @@ class TestReadingAForm:
                 "status": "PAID",
                 "total": "999.00",
                 "created_at": "2026-09-18T10:00",
-            }
+            },
+            request=request_from(),
         )
 
         assert "total" not in result.values
@@ -85,7 +91,8 @@ class TestReadingAForm:
             fields = ["name", "email", "orders"]
 
         result = CustomerWithOrders()._forms.parse(
-            {"name": "Lena", "email": "lena@example.com", "orders": ["1", "2"]}
+            {"name": "Lena", "email": "lena@example.com", "orders": ["1", "2"]},
+            request=request_from(),
         )
 
         assert result.values["orders"] == ["1", "2"]
@@ -97,7 +104,9 @@ class TestCreating:
     ) -> None:
         async with database.session() as session:
             record = await products._saver.save(
-                session, {"name": "Felt hat", "price": Decimal("42.00")}
+                session,
+                {"name": "Felt hat", "price": Decimal("42.00")},
+                request=request_from(),
             )
 
             assert record.id is not None
@@ -117,6 +126,7 @@ class TestCreating:
                     "status": OrderStatus.PENDING,
                     "created_at": datetime(2026, 9, 19, 12, 0),
                 },
+                request=request_from(),
             )
 
             assert record.customer_id == customer.id
@@ -133,6 +143,7 @@ class TestCreating:
                         "status": OrderStatus.PENDING,
                         "created_at": datetime(2026, 9, 19, 12, 0),
                     },
+                    request=request_from(),
                 )
 
     async def test_many_links_are_made_from_keys(self, database: Database) -> None:
@@ -150,6 +161,7 @@ class TestCreating:
                     "email": "mara@example.com",
                     "orders": [str(order.id) for order in existing],
                 },
+                request=request_from(),
             )
 
             assert len(record.orders) == 2
@@ -163,7 +175,9 @@ class TestChanging:
             record = await session.scalar(select(Product))
             assert record is not None
 
-            await products._saver.save(session, {"name": "Renamed"}, record=record)
+            await products._saver.save(
+                session, {"name": "Renamed"}, record=record, request=request_from()
+            )
 
             assert record.name == "Renamed"
 
@@ -175,7 +189,9 @@ class TestChanging:
             assert record is not None
             price = record.price
 
-            await products._saver.save(session, {"name": "Renamed"}, record=record)
+            await products._saver.save(
+                session, {"name": "Renamed"}, record=record, request=request_from()
+            )
 
             assert record.price == price
 
@@ -189,7 +205,7 @@ class TestDeleting:
             record = await session.get(Product, key)
             assert record is not None
 
-            await products._saver.delete(session, record)
+            await products._saver.delete(session, record, request=request_from())
 
             assert await session.get(Product, key) is None
 
@@ -201,7 +217,7 @@ class TestDeleting:
             assert record is not None
 
             with pytest.raises(RefusedError, match="other records still refer"):
-                await products._saver.delete(session, record)
+                await products._saver.delete(session, record, request=request_from())
 
             assert await session.get(Product, 1) is not None
 
@@ -220,7 +236,7 @@ class TestDeleting:
             await session.commit()
 
             with pytest.raises(RefusedError) as raised:
-                await Copying()._saver.delete(session, lone)
+                await Copying()._saver.delete(session, lone, request=request_from())
 
         assert str(raised.value) == f"This customer could not be deleted. {REFUSED}"
 
@@ -233,6 +249,7 @@ class TestDeleting:
                 await view._saver.save(
                     session,
                     {"name": "Someone", "email": "lena@fischer.de", "region": "DE"},
+                    request=request_from(),
                 )
 
         assert str(raised.value) == f"This customer could not be saved. {REFUSED}"
@@ -245,7 +262,9 @@ class TestDeleting:
 
         async with database.session() as session:
             with pytest.raises(RefusedError) as raised:
-                await NoPrice()._saver.save(session, {"name": "Scarf"})
+                await NoPrice()._saver.save(
+                    session, {"name": "Scarf"}, request=request_from()
+                )
 
         assert str(raised.value) == f"This product could not be saved. {REFUSED}"
         assert "clash" not in str(raised.value)
@@ -257,7 +276,7 @@ class TestDeleting:
             order = await orders._repository.get(session, 1, paths=("items.quantity",))
             assert order is not None
 
-            await orders._saver.delete(session, order)
+            await orders._saver.delete(session, order, request=request_from())
 
             left = await session.scalar(
                 select(func.count())
@@ -281,7 +300,9 @@ class TestHooks:
 
         async with database.session() as session:
             await Watching()._saver.save(
-                session, {"name": "Watched", "price": Decimal("1.00")}
+                session,
+                {"name": "Watched", "price": Decimal("1.00")},
+                request=request_from(),
             )
 
             assert seen[0].created is True
@@ -296,7 +317,9 @@ class TestHooks:
 
         async with database.session() as session:
             record = await Stamping()._saver.save(
-                session, {"name": "Stamped", "price": Decimal("2.00")}
+                session,
+                {"name": "Stamped", "price": Decimal("2.00")},
+                request=request_from(),
             )
 
             assert record.description == "Added by a hook"
@@ -313,7 +336,11 @@ class TestHooks:
 
         view = Counting()
         async with database.session() as session:
-            await view._saver.save(session, {"name": "Counted", "price": Decimal("3")})
+            await view._saver.save(
+                session,
+                {"name": "Counted", "price": Decimal("3")},
+                request=request_from(),
+            )
 
             assert view.seen_before == 3
 
@@ -330,7 +357,9 @@ class TestHooks:
 
         async with database.session() as session:
             await Auditing()._saver.save(
-                session, {"name": "Original", "price": Decimal("4.00")}
+                session,
+                {"name": "Original", "price": Decimal("4.00")},
+                request=request_from(),
             )
 
             copies = await session.scalar(
@@ -354,7 +383,9 @@ class TestHooks:
 
             with pytest.raises(RuntimeError, match="too low"):
                 await Refusing()._saver.save(
-                    session, {"name": "Refused", "price": Decimal("0.01")}
+                    session,
+                    {"name": "Refused", "price": Decimal("0.01")},
+                    request=request_from(),
                 )
 
             after = await session.scalar(select(func.count()).select_from(Product))
@@ -372,7 +403,9 @@ class TestHooks:
         async with database.session() as session:
             with pytest.raises(RuntimeError):
                 await SecondThoughts()._saver.save(
-                    session, {"name": "Gone", "price": Decimal("5.00")}
+                    session,
+                    {"name": "Gone", "price": Decimal("5.00")},
+                    request=request_from(),
                 )
 
             left = await session.scalar(
@@ -395,7 +428,9 @@ class TestHooks:
             record = await session.scalar(select(Product))
             assert record is not None
 
-            await Marking()._saver.save(session, {"name": "Edited"}, record=record)
+            await Marking()._saver.save(
+                session, {"name": "Edited"}, record=record, request=request_from()
+            )
 
             assert marks == [False]
 
@@ -412,7 +447,9 @@ class TestHooks:
             key = record.id
 
             with pytest.raises(RuntimeError, match="still selling"):
-                await Protective()._saver.delete(session, record)
+                await Protective()._saver.delete(
+                    session, record, request=request_from()
+                )
 
             assert await session.get(Product, key) is not None
 
@@ -428,7 +465,7 @@ class TestHooks:
             record = await session.get(Product, key)
             assert record is not None
 
-            await Logging()._saver.delete(session, record)
+            await Logging()._saver.delete(session, record, request=request_from())
 
             assert names == ["Gift card"]
 
@@ -445,11 +482,12 @@ class TestRoundTrip:
                     "email": "mara@example.com",
                     "region": "SE",
                     "is_active": "on",
-                }
+                },
+                request=request_from(),
             )
             assert result.ok
 
-            await view._saver.save(session, result.values)
+            await view._saver.save(session, result.values, request=request_from())
 
             page = await view._repository.list(
                 session,

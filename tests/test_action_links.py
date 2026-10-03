@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
@@ -22,7 +23,7 @@ seen: dict[str, Any] = {}
 class ProductView(ModelView[Product]):
     searchable_fields = ("name",)
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         # The scarf is off the shelves, so nobody may pick it.
         return statement.where(Product.name != "Wool scarf")
 
@@ -86,7 +87,7 @@ class ReadOnlyOrderView(ModelView[Order]):
         return "Assigned."
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         return action == Permission.VIEW
 

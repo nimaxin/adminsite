@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.auth import PasswordAuth, hash_password
@@ -111,7 +112,7 @@ class OrderView(ModelView[Order]):
 
 class LockedView(ModelView[Customer]):
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         return action != Permission.CREATE
 

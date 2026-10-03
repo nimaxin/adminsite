@@ -32,7 +32,7 @@ from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapper
 from starlette.datastructures import UploadFile
-from starlette.requests import HTTPConnection
+from starlette.requests import HTTPConnection, Request
 
 from adminsite.actions.action import ON_RECORD, ON_SELECTION, ON_VIEW, RESERVED_INPUTS
 from adminsite.actions.selection import Selection
@@ -177,7 +177,7 @@ class ActionCall:
         self,
         *,
         subject: Any,
-        request: Any,
+        request: Request,
         session: SessionAdapter,
         values: Mapping[str, Any],
     ) -> tuple[list[Any], dict[str, Any]]:
@@ -214,7 +214,7 @@ class ActionCall:
         return positional, named
 
     def _value_of(
-        self, one: Handed, subject: Any, request: Any, session: SessionAdapter
+        self, one: Handed, subject: Any, request: Request, session: SessionAdapter
     ) -> Any:
         if one.kind == SUBJECT:
             return subject

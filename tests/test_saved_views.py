@@ -11,6 +11,7 @@ from adminsite.auth import PasswordAuth, hash_password
 from adminsite.backends.sqlalchemy import Database
 from adminsite.saved_views import clean_query
 from tests.models import Order
+from tests.support import request_from
 
 
 class OrderView(ModelView[Order]):
@@ -101,7 +102,9 @@ class TestPickingColumns:
     def test_only_columns_on_offer_count(self) -> None:
         view = OrderView()
 
-        assert view._pages.pick_columns(["total", "secret", "note"]) == (
+        assert view._pages.pick_columns(
+            ["total", "secret", "note"], request_from()
+        ) == (
             "total",
             "note",
         )
@@ -109,17 +112,20 @@ class TestPickingColumns:
     def test_the_order_follows_the_picker(self) -> None:
         view = OrderView()
 
-        assert view._pages.pick_columns(["note", "id"]) == ("id", "note")
+        assert view._pages.pick_columns(["note", "id"], request_from()) == (
+            "id",
+            "note",
+        )
 
     def test_picking_nothing_gives_the_default(self) -> None:
         view = OrderView()
 
-        assert view._pages.pick_columns([]) == ("id", "status", "total")
+        assert view._pages.pick_columns([], request_from()) == ("id", "status", "total")
 
     def test_the_hidden_columns_follow_the_shown_ones(self) -> None:
         view = OrderView()
 
-        assert view._pages.column_choices() == (
+        assert view._pages.column_choices(request_from()) == (
             "id",
             "status",
             "total",

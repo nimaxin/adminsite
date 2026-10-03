@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from sqlalchemy.orm import class_mapper
+from starlette.requests import Request
 
 from adminsite.actions.action import Action
 from adminsite.exceptions import FieldValidationError
@@ -37,7 +38,7 @@ class FormParser:
         data: FormData,
         *,
         record: Any = None,
-        request: Any = None,
+        request: Request,
     ) -> FormResult:
         """Read a submitted form into values, collecting any messages."""
         result = FormResult()
@@ -93,7 +94,7 @@ class FormParser:
         inline: Inline,
         data: FormData,
         errors: dict[str, str],
-        request: Any,
+        request: Request,
         record: Any = None,
     ) -> list[InlineRow]:
         """Read one inline's rows back from the form.
@@ -139,7 +140,7 @@ class FormParser:
             rows.append(row)
         return rows
 
-    def draft_record(self, data: FormData, request: Any = None) -> Any:
+    def draft_record(self, data: FormData, request: Request) -> Any:
         """An unsaved record holding the plain values a form holds so far.
 
         A JSON field whose schema comes from the record is given this while

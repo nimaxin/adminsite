@@ -38,9 +38,9 @@ class Selection(Generic[M]):
     view: "ModelView[M]"
     session: SessionAdapter
     spec: QuerySpec
+    request: Request
     keys: Sequence[str] = ()
     everything: bool = False
-    request: Request | None = None
     # What update and delete changed, per record key, for the audit log.
     changes: dict[str, dict[str, Change]] = field(default_factory=dict)
 

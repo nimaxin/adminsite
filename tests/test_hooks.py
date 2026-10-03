@@ -11,6 +11,7 @@ from adminsite.backends.sqlalchemy import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views.writing import SaveContext
 from tests.models import Customer, Product
+from tests.support import request_from
 
 
 class ProductView(ModelView[Product]):
@@ -103,7 +104,7 @@ class TestChangingAValue:
         view = ProductView()
         values = {"name": "Cap", "price": 5, "description": "keep me"}
         async with database.session() as session:
-            await view._saver.save(session, values)
+            await view._saver.save(session, values, request=request_from())
 
         assert values["description"] == "keep me"
 

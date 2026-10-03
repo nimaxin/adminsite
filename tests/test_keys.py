@@ -16,7 +16,7 @@ from adminsite.fields import RelationField
 from adminsite.imports import build_plan
 from adminsite.views.picker import Picker
 from tests.models import Shelf
-from tests.support import Backend
+from tests.support import Backend, request_from
 
 
 class KeyBase(DeclarativeBase):
@@ -257,21 +257,23 @@ class TestWhichKeysAreTyped:
     def test_a_key_the_model_fills_in_is_off_both_forms(self) -> None:
         view = CouponView()
 
-        assert view._pages.form_fields() == ("code",)
-        assert view._pages.form_fields(record=Coupon(code="SAVE10")) == ("code",)
+        assert view._pages.form_fields(request_from()) == ("code",)
+        assert view._pages.form_fields(
+            request_from(), record=Coupon(code="SAVE10")
+        ) == ("code",)
 
     def test_a_key_people_type_is_on_the_form_and_required(self) -> None:
         view = CountryView()
 
-        assert view._pages.form_fields() == ("code", "name")
+        assert view._pages.form_fields(request_from()) == ("code", "name")
         assert view._fields.field_for("code").required
         assert ShelfView()._fields.field_for("slot").required
 
     def test_it_is_fixed_once_the_record_exists(self) -> None:
         view = ShelfView()
 
-        assert view._pages.readonly_paths() == ()
-        assert view._pages.readonly_paths(None, Shelf(aisle="A", slot=1)) == (
+        assert view._pages.readonly_paths(request_from()) == ()
+        assert view._pages.readonly_paths(request_from(), Shelf(aisle="A", slot=1)) == (
             "aisle",
             "slot",
         )
@@ -279,22 +281,26 @@ class TestWhichKeysAreTyped:
     def test_so_is_a_link_made_of_key_columns(self) -> None:
         view = ProfileView()
 
-        assert view._pages.form_fields() == ("member", "bio")
+        assert view._pages.form_fields(request_from()) == ("member", "bio")
         assert view._fields.field_for("member").required
-        assert view._pages.readonly_paths() == ()
-        assert view._pages.readonly_paths(None, Profile(member_id=1)) == ("member",)
+        assert view._pages.readonly_paths(request_from()) == ()
+        assert view._pages.readonly_paths(request_from(), Profile(member_id=1)) == (
+            "member",
+        )
 
     def test_a_link_to_many_is_not_fixed(self) -> None:
         class MemberView(ModelView[Member]):
             fields = [Member.name, Member.visits]
 
-        assert MemberView()._pages.readonly_paths(None, Member(id=1)) == ()
+        assert MemberView()._pages.readonly_paths(request_from(), Member(id=1)) == ()
 
     def test_a_foreign_key_the_view_names_is_on_the_form(self) -> None:
         view = NamedKeyProfileView()
 
-        assert view._pages.form_fields() == ("member_id", "bio")
-        assert view._pages.readonly_paths(None, Profile(member_id=1)) == ("member_id",)
+        assert view._pages.form_fields(request_from()) == ("member_id", "bio")
+        assert view._pages.readonly_paths(request_from(), Profile(member_id=1)) == (
+            "member_id",
+        )
 
     def test_an_inline_leaves_out_the_key_its_parent_fills_in(self) -> None:
         class MemberView(ModelView[Member]):
@@ -306,14 +312,16 @@ class TestWhichKeysAreTyped:
 
         child = MemberView()._inline_views["visits"]
 
-        assert child._pages.form_fields() == ("number", "note")
+        assert child._pages.form_fields(request_from()) == ("number", "note")
 
     def test_a_key_the_database_names_otherwise_is_shown_as_its_link(self) -> None:
         class PlainCardView(ModelView[Card]):
             pass
 
-        assert PlainCardView()._pages.form_fields() == ("member", "text")
-        assert CardView()._pages.readonly_paths(None, Card(member_id=1)) == ("member",)
+        assert PlainCardView()._pages.form_fields(request_from()) == ("member", "text")
+        assert CardView()._pages.readonly_paths(request_from(), Card(member_id=1)) == (
+            "member",
+        )
 
     def test_an_inline_leaves_out_a_key_the_database_names_otherwise(self) -> None:
         class MemberView(ModelView[Member]):
@@ -322,9 +330,9 @@ class TestWhichKeysAreTyped:
         named = MemberWithNotesView()._inline_views["notes"]
         default = MemberView()._inline_views["notes"]
 
-        assert named._pages.form_fields() == ("number", "body")
-        assert default._pages.form_fields() == ("number", "body")
-        assert default._pages.detail_fields() == ("number", "body")
+        assert named._pages.form_fields(request_from()) == ("number", "body")
+        assert default._pages.form_fields(request_from()) == ("number", "body")
+        assert default._pages.detail_fields(request_from()) == ("number", "body")
 
     @pytest.mark.parametrize("view", [MemberWithStopsView, MemberWithNamedStopsView])
     def test_an_inline_leaves_out_the_key_with_no_link_back(
@@ -332,11 +340,11 @@ class TestWhichKeysAreTyped:
     ) -> None:
         child = view()._inline_views["stops"]
 
-        assert child._pages.form_fields() == ("number", "place")
-        assert child._pages.readonly_paths(None, Stop(member_id=1, number=1)) == (
-            "number",
-        )
-        assert "member_id" not in child._pages.detail_fields()
+        assert child._pages.form_fields(request_from()) == ("number", "place")
+        assert child._pages.readonly_paths(
+            request_from(), Stop(member_id=1, number=1)
+        ) == ("number",)
+        assert "member_id" not in child._pages.detail_fields(request_from())
 
 
 @pytest.fixture
@@ -583,7 +591,9 @@ class TestAnImport:
             ["FR", "Francia"],
         ]
         async with database.session() as session:
-            plan = await build_plan(ImportedCountries(), session, table)
+            plan = await build_plan(
+                ImportedCountries(), session, table, request=request_from()
+            )
 
         germany, france, nowhere, again = plan.rows
         assert (germany.action, germany.values) == ("update", {"name": "Deutschland"})
@@ -597,7 +607,10 @@ class TestAnImport:
     async def test_a_file_without_it_adds_nothing(self, database: Database) -> None:
         async with database.session() as session:
             plan = await build_plan(
-                ImportedCountries(), session, [["name"], ["France"]]
+                ImportedCountries(),
+                session,
+                [["name"], ["France"]],
+                request=request_from(),
             )
 
         assert plan.rows[0].errors == {"code": "Missing, and a new record needs it."}
@@ -667,7 +680,12 @@ class TestAKeyOfTwoColumnsWrittenAsText:
         admin = Admin(database, views=views)
         item = BoxView()._fields.field_for("shelf")
         assert isinstance(item, RelationField)
-        picker = Picker(views=admin.views, inspector=SQLAlchemyInspector(), item=item)
+        picker = Picker(
+            views=admin.views,
+            inspector=SQLAlchemyInspector(),
+            item=item,
+            request=request_from(),
+        )
 
         async with database.session() as session:
             found = await picker.get(session, "A,1")

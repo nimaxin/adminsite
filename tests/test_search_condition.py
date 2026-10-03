@@ -1,10 +1,10 @@
 from collections.abc import AsyncIterator
-from typing import Any
 
 import httpx
 import pytest
 from sqlalchemy import ColumnElement
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
@@ -17,7 +17,7 @@ class CustomerView(ModelView[Customer]):
     searchable_fields = ("name", "email")
 
     def search_condition(
-        self, term: str, *, request: Any = None
+        self, term: str, *, request: Request
     ) -> ColumnElement[bool] | None:
         # An address is looked up whole, which an index on the column can
         # answer. Anything else goes to the usual search.

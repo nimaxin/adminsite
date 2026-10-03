@@ -7,6 +7,7 @@ import httpx
 import pytest
 from sqlalchemy import create_engine, select
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.backends.sqlalchemy import Database
@@ -22,7 +23,7 @@ class CustomerView(ModelView[Customer]):
     record_title = "{name}"
     fields = ["name", "email", "orders"]
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Customer.region != "SE")
 
 
@@ -32,7 +33,7 @@ class NordicView(ModelView[Customer]):
     name = "nordic"
     record_title = "{name}"
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Customer.region == "SE")
 
 
@@ -241,7 +242,7 @@ class OpenOrderView(ModelView[Order]):
     name = "open_orders"
     record_title = "Order #{id}"
 
-    def scope_query(self, statement: Statement, *, request: Any = None) -> Statement:
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Order.status != OrderStatus.REFUNDED)
 
 

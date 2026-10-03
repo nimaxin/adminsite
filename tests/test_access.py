@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.audit import AuditEntry, AuditEvent, AuditLog
@@ -22,7 +23,7 @@ class CustomerView(ModelView[Customer]):
     fields = ["name"]
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == Permission.HISTORY:
             return False
@@ -33,7 +34,7 @@ class ProductView(ModelView[Product]):
     """Hidden from this user altogether."""
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         return False
 

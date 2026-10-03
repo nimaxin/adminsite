@@ -2,6 +2,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
 from adminsite.fields import EnumField, RelationField
 from adminsite.http.forms import title_for
 from adminsite.http.rows import Choice, FormRow
@@ -80,6 +82,7 @@ class _CellMaker:
     child: ModelView[Any]
     options: Mapping[str, _RelationOptions]
     errors: Mapping[str, str]
+    request: Request
 
     def row(self, row: _Row, paths: Sequence[str]) -> InlineTableRow:
         """A row's cells: one for each column, empty where the row has no such field."""
@@ -131,7 +134,9 @@ class _CellMaker:
             row.choices = found.choices
             row.searchable = found.searchable
             if raw is None and current is not None:
-                picker = Picker(self.admin.views, self.admin.inspector, item)
+                picker = Picker(
+                    self.admin.views, self.admin.inspector, item, self.request
+                )
                 row.value = picker.key_of(current)
                 row.picked_label = row.display
                 row.picked = (Choice(row.value, row.picked_label),)
@@ -147,7 +152,7 @@ async def build_inline_tables(
     record: Any = None,
     submitted: Mapping[str, Any] | None = None,
     errors: Mapping[str, str] | None = None,
-    request: Any = None,
+    request: Request,
 ) -> list[InlineTable]:
     """Build every inline table, from the record or from what was submitted."""
     errors = errors or {}
@@ -195,6 +200,7 @@ async def build_inline_tables(
             child=child,
             options=options,
             errors=errors,
+            request=request,
         )
         table.rows = [cell.row(row, paths) for row in rows]
         table.blank = cell.row(blank, paths)
@@ -230,7 +236,7 @@ def _rows_from_form(
 
 
 async def _relation_options(
-    admin: "Admin", session: "SessionAdapter", item: Any, request: Any = None
+    admin: "Admin", session: "SessionAdapter", item: Any, request: Request
 ) -> _RelationOptions:
     """Load a link's choices once, for every row of the table to share."""
     picker = Picker(admin.views, admin.inspector, item, request)
@@ -259,7 +265,7 @@ def _text(value: Any) -> str:
 
 
 def child_tables(
-    view: ModelView[Any], record: Any, request: Any = None
+    view: ModelView[Any], record: Any, request: Request
 ) -> list[dict[str, Any]]:
     """The children of a record, read only, for its detail page."""
     tables = []

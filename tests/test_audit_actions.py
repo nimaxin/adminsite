@@ -8,6 +8,7 @@ import httpx
 import pytest
 from sqlalchemy.orm import Session
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 
 from adminsite import Admin, ModelView, Permission
@@ -94,7 +95,7 @@ class OrderView(ModelView[Order]):
         return "Paid out."
 
     async def allows(
-        self, action: Permission | str, *, request: Any = None, record: Any = None
+        self, action: Permission | str, *, request: Request, record: Any = None
     ) -> bool:
         if action == "pay_out":
             return False
