@@ -156,6 +156,15 @@ class TestRefusingOneField:
         assert "<title>New product" in form.text
         assert 'role="alert" tabindex="-1" x-init="$el.focus()"' in answer.text
 
+    async def test_there_is_one_place_to_save(self, client: httpx.AsyncClient) -> None:
+        form = await client.get("/admin/products/new")
+
+        fields = form.text.split('id="record-form"', 1)[1].split("</form>", 1)[0]
+        assert fields.count('type="submit"') == 1
+        assert 'type="submit" form="record-form"' not in form.text
+        # In a bar that stays at the foot of the screen while the form scrolls.
+        assert "sticky bottom-0" in fields
+
     async def test_the_browser_leaves_every_check_to_the_admin(
         self, client: httpx.AsyncClient
     ) -> None:

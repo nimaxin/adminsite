@@ -18,6 +18,9 @@ What changed:
   as what it holds. A read-only value reads as plain text. The browser's own checks are off, so a
   missing value gets the admin's message in the admin's language, and after a failed save the page
   title starts with "Error:" and the list of mistakes takes the focus.
+- A form's Save, Cancel and Delete sit in one bar at its foot, which stays in view while a long
+  form scrolls; the buttons in the header are gone. On a phone each child row of an inline is a
+  small group of fields, one under the other.
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.

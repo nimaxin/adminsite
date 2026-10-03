@@ -43,17 +43,8 @@
   </h1>
 {% endblock %}
 
-{% block header_actions %}
-  {#- On a phone the buttons at the foot of the form are enough, and the title
-      gets the whole line. -#}
-  <div class="hidden items-center gap-2 sm:flex">
-    <a class="btn btn-plain btn-sm" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
-    <button class="btn btn-primary btn-sm" type="submit" form="record-form">{{ submit_label }}</button>
-  </div>
-{% endblock %}
-
 {% block content %}
-<div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+<div class="flex-1 bg-subtle px-4 pt-6 lg:px-7">
   {#- novalidate: the browser's own checks speak its language and look like
       nothing else here, so every mistake is told by the admin instead. -#}
   <form id="record-form" class="flex max-w-3xl flex-col gap-5" method="post" action="{{ action }}" novalidate
@@ -93,16 +84,20 @@
 
     {% include "adminsite/_inlines.html" %}
 
-    <div class="flex flex-wrap items-center gap-2 pt-1">
-      <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
-      <a class="btn btn-ghost" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
-      <span class="flex-1"></span>
-      {% if can_delete and record is not none %}
-        <button class="btn btn-ghost text-error hover:bg-error/10" type="button"
-                onclick="document.getElementById('confirm-delete').showModal()">
-          {{ icons.icon("trash") }}{{ _('Delete') }}
-        </button>
-      {% endif %}
+    {#- The one place to save: it stays at the foot of the screen while a long
+        form scrolls, and sits just under a short one. -#}
+    <div class="sticky bottom-0 z-10 -mx-4 bg-subtle px-4 pt-1 pb-4 sm:mx-0 sm:px-0">
+      <div class="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-3 shadow-float sm:px-4">
+        <button class="btn btn-primary max-sm:flex-1" type="submit">{{ submit_label }}</button>
+        <a class="btn btn-ghost" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
+        <span class="hidden flex-1 sm:block"></span>
+        {% if can_delete and record is not none %}
+          <button class="btn btn-ghost text-error hover:bg-error/10" type="button"
+                  onclick="document.getElementById('confirm-delete').showModal()">
+            {{ icons.icon("trash") }}{{ _('Delete') }}
+          </button>
+        {% endif %}
+      </div>
     </div>
   </form>
 </div>
