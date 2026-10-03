@@ -1,4 +1,7 @@
+import hashlib
 from collections.abc import Mapping, Sequence
+from functools import cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -8,6 +11,7 @@ from adminsite.views import ModelView
 
 __all__ = [
     "PAGING_KEYS",
+    "STATIC_DIR",
     "QueryParams",
     "Urls",
     "keep_params",
@@ -18,6 +22,9 @@ QueryParams = Mapping[str, Any]
 
 # The query values that say where in the list the page is.
 PAGING_KEYS = frozenset({"page", "after", "before"})
+
+# The stylesheet and scripts that ship with the package, served at /static.
+STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
 class Urls:
@@ -33,8 +40,14 @@ class Urls:
         return f"{self.base}/"
 
     def static(self, path: str) -> str:
-        """A file that ships with the package."""
-        return f"{self.base}/static/{path}"
+        """A file that ships with the package, its address changing with it.
+
+        The address ends in a short hash of the file, so a browser that kept
+        the file from before an upgrade fetches the new one at once.
+        """
+        stamp = _fingerprint(path)
+        address = f"{self.base}/static/{path}"
+        return f"{address}?v={stamp}" if stamp else address
 
     def list(self, view: ModelView[Any], **params: Any) -> str:
         """The list page of a view."""
@@ -182,3 +195,13 @@ def keep_params(request: Request, drop: Sequence[str] = ()) -> str:
         if key not in drop
     ]
     return urlencode(pairs)
+
+
+@cache
+def _fingerprint(path: str) -> str:
+    """A short hash of a packaged file's contents, or "" when there is no such file."""
+    try:
+        contents = (STATIC_DIR / path).read_bytes()
+    except OSError:
+        return ""
+    return hashlib.sha256(contents).hexdigest()[:10]

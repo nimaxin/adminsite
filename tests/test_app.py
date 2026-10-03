@@ -1,3 +1,5 @@
+import hashlib
+
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -5,6 +7,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite.backends.sqlalchemy import Database
+from adminsite.http.urls import STATIC_DIR
 from tests.models import Customer, Order, Product
 
 
@@ -92,6 +95,17 @@ class TestMounting:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/css")
         assert ".btn" in response.text
+
+    async def test_its_address_changes_with_it(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/")
+        contents = (STATIC_DIR / "adminsite.css").read_bytes()
+        stamp = hashlib.sha256(contents).hexdigest()[:10]
+
+        # A browser that kept the stylesheet from before an upgrade sees a new
+        # address, and fetches the new one at once.
+        assert f'href="/admin/static/adminsite.css?v={stamp}"' in page.text
+        served = await client.get(f"/admin/static/adminsite.css?v={stamp}")
+        assert served.content == contents
 
 
 class TestListPage:

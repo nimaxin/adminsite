@@ -28,7 +28,7 @@ from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import api, endpoints
 from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
-from adminsite.http.urls import Urls
+from adminsite.http.urls import STATIC_DIR, Urls
 from adminsite.i18n import activate, negotiate
 from adminsite.i18n import gettext as _
 from adminsite.pages import AdminPage
@@ -45,12 +45,10 @@ __all__ = [
     "LANGUAGE_COOKIE",
     "RESERVED_PAGES",
     "SAFE_METHODS",
-    "STATIC_DIR",
     "Admin",
     "Endpoint",
 ]
 
-STATIC_DIR = Path(__file__).parent / "static"
 
 HEADINGS = {403: "Not allowed", 404: "Not found"}
 

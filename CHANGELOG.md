@@ -28,6 +28,8 @@ What changed:
   by side, a list for a column and `TabsWidget` for tabs. A field the layout leaves out comes last;
   one placed twice, or not among the view's fields, stops the admin starting. The field gallery
   uses it (#33).
+- The stylesheet's and the scripts' addresses end in a short hash of the file, so after an upgrade
+  a browser fetches the new ones at once rather than keeping the old stylesheet with the new pages.
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.
