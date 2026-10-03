@@ -92,6 +92,15 @@ where they may not open the view. See [Fields](fields.md#links-to-many-records).
 The record page reads a link to many records the same way. A customer's page names their orders
 through `OrderView`, so an order its scope hides is neither named nor counted in "and 12 more".
 
+Any other page showing a linked record asks its view too. An order whose customer
+`CustomerView.scope_query` hides shows that customer as "Hidden", with no name and no link, in the
+list, on the record page, on the form, in the export and in the JSON API, which sends `null`. The
+same goes for a column read through the link, such as the customer's email, and for a column read
+through a link to many, such as `Link(Customer.orders, Order.total)`, which leaves out the orders
+`OrderView` hides. A record counts as hidden when no view of its model that the link could open
+holds it. It costs one small query for each link on the page, and only where the linked view has a
+`scope_query`; the [audit log](audit.md) keeps writing down the true values.
+
 The same holds when the form comes back. A key sent for a link is resolved through the target's
 own view, so a customer outside the user's scope cannot be attached by editing the form, and the
 answer to a key the view will not give up is the same as to a key that does not exist: "Choose a

@@ -117,7 +117,11 @@ def json_value(view: ModelView[Any], path: str, record: Any, urls: Urls) -> Any:
         # Worked out from the record, so there is no stored value to send.
         # Markup belongs on the page, so what goes out is its text.
         return plain(item.text_for(record, None))
-    value = view._fields.value_at(record, path)
+    # Read as a page shows it: what a linked record's view keeps from this
+    # user is left out, and a link to one such record is null.
+    value = view._fields.value_at(record, path, seen=True)
+    if not value and view._fields.hides(record, path):
+        return None
     if "." in path and view._inspector.resolve(view.model, path).crosses_collection:
         # Read through a link to many, it holds a value for each record.
         return [_one_value(view, path, item, one, urls) for one in value or ()]

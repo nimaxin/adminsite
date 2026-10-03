@@ -230,6 +230,9 @@ class ModelView(Generic[M]):
 
         # The settings as the paths the rest of adminsite works with.
         self._settings = SettingsReader(self, self._schema, self._inspector)
+        # Whether scope_query narrows anything, so a page showing this model's
+        # records through a link asks it only when it does.
+        self._scoped = type(self).scope_query is not ModelView.scope_query
 
         self._inline_views = InlineViews(
             self,

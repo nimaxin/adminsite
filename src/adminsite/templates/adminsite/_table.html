@@ -93,6 +93,9 @@
                     {% else %}
                       <span class="font-medium {% if is_key %}font-mono text-[13px]{% endif %}">{{ shown }}</span>
                     {% endif %}
+                  {% elif view._fields.hides(row, path) %}
+                    {#- Read through a record its own view keeps from this user. -#}
+                    <span class="text-muted">{{ text }}</span>
                   {% elif widget == "image" and text %}
                     {% set stored = view._fields.value_at(row, path) %}
                     <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
@@ -144,7 +147,7 @@
             <{{ "a" if opens else "div" }} {% if opens %}href="{{ opens }}"{% endif %} class="flex flex-col gap-1 px-4 py-3 active:bg-subtle">
               <span class="flex items-center justify-between gap-3">
                 <span class="min-w-0 truncate font-medium {% if opens %}text-link{% endif %} {% if is_key %}font-mono text-[13.5px]{% endif %}">{{ shown }}</span>
-                {% if layout.badge and view._fields.display(row, layout.badge) %}
+                {% if layout.badge and view._fields.display(row, layout.badge) and not view._fields.hides(row, layout.badge) %}
                   {{ values.badge(view._fields.field_for(layout.badge), view._fields.value_at(row, layout.badge), view._fields.display(row, layout.badge)) }}
                 {% endif %}
               </span>

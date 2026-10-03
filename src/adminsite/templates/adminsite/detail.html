@@ -16,7 +16,7 @@
 
 {#- The first choice on the page, such as a status, stands beside the name. -#}
 {% set first = namespace(path=none, value="") %}
-{% for path, label, value, url in rows if first.path is none and value and view._fields.field_for(path).widget == "select" %}
+{% for path, label, value, url in rows if first.path is none and value and view._fields.field_for(path).widget == "select" and not view._fields.hides(record, path) %}
   {% set first.path = path %}{% set first.value = value %}
 {% endfor %}
 {#- Who last changed the record, from the history the page already holds. -#}
@@ -132,7 +132,7 @@
                 {% set path, label, value, url = by_path[path] %}
                 {% set item = view._fields.field_for(path) %}
                 {#- A JSON document with a schema it fits reads as labelled values. -#}
-                {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
+                {% set stored = view._fields.value_at(record, path) if item.widget == "json" and not view._fields.hides(record, path) else none %}
                 {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
                 <div class="grid gap-1 px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4 {% if title or not loop.first %}border-t border-line{% endif %}"
                      {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
@@ -145,7 +145,10 @@
                         {%- endwith -%}
                       </div>
                     {% endif %}
-                    {% if item.widget in ("file", "image") and value %}
+                    {% if view._fields.hides(record, path) %}
+                      {#- Read through a record its own view keeps from this user. -#}
+                      <span class="text-muted">{{ value }}</span>
+                    {% elif item.widget in ("file", "image") and value %}
                       {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
                       {% if item.widget == "image" %}
                         <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>

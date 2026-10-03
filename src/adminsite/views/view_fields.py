@@ -17,6 +17,7 @@ from adminsite.fields import (
     FieldRegistry,
     RelationField,
 )
+from adminsite.i18n import gettext as _
 from adminsite.security import RequestAction
 from adminsite.views.checks import (
     check_kind,
@@ -24,7 +25,7 @@ from adminsite.views.checks import (
     check_list_flags,
     check_options_used,
 )
-from adminsite.views.naming import name_all_linked, name_linked
+from adminsite.views.naming import HIDDEN, is_unseen, name_all_linked, name_linked
 from adminsite.views.settings import SettingsReader
 
 if TYPE_CHECKING:
@@ -174,11 +175,15 @@ class ViewFields(Generic[M]):
             return list(getattr(item, "needs", ()))
         return [path_of(needed, self._model) for needed in item.needs]
 
-    def value_at(self, record: M, path: str) -> Any:
+    def value_at(self, record: M, path: str, *, seen: bool = False) -> Any:
         """Read the value a path points at, following links as it goes.
 
         Past a link to many it reads a value for each record, in one flat
         list, so orders.items.quantity holds the quantity of every item.
+
+        With `seen`, for what a page shows, a linked record its own view's
+        scope keeps from this user is left out of a link to many, and a link
+        to one such record reads as HIDDEN.
         """
         value: Any = record
         parts = path.split(".")
@@ -187,6 +192,10 @@ class ViewFields(Generic[M]):
                 return None
             if not isinstance(value, list | tuple | set):
                 value = getattr(value, part, None)
+                if seen and is_unseen(value):
+                    return HIDDEN
+                if seen and isinstance(value, list | tuple | set):
+                    value = [one for one in value if not is_unseen(one)]
                 continue
             # A link to many is read through, while a column holding a list is
             # one record's value.
@@ -196,6 +205,8 @@ class ViewFields(Generic[M]):
             )
             found: list[Any] = []
             for item in value:
+                if seen and is_unseen(item):
+                    continue
                 one = getattr(item, part, None)
                 if through and isinstance(one, list | tuple | set):
                     found.extend(one)
@@ -204,17 +215,47 @@ class ViewFields(Generic[M]):
             value = found
         return value
 
-    def display(self, record: M, path: str) -> str:
-        """The text shown in a cell."""
+    def hides(self, record: M, path: str) -> bool:
+        """Whether a path reads through a linked record kept from this user.
+
+        Only what the read loaded is looked at, so asking never starts a
+        lazy load: a link a page reads on its own, such as a link to many
+        named a few records at a time, holds nothing here to hide.
+        """
+        value: Any = record
+        for part in path.split("."):
+            if value is None or isinstance(value, list | tuple | set):
+                return False
+            loaded = getattr(value, "__dict__", {})
+            if part not in loaded:
+                return False
+            value = loaded[part]
+            if is_unseen(value):
+                return True
+        return False
+
+    def display(self, record: M, path: str, *, as_seen: bool = True) -> str:
+        """The text shown in a cell.
+
+        A value read through a linked record its view's scope keeps from
+        this user reads as Hidden, unless `as_seen` is False, as for the
+        audit log, which keeps what is true.
+        """
         item = self.field_for(path)
         if item.form_only:
             # Never read from the record, so there is nothing to show.
             return ""
-        value = self.value_at(record, path)
+        value = self.value_at(record, path, seen=as_seen)
+        if value is HIDDEN:
+            return _("Hidden")
         if isinstance(item, RelationField):
             # A linked record reads here as it does everywhere else.
             return name_all_linked(
-                item, value, views=self._view._views, inspector=self._inspector
+                item,
+                value,
+                views=self._view._views,
+                inspector=self._inspector,
+                as_seen=as_seen,
             )
         if (
             "." in path

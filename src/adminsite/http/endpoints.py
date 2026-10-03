@@ -533,8 +533,9 @@ async def link_urls(
         item = view._fields.field_for(path)
         if not isinstance(item, RelationField) or item.collection or "." in path:
             continue
-        value = view._fields.value_at(record, path)
-        if value is None:
+        value = view._fields.value_at(record, path, seen=True)
+        # A record its view keeps from this user shows as Hidden, with no link.
+        if not value:
             continue
         target = await view_that_opens(admin, item, value, request)
         if target is not None:

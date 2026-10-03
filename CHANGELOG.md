@@ -30,6 +30,10 @@ What changed:
   uses it (#33).
 - The stylesheet's and the scripts' addresses end in a short hash of the file, so after an upgrade
   a browser fetches the new ones at once rather than keeping the old stylesheet with the new pages.
+- A linked record that its own view's `scope_query` hides from the user now shows as "Hidden",
+  with no name and no link, wherever another view shows it: the list, the record page, the form,
+  the export and the API, which sends `null`. A column read through a link to many leaves out
+  the records the linked view hides. Before, their names and values showed.
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.

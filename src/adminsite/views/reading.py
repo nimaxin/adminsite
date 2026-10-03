@@ -16,6 +16,7 @@ from adminsite.query import Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
 from adminsite.security import Permission
 from adminsite.text import template_names
+from adminsite.views.naming import mark_unseen
 from adminsite.views.pages import PageFields
 from adminsite.views.settings import SettingsReader
 from adminsite.views.view_fields import ViewFields
@@ -112,9 +113,11 @@ class Reader(Generic[M]):
     ) -> Page:
         """Read one page, within the scope and after a permission check."""
         await self._view._ensure(Permission.VIEW, request=request)
-        return await self._repository.list(
+        page = await self._repository.list(
             session, spec, self._view._scope_for(request)
         )
+        await self._hide_unseen(session, page.rows, spec.paths, request)
+        return page
 
     async def fetch_record(
         self,
@@ -126,9 +129,73 @@ class Reader(Generic[M]):
     ) -> M | None:
         """Load one record, or nothing if it is missing or out of scope."""
         await self._view._ensure(Permission.VIEW, request=request)
-        return await self._repository.get(
+        record = await self._repository.get(
             session, key, tuple(paths), self._view._scope_for(request)
         )
+        if record is not None:
+            await self._hide_unseen(session, [record], paths, request)
+        return record
+
+    async def _hide_unseen(
+        self,
+        session: SessionAdapter,
+        records: Sequence[Any],
+        paths: Sequence[str],
+        request: Request,
+    ) -> None:
+        """Mark each linked record that its own view's scope keeps from this user.
+
+        Its name and its values then read as hidden wherever this view would
+        show them, as that view's own pages never show the record. Only a
+        view whose scope_query narrows anything is asked: once for each
+        link, with the keys already loaded. Child rows an inline loaded get
+        the same from their own view.
+        """
+        views = self._view._views
+        if not records or views is None:
+            return
+        for name in dict.fromkeys(path.split(".", 1)[0] for path in paths):
+            relation = self._schema.relations.get(name)
+            if relation is None:
+                continue
+            # Only what the read loaded: anything else would start a lazy load.
+            linked = [
+                one
+                for record in records
+                if name in vars(record)
+                for one in _as_list(vars(record)[name])
+            ]
+            # Kept from the user only where no view that could open it holds
+            # it, as a link opens whichever of the model's views does.
+            targets = self._linked_views(name, relation.target)
+            if linked and targets and all(target._scoped for target in targets):
+                seen: set[str] = set()
+                for target in targets:
+                    seen |= await target._repository.visible_keys(
+                        session, linked, target._scope_for(request)
+                    )
+                for one in linked:
+                    if targets[0]._fields.identity_of(one) not in seen:
+                        mark_unseen(one)
+            if name in self._view._inline_views and linked:
+                child = self._view._inline_views[name]
+                await child._reader._hide_unseen(
+                    session, linked, child._settings.candidates, request
+                )
+
+    def _linked_views(self, name: str, model: type[Any]) -> "list[ModelView[Any]]":
+        """The views that could open a linked record: the one the link names, or all."""
+        views = self._view._views
+        if views is None:
+            return []
+        try:
+            item = self._fields.field_for(name)
+        except AdminSiteError:
+            item = None
+        if isinstance(item, RelationField) and item.view is not None:
+            named = views.for_relation(item)
+            return [named] if named is not None else []
+        return views.all_for_model(model)
 
     async def filter_options(
         self, session: SessionAdapter, spec: QuerySpec, *, request: Request
@@ -207,3 +274,12 @@ class Reader(Generic[M]):
                 waiting[item.name] = found.get(
                     self._fields.key_value(record), item.default
                 )
+
+
+def _as_list(value: Any) -> list[Any]:
+    """What a link holds, as a list: its records, or its one record, or none."""
+    if value is None:
+        return []
+    if isinstance(value, list | tuple | set):
+        return [one for one in value if one is not None]
+    return [value]

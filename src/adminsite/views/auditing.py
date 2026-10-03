@@ -40,8 +40,9 @@ class AuditRecorder(Generic[M]):
         """
         state = sqlalchemy_inspect(record, raiseerr=False)
         unloaded = state.unloaded if state is not None else set()
+        # What is true, whoever made the change: the log is read by others.
         return {
-            path: self._fields.display(record, path)
+            path: self._fields.display(record, path, as_seen=False)
             for path in paths
             if path.split(".", 1)[0] not in unloaded
             and not self._fields.form_only(path)

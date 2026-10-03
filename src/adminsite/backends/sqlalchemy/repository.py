@@ -354,6 +354,41 @@ class SQLAlchemyRepository(Generic[M]):
             )
         return (await session.scalars(statement)).unique().first()
 
+    async def visible_keys(
+        self, session: SessionAdapter, records: Sequence[Any], scope: Scope
+    ) -> set[str]:
+        """Which of these loaded records the scope keeps, by key, in one query.
+
+        For records read through a link from another model, so one this
+        view's scope leaves out can be kept from the user there too.
+        """
+        if not records:
+            return set()
+        columns = self._primary_key_columns()
+        statement = scope(select(*columns).select_from(self.model))
+        if len(columns) == 1:
+            name = self.schema.primary_key[0]
+            wanted = {getattr(record, name) for record in records}
+            statement = statement.where(columns[0].in_(wanted))
+        else:
+            statement = statement.where(
+                or_(
+                    *(
+                        and_(
+                            *(
+                                column == getattr(record, name)
+                                for column, name in zip(
+                                    columns, self.schema.primary_key, strict=True
+                                )
+                            )
+                        )
+                        for record in records
+                    )
+                )
+            )
+        rows = (await session.execute(statement)).all()
+        return {",".join(str(value) for value in row) for row in rows}
+
     async def related(
         self,
         session: SessionAdapter,
