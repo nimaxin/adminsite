@@ -92,6 +92,15 @@ def gettext(text: str, **values: Any) -> str:
     included, so a word of the admin's own can be changed without copying
     the template it is in. Text with no translation stays in English rather
     than disappearing.
+
+    Args:
+        text: The English text, with any values as named placeholders, such
+            as "{thing} saved.".
+        **values: The values for the placeholders, filled in after the text
+            is translated.
+
+    Returns:
+        The text in the language of the current request.
     """
     language = current_language.get()
     own = (_extra.get() or {}).get(language, {})

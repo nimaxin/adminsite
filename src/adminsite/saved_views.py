@@ -99,6 +99,13 @@ class SavedViews(Store):
     Like the audit log, the views go to a SQLite file of their own by
     default. Pass your engine to keep them in your database; the table is
     then `adminsite_saved_views` on `saved_view_metadata`.
+
+    Args:
+        source: Where the views are kept: a SQLite URL for a file of their
+            own, or your engine or session factory.
+        create_table: Whether to create the table on first use. Left as
+            None, only in the SQLite file adminsite owns, and never
+            uninvited in your own database, where your migrations add it.
     """
 
     metadata = saved_view_metadata
@@ -112,7 +119,16 @@ class SavedViews(Store):
         super().__init__(source, create_table=create_table)
 
     async def visible_to(self, view: str, owner: str | None) -> list[SavedView]:
-        """A person's own views of a list, and the ones others shared."""
+        """A person's own views of a list, and the ones others shared.
+
+        Args:
+            view: The name of the view whose list it is, such as "orders".
+            owner: Who is asking, as `AuthProvider.identity` names them, or
+                None without sign in.
+
+        Returns:
+            The views, by name.
+        """
         await self.prepare()
         mine = (
             saved_view_table.c.owner.is_(None)
@@ -130,7 +146,14 @@ class SavedViews(Store):
             return [SavedView.from_row(row._mapping) for row in result.all()]
 
     async def save(self, saved: SavedView) -> SavedView:
-        """Keep a view, and return it with its id."""
+        """Keep a view, and return it with its id.
+
+        Args:
+            saved: The view to keep.
+
+        Returns:
+            The same view, with the id it was stored under.
+        """
         await self.prepare()
         values = {
             "view": saved.view,
@@ -147,7 +170,16 @@ class SavedViews(Store):
         return SavedView.from_row({**values, "id": key[0] if key else None})
 
     async def delete(self, key: int, owner: str | None) -> bool:
-        """Remove a view, if it belongs to this person."""
+        """Remove a view, if it belongs to this person.
+
+        Args:
+            key: The view's id.
+            owner: Who is asking, as `AuthProvider.identity` names them, or
+                None without sign in.
+
+        Returns:
+            Whether a view was removed.
+        """
         await self.prepare()
         mine = (
             saved_view_table.c.owner.is_(None)

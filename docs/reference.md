@@ -30,6 +30,8 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.Descending
 
 ::: adminsite.Inline
+    options:
+      members: false
 
 ::: adminsite.PanelWidget
 
@@ -59,15 +61,20 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.actions.Selection
     options:
-      members: [update, delete, count, records, statement, covered_keys]
+      members: [view, session, request, keys, everything, update, delete, count, records, statement, covered_keys]
 
 ::: adminsite.actions.Input
 
 ::: adminsite.Message
+    options:
+      members: [stays]
 
 ## Filters
 
 ::: adminsite.backends.sqlalchemy.SQLFilter
+    options:
+      inherited_members: true
+      members: [multiple, template, options, condition, apply]
 
 ::: adminsite.filters.FilterOption
 
@@ -138,12 +145,20 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.Widget
 
 ::: adminsite.Stat
+    options:
+      members: false
 
 ::: adminsite.Chart
+    options:
+      members: false
 
 ::: adminsite.RecentRecords
+    options:
+      members: false
 
 ::: adminsite.ModelCounts
+    options:
+      members: false
 
 ## Saved views
 

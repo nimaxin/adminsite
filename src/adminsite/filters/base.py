@@ -15,7 +15,14 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class FilterOption:
-    """One choice a filter offers, with how many records it would match."""
+    """One choice a filter offers, with how many records it would match.
+
+    Args:
+        value: What the URL carries when it is picked, such as "late".
+        label: What the list shows for it, such as "Overdue".
+        count: How many records it would match, shown beside it. None shows
+            no count.
+    """
 
     value: str
     label: str
@@ -27,10 +34,15 @@ class FilterValue:
     """What the user picked for one filter."""
 
     name: str
+    """The filter's name, as the URL carries it."""
     values: tuple[str, ...]
-    # The filter these were read for, so one that get_list_filters adds for a
-    # single request is applied by the query that request makes.
+    """Every value picked, as text, in the order the URL carries them."""
     source: Any = field(default=None, compare=False, repr=False)
+    """The filter these were read for.
+
+    So a filter that `get_list_filters` adds for a single request is applied
+    by the query that request makes.
+    """
 
     @property
     def first(self) -> str:
@@ -61,7 +73,9 @@ class Filter:
     """
 
     multiple = False
+    """Whether several options can be picked at once, all in `value.values`."""
     template = "choice"
+    """The control the list draws: "choice", "range", "relation" or "text"."""
 
     def __init__(
         self,
@@ -84,7 +98,15 @@ class Filter:
         return FilterValue(self.name, values)
 
     async def options(self, context: FilterContext) -> Sequence[FilterOption]:
-        """List the choices to offer. Empty when the filter is free text."""
+        """List the choices to offer. Empty when the filter is free text.
+
+        Args:
+            context: Asks the database for counts and values, within the
+                view's scope, such as `await context.count_by(self.path)`.
+
+        Returns:
+            The choices, in the order they are offered.
+        """
         return ()
 
     def describe(self, value: FilterValue, options: Sequence[FilterOption] = ()) -> str:

@@ -29,14 +29,34 @@ class AuthProvider:
     async def verify(self, username: str, password: str) -> Any | None:
         """Return the user for these details, or nothing.
 
-        To have the audit log say why an attempt failed, raise
-        `SignInRefusedError("This account is switched off.", user=account)`
-        instead of returning nothing.
+        Args:
+            username: What was typed as the username.
+            password: What was typed as the password.
+
+        Returns:
+            Whatever your application calls a user, or None when the details
+            do not match.
+
+        Raises:
+            SignInRefusedError: Instead of returning None, to have the audit
+                log say why the attempt failed, such as
+                `SignInRefusedError("This account is switched off.",
+                user=account)`.
         """
         raise NotImplementedError
 
     async def load_user(self, key: str) -> Any | None:
-        """Turn the key kept in the session back into a user."""
+        """Turn the key kept in the session back into a user.
+
+        The key itself by default. Override it to read the user from your
+        own table, so a user switched off since is signed out at once.
+
+        Args:
+            key: What `identity` returned when the user signed in.
+
+        Returns:
+            The user, or None to sign them out.
+        """
         return key
 
     async def authenticate_token(self, token: str) -> Any | None:
@@ -45,15 +65,38 @@ class AuthProvider:
         The JSON API calls this for `Authorization: Bearer <token>`. Nobody
         gets in this way until you write it, for example by looking the
         token up in a table of API keys.
+
+        Args:
+            token: The token, without "Bearer ".
+
+        Returns:
+            The user, or None to refuse the request.
         """
         return None
 
     def identity(self, user: Any) -> str:
-        """The key to keep in the session for this user."""
+        """The key to keep in the session for this user.
+
+        The audit log keeps it too, as `user_key`, which does not change
+        when the user's name does.
+
+        Args:
+            user: What `verify` returned.
+
+        Returns:
+            The key, such as the user's id as text. `str(user)` by default.
+        """
         return str(user)
 
     async def current_user(self, request: Request) -> Any | None:
-        """Who is signed in, if anyone."""
+        """Who is signed in, if anyone.
+
+        Args:
+            request: The request being answered.
+
+        Returns:
+            The user, as `load_user` answers, or None.
+        """
         session = request.scope.get("session")
         if not session:
             return None
@@ -63,7 +106,16 @@ class AuthProvider:
     async def sign_in(
         self, request: Request, username: str, password: str
     ) -> Any | None:
-        """Check the details and remember the user."""
+        """Check the details and remember the user.
+
+        Args:
+            request: The request being answered.
+            username: What was typed as the username.
+            password: What was typed as the password.
+
+        Returns:
+            The user, now kept in the session, or None when `verify` refused.
+        """
         user = await self.verify(username, password)
         if user is None:
             return None
@@ -81,6 +133,13 @@ class AuthProvider:
         to say something other than the default. Whatever it returns is
         shown above the form, so keep it vague: a message that says the
         username exists tells an attacker so too.
+
+        Args:
+            request: The request being answered.
+            username: What was typed as the username.
+
+        Returns:
+            What to tell the person.
         """
         return _("That username and password do not match.")
 
@@ -90,6 +149,12 @@ class AuthProvider:
         Nothing by default. A public demo can fill in its shared username
         and password, so visitors only press Sign in. Never put real
         credentials here: anyone who opens the page can read them.
+
+        Args:
+            request: The request being answered.
+
+        Returns:
+            Starting values by input name: "username" and "password".
         """
         return {}
 
@@ -102,11 +167,23 @@ class AuthProvider:
         By default only someone who may read the history of every model
         sees it, which `reads_everything` says. Override it to let in, say,
         an auditor who reads less.
+
+        Args:
+            request: The request being answered.
+            reads_everything: Whether this person may read the history of
+                every view.
+
+        Returns:
+            True to show them the sign ins.
         """
         return reads_everything
 
     async def sign_out(self, request: Request) -> None:
-        """Forget the user."""
+        """Forget the user.
+
+        Args:
+            request: The request being answered.
+        """
         session = request.scope.get("session")
         if session:
             session.clear()
@@ -125,6 +202,12 @@ class PasswordAuth(AuthProvider):
     never ends up in your settings or your repository. This suits a
     small internal tool. Anything larger should subclass `AuthProvider`
     and check its own user table.
+
+    Args:
+        users: Each username with its password hash.
+
+    Raises:
+        AdminSiteError: When a password is not hashed.
     """
 
     def __init__(self, users: Mapping[str, str]) -> None:
@@ -137,7 +220,19 @@ class PasswordAuth(AuthProvider):
         self.users = dict(users)
 
     async def verify(self, username: str, password: str) -> Any | None:
-        """Check the password against the stored hash."""
+        """Check the password against the stored hash.
+
+        Args:
+            username: What was typed as the username.
+            password: What was typed as the password.
+
+        Returns:
+            The username, as the user.
+
+        Raises:
+            SignInRefusedError: When there is no such username, or the
+                password is wrong, so the audit log says which.
+        """
         stored = self.users.get(username)
         # An unknown name is checked against a hash of nothing in particular,
         # so it takes as long as a wrong password does. Answering at once

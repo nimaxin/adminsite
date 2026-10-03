@@ -36,7 +36,13 @@ class Plugin:
     """
 
     name: str = ""
+    """A short name for the plugin, such as "reports"."""
 
     def setup(self, admin: "Admin") -> None:
-        """Add the plugin's views, pages, routes, templates and assets."""
+        """Add the plugin's views, pages, routes, templates and assets.
+
+        Args:
+            admin: The admin being built, whose `add_` methods the plugin
+                calls.
+        """
         raise NotImplementedError

@@ -28,10 +28,15 @@ class RequestAction(StrEnum):
     """The page a field is asked for, as `can_access_field` is told it."""
 
     LIST = "list"
+    """The list."""
     DETAIL = "detail"
+    """The record page."""
     CREATE = "create"
+    """The form for a new record."""
     EDIT = "edit"
+    """The form for a record that exists."""
     EXPORT = "export"
+    """The CSV export."""
 
 
 def permission_name(permission: "Permission | str") -> str:

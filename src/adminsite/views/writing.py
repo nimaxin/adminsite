@@ -47,7 +47,14 @@ class SaveValues:
 
     A string names a column too, or a value the form asks for that is no
     column, such as a password to hash: `values["password"]`. `in` tells
-    whether the save stores a value for a column at all.
+    whether the save stores a value for a column at all. adminsite builds it
+    for each save and hands it to the hooks as `context.values`.
+
+    Args:
+        record: The record being saved.
+        stored: The values the save stores, by path.
+        form_only: Says whether a name is one of the view's form-only
+            fields.
     """
 
     def __init__(
@@ -130,7 +137,12 @@ class SaveValues:
 
 
 class SaveValue(Generic[T]):
-    """One column's value in a save, which a hook reads and can change."""
+    """One column's value in a save, which a hook reads and can change.
+
+    Args:
+        values: The save's values.
+        path: The column's name, or a dotted path such as "customer.email".
+    """
 
     __slots__ = ("_values", "path")
 
@@ -146,12 +158,25 @@ class SaveValue(Generic[T]):
         field, that is the record's own value. On a new record, such a
         column is None until the insert fills in its default, as the
         record's own attribute is; read it in `after_save`.
+
+        Returns:
+            The value, of the column's type.
+
+        Raises:
+            AdminSiteError: When the record does not hold the value yet, such
+                as a link it was loaded without, since reading it would need
+                a query. Put it in the view's fields, or read it with
+                `context.session`.
         """
         value: T = self._values._value_of(self.path)
         return value
 
     def set(self, value: T) -> None:
-        """Store this value instead of the one given."""
+        """Store this value instead of the one given.
+
+        Args:
+            value: The value to store, of the column's type.
+        """
         self._values._store(self.path, value)
 
     def __repr__(self) -> str:
@@ -192,11 +217,15 @@ class SaveContext(Generic[M]):
     """
 
     session: SessionAdapter
+    """The session the save runs in, for reading and writing other tables."""
     record: M
+    """The record being saved. On create, a new instance."""
     values: SaveValues
-    # Whether the save adds a new record rather than changing one.
+    """The values the save stores, each read and changed by its column."""
     created: bool
+    """Whether the save adds a new record rather than changing one."""
     request: Request
+    """The request, to see who is asking."""
 
 
 @dataclass
@@ -208,5 +237,8 @@ class DeleteContext(Generic[M]):
     """
 
     session: SessionAdapter
+    """The session the delete runs in, for reading and writing other tables."""
     record: M
+    """The record being deleted."""
     request: Request
+    """The request, to see who is asking."""

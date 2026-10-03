@@ -36,13 +36,19 @@ class Selection(Generic[M]):
     """
 
     view: "ModelView[M]"
+    """The view the action belongs to."""
     session: SessionAdapter
+    """The session the action runs in, committed when it succeeds."""
     spec: QuerySpec
+    """The search, filters and sort of the list the action was run from."""
     request: Request
+    """The request that ran the action."""
     keys: Sequence[str] = ()
+    """The keys of the ticked rows, as the URLs write them."""
     everything: bool = False
-    # What update and delete changed, per record key, for the audit log.
+    """Whether it covers every row the search and filters match, not the keys."""
     changes: dict[str, dict[str, Change]] = field(default_factory=dict)
+    """What `update` and `delete` changed, per record key, for the audit log."""
 
     @property
     def _repository(self) -> Any:
@@ -51,7 +57,12 @@ class Selection(Generic[M]):
 
     # Any: one column for each part of the primary key, of whatever types.
     def statement(self) -> Select[Any]:
-        """A statement selecting the primary keys this covers."""
+        """A statement selecting the primary keys this covers.
+
+        Returns:
+            A `select()` of the keys, within the view's scope, to use in
+            your own queries.
+        """
         columns = [
             getattr(self.view.model, name) for name in self.view._schema.primary_key
         ]
@@ -64,20 +75,32 @@ class Selection(Generic[M]):
         return rows
 
     async def covered_keys(self) -> list[str]:
-        """The keys of the records this covers, written as the URLs write them."""
+        """The keys of the records this covers, written as the URLs write them.
+
+        Returns:
+            The keys, a composite one with its parts joined by commas.
+        """
         result = await self.session.execute(self.statement())
         return [",".join(str(value) for value in row) for row in result.all()]
 
     async def count(self) -> int:
-        """How many rows this covers."""
+        """How many rows this covers.
+
+        Returns:
+            The number of rows.
+        """
         counted = select(func.count()).select_from(self.statement().subquery())
         return int(await self.session.scalar(counted) or 0)
 
     async def records(self, *, paths: Sequence[ColumnReference] = ()) -> list[M]:
         """Load the records, for work that needs each one in turn.
 
-        `paths` names links to load with them, such as `Order.customer`, so
-        work on each record never waits on a query of its own.
+        Args:
+            paths: Links to load with them, such as `Order.customer`, so
+                work on each record never waits on a query of its own.
+
+        Returns:
+            The records, as the view's model.
         """
         statement = self._repository.base_statement(
             self.view._scope_for(self.request)
@@ -98,6 +121,13 @@ class Selection(Generic[M]):
 
         This does not run the save hooks, because it never loads the
         records. Use `records` when the hooks matter.
+
+        Args:
+            **values: The new values, by column name, such as
+                `status=OrderStatus.SHIPPED`.
+
+        Returns:
+            How many rows changed.
         """
         if not values:
             return 0
@@ -107,7 +137,14 @@ class Selection(Generic[M]):
         return await self._run(statement)
 
     async def delete(self) -> int:
-        """Delete every row this covers, in one statement."""
+        """Delete every row this covers, in one statement.
+
+        Like `update`, it skips the hooks, and relies on the database for
+        cascades.
+
+        Returns:
+            How many rows were deleted.
+        """
         if self.view._audit_log is not None:
             paths = [
                 path

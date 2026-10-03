@@ -85,33 +85,48 @@ Change = tuple[Any, Any]
 
 @dataclass(frozen=True, slots=True)
 class AuditEntry:
-    """One thing that happened in the admin, who did it, and from where.
-
-    `user` is the name the admin shows for the person, and `user_key` what
-    `AuthProvider.identity` returns for them, which does not change when the
-    name does. `ip` and `user_agent` say where the request came from.
-    `error` holds why something failed; it is empty when it worked.
-    `inputs` holds the values an action was run with, secrets masked.
-    """
+    """One thing that happened in the admin, who did it, and from where."""
 
     view: str
+    """The name of the view it happened in, or empty for signing in."""
     record_key: str
+    """The record's key, as the URLs write it, or empty for none."""
     event: AuditEvent
+    """What happened, such as `AuditEvent.UPDATED`."""
     changes: Mapping[str, Change] = field(default_factory=dict)
+    """Each field that changed, by name, as a pair of its values before and after."""
     record_title: str | None = None
+    """The record's name when it happened."""
     action: str | None = None
+    """The name of the action that ran, for an action."""
     batch: str | None = None
+    """An id the entries of one bulk action share."""
     user: str | None = None
+    """The name the admin shows for the person."""
     message: str | None = None
+    """What an action answered."""
     occurred_at: datetime = field(
         default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)
     )
+    """When it happened, in UTC."""
     id: int | None = None
+    """The entry's id, once it is stored."""
     user_key: str | None = None
+    """What `AuthProvider.identity` returns for the person.
+
+    It does not change when their name does.
+    """
     ip: str | None = None
+    """The address the request came from."""
     user_agent: str | None = None
+    """The browser or program that sent the request."""
     error: str | None = None
+    """Why it failed, or None when it worked."""
     inputs: Mapping[str, Any] = field(default_factory=dict)
+    """The values an action was run with, or an export's search and filters.
+
+    Secrets are kept as `***`.
+    """
 
     @property
     def succeeded(self) -> bool:
@@ -119,7 +134,11 @@ class AuditEntry:
         return self.error is None
 
     def as_row(self) -> dict[str, Any]:
-        """The entry as a row for the audit table."""
+        """The entry as a row for the audit table.
+
+        Returns:
+            The row's values, by column name.
+        """
         return {
             "occurred_at": self.occurred_at,
             "view": self.view,
@@ -140,7 +159,14 @@ class AuditEntry:
 
     @classmethod
     def from_row(cls, row: Mapping[Any, Any]) -> "AuditEntry":
-        """Read an entry back from a row of the audit table."""
+        """Read an entry back from a row of the audit table.
+
+        Args:
+            row: The row, as the table's columns name its values.
+
+        Returns:
+            The entry.
+        """
         return cls(
             id=row["id"],
             occurred_at=row["occurred_at"],

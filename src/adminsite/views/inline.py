@@ -43,21 +43,30 @@ class Inline:
         ]
     ```
 
-    The relation is a relationship on the parent that holds many records,
-    by attribute or by name. Each child shows as a row of inputs, with a box
-    to delete it, and new rows can be added in the form.
+    Each child shows as a row of inputs, with a button to remove it, and
+    new rows can be added in the form. Everything is saved in one
+    transaction with the parent.
+
+    Args:
+        relation: The relationship on the parent that holds the children,
+            by attribute or by name, such as `Order.items`.
+        fields: The child's fields, in order, written as a view's are, so
+            `Field(OrderItem.added_at, read_only=True)` shows a value it
+            never edits. Left empty, every field but those the relationship
+            fills in.
+        label: The heading above the rows. Left empty, the relationship's
+            name.
+        blank_rows: How many blank rows the table starts with while it has
+            no rows yet.
+        can_delete: Whether rows can be removed, which deletes the child.
+        record_title: How a child is named, as a view's `record_title`.
     """
 
     relation: str | QueryableAttribute[Any]
-    # The child's fields, in order, as a view's fields are written:
-    # Field(OrderItem.added_at, read_only=True) shows a value it never edits,
-    # so a new row takes it from a default on the model.
     fields: Sequence["ColumnReference | Field[Any]"] = ()
     label: str = ""
-    # How many blank rows the table starts with while it has no rows yet.
     blank_rows: int = 1
     can_delete: bool = True
-    # How a child is named, as a view's record_title.
     record_title: str = ""
 
     @property

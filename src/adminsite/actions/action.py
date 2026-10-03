@@ -151,13 +151,33 @@ def action(
     A parameter typed `Request`, `AsyncSession` or `SessionAdapter` is
     handed the request or the session the action runs in.
 
-    A method returns the message to show, or a response to send instead,
-    such as a file to download.
+    A method returns the message to show, a `Message` for more than a line
+    that fades, or a response to send instead, such as a file to download.
+    Raise `RefusedError` to stop it with a message; everything it did is
+    rolled back.
 
-    The audit log keeps that message with the entry for the run. Give
-    `audit_answer=False` when it holds something shown only once, such as
-    a new API key: the entry then says who ran it, on what and when, and
-    keeps nothing of the answer.
+    Args:
+        label: The button's text. Left empty, the method's name in words:
+            `mark_paid` reads "Mark paid".
+        name: The action's name in its URL and the audit log. Left empty,
+            the method's name.
+        confirm: A question asked in a dialog before it runs.
+        permission: What the user needs to run it, as `allows` decides:
+            `Permission.EDIT` unless you say, or a name of your own.
+        dangerous: Whether the button is drawn in red.
+        inputs: Fields to ask for as they are, each passed to the parameter
+            of its name. The parameters' types usually say enough.
+        on: What it acts on: "selection", "record" or "view", as above.
+        audit_answer: Whether the audit log keeps the answer. False for one
+            that holds something shown only once, such as a new API key;
+            the entry still says who ran it, on what and when.
+
+    Returns:
+        A decorator that marks the method and hands it back as it was.
+
+    Raises:
+        AdminSiteError: When `on` is none of the three, or an input takes a
+            name the action form uses itself.
     """
     if on not in TARGETS:
         raise AdminSiteError(

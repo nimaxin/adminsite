@@ -22,51 +22,6 @@ from typing import Any
 import pytest
 
 REFERENCE = Path(__file__).parent.parent / "docs" / "reference.md"
-# Written up one step at a time; each step takes its objects off this list.
-NOT_YET: set[str] = {
-    "adminsite.RequestAction",
-    "adminsite.Link",
-    "adminsite.Descending",
-    "adminsite.Inline",
-    "adminsite.PanelWidget",
-    "adminsite.FieldsetWidget",
-    "adminsite.RowWidget",
-    "adminsite.TabsWidget",
-    "adminsite.CountMode",
-    "adminsite.Pagination",
-    "adminsite.SaveContext",
-    "adminsite.views.SaveValues",
-    "adminsite.views.SaveValue",
-    "adminsite.DeleteContext",
-    "adminsite.actions.action.action",
-    "adminsite.actions.Selection",
-    "adminsite.actions.Input",
-    "adminsite.Message",
-    "adminsite.backends.sqlalchemy.SQLFilter",
-    "adminsite.filters.FilterOption",
-    "adminsite.filters.FilterValue",
-    "adminsite.files.FileStorage",
-    "adminsite.files.LocalStorage",
-    "adminsite.AdminPage",
-    "adminsite.Plugin",
-    "adminsite.Widget",
-    "adminsite.Stat",
-    "adminsite.Chart",
-    "adminsite.RecentRecords",
-    "adminsite.ModelCounts",
-    "adminsite.SavedViews",
-    "adminsite.i18n.gettext",
-    "adminsite.auth.AuthProvider",
-    "adminsite.auth.PasswordAuth",
-    "adminsite.auth.hash_password",
-    "adminsite.audit.AuditLog",
-    "adminsite.audit.AuditStore",
-    "adminsite.audit.AuditQuery",
-    "adminsite.audit.AuditEntry",
-    "adminsite.RefusedError",
-    "adminsite.PermissionDeniedError",
-    "adminsite.RecordNotFoundError",
-}
 
 
 def resolve(target: str) -> Any:
@@ -244,10 +199,4 @@ SHOWN = list(shown())
 def test_describes_what_it_takes_and_holds(
     target: str, members: list[str] | None
 ) -> None:
-    if target in NOT_YET:
-        pytest.skip("not written up yet")
     assert gaps(target, members) == []
-
-
-def test_not_yet_lists_only_what_the_page_shows() -> None:
-    assert NOT_YET.issubset(target for target, _ in SHOWN)

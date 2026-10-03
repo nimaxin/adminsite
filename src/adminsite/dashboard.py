@@ -56,16 +56,39 @@ class Widget:
     """
 
     title: str = ""
-    # How many of the four columns the card spans on a wide screen.
+    """The card's title."""
     width: int = 1
+    """How many of the four columns the card spans on a wide screen."""
     template: str = ""
+    """The template that draws the card, given `widget` and `data`."""
 
     async def allows(self, admin: "Admin", request: Request) -> bool:
-        """Whether this user sees the card. Everyone does, unless you say."""
+        """Whether this user sees the card. Everyone does, unless you say.
+
+        Args:
+            admin: The admin the overview belongs to.
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            True to show the card.
+        """
         return True
 
     async def load(self, admin: "Admin", request: Request) -> Any:
-        """Read what the card shows."""
+        """Read what the card shows.
+
+        A card whose `load` fails says it could not be loaded, and the rest
+        of the overview still loads.
+
+        Args:
+            admin: The admin the overview belongs to, whose
+                `database.session()` opens a session.
+            request: The request being answered.
+
+        Returns:
+            What the template gets as `data`.
+        """
         return None
 
 
@@ -104,6 +127,19 @@ class Stat(Widget):
         format="€{:,.2f}",
     )
     ```
+
+    Args:
+        title: The card's title.
+        value: Where the number comes from: a `select` of one value, or an
+            async function given the session that answers with it.
+        previous: The same for the period before. The card then shows the
+            change, such as "+12% on the period before", in green or red.
+        format: How the number is written, as `str.format` takes it, such
+            as "€{:,.2f}".
+        hint: A line under the number, when there is no change to show.
+        link: Where clicking the card goes. A relative link starts at the
+            admin, so "orders?status=PAID" opens the filtered list.
+        width: How many of the four columns the card spans.
     """
 
     template = "adminsite/dashboard/stat.html"
@@ -200,6 +236,18 @@ class Chart(Widget):
         kind="line",
     )
     ```
+
+    Hovering a bar shows its value, and screen readers get the same numbers
+    as a table. Dates as labels are written short, such as "Sep 14".
+
+    Args:
+        title: The card's title.
+        rows: Where the rows come from: a `select` of a label and a value,
+            or an async function given the session that answers with such
+            rows.
+        kind: "bar" or "line".
+        format: How each value is written, as `str.format` takes it.
+        width: How many of the four columns the card spans.
     """
 
     template = "adminsite/dashboard/chart.html"
@@ -306,6 +354,17 @@ class RecentRecords(Widget):
     ```
 
     It reads through the view, so the view's permissions and scope apply.
+    A field the view's `can_access_field` keeps from the user on the list is
+    not shown as `value`, and not used as `sort`.
+
+    Args:
+        title: The card's title.
+        view: The view's name, as in its URL, such as "orders".
+        sort: The order, such as "-created_at". Left empty, the view's
+            `fields_default_sort`.
+        value: A path shown at the end of each record, such as "total".
+        limit: How many records.
+        width: How many of the four columns the card spans.
     """
 
     template = "adminsite/dashboard/recent.html"

@@ -37,6 +37,13 @@ class AuditLog(Store):
     one transaction: both or neither. Kept anywhere else, entries are written
     once the change has committed, so a change that was rolled back never
     shows up, but one whose entries fail to write is not logged.
+
+    Args:
+        source: Where the entries are kept: a SQLite URL for a file of their
+            own, or your engine or session factory.
+        create_table: Whether to create the table on first use. Left as
+            None, only in the SQLite file adminsite owns, and never
+            uninvited in your own database, where your migrations add it.
     """
 
     metadata = audit_metadata
@@ -50,7 +57,11 @@ class AuditLog(Store):
         super().__init__(source, create_table=create_table)
 
     async def record(self, entries: Sequence[AuditEntry]) -> None:
-        """Write entries down, a batch at a time."""
+        """Write entries down, a batch at a time.
+
+        Args:
+            entries: The entries to write.
+        """
         if not entries:
             return
         await self.prepare()
@@ -88,13 +99,30 @@ class AuditLog(Store):
             )
 
     async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
-        """The entries that match, newest first, at most `limit` of them."""
+        """The entries that match, newest first, at most `limit` of them.
+
+        Args:
+            query: Which entries to find.
+            limit: The most entries to return.
+
+        Returns:
+            The entries, newest first.
+        """
         return await self._read(matching(query).limit(limit))
 
     async def history(
         self, view: str, record_key: str, *, limit: int = 100
     ) -> list[AuditEntry]:
-        """What happened to one record, newest first."""
+        """What happened to one record, newest first.
+
+        Args:
+            view: The view's name, such as "orders".
+            record_key: The record's key, as the URLs write it.
+            limit: The most entries to return.
+
+        Returns:
+            The entries, newest first.
+        """
         query = AuditQuery(view=view, record_key=record_key)
         return await self.find(query, limit=limit)
 
@@ -105,7 +133,16 @@ class AuditLog(Store):
         views: Sequence[str] | None = None,
         limit: int = 100,
     ) -> list[AuditEntry]:
-        """The latest entries, across the admin, for some views or for one."""
+        """The latest entries, across the admin, for some views or for one.
+
+        Args:
+            view: Only this view's entries.
+            views: Only these views' entries.
+            limit: The most entries to return.
+
+        Returns:
+            The entries, newest first.
+        """
         return await self.find(AuditQuery(view=view, views=views), limit=limit)
 
     async def _read(self, statement: Any) -> list[AuditEntry]:

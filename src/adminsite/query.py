@@ -21,21 +21,40 @@ class CountMode(StrEnum):
     """How hard to work to report how many records match."""
 
     EXACT = "exact"
-    # The database's own row estimate when nothing narrows the list, and a
-    # count that stops at a cap when something does.
+    """Count every match."""
     ESTIMATED = "estimated"
+    """The row count the database keeps, where that is cheap and close enough.
+
+    Postgres and MySQL keep one in their statistics. It is used when nothing
+    narrows the list and the table holds more than 10,000 rows, shown as
+    "about 2,500,000". A narrowed list is counted up to 10,000 and shown as
+    "more than 10,000" past that. SQLite keeps no estimate, so it counts
+    exactly.
+    """
     NONE = "none"
+    """No count at all.
+
+    The pager learns whether there is a next page by reading one row more,
+    so a page is a single query.
+    """
 
 
 class Pagination(StrEnum):
     """How the list moves from one page to the next."""
 
-    # Page numbers. Simple, but the database still walks every row before
-    # the page, so deep pages on a big table get slow.
     OFFSET = "offset"
-    # Continue after the last row seen. Every page costs the same, but there
-    # is no jumping to page 40, only previous and next.
+    """Page numbers.
+
+    Simple, but the database still walks every row before the page, so deep
+    pages of a big table get slow.
+    """
     KEYSET = "keyset"
+    """Continue after the last row seen, so every page costs the same.
+
+    There is no jumping to page 40, only Previous and Next. A sort by a
+    column that can be empty, or through a relationship, falls back to page
+    numbers.
+    """
 
 
 @dataclass(frozen=True, slots=True)

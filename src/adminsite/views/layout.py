@@ -30,22 +30,34 @@ class PanelWidget:
             PanelWidget("Price", [(Product.price, Product.cost)]),
         ]
     ```
+
+    Args:
+        title: The card's title. A panel holding one field leaves that
+            field's label to it.
+        children: The fields and widgets inside, in order: a tuple of them
+            is a row and a list a column, as everywhere in a layout.
+        description: A line under the title, saying what the fields are
+            for.
+        collapsible: Whether the panel can be folded away.
+        collapsed: Whether it starts folded. A folded panel opens when it
+            holds a mistake.
     """
 
     title: str
-    # Fields, and the other widgets, in order: a tuple of them is a row and
-    # a list a column, as everywhere in a layout.
     children: Sequence["LayoutEntry"] = ()
-    # A line under the title saying what the fields are for.
     description: str = ""
-    # Whether the panel can be folded away, and whether it starts folded.
     collapsible: bool = False
     collapsed: bool = False
 
 
 @dataclass(frozen=True)
 class FieldsetWidget:
-    """Fields in a bordered group with a caption, inside a panel."""
+    """Fields in a bordered group with a caption, inside a panel.
+
+    Args:
+        legend: The caption on the border.
+        children: The fields and widgets inside, as a panel takes them.
+    """
 
     legend: str
     children: Sequence["LayoutEntry"] = ()
@@ -56,6 +68,9 @@ class RowWidget:
     """Fields side by side on a wide screen, one under the other on a phone.
 
     A tuple of fields is a row too: `(Product.price, Product.stock)`.
+
+    Args:
+        children: The fields and widgets side by side, in order.
     """
 
     children: Sequence["LayoutEntry"] = ()
@@ -67,6 +82,10 @@ class TabsWidget:
 
     The form opens on the first tab holding a mistake, and marks each tab
     that holds one. The record page shows each tab as a panel of its own.
+
+    Args:
+        tabs: Each tab as a pair of its label and what it holds: a field, a
+            widget, or a list of them.
     """
 
     tabs: Sequence[tuple[str, "LayoutEntry"]] = ()

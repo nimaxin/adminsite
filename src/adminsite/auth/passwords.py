@@ -24,8 +24,15 @@ def hash_password(password: str, *, iterations: int = ITERATIONS) -> str:
     hash_password("letmein")
     ```
 
-    Keep the result, not the password. The format is
-    `pbkdf2_sha256$iterations$salt$hash`.
+    Keep the result, not the password.
+
+    Args:
+        password: The password.
+        iterations: How many rounds of PBKDF2 to run. More is slower to
+            check, and slower to guess.
+
+    Returns:
+        The hash, as `pbkdf2_sha256$iterations$salt$hash`.
     """
     salt = secrets.token_hex(SALT_BYTES)
     digest = _digest(password, salt, iterations)

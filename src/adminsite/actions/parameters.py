@@ -117,19 +117,27 @@ class Input:
 
     reason: Annotated[str, Input(label="Reason", multiline=True)]
     ```
+
+    An option the type has no use for, such as `multiline` on an `int`,
+    stops the admin when it starts.
+
+    Args:
+        label: The text above the input. Left empty, the parameter's name
+            in words: `tracking_number` reads "Tracking number".
+        help_text: A line under the input.
+        multiline: A box of several lines, for a `str`.
+        accept: For an `UploadFile`, the types offered, as a browser's
+            `accept` takes them, such as ".csv".
+        max_size: For an `UploadFile`, the largest file taken, in bytes.
+        secret: Whether the audit log keeps `***` instead of the value.
+            Left as None, a name such as `password` or `api_key` decides.
     """
 
-    # Left empty, the parameter's name written as words.
     label: str = ""
     help_text: str = ""
-    # A box of several lines, for a str.
     multiline: bool = False
-    # For an UploadFile: the types a browser offers to pick, as its accept
-    # attribute takes them, and the largest file taken, in bytes.
     accept: str = ""
     max_size: int | None = None
-    # Whether the audit log keeps "***" instead of the value. Left as None, a
-    # name such as "password" or "api_key" decides.
     secret: bool | None = None
 
 

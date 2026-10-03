@@ -19,13 +19,15 @@ class Message:
     Message(Html("Queued <b>40</b> checks."), sticky=True)
     ```
 
-    - `text` says what happened. It is escaped, unless given as `Html`.
-    - `sticky` keeps it on screen until it is closed, where a message that
-      all went well otherwise fades after a few seconds.
-    - `link`, with `link_text`, is an address to follow, after the text.
-    - `copy` is a value shown with a button that copies it, such as a new
-      API key. It keeps the message on screen, and the audit log, which
-      keeps the text, never keeps it.
+    Args:
+        text: What happened. It is escaped, unless given as `Html`.
+        sticky: Whether it stays on screen until it is closed, where a
+            message that all went well otherwise fades after a few seconds.
+        link: An address to follow, written after the text.
+        link_text: The words of the link. Left empty, "Open".
+        copy: A value shown with a button that copies it, such as a new API
+            key. It keeps the message on screen, and the audit log, which
+            keeps the text, never keeps it.
     """
 
     text: str

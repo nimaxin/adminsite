@@ -54,19 +54,47 @@ class FileStorage:
     """
 
     async def save(self, upload: UploadFile) -> str:
-        """Store an upload and return the key to keep in the column."""
+        """Store an upload and return the key to keep in the column.
+
+        Args:
+            upload: The uploaded file, as Starlette reads it.
+
+        Returns:
+            The key the column keeps, which `url`, `response` and `delete`
+            are given later.
+        """
         raise NotImplementedError
 
     async def delete(self, key: str) -> None:
-        """Remove a stored file. A missing file is not an error."""
+        """Remove a stored file. A missing file is not an error.
+
+        Args:
+            key: The key `save` returned.
+        """
         raise NotImplementedError
 
     def url(self, key: str) -> str:
-        """A public address for the file, or nothing to serve it through the admin."""
+        """A public address for the file, or nothing to serve it through the admin.
+
+        Args:
+            key: The key `save` returned.
+
+        Returns:
+            The address, or an empty string to have the admin serve the
+            file through `response`, behind its sign in.
+        """
         return ""
 
     async def response(self, key: str, content_type: str = "") -> Response:
-        """Answer a request for the file, made through the admin."""
+        """Answer a request for the file, made through the admin.
+
+        Args:
+            key: The key `save` returned.
+            content_type: The file's type, guessed from its name.
+
+        Returns:
+            The file, or a redirect to where it is, such as a signed URL.
+        """
         raise HTTPException(status_code=404, detail=_("This file is not served here."))
 
 
@@ -81,6 +109,12 @@ class LocalStorage(FileStorage):
     `url_prefix` for a place your application already serves them from.
     Each file gets a key such as `2026/09/k3j9x2-invoice.pdf`: the month,
     a random part so names never clash, and the original name.
+
+    Args:
+        directory: The folder the files go in.
+        url_prefix: Where your application already serves the folder from,
+            such as "https://cdn.example.com/uploads". Left empty, the admin
+            serves the files.
     """
 
     def __init__(self, directory: str | Path, *, url_prefix: str = "") -> None:
@@ -107,7 +141,14 @@ class LocalStorage(FileStorage):
         await anyio.to_thread.run_sync(lambda: target.unlink(missing_ok=True))
 
     def url(self, key: str) -> str:
-        """The public address, when the files are served elsewhere."""
+        """The public address, when the files are served elsewhere.
+
+        Args:
+            key: The key `save` returned.
+
+        Returns:
+            The address under `url_prefix`, or an empty string without one.
+        """
         return f"{self.url_prefix}/{key}" if self.url_prefix else ""
 
     async def response(self, key: str, content_type: str = "") -> Response:
@@ -125,7 +166,17 @@ class LocalStorage(FileStorage):
         )
 
     def path_for(self, key: str) -> Path:
-        """Where a key lives on disk, refusing any key that leaves the folder."""
+        """Where a key lives on disk, refusing any key that leaves the folder.
+
+        Args:
+            key: The key `save` returned.
+
+        Returns:
+            The file's path inside the folder.
+
+        Raises:
+            HTTPException: A 404, for a key that would leave the folder.
+        """
         target = (self.directory / key).resolve()
         if not target.is_relative_to(self.directory) or target == self.directory:
             raise HTTPException(status_code=404, detail=_("No such file."))

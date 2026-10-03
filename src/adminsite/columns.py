@@ -26,8 +26,13 @@ V_co = TypeVar("V_co", covariant=True)
 class Link(Generic[V_co]):
     """A column of a related model, such as `Link(Order.customer, Customer.email)`.
 
-    The relation leads to the model that owns the column. A longer way
-    nests links: `Link(Order.customer, Link(Customer.address, Address.city))`.
+    A longer way nests links:
+    `Link(Order.customer, Link(Customer.address, Address.city))`.
+
+    Args:
+        relation: The relationship that leads to the model owning the
+            column, such as `Order.customer`.
+        column: The column on that model, or another `Link` to go further.
     """
 
     relation: QueryableAttribute[Any]
@@ -46,7 +51,12 @@ Such as `Order.total`, `Link(Order.customer, Customer.email)` or `"total"`.
 
 @dataclass(frozen=True, eq=False)
 class Descending:
-    """A column sorted from the highest value down, such as newest first."""
+    """A column sorted from the highest value down, such as newest first.
+
+    Args:
+        column: The column, as a setting names it. The string
+            `"-created_at"` means the same as `Descending(Order.created_at)`.
+    """
 
     column: ColumnReference
 

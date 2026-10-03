@@ -47,15 +47,33 @@ M = TypeVar("M")
 class SQLFilter(Filter, Generic[M]):
     """A filter that narrows a SQLAlchemy statement: `SQLFilter[Product]`.
 
-    Write a custom filter by subclassing this and returning a condition.
-    Override `apply` instead when the filter needs to change the statement
-    itself, for example to add a join.
+    Write a custom filter by subclassing this, offering its choices from
+    `options` and returning a condition from `condition`. Override `apply`
+    instead when the filter needs to change the statement itself, for
+    example to add a join.
+
+    Args:
+        name: The filter's name in the URL, such as "delivery" in
+            `?delivery=late`.
+        path: The column it reads, such as "customer.region". Left out, the
+            name.
+        label: The filter's label in the list's toolbar. Left out, the name
+            in words.
     """
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[M]
     ) -> ColumnElement[bool] | None:
-        """The condition this filter adds, or nothing to leave the list be."""
+        """The condition this filter adds, or nothing to leave the list be.
+
+        Args:
+            value: What the user picked: `value.first`, or every one in
+                `value.values`.
+            repository: The repository of the view's model.
+
+        Returns:
+            A condition on the view's model, or None to leave the list be.
+        """
         raise NotImplementedError
 
     def apply(
@@ -64,7 +82,16 @@ class SQLFilter(Filter, Generic[M]):
         value: FilterValue,
         repository: SQLAlchemyRepository[M],
     ) -> Select[Any]:
-        """Narrow the statement with this filter's condition."""
+        """Narrow the statement with this filter's condition.
+
+        Args:
+            statement: The select the list is about to run.
+            value: What the user picked.
+            repository: The repository of the view's model.
+
+        Returns:
+            The statement, narrowed.
+        """
         condition = self.condition(value, repository)
         if condition is None:
             return statement

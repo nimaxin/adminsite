@@ -19,27 +19,28 @@ logger = logging.getLogger("adminsite")
 
 @dataclass(frozen=True, slots=True)
 class AuditQuery:
-    """Which entries to find. Every field narrows the result; empty means all.
-
-    - `views`: only entries of these views, such as the ones a person may
-      read. An empty string among them stands for entries of no view, such
-      as signing in.
-    - `view` and `record_key`: one view, or one record of it.
-    - `user`: one person, matched against `user_key` and against `user`.
-    - `events`: only these kinds of entry.
-    - `since` and `until`: from `since`, up to but not including `until`.
-    - `older_than`: the `(occurred_at, id)` of the last entry already shown,
-      to find the next page after it.
-    """
+    """Which entries to find. Every field narrows the result; empty means all."""
 
     views: Sequence[str] | None = None
+    """Only entries of these views, such as the ones a person may read.
+
+    An empty string among them stands for entries of no view, such as
+    signing in.
+    """
     view: str | None = None
+    """Only entries of this view."""
     record_key: str | None = None
+    """Only entries of this record, of `view`."""
     user: str | None = None
+    """Only one person's entries, matched against `user_key` and `user`."""
     events: Sequence[AuditEvent] = ()
+    """Only these kinds of entry."""
     since: datetime | None = None
+    """Only entries from this time on, in UTC."""
     until: datetime | None = None
+    """Only entries before this time, in UTC."""
     older_than: tuple[datetime, int] | None = None
+    """The `(occurred_at, id)` of the last entry shown, for the page after it."""
 
 
 @runtime_checkable
@@ -63,7 +64,11 @@ class AuditStore(Protocol):
     """
 
     async def record(self, entries: Sequence[AuditEntry]) -> None:
-        """Keep these entries."""
+        """Keep these entries.
+
+        Args:
+            entries: The entries to keep, once the change has committed.
+        """
         ...
 
     async def find(self, query: AuditQuery, *, limit: int) -> list[AuditEntry]:
@@ -71,6 +76,13 @@ class AuditStore(Protocol):
 
         Newest first means by `occurred_at`, then by `id`, both descending,
         which is also the order `older_than` pages through.
+
+        Args:
+            query: Which entries to find.
+            limit: The most entries to return.
+
+        Returns:
+            The entries, newest first.
         """
         ...
 

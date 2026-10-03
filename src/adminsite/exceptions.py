@@ -57,6 +57,12 @@ class RefusedError(AdminSiteError):
     ```
 
     The field is one of the view's own, not one of an inline's rows.
+
+    Args:
+        message: What to tell the user, such as "This customer's account is
+            closed.".
+        field: The field to put the message beside, as a setting names it.
+            Left empty, the message goes above the form.
     """
 
     def __init__(self, message: str, *, field: "ColumnReference" = "") -> None:
@@ -69,7 +75,15 @@ class RefusedError(AdminSiteError):
 
 
 class PermissionDeniedError(AdminSiteError):
-    """Raised when the current user may not do this."""
+    """Raised when the current user may not do this.
+
+    The admin answers it with a "Not allowed" page and a 403, or a 403 in
+    JSON from the API.
+
+    Args:
+        action: The permission refused, such as "edit".
+        subject: What it was refused on, such as "Orders".
+    """
 
     def __init__(self, action: str, subject: str = "") -> None:
         from adminsite.i18n import gettext as _
@@ -86,7 +100,12 @@ class PermissionDeniedError(AdminSiteError):
 
 
 class RecordNotFoundError(AdminSiteError):
-    """Raised when a key does not match any record."""
+    """Raised when a key does not match any record.
+
+    Args:
+        model: The model searched.
+        key: The key that matched nothing.
+    """
 
     def __init__(self, model: type[object], key: object) -> None:
         super().__init__(f"No {model.__name__} has the key {key!r}.")
