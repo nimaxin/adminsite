@@ -53,9 +53,10 @@ def labels(page: httpx.Response) -> list[str]:
     return re.findall(r"<dt[^>]*>(.*?)</dt>", body)
 
 
-def beside(page: httpx.Response) -> list[str]:
-    """The links to single records, shown as cards beside the details."""
-    return re.findall(r'<h2 id="link-\d+"[^>]*>(.*?)</h2>', page.text)
+def linked(page: httpx.Response) -> list[str]:
+    """The fields whose value links to the record it names."""
+    body = page.text.split("<dl", 1)[1].split("</dl>", 1)[0]
+    return re.findall(r"<dt[^>]*>(.*?)</dt>\s*<dd[^>]*>\s*<a ", body)
 
 
 class TestTheDetailPage:
@@ -64,8 +65,11 @@ class TestTheDetailPage:
     ) -> None:
         page = await client.get("/admin/orders/1")
 
-        assert labels(page) == ["Status", "Total", "Created at"]
-        assert beside(page) == ["Customer"]
+        # The status stands beside the record's name, so it leaves the rows.
+        assert labels(page) == ["Customer", "Total", "Created at"]
+        assert linked(page) == ["Customer"]
+        # With no audit log there is no history to say who changed it.
+        assert "Last changed" not in page.text
 
     async def test_the_form_keeps_its_own_fields(
         self, client: httpx.AsyncClient
@@ -96,7 +100,7 @@ class TestTheDetailPage:
         full = await client.get("/admin/audited/1?full=1")
 
         assert labels(short) == ["Status"]
-        assert len(labels(full)) + len(beside(full)) == 5
+        assert labels(full) == ["Customer", "Total", "Note", "Created at"]
 
     async def test_the_api_reads_the_detail_fields_too(
         self, database: Database

@@ -1,5 +1,4 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl
 
@@ -66,7 +65,6 @@ if TYPE_CHECKING:
 __all__ = [
     "HISTORY_LIMIT",
     "MANY_LINKS_SHOWN",
-    "LinkedRecord",
     "action_lookup",
     "activity",
     "after_save",
@@ -94,7 +92,7 @@ __all__ = [
     "import_template",
     "index",
     "key_of",
-    "linked_records",
+    "link_urls",
     "list_query",
     "list_records",
     "load_or_404",
@@ -366,8 +364,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
     paths = view._pages.detail_fields(request, record)
     async with admin.database.session() as session:
         await view._reader.load_values(session, [record], paths, request=request)
-    links = await linked_records(admin, view, record, paths, request)
-    beside = {link.path for link in links}
+    opens = await link_urls(admin, view, record, paths, request)
     shown = await many_links_text(admin, view, record, counted, request)
     # A to-many link was named above, even when it holds nothing: the record
     # never loaded it, so reading it now would fail.
@@ -376,9 +373,9 @@ async def detail(admin: "Admin", request: Request) -> Response:
             path,
             view._fields.label_for(path),
             shown[path] if path in shown else view._fields.display(record, path),
+            opens.get(path, ""),
         )
         for path in paths
-        if path not in beside
     ]
     key = view._fields.identity_of(record)
 
@@ -409,7 +406,6 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "key": key,
             "heading": view.get_record_title(record),
             "rows": rows,
-            "links": links,
             "children": child_tables(view, record, request),
             "history": history,
             "older_history": older_history,
@@ -488,37 +484,19 @@ async def many_links_text(
     return shown
 
 
-@dataclass(frozen=True)
-class LinkedRecord:
-    """A record this one points at, shown beside its details."""
-
-    path: str
-    label: str
-    title: str
-    url: str
-
-    @property
-    def initials(self) -> str:
-        """Up to two letters to stand for the record, taken from its name."""
-        letters = [word[0] for word in self.title.split() if word[:1].isalpha()]
-        return "".join(letters[:2]).upper()
-
-
-async def linked_records(
+async def link_urls(
     admin: "Admin",
     view: ModelView[Any],
     record: Any,
     paths: Sequence[str],
     request: Request,
-) -> list[LinkedRecord]:
-    """The single records a page links to, each with a way to open it.
+) -> dict[str, str]:
+    """Where each link to one record leads, by path, as its row's value links there.
 
-    A link to one record reads better as a card beside the details than as
-    one more line among them. It opens the record's own page where its view
-    lets this user see one.
+    A link is left out where no view lets this user open the record.
     """
     urls = Urls(request)
-    found = []
+    found = {}
     for path in paths:
         item = view._fields.field_for(path)
         if not isinstance(item, RelationField) or item.collection or "." in path:
@@ -527,15 +505,8 @@ async def linked_records(
         if value is None:
             continue
         target = await view_that_opens(admin, item, value, request)
-        opens = urls.detail(target, target._fields.identity_of(value)) if target else ""
-        found.append(
-            LinkedRecord(
-                path,
-                view._fields.label_for(path),
-                view._fields.display(record, path),
-                opens,
-            )
-        )
+        if target is not None:
+            found[path] = urls.detail(target, target._fields.identity_of(value))
     return found
 
 

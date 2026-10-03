@@ -100,13 +100,17 @@ class TestAFlagWhoseYesIsTheBadCase:
         assert pill(ROSE, "Yes") in row_of(page, "Lena Fischer")
         assert "pill" not in row_of(page, "Marco Rossi")
 
-    async def test_the_record_page_leaves_it_out_too(
+    async def test_the_record_page_says_no_without_a_badge(
         self, client: httpx.AsyncClient
     ) -> None:
         marco = await client.get("/admin/customers/2")
         lena = await client.get("/admin/customers/1")
 
+        # A record page names every value, so a no with no badge reads as No.
         assert "pill tone" not in marco.text
+        assert re.search(
+            r"<dt[^>]*>Is active</dt>\s*<dd[^>]*>\s*No\s*</dd>", marco.text
+        )
         assert pill(ROSE, "Yes") in lena.text
 
 

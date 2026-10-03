@@ -6,3 +6,14 @@
     <span class="pill tone-{{ tone }}">{{ text }}</span>
   {%- endif -%}
 {%- endmacro %}
+
+{#- The same on a record page, where every field names its value: the text
+    alone where the field gives that value no badge, such as a plain No. -#}
+{% macro badge_or_text(item, raw, text) -%}
+  {%- set tone = item.tone_of(raw) if item.tone_of is defined else 3 -%}
+  {%- if tone is not none -%}
+    <span class="pill tone-{{ tone }}">{{ text }}</span>
+  {%- else -%}
+    {{ text }}
+  {%- endif -%}
+{%- endmacro %}

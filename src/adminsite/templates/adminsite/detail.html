@@ -14,16 +14,24 @@
 
 {% block header_class %}lg:pt-2 lg:pb-5{% endblock %}
 
+{#- The first choice on the page, such as a status, stands beside the name. -#}
+{% set first = namespace(path=none, value="") %}
+{% for path, label, value, url in rows if first.path is none and value and view._fields.field_for(path).widget == "select" %}
+  {% set first.path = path %}{% set first.value = value %}
+{% endfor %}
+{#- Who last changed the record, from the history the page already holds. -#}
+{% set changed = (history or [])|selectattr("entry.succeeded")|first %}
+
 {% block header %}
-  {#- The first choice on the page, such as a status, stands beside the name. -#}
-  {% set first = namespace(path=none, value="") %}
-  {% for path, label, value in rows if first.path is none and value and view._fields.field_for(path).widget == "select" %}
-    {% set first.path = path %}{% set first.value = value %}
-  {% endfor %}
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-    <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ heading }}</h1>
-    {% if first.path %}
-      {{ values.badge(view._fields.field_for(first.path), view._fields.value_at(record, first.path), first.value) }}
+  <div class="flex min-w-0 flex-col gap-1.5">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ heading }}</h1>
+      {% if first.path %}
+        {{ values.badge(view._fields.field_for(first.path), view._fields.value_at(record, first.path), first.value) }}
+      {% endif %}
+    </div>
+    {% if changed %}
+      <p class="text-[13px] text-muted">{{ _('Last changed by {who} on {when} UTC', who=changed.who, when=changed.when) }}</p>
     {% endif %}
   </div>
 {% endblock %}
@@ -66,6 +74,8 @@
 
 {% block content %}
 {% include "adminsite/_action_forms.html" %}
+{#- The status beside the name leaves the rows, unless it is all they hold. -#}
+{% set shown_rows = rows|rejectattr("0", "equalto", first.path)|list if first.path and rows|length > 1 else rows %}
 <div class="flex flex-1 flex-col" x-data="{ tab: 'details' }">
   {% if history is not none %}
     <div role="tablist" aria-label="{{ _('Sections') }}" class="flex gap-5 border-b border-base-300 px-4 lg:px-7">
@@ -88,139 +98,97 @@
 
   <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
     <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" x-show="tab === 'details'"
-         class="grid max-w-6xl items-start gap-5 {% if links or history is not none %}lg:grid-cols-[minmax(0,1fr)_20rem]{% endif %}">
-      <div class="flex min-w-0 flex-col gap-5">
-        {% if rows %}
-          <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="details-title">
-            <h2 id="details-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ _('Details') }}</h2>
-            <dl class="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
-              {% for path, label, value in rows %}
-                {% set item = view._fields.field_for(path) %}
-                {% set wide = item.widget in ("textarea", "json", "image") or (value|string|length > 60) %}
-                {#- A JSON document with a schema it fits reads as labelled values. -#}
-                {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
-                {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
-                <div class="flex min-w-0 flex-col gap-1 {% if wide %}sm:col-span-2{% endif %}"
-                     {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
-                  <dt class="text-[12.5px] text-muted{% if reading is not none %} flex items-center gap-2{% endif %}">
-                    {{- label -}}
-                    {%- if reading is not none -%}
-                      <span class="ms-auto">
-                        {%- with switch_views = [("values", _("Values")), ("json", "JSON")], switch_label = label -%}
-                          {% include "adminsite/_document_switch.html" %}
-                        {%- endwith -%}
-                      </span>
-                    {%- endif -%}
-                  </dt>
-                  <dd class="break-words">
-                    {% if item.widget in ("file", "image") and value %}
-                      {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
-                      {% if item.widget == "image" %}
-                        <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-48 rounded-box border border-base-300"></a>
-                      {% else %}
-                        <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
-                      {% endif %}
-                    {% elif item.widget in ("select", "checkbox") and value %}
-                      {{ values.badge(item, view._fields.value_at(record, path), value) }}
-                    {% elif item.widget == "number" and value %}
-                      <span class="text-[15px] font-semibold tabular-nums">{{ value }}</span>
-                    {% elif item.widget == "json" and stored is not none %}
-                      {% with outline = item.outline(stored), pretty = item.laid_out(stored) %}
-                        {% if reading is not none %}
-                          {% with shown = reading.shown(stored) %}{% include "adminsite/_document_view.html" %}{% endwith %}
-                        {% else %}
-                          {% include "adminsite/_json.html" %}
-                        {% endif %}
-                      {% endwith %}
-                    {% elif value %}
-                      {{ value }}
+         class="flex max-w-5xl flex-col gap-5">
+      {% if shown_rows %}
+        {#- A row per field, its label in a column of its own, so the labels
+            read down one line and the values line up beside them. -#}
+        <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="fields-title">
+          <h2 id="fields-title" class="px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
+          <dl>
+            {% for path, label, value, url in shown_rows %}
+              {% set item = view._fields.field_for(path) %}
+              {#- A JSON document with a schema it fits reads as labelled values. -#}
+              {% set stored = view._fields.value_at(record, path) if item.widget == "json" else none %}
+              {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
+              <div class="grid gap-1 border-t border-line px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4"
+                   {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
+                <dt class="text-[13px] leading-5 text-muted">{{ label }}</dt>
+                <dd class="min-w-0 break-words leading-5">
+                  {% if reading is not none %}
+                    <div class="mb-2 flex justify-end">
+                      {%- with switch_views = [("values", _("Values")), ("json", "JSON")], switch_label = label -%}
+                        {% include "adminsite/_document_switch.html" %}
+                      {%- endwith -%}
+                    </div>
+                  {% endif %}
+                  {% if item.widget in ("file", "image") and value %}
+                    {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
+                    {% if item.widget == "image" %}
+                      <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>
                     {% else %}
-                      <span class="text-muted">—</span>
+                      <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
                     {% endif %}
-                  </dd>
-                </div>
-              {% endfor %}
-            </dl>
-          </section>
-        {% endif %}
+                  {% elif url and value %}
+                    <a class="text-link hover:underline" href="{{ url }}">{{ value }}</a>
+                  {% elif item.widget in ("select", "checkbox") and value %}
+                    {{ values.badge_or_text(item, view._fields.value_at(record, path), value) }}
+                  {% elif item.widget == "number" and value %}
+                    <span class="tabular-nums">{{ value }}</span>
+                  {% elif item.widget == "json" and stored is not none %}
+                    {% with outline = item.outline(stored), pretty = item.laid_out(stored) %}
+                      {% if reading is not none %}
+                        {% with shown = reading.shown(stored) %}{% include "adminsite/_document_view.html" %}{% endwith %}
+                      {% else %}
+                        {% include "adminsite/_json.html" %}
+                      {% endif %}
+                    {% endwith %}
+                  {% elif item.widget == "textarea" and value %}
+                    <div class="max-w-prose whitespace-pre-line">{{ value }}</div>
+                  {% elif value %}
+                    {{ value }}
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </dd>
+              </div>
+            {% endfor %}
+          </dl>
+        </section>
+      {% endif %}
 
-        {% for table in children %}
-          <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
-                   aria-labelledby="child-{{ loop.index }}">
-            <div class="flex items-center gap-2 border-b border-line px-5 py-3.5">
-              <h2 id="child-{{ loop.index }}" class="text-sm font-semibold">{{ table.label }}</h2>
-              <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-xs font-medium text-muted">{{ table.rows|length }}</span>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-line">
-                    {% for header in table.headers %}
-                      <th class="h-9 px-5 text-[12.5px] font-medium text-muted {{ 'text-end' if table.numeric[loop.index0] else 'text-start' }}">{{ header }}</th>
+      {% for table in children %}
+        <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
+                 aria-labelledby="child-{{ loop.index }}">
+          <div class="flex items-center gap-2 px-5 py-3.5">
+            <h2 id="child-{{ loop.index }}" class="text-sm font-semibold">{{ table.label }}</h2>
+            <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-xs font-medium text-muted">{{ table.rows|length }}</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-y border-line bg-subtle">
+                  {% for header in table.headers %}
+                    <th class="h-9 px-5 text-[12.5px] font-medium text-muted {{ 'text-end' if table.numeric[loop.index0] else 'text-start' }}">{{ header }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">
+                {% for cells in table.rows %}
+                  <tr>
+                    {% for text in cells %}
+                      <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{{ text or "—" }}</td>
                     {% endfor %}
                   </tr>
-                </thead>
-                <tbody class="divide-y divide-line">
-                  {% for cells in table.rows %}
-                    <tr>
-                      {% for text in cells %}
-                        <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{{ text or "—" }}</td>
-                      {% endfor %}
-                    </tr>
-                  {% else %}
-                    <tr>
-                      <td colspan="{{ table.headers|length }}" class="h-11 px-5 text-muted">{{ _('None yet.') }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        {% endfor %}
-      </div>
-
-      {% if links or history is not none %}
-        <div class="flex min-w-0 flex-col gap-5">
-          {% for link in links %}
-            <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="link-{{ loop.index }}">
-              <h2 id="link-{{ loop.index }}" class="border-b border-line px-4 py-3.5 text-sm font-semibold">{{ link.label }}</h2>
-              <div class="flex items-center gap-3 px-4 py-4">
-                <span class="inline-flex size-9.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[13px] font-semibold text-primary"
-                      aria-hidden="true">{{ link.initials }}</span>
-                {% if link.url %}
-                  <a class="min-w-0 break-words font-semibold text-link hover:underline" href="{{ link.url }}">{{ link.title }}</a>
                 {% else %}
-                  <span class="min-w-0 break-words font-semibold">{{ link.title }}</span>
-                {% endif %}
-              </div>
-            </section>
-          {% endfor %}
-
-          {% if history is not none %}
-            <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="recent-title">
-              <h2 id="recent-title" class="border-b border-line px-4 py-3.5 text-sm font-semibold">{{ _('History') }}</h2>
-              <div class="flex flex-col gap-3.5 px-4 py-4">
-                {% for entry in history[:3] %}
-                  <div class="flex gap-2.5">
-                    <span class="mt-1.5 size-2 shrink-0 rounded-full {% if entry.entry.event == 'deleted' or not entry.entry.succeeded %}bg-error{% elif entry.entry.event == 'action' %}bg-info{% else %}bg-primary{% endif %}"
-                          aria-hidden="true"></span>
-                    <div class="min-w-0">
-                      <p class="text-[13.5px]"><span class="font-medium">{{ entry.who }}</span> {{ entry.what }}</p>
-                      <p class="text-xs text-muted"><time>{{ _('{when} UTC', when=entry.when) }}</time></p>
-                    </div>
-                  </div>
-                {% else %}
-                  <p class="text-[13.5px] text-muted">{{ _('Nothing recorded yet.') }}</p>
+                  <tr>
+                    <td colspan="{{ table.headers|length }}" class="h-11 px-5 text-muted">{{ _('None yet.') }}</td>
+                  </tr>
                 {% endfor %}
-                {% if history %}
-                  <button class="self-start text-[13px] font-medium text-link hover:underline" type="button"
-                          @click="tab = 'history'">{{ _('See the full history') }}</button>
-                {% endif %}
-              </div>
-            </section>
-          {% endif %}
-        </div>
-      {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endfor %}
     </div>
 
     {% if history is not none %}

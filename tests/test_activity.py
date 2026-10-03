@@ -223,3 +223,29 @@ class TestPaging:
 
         assert "History (3)" in record.text
         assert "Older entries are on the Activity page" not in record.text
+
+    async def test_the_record_page_says_who_changed_it_last(
+        self, client: httpx.AsyncClient, log: AuditLog
+    ) -> None:
+        await log.record(
+            [
+                AuditEntry(
+                    view="orders",
+                    record_key="1",
+                    event=AuditEvent.UPDATED,
+                    user=user,
+                    occurred_at=MONDAY + timedelta(hours=hours),
+                    error=error,
+                )
+                for user, hours, error in [
+                    ("nima", 1, None),
+                    ("lena", 2, None),
+                    ("marco", 3, "Not today."),
+                ]
+            ]
+        )
+
+        record = await client.get("/admin/orders/1")
+
+        # A change that failed changed nothing, so the line skips it.
+        assert "Last changed by lena on Sep 14, 2026 02:00 UTC" in record.text

@@ -10,6 +10,10 @@ Before upgrading:
 
 What changed:
 
+- The record page lists its fields as a table: a row per field, the label beside the value, so the
+  labels read down one column. A link to one record is a link in its row rather than a card beside
+  the details, a yes or no always shows Yes or No, and a line under the title says who changed the
+  record last when the audit log is on.
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.
