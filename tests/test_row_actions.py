@@ -122,14 +122,14 @@ class TestDeclaring:
     def test_an_action_runs_on_one_of_three_things(self) -> None:
         view = OrderView()
 
-        assert [item.name for item in view._actions_on("record")] == [
+        assert [item.name for item in view._actions.on("record")] == [
             "confirm",
             "download",
             "refuse",
             "ship",
         ]
-        assert [item.name for item in view._actions_on("view")] == ["summary", "sync"]
-        assert [item.name for item in view._actions_on("selection")] == [
+        assert [item.name for item in view._actions.on("view")] == ["summary", "sync"]
+        assert [item.name for item in view._actions.on("selection")] == [
             "note",
             "delete_selected",
         ]

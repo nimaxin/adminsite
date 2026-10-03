@@ -319,7 +319,7 @@ async def order_status(database: Database, key: int) -> OrderStatus:
 
 
 def inputs_of(name: str) -> dict[str, Any]:
-    return {item.name: item for item in OrderView()._action_named(name).inputs}
+    return {item.name: item for item in OrderView()._actions.named(name).inputs}
 
 
 class TestWhatTheDialogAsksFor:
@@ -391,7 +391,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        (carrier,) = Shipping()._action_named("ship").inputs
+        (carrier,) = Shipping()._actions.named("ship").inputs
 
         assert isinstance(carrier, EnumField)
         assert carrier.choices == (
@@ -415,13 +415,13 @@ class TestWhatTheDialogAsksFor:
         assert list(inputs_of("sign")) == ["signed.note", "signed.initials"]
 
     def test_the_record_goes_to_its_type_after_the_star(self) -> None:
-        stamp = OrderView()._action_named("stamp")
+        stamp = OrderView()._actions.named("stamp")
 
         assert stamp.inputs == ()
         assert stamp.needs_dialog is False
 
     def test_what_is_handed_may_be_typed_optional(self) -> None:
-        look = OrderView()._action_named("look")
+        look = OrderView()._actions.named("look")
 
         assert look.inputs == ()
         assert look.call is not None
@@ -450,7 +450,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        asked = Notes()._action_named("note").inputs
+        asked = Notes()._actions.named("note").inputs
 
         assert [(item.label, item.required) for item in asked] == [
             ("Inside", False),
@@ -469,7 +469,7 @@ class TestWhatTheDialogAsksFor:
             ) -> str:
                 return ""
 
-        carriers, customers = Offers()._action_named("offer").inputs
+        carriers, customers = Offers()._actions.named("offer").inputs
 
         assert isinstance(carriers, EnumField)
         assert carriers.multiple is True
@@ -486,7 +486,7 @@ class TestWhatTheDialogAsksFor:
                 return ""
 
         view = Offers()
-        read = view._forms.parse_action_inputs(view._action_named("offer"), {})
+        read = view._forms.parse_action_inputs(view._actions.named("offer"), {})
 
         assert read.errors == {"customers": "This field is required."}
 

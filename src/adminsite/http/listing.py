@@ -272,7 +272,7 @@ def as_context(
         "sort": sort_value(spec),
         "spec": spec,
         "export_params": export_params(request),
-        "actions": view._actions_on("selection", request),
-        "record_actions": view._actions_on("record", request),
-        "view_actions": view._actions_on("view", request),
+        "actions": view._actions.on("selection", request),
+        "record_actions": view._actions.on("record", request),
+        "view_actions": view._actions.on("view", request),
     }

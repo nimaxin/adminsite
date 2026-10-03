@@ -380,7 +380,7 @@ async def save(
 async def action(admin: "Admin", request: Request) -> Response:
     """Run an action over some keys or all that match, over one record, or the view."""
     view = find(admin, request)
-    found = view._find_action(request.path_params["name"], request)
+    found = view._actions.find(request.path_params["name"], request)
     if found is None:
         raise ApiError(404, _("No such action."))
     body = await read_body(request)

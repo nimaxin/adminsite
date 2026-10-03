@@ -384,7 +384,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
 
     allowed_actions = [
         item
-        for item in view._actions_on("record", request)
+        for item in view._actions.on("record", request)
         if await view.allows(item.permission, request=request, record=record)
     ]
 
@@ -822,7 +822,7 @@ async def action_lookup(admin: "Admin", request: Request) -> Response:
     the target's own view, as a form's link does.
     """
     view = find_view(admin, request)
-    found = view._find_action(request.path_params["name"], request)
+    found = view._actions.find(request.path_params["name"], request)
     if found is None:
         raise HTTPException(status_code=404, detail=_("No such action."))
     await view._ensure(found.permission, request=request)
@@ -1111,7 +1111,7 @@ async def note_sign_in(
 async def run_action(admin: "Admin", request: Request) -> Response:
     """Run an action: over the chosen rows, over one record, or over the view."""
     view = find_view(admin, request)
-    found = view._find_action(request.path_params["name"], request)
+    found = view._actions.find(request.path_params["name"], request)
     if found is None:
         raise HTTPException(status_code=404, detail=_("No such action."))
 
@@ -1175,7 +1175,7 @@ async def perform(
 ) -> Any:
     """Run one action, whatever it acts on."""
     if found.on_view:
-        return await view._run_view_action(
+        return await view._actions.run_on_view(
             found, session, request=request, values=values
         )
 
@@ -1193,7 +1193,7 @@ async def perform(
             )
         if record is None:
             raise HTTPException(status_code=404, detail=_("No such record."))
-        return await view._run_record_action(
+        return await view._actions.run_on_record(
             found, record, session, request=request, values=values
         )
 
@@ -1209,7 +1209,9 @@ async def perform(
         everything=submitted.get("everything") == "1",
         request=request,
     )
-    return await view._run_action(found, selection, request=request, values=values)
+    return await view._actions.run_on_selection(
+        found, selection, request=request, values=values
+    )
 
 
 def back_from_action(

@@ -1,7 +1,6 @@
 import types
 from collections.abc import Mapping, Sequence
 from copy import copy
-from dataclasses import replace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,28 +10,16 @@ from typing import (
     get_args,
     get_origin,
 )
-from uuid import uuid4
 
-from markupsafe import Markup
 from sqlalchemy import ColumnElement
 from starlette.requests import Request
-from starlette.responses import Response
 
 if TYPE_CHECKING:
     from adminsite.audit import AuditStore
     from adminsite.views.registry import ViewRegistry
 
-from adminsite.actions.action import Action, action_of
-from adminsite.actions.parameters import (
-    ASYNC_SESSION,
-    ActionCall,
-    async_session_refused,
-    read_call,
-)
+from adminsite.actions.action import Action
 from adminsite.actions.selection import Selection
-from adminsite.audit.actor import actor_of
-from adminsite.audit.entry import AuditEntry, AuditEvent, diff
-from adminsite.audit.inputs import recorded_inputs
 from adminsite.backends.sqlalchemy.filters import (
     SQLFilter,
 )
@@ -53,18 +40,15 @@ from adminsite.exceptions import (
     AdminSiteError,
     NotAModelError,
     PermissionDeniedError,
-    RefusedError,
 )
 from adminsite.fields import (
     BaseField,
     ComputedField,
     Field,
     FieldRegistry,
-    RelationField,
     default_registry,
 )
 from adminsite.i18n import gettext as _
-from adminsite.messages import Message
 from adminsite.query import CountMode, Pagination
 from adminsite.schema import RelationDirection
 from adminsite.security import Permission, RequestAction, permission_name
@@ -74,6 +58,7 @@ from adminsite.text import (
     pluralize,
     snake_case,
 )
+from adminsite.views.action_runner import DELETE_ACTION, ActionRunner
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.checks import (
     check_title,
@@ -81,7 +66,6 @@ from adminsite.views.checks import (
 from adminsite.views.form_parsing import FormParser
 from adminsite.views.inline import Inline
 from adminsite.views.links import Links
-from adminsite.views.naming import name_all_linked
 from adminsite.views.pages import PageFields
 from adminsite.views.reading import Reader
 from adminsite.views.saving import Saver
@@ -93,13 +77,9 @@ from adminsite.views.writing import (
 )
 
 __all__ = [
-    "DELETE_ACTION",
     "ModelView",
     "view_class",
 ]
-
-# The name of the built-in action that deletes the chosen rows.
-DELETE_ACTION = "delete_selected"
 
 # The model a view shows. Not bound to DeclarativeBase: a SQLModel model is
 # mapped without it. The admin refuses a class that is not mapped.
@@ -253,7 +233,6 @@ class ModelView(Generic[M]):
         # The settings as the paths the rest of adminsite works with.
         self._settings = SettingsReader(self, self._schema, self._inspector)
 
-        self._actions = self._collect_actions()
         self._inline_views = {
             inline.name: self._build_inline_view(inline, f"inlines[{index}]")
             for index, inline in enumerate(
@@ -293,6 +272,9 @@ class ModelView(Generic[M]):
             self._audit,
             self._repository,
             self._inspector,
+        )
+        self._actions = ActionRunner(
+            self, self._fields, self._pages, self._links, self._audit, self._inspector
         )
 
     # Reading the configuration. Override these when the answer depends on
@@ -492,383 +474,10 @@ class ModelView(Generic[M]):
         Delete comes last, where the view allows deleting several at once,
         unless the view has an action of its own by that name.
         """
-        found = list(self._actions.values())
+        found = list(self._actions.marked.values())
         deletes = self.can_delete and self.can_delete_selected
-        if deletes and DELETE_ACTION not in self._actions:
-            found.append(self._delete_action())
-        return found
-
-    def _delete_action(self) -> Action:
-        """The built-in delete, worded for this view in the current language."""
-        return Action(
-            name=DELETE_ACTION,
-            label=_("Delete"),
-            method="_delete_selected",
-            confirm=_(
-                "Delete the chosen {things}? This cannot be undone.",
-                things=self.label_plural.lower(),
-            ),
-            permission=Permission.DELETE,
-            dangerous=True,
-            writes_own_audit=True,
-        )
-
-    def _actions_on(self, target: str, request: Any = None) -> tuple[Action, ...]:
-        """The actions of one kind: over a selection, a record or the view."""
-        return tuple(
-            self._asking_all(item)
-            for item in self.get_actions(request)
-            if item.on == target
-        )
-
-    def _asking_all(self, item: Action) -> Action:
-        """The action, asking for every value its method needs.
-
-        `get_actions` may replace an action's inputs, offer it again under
-        another name, or build one by hand. An input given there takes the
-        place of the one of its name, and the method's other parameters are
-        still asked for.
-        """
-        known = self._actions.get(item.name)
-        if item is known:
-            return item
-        if known is None or known.method != item.method:
-            known = next(
-                (one for one in self._actions.values() if one.method == item.method),
-                None,
-            )
-        if known is not None:
-            call, asked = known.call, known.inputs
-        else:
-            call = self._read_call(item)
-            asked = (*item.inputs, *call.inputs)
-        given = {one.name: one for one in item.inputs}
-        inputs = (*[given.pop(one.name, one) for one in asked], *given.values())
-        return replace(item, inputs=inputs, call=call)
-
-    def _find_action(self, name: str, request: Any = None) -> Action | None:
-        """The action of this name offered to this request, or None.
-
-        It looks through `get_actions`, so an action built for this request,
-        with its own choices or labels, is the one that runs. A mistake in
-        the action itself is raised, never taken for a missing one.
-        """
-        for item in self.get_actions(request):
-            if item.name == name:
-                return self._asking_all(item)
-        # No falling back to the class's own list: an action `get_actions`
-        # leaves out for this user is not offered, so it cannot be run by
-        # asking for it by name either.
-        return None
-
-    def _action_named(self, name: str, request: Any = None) -> Action:
-        """Find an action by name, or say it is not there."""
-        found = self._find_action(name, request)
-        if found is None:
-            raise AdminSiteError(
-                f"{type(self).__name__} has no action called {name!r}."
-            )
-        return found
-
-    async def _run_record_action(
-        self,
-        found: Action,
-        record: Any,
-        session: SessionAdapter,
-        *,
-        request: Any = None,
-        values: Mapping[str, Any] | None = None,
-    ) -> Any:
-        """Run an action on one record, and say what to tell the user."""
-        entry = self._action_entry(
-            found,
-            request,
-            values,
-            self._fields.identity_of(record),
-            self.get_record_title(record),
-        )
-        auditing = self._audit_log is not None
-        paths = list(self._pages.form_fields(request, record)) if auditing else []
-        try:
-            await self._ensure(found.permission, request=request, record=record)
-            given, entry = await self._given(found, session, values, entry, request)
-            before = self._audit.snapshot(record, paths)
-            answer = await self._call(found, record, request, session, given)
-            if auditing:
-                # Anything the record refuses surfaces here, while the entry
-                # can still be written down as failed.
-                await session.flush()
-        except Exception as error:
-            self._audit.record_failure(session, [entry], error)
-            raise
-
-        text = self._answer_text(found, answer)
-        changes = (
-            self._audit.masked(diff(before, self._audit.snapshot(record, paths)))
-            if auditing
-            else {}
-        )
-        self._audit.write(
-            session,
-            [replace(entry, changes=changes, message=self._kept_answer(found, text))],
-        )
-        return self._shown(answer, text)
-
-    async def _run_view_action(
-        self,
-        found: Action,
-        session: SessionAdapter,
-        *,
-        request: Any = None,
-        values: Mapping[str, Any] | None = None,
-    ) -> Any:
-        """Run an action that acts on the view, not on any record."""
-        entry = self._action_entry(found, request, values, "", None)
-        try:
-            await self._ensure(found.permission, request=request)
-            given, entry = await self._given(found, session, values, entry, request)
-            answer = await self._call(found, None, request, session, given)
-            if self._audit_log is not None:
-                await session.flush()
-        except Exception as error:
-            self._audit.record_failure(session, [entry], error)
-            raise
-
-        text = self._answer_text(found, answer)
-        self._audit.write(
-            session, [replace(entry, message=self._kept_answer(found, text))]
-        )
-        return self._shown(answer, text)
-
-    async def _run_action(
-        self,
-        found: Action,
-        selection: Selection[M],
-        *,
-        request: Any = None,
-        values: Mapping[str, Any] | None = None,
-    ) -> Any:
-        """Run an action over a selection, and say what to tell the user.
-
-        The values the action asked for are passed to its method by name.
-        """
-        entry = replace(
-            self._action_entry(found, request, values, "", None), batch=str(uuid4())
-        )
-        auditing = self._audit_log is not None and not found.writes_own_audit
-        keys: list[str] = []
-        try:
-            await self._ensure(found.permission, request=request)
-            # Read the keys before the action runs: afterwards the rows may no
-            # longer match the filter they were chosen by.
-            if auditing:
-                keys = await selection.covered_keys()
-            given, entry = await self._given(
-                found, selection.session, values, entry, request
-            )
-            answer = await self._call(
-                found, selection, request, selection.session, given
-            )
-            if self._audit_log is not None:
-                await selection.session.flush()
-        except Exception as error:
-            if auditing:
-                failed = [replace(entry, record_key=key) for key in keys] or [entry]
-                self._audit.record_failure(selection.session, failed, error)
-            raise
-
-        text = self._answer_text(found, answer)
-        self._audit.write(
-            selection.session,
-            [
-                replace(
-                    entry,
-                    record_key=key,
-                    changes=self._audit.masked(selection.changes.get(key, {})),
-                    message=self._kept_answer(found, text),
-                )
-                for key in keys
-            ],
-        )
-        return self._shown(answer, text)
-
-    async def _resolve_inputs(
-        self,
-        found: Action,
-        session: SessionAdapter,
-        values: Mapping[str, Any],
-        *,
-        request: Any = None,
-    ) -> dict[str, Any]:
-        """The values an action was given, with the records its links name.
-
-        A key is read through the target's own view, as a form's link is, so
-        the method only ever gets a record this user may see. A key for any
-        other record is refused, and nothing says whether it exists.
-        """
-        given = dict(values)
-        for item in found.inputs:
-            value = given.get(item.name)
-            if not isinstance(item, RelationField) or value in (None, "", []):
-                continue
-            keys = value if isinstance(value, list | tuple | set) else [value]
-            label = found.input_label(item)
-            records = [
-                await self._input_record(item, session, key, request, label)
-                for key in keys
-            ]
-            given[item.name] = records if item.collection else records[0]
-        return given
-
-    async def _input_record(
-        self,
-        item: RelationField,
-        session: SessionAdapter,
-        key: Any,
-        request: Any,
-        label: str,
-    ) -> Any:
-        """The record a link input names, or a refusal naming the input."""
-        target = self._views.for_relation(item) if self._views is not None else None
-        if target is not None:
-            record = await self._links.linked_through(target, session, key, request)
-        else:
-            record = await self._links.linked_directly(item, session, key)
-        if record is None:
-            raise RefusedError(
-                _("{field}: choose from the records offered.", field=label),
-                field=item.name,
-            )
-        return record
-
-    async def _given(
-        self,
-        found: Action,
-        session: SessionAdapter,
-        values: Mapping[str, Any] | None,
-        entry: AuditEntry,
-        request: Any,
-    ) -> tuple[dict[str, Any], AuditEntry]:
-        """What the method is given, and the entry that writes it down.
-
-        The entry keeps a linked record by its name, as the history names
-        it everywhere else, rather than by its key.
-        """
-        given = await self._resolve_inputs(
-            found, session, values or {}, request=request
-        )
-        named = dict(given)
-        for item in found.inputs:
-            if isinstance(item, RelationField) and named.get(item.name) is not None:
-                named[item.name] = name_all_linked(
-                    item, named[item.name], views=self._views, inspector=self._inspector
-                )
-        return given, replace(entry, inputs=recorded_inputs(found.inputs, named))
-
-    async def _call(
-        self,
-        found: Action,
-        subject: Any,
-        request: Any,
-        session: SessionAdapter,
-        values: Mapping[str, Any],
-    ) -> Any:
-        """Call an action's method with what its parameters ask for.
-
-        `subject` is the selection or the record it runs on, and `values`
-        what the dialog asked for, by input name.
-        """
-        positional, named = self._call_of(found).arguments(
-            subject=subject, request=request, session=session, values=values
-        )
-        return await getattr(self, found.method)(*positional, **named)
-
-    def _call_of(self, found: Action) -> ActionCall:
-        """How an action's method is called, read from its parameters.
-
-        Read when the view is built for each marked method, and here for an
-        action built by hand, such as the built-in delete.
-        """
-        if found.call is not None:
-            return found.call
-        return self._read_call(found)
-
-    def _read_call(self, found: Action) -> ActionCall:
-        return read_call(
-            getattr(self, found.method),
-            where=f"{type(self).__name__}.{found.method}",
-            on=found.on,
-            model=self.model,
-            asked=found.inputs,
-        )
-
-    def _check_database(self, is_async: bool) -> None:
-        """Refuse an action asking for an AsyncSession of a database that is not async.
-
-        The admin calls it when the view is registered, so the mistake stops
-        it starting rather than the action's first run.
-        """
-        if is_async:
-            return
-        for found in self._actions.values():
-            asking = found.call.handed_as(ASYNC_SESSION) if found.call else None
-            if asking is not None:
-                where = f"{type(self).__name__}.{found.method}"
-                raise AdminSiteError(f"{where}: {async_session_refused(asking.name)}")
-
-    def _action_entry(
-        self,
-        found: Action,
-        request: Any,
-        values: Mapping[str, Any] | None,
-        key: str,
-        title: str | None,
-    ) -> AuditEntry:
-        """The entry an action run is written down as, before it has run."""
-        return AuditEntry(
-            view=self.name,
-            record_key=key,
-            record_title=title,
-            event=AuditEvent.ACTION,
-            action=found.label,
-            inputs=recorded_inputs(found.inputs, values or {}),
-            **actor_of(request),
-        )
-
-    def _answer_text(self, found: Action, answer: Any) -> str | None:
-        """What to tell the user; nothing when the action sent a response."""
-        if isinstance(answer, Response):
-            return None
-        return str(answer) if answer else _("{action} done.", action=found.label)
-
-    def _shown(self, answer: Any, text: str | None) -> Any:
-        """What the page is given: the answer itself, when it says more than text.
-
-        A response is sent as it is, and a `Message` or `Html` keeps what
-        plain text would lose: a link, a value to copy, its markup.
-        """
-        if isinstance(answer, Response | Message | Markup):
-            return answer
-        return text
-
-    def _kept_answer(self, found: Action, text: str | None) -> str | None:
-        """What the audit log keeps of the answer: nothing, if it is secret."""
-        return text if found.audit_answer else None
-
-    def _collect_actions(self) -> dict[str, Action]:
-        """The marked methods, each with what its parameters are handed and ask for.
-
-        Read now, so a parameter no dialog can ask for stops the admin
-        starting rather than the action's first run.
-        """
-        found: dict[str, Action] = {}
-        for name in dir(type(self)):
-            marked = action_of(getattr(type(self), name, None))
-            if marked is not None:
-                call = self._read_call(marked)
-                found[marked.name] = replace(
-                    marked, inputs=(*marked.inputs, *call.inputs), call=call
-                )
+        if deletes and DELETE_ACTION not in self._actions.marked:
+            found.append(self._actions.delete_action())
         return found
 
     # Permissions. Four levels: the view, the action, the field and the row.

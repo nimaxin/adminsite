@@ -118,7 +118,7 @@ class TestDeclaringActions:
         assert names[-1] == "delete_selected"
 
     def test_an_action_with_inputs_opens_a_dialog(self) -> None:
-        found = OrderView()._action_named("add_note")
+        found = OrderView()._actions.named("add_note")
 
         assert found.needs_dialog is True
         assert [item.name for item in found.inputs] == ["text", "urgency"]
@@ -128,14 +128,14 @@ class TestDeclaringActions:
             action("Broken", inputs=[StringField("keys")])
 
     def test_an_action_carries_its_label_and_confirmation(self) -> None:
-        ship = OrderView()._action_named("ship")
+        ship = OrderView()._actions.named("ship")
 
         assert ship.label == "Mark as shipped"
         assert ship.needs_confirming is True
         assert ship.dangerous is False
 
     def test_a_label_is_made_from_the_name_when_none_is_given(self) -> None:
-        assert OrderView()._action_named("one_by_one").label == "Count one by one"
+        assert OrderView()._actions.named("one_by_one").label == "Count one by one"
 
 
 class TestRunningActions:
