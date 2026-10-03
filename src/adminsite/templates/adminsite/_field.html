@@ -8,12 +8,15 @@
   {%- if row.error or row.note %} aria-describedby="{{ field_id }}-note"{% endif %}
   {%- if row.error %} aria-invalid="true"{% endif %}
 {%- endset -%}
-{%- set wide = row.widget in ("textarea", "json", "file", "image") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
+{#- An input as wide as what it holds: a number or a date short, a line of
+    text longer, long text, files and many values the whole width. -#}
+{%- set full = row.widget in ("textarea", "json", "file", "image", "list") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
+{%- set short = row.widget in ("number", "date", "time", "datetime") -%}
 {#- A document drawn as a form switches between the form and its JSON. -#}
 {%- set document = row.document if row.document is defined else none -%}
 {#- A new record's document whose schema follows the rest of the form is
     drawn again when something outside it changes. -#}
-<fieldset class="flex min-w-0 flex-col gap-1.5 {% if wide %}sm:col-span-2{% endif %}"
+<fieldset class="flex min-w-0 flex-col gap-1.5 {% if short %}max-w-xs{% elif not full %}max-w-md{% endif %}"
           {% if document is not none %}x-data="{ view: 'form' }"{% endif %}
           {% if row.redraw_url|default("") %}id="{{ field_id }}-part" hx-post="{{ row.redraw_url }}" hx-swap="outerHTML"
             hx-trigger="change[!target.closest('#{{ field_id }}-part')] from:closest form"{% endif %}>

@@ -137,6 +137,32 @@ class TestRefusingOneField:
         )
         assert "Some fields need another look." in summary
 
+    async def test_the_title_says_so_and_the_summary_takes_focus(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        form = await client.get("/admin/products/new")
+        answer = await client.post(
+            "/admin/products/new",
+            data={
+                "_csrf": token_in(form),
+                "name": "Cheap",
+                "price": "-1.00",
+                "description": "",
+            },
+        )
+
+        # A screen reader hears it in the title first, then at the summary.
+        assert "<title>Error: New product" in answer.text
+        assert "<title>New product" in form.text
+        assert 'role="alert" tabindex="-1" x-init="$el.focus()"' in answer.text
+
+    async def test_the_browser_leaves_every_check_to_the_admin(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        form = await client.get("/admin/products/new")
+
+        assert re.search(r'<form id="record-form"[^>]*\snovalidate[\s>]', form.text)
+
     async def test_what_was_typed_is_still_there(
         self, client: httpx.AsyncClient
     ) -> None:

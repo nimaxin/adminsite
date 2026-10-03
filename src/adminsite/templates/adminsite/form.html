@@ -1,7 +1,25 @@
 {% extends "adminsite/base.html" %}
 {% import "adminsite/_icons.html" as icons %}
 
-{% block page_title %}{{ heading }} · {{ title }}{% endblock %}
+{#- Every problem in one place at the top, each a link to its field, so a
+    mistake at the bottom of a long form is never missed. -#}
+{%- set problems = [] -%}
+{%- for row in rows -%}
+  {%- for problem in row.problems -%}
+    {%- set ignored = problems.append(problem) -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- for table in inlines -%}
+  {%- for item in table.rows -%}
+    {%- set number = loop.index -%}
+    {%- for cell in item.cells if cell.error -%}
+      {%- set ignored = problems.append(("field-" ~ cell.path, _("{thing}, row {number}, {field}", thing=table.label, number=number, field=cell.label|lower), cell.error)) -%}
+    {%- endfor -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{#- The title says so first, so a screen reader hears it as the page loads. -#}
+{% block page_title %}{% if form_error or problems %}{{ _('Error:') }} {% endif %}{{ heading }} · {{ title }}{% endblock %}
 
 {% block breadcrumb %}
   <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
@@ -35,29 +53,16 @@
 {% endblock %}
 
 {% block content %}
-{#- Every problem in one place at the top, each a link to its field, so a
-    mistake at the bottom of a long form is never missed. -#}
-{%- set problems = [] -%}
-{%- for row in rows -%}
-  {%- for problem in row.problems -%}
-    {%- set ignored = problems.append(problem) -%}
-  {%- endfor -%}
-{%- endfor -%}
-{%- for table in inlines -%}
-  {%- for item in table.rows -%}
-    {%- set number = loop.index -%}
-    {%- for cell in item.cells if cell.error -%}
-      {%- set ignored = problems.append(("field-" ~ cell.path, _("{thing}, row {number}, {field}", thing=table.label, number=number, field=cell.label|lower), cell.error)) -%}
-    {%- endfor -%}
-  {%- endfor -%}
-{%- endfor -%}
 <div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
-  <form id="record-form" class="flex max-w-3xl flex-col gap-5" method="post" action="{{ action }}"
+  {#- novalidate: the browser's own checks speak its language and look like
+      nothing else here, so every mistake is told by the admin instead. -#}
+  <form id="record-form" class="flex max-w-3xl flex-col gap-5" method="post" action="{{ action }}" novalidate
         {% if rows|selectattr("widget", "in", ["file", "image"])|list %}enctype="multipart/form-data"{% endif %}>
     {{ csrf_input | safe if csrf_input }}
 
     {% if form_error or problems %}
-      <div role="alert" class="flex gap-3 rounded-box border border-error/30 bg-error/5 px-4 py-3.5">
+      <div role="alert" tabindex="-1" x-init="$el.focus()"
+           class="flex gap-3 rounded-box border border-error/30 bg-error/5 px-4 py-3.5 focus:outline-2 focus:outline-error/40">
         <span class="mt-0.5 text-error">{{ icons.icon("alert", 18) }}</span>
         <div class="flex min-w-0 flex-col gap-1.5">
           <p class="font-semibold">{{ form_error or _('Some fields need another look.') }}</p>
@@ -77,7 +82,8 @@
     {% if rows %}
       <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="form-title">
         <h2 id="form-title" class="border-b border-line px-5 py-3.5 text-sm font-semibold">{{ view.label }}</h2>
-        <div class="grid gap-x-5 gap-y-5 p-5 sm:grid-cols-2">
+        {#- One field to a line, in the order of the view's fields. -#}
+        <div class="flex flex-col gap-5 p-5">
           {% for row in rows %}
             {% include "adminsite/_field.html" %}
           {% endfor %}

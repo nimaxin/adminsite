@@ -14,6 +14,10 @@ What changed:
   labels read down one column. A link to one record is a link in its row rather than a card beside
   the details, each record a link to many holds opens its own page, a yes or no always shows Yes or
   No, and a line under the title says who changed the record last when the audit log is on.
+- The create and edit forms put one field on each line, in the order of `fields`, each input as wide
+  as what it holds. A read-only value reads as plain text. The browser's own checks are off, so a
+  missing value gets the admin's message in the admin's language, and after a failed save the page
+  title starts with "Error:" and the list of mistakes takes the focus.
 - adminsite no longer knows the names it used before 0.1.0a10. A view that sets one, such
   as `list_display`, starts and the setting does nothing, and an old class or keyword fails
   like any name that does not exist.
