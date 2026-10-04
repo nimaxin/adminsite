@@ -5,6 +5,7 @@
 
     Takes `shown`, from Document.shown, and `outline` and `pretty` for the
     JSON view. -#}
+{% import "adminsite/_icons.html" as icons %}
 {% import "adminsite/_values.html" as values %}
 
 {%- macro value_text(part) -%}
@@ -53,7 +54,7 @@
 
 {%- macro entries(part) -%}
   <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-    {% for entry in part.entries %}
+    {% for entry in part.entries if not entry.unset %}
       <div class="flex min-w-0 flex-col gap-1 {% if entry.kind in ('group', 'rows', 'pairs', 'code') %}sm:col-span-2{% endif %}">
         <dt class="text-[12.5px] text-muted">{{ entry.label }}</dt>
         <dd class="break-words">
@@ -76,7 +77,27 @@
     record page's own markup. -#}
 <div x-show="view === 'values'" class="rounded-box border border-line bg-subtle p-4">
   {%- if shown.kind == "group" -%}
-    {{ entries(shown) }}
+    {%- set unset = shown.unset_entries -%}
+    {%- if unset and unset|length == shown.entries|length -%}
+      <p class="text-muted">{{ _('Nothing set.') }}</p>
+    {%- else -%}
+      {{ entries(shown) }}
+    {%- endif -%}
+    {#- What a partial document leaves out: one line, which opens to name it. -#}
+    {%- if unset -%}
+      <div class="mt-4 flex flex-col gap-2 border-t border-line pt-3" x-data="{ open: false }">
+        <button type="button" class="btn btn-ghost btn-sm self-start gap-1 px-1.5 font-medium text-link"
+                :aria-expanded="open.toString()" @click="open = !open">
+          {{ _('Not set ({count})', count=unset|length) }}
+          <span class="inline-flex transition-transform" :class="open && 'rotate-180'">{{ icons.icon("chevron-down", 14) }}</span>
+        </button>
+        <ul class="flex flex-wrap gap-1.5" x-show="open" x-cloak>
+          {% for entry in unset %}
+            <li class="rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-[12.5px] text-muted">{{ entry.label }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {%- endif -%}
   {%- elif shown.kind == "rows" -%}
     {{ table(shown, shown.columns) }}
   {%- elif shown.kind == "pairs" -%}

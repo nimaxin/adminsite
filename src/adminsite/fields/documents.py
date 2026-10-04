@@ -1123,8 +1123,22 @@ class Document:
     # The record page.
 
     def shown(self, value: Any) -> "Shown":
-        """The document as labelled values, for the record page."""
-        return _shown(self.shape, value, "")
+        """The document as labelled values, for the record page.
+
+        In a partial document, each field the document leaves out is marked
+        unset, so the page can list it apart from what is set.
+        """
+        shown = _shown(self.shape, value, "")
+        if self.partial and isinstance(self.shape, Group):
+            given = value if isinstance(value, Mapping) else {}
+            drawn = [
+                found.key
+                for found in self.shape.properties
+                if not isinstance(found.shape, Fixed)
+            ]
+            for entry, key in zip(shown.entries, drawn, strict=True):
+                entry.unset = key not in given
+        return shown
 
 
 def _partial_model(model: type[BaseModel]) -> type[BaseModel]:
@@ -1251,6 +1265,13 @@ class Shown:
     columns: list[str] = dataclasses.field(default_factory=list)
     rows: list[list["Shown"]] = dataclasses.field(default_factory=list)
     code: str = ""
+    # A field a partial document leaves out.
+    unset: bool = False
+
+    @property
+    def unset_entries(self) -> list["Shown"]:
+        """The fields a partial document leaves out, in the schema's order."""
+        return [entry for entry in self.entries if entry.unset]
 
     @property
     def missing(self) -> bool:

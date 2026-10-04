@@ -151,6 +151,7 @@
   "Not allowed": "دسترسی ندارید",
   "Not found": "پیدا نشد",
   "Not set": "تعیین نشده",
+  "Not set ({count})": "تعیین‌نشده ({count})",
   "Not used: {names}": "استفاده نشد: {names}",
   "Nothing found.": "چیزی پیدا نشد.",
   "Nothing matches these filters.": "چیزی با این فیلترها جور نیست.",

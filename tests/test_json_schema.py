@@ -753,7 +753,37 @@ class TestAPartialDocument:
     ) -> None:
         page = await overrides.get("/admin/settings/1")
 
-        assert page.text.count("Not set") == 3
+        assert "Not set (3)" in page.text
+        unset = re.search(r"<ul [^>]*x-show=\"open\".*?</ul>", page.text, re.DOTALL)
+        assert unset is not None
+        assert re.findall(r"<li [^>]*>([^<]+)</li>", unset.group(0)) == [
+            "Express",
+            "Zones",
+            "Fees",
+        ]
+        assert '<dt class="text-[12.5px] text-muted">Carriers</dt>' in page.text
+        assert '<dt class="text-[12.5px] text-muted">Express</dt>' not in page.text
+
+    async def test_the_record_page_says_when_nothing_is_set(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/2")
+
+        assert "Nothing set." in page.text
+        assert "Not set (5)" in page.text
+
+    def test_the_fields_left_out_are_marked_unset(self) -> None:
+        document = Document(Delivery, name="options", partial=True)
+
+        shown = document.shown({"express": True})
+
+        assert [entry.label for entry in shown.unset_entries] == [
+            "Carriers",
+            "Free over",
+            "Zones",
+            "Fees",
+        ]
+        assert not Document(Delivery, name="options").shown({}).unset_entries
 
     async def test_the_api_keeps_a_partial_document_partial(
         self, overrides: httpx.AsyncClient, database: Database
