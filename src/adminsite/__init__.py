@@ -6,12 +6,9 @@ from adminsite.dashboard import Chart, ModelCounts, RecentRecords, Stat, Widget
 from adminsite.database import Statement
 from adminsite.exceptions import (
     AdminSiteError,
-    InvalidPathError,
-    NotAModelError,
     PermissionDeniedError,
     RecordNotFoundError,
     RefusedError,
-    UnknownFieldError,
 )
 from adminsite.fields import BaseField, Field
 from adminsite.markup import Html
@@ -19,15 +16,8 @@ from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.permissions import Permission, RequestAction
 from adminsite.plugins import Plugin
-from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
-from adminsite.saved_views import SavedView, SavedViews
-from adminsite.schema import (
-    FieldPath,
-    FieldSchema,
-    ModelSchema,
-    RelationDirection,
-    RelationSchema,
-)
+from adminsite.query import CountMode, Pagination
+from adminsite.saved_views import SavedViews
 from adminsite.views import (
     DeleteContext,
     FieldsetWidget,
@@ -37,7 +27,6 @@ from adminsite.views import (
     RowWidget,
     SaveContext,
     TabsWidget,
-    ViewRegistry,
 )
 
 __version__ = version("adminsite")
@@ -53,41 +42,28 @@ __all__ = [
     "DeleteContext",
     "Descending",
     "Field",
-    "FieldPath",
-    "FieldSchema",
     "FieldsetWidget",
     "Html",
     "Inline",
-    "InvalidPathError",
     "Link",
     "Message",
     "ModelCounts",
-    "ModelSchema",
     "ModelView",
-    "NotAModelError",
-    "Page",
     "Pagination",
     "PanelWidget",
     "Permission",
     "PermissionDeniedError",
     "Plugin",
-    "QuerySpec",
     "RecentRecords",
     "RecordNotFoundError",
     "RefusedError",
-    "RelationDirection",
-    "RelationSchema",
     "RequestAction",
     "RowWidget",
     "SaveContext",
-    "SavedView",
     "SavedViews",
-    "Sort",
     "Stat",
     "Statement",
     "TabsWidget",
-    "UnknownFieldError",
-    "ViewRegistry",
     "Widget",
     "__version__",
 ]

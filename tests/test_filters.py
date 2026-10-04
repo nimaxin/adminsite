@@ -22,8 +22,8 @@ from adminsite.filters import (
     SQLAlchemyRepository,
     SQLFilter,
     TextFilter,
-    parse_filters,
 )
+from adminsite.filters.base import parse_filters
 from adminsite.filters.sql import SQLFilterContext, filter_for
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus

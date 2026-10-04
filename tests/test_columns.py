@@ -15,9 +15,9 @@ from adminsite import (
     Field,
     Link,
     ModelView,
-    Sort,
-    ViewRegistry,
 )
+from adminsite.query import Sort
+from adminsite.views import ViewRegistry
 from tests.models import Customer, Order, OrderItem, Product
 from tests.support import Backend, request_from
 

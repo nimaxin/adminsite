@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from adminsite import AdminSiteError, Field, Link, ModelView, ViewRegistry
+from adminsite import AdminSiteError, Field, Link, ModelView
 from adminsite.fields import (
     ComputedField,
     DecimalField,
@@ -14,6 +14,7 @@ from adminsite.fields import (
     StringField,
     TextAreaField,
 )
+from adminsite.views import ViewRegistry
 from tests.models import Customer, Order, OrderStatus
 from tests.support import request_from
 

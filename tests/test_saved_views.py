@@ -6,10 +6,10 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, Field, ModelView, SavedView, SavedViews
+from adminsite import Admin, Field, ModelView, SavedViews
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
-from adminsite.saved_views import clean_query
+from adminsite.saved_views import SavedView, clean_query
 from tests.models import Order
 from tests.support import request_from
 

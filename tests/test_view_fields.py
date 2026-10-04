@@ -4,17 +4,9 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import (
-    Admin,
-    AdminSiteError,
-    Descending,
-    Field,
-    Inline,
-    Link,
-    ModelView,
-    Sort,
-)
+from adminsite import Admin, AdminSiteError, Descending, Field, Inline, Link, ModelView
 from adminsite.fields import ComputedField, TextAreaField
+from adminsite.query import Sort
 from tests.models import Customer, Order, OrderItem, Product, Shelf
 from tests.support import Backend, request_from
 

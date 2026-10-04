@@ -5,11 +5,7 @@ from adminsite.fields.files import FileField, ImageField
 from adminsite.fields.json_field import JSONField
 from adminsite.fields.lists import ListField
 from adminsite.fields.passwords import PasswordField
-from adminsite.fields.registry import (
-    FieldRegistry,
-    build_default_registry,
-    default_registry,
-)
+from adminsite.fields.registry import FieldRegistry, default_registry
 from adminsite.fields.relations import RelationField
 from adminsite.fields.scalars import (
     BooleanField,
@@ -46,6 +42,5 @@ __all__ = [
     "TextAreaField",
     "TimeField",
     "UUIDField",
-    "build_default_registry",
     "default_registry",
 ]

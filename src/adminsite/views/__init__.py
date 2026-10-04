@@ -1,4 +1,3 @@
-from adminsite.views._forms import InlineRow
 from adminsite.views.contexts import DeleteContext, SaveContext, SaveValue, SaveValues
 from adminsite.views.inlines import Inline
 from adminsite.views.layout import FieldsetWidget, PanelWidget, RowWidget, TabsWidget
@@ -9,7 +8,6 @@ __all__ = [
     "DeleteContext",
     "FieldsetWidget",
     "Inline",
-    "InlineRow",
     "ModelView",
     "PanelWidget",
     "RowWidget",

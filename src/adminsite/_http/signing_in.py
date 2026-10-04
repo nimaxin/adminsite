@@ -8,8 +8,8 @@ from starlette.responses import RedirectResponse, Response
 
 from adminsite._http.requests import read_form
 from adminsite._http.urls import Urls
-from adminsite.audit import AuditEntry, AuditEvent, actor_of
-from adminsite.audit._actor import NAME_LIMIT
+from adminsite.audit import AuditEntry, AuditEvent
+from adminsite.audit._actor import NAME_LIMIT, actor_of
 from adminsite.audit.store import record_or_warn
 from adminsite.exceptions import SignInRefusedError
 from adminsite.i18n import gettext as _

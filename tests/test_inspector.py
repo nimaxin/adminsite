@@ -3,14 +3,10 @@ from decimal import Decimal
 
 import pytest
 
-from adminsite import (
-    InvalidPathError,
-    NotAModelError,
-    RelationDirection,
-    UnknownFieldError,
-)
 from adminsite._text import humanize, humanize_class, pluralize, snake_case
+from adminsite.exceptions import InvalidPathError, NotAModelError, UnknownFieldError
 from adminsite.inspector import SQLAlchemyInspector
+from adminsite.schema import RelationDirection
 from tests.models import (
     Article,
     Customer,

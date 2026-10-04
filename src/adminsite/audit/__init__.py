@@ -1,4 +1,3 @@
-from adminsite.audit._actor import Actor, actor_of
 from adminsite.audit.entry import (
     AuditEntry,
     AuditEvent,
@@ -11,13 +10,11 @@ from adminsite.audit.log import AuditLog
 from adminsite.audit.store import AuditQuery, AuditStore
 
 __all__ = [
-    "Actor",
     "AuditEntry",
     "AuditEvent",
     "AuditLog",
     "AuditQuery",
     "AuditStore",
-    "actor_of",
     "as_json",
     "audit_metadata",
     "audit_table",

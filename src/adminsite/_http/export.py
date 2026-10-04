@@ -10,7 +10,8 @@ from starlette.responses import Response, StreamingResponse
 
 from adminsite._http.listing import read_list_request
 from adminsite._http.requests import find_view
-from adminsite.audit import AuditEntry, AuditEvent, actor_of
+from adminsite.audit import AuditEntry, AuditEvent
+from adminsite.audit._actor import actor_of
 from adminsite.audit.store import record_or_warn
 from adminsite.markup import plain
 from adminsite.permissions import Permission
