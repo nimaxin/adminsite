@@ -132,7 +132,9 @@ def constructor_parameters(owner: type) -> list[str]:
         ),
         None,
     )
-    if maker is None or not getattr(maker, "__module__", "").startswith("adminsite"):
+    # A built in __init__ has no module, or None on Python 3.14.
+    module = getattr(maker, "__module__", None) or ""
+    if maker is None or not module.startswith("adminsite"):
         return []
     return list(inspect.signature(owner).parameters)
 
