@@ -15,9 +15,9 @@ from adminsite.views.checks import check_title
 from adminsite.views.settings import default_paths
 
 if TYPE_CHECKING:
-    from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
     from adminsite.columns import ColumnReference
     from adminsite.fields import FieldRegistry
+    from adminsite.inspector import SQLAlchemyInspector
     from adminsite.schema import ModelSchema
     from adminsite.views.model_view import ModelView
     from adminsite.views.settings import SettingsReader

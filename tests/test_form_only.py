@@ -14,7 +14,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, Field, ModelView, RefusedError
 from adminsite.audit import AuditEntry, AuditLog, AuditQuery
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.fields import JSONField, PasswordField
 from adminsite.views.writing import SaveContext
 from tests.models import Account, Customer, Setting

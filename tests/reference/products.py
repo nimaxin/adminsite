@@ -19,11 +19,7 @@ from adminsite import (
     SaveContext,
 )
 from adminsite.actions import Input, Selection, action
-from adminsite.backends.sqlalchemy import (
-    SessionAdapter,
-    SQLAlchemyRepository,
-    SQLFilter,
-)
+from adminsite.database import SessionAdapter
 from adminsite.fields import (
     ComputedField,
     DecimalField,
@@ -33,7 +29,13 @@ from adminsite.fields import (
     TextAreaField,
 )
 from adminsite.files import LocalStorage
-from adminsite.filters import FilterContext, FilterOption, FilterValue
+from adminsite.filters import (
+    FilterContext,
+    FilterOption,
+    FilterValue,
+    SQLAlchemyRepository,
+    SQLFilter,
+)
 from tests.reference.models import Product, ProductStatus, Supplier
 
 EUROS = "€{:,.2f}"

@@ -30,7 +30,7 @@ from adminsite.views import ModelView
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
-    from adminsite.backends.sqlalchemy.session import SessionAdapter
+    from adminsite.database import SessionAdapter
 
 __all__ = [
     "MAX_LIMIT",

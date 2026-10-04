@@ -17,20 +17,17 @@ from sqlalchemy import (
 from sqlalchemy.orm import aliased, class_mapper, with_parent
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
-from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.loader import (
-    build_defer_options,
-    build_load_options,
-)
-from adminsite.backends.sqlalchemy.session import SessionAdapter, database_refusals
-from adminsite.backends.sqlalchemy.values import to_column_type
+from adminsite._orm.cursor import decode_cursor, encode_cursor
+from adminsite._orm.loader import build_defer_options, build_load_options
+from adminsite._orm.values import to_column_type
+from adminsite.database import SessionAdapter, database_refusals
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import DEFAULT_PAGE_SIZE, CountMode, Page, QuerySpec
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationSchema
 
 if TYPE_CHECKING:
-    from adminsite.backends.sqlalchemy.filters import SQLFilter
+    from adminsite.filters.sql import SQLFilter
 
 __all__ = [
     "EXACT_COUNT_LIMIT",
@@ -39,7 +36,6 @@ __all__ = [
     "KeysetKey",
     "SQLAlchemyRepository",
     "Scope",
-    "Statement",
     "Total",
 ]
 
@@ -51,13 +47,6 @@ ConditionBuilder = Callable[
 
 # Narrows every read to the rows the current user may see.
 Scope = Callable[[Select[Any]], Select[Any]]
-
-Statement = TypeVar("Statement", bound=Select[Any])
-"""The select a view's `scope_query` is given, and hands back narrowed.
-
-A type variable, so the hook returns the same kind of select it was given:
-`statement.where(...)` does, and a new `select(Order)` is a type error.
-"""
 
 # The model a repository reads.
 M = TypeVar("M")

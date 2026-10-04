@@ -1,9 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from adminsite.filters.base import FilterValue
+if TYPE_CHECKING:
+    # Only named here: adminsite.filters imports the repository, which
+    # imports this module.
+    from adminsite.filters.base import FilterValue
 
 __all__ = [
     "DEFAULT_PAGE_SIZE",
@@ -88,7 +91,7 @@ class QuerySpec:
     # matching the search paths. Left out of comparisons: a SQL condition
     # answers == with another condition, not with True or False.
     search_condition: Any = field(default=None, compare=False)
-    filters: tuple[FilterValue, ...] = ()
+    filters: tuple["FilterValue", ...] = ()
     sort: tuple[Sort, ...] = ()
     offset: int = 0
     limit: int | None = DEFAULT_PAGE_SIZE

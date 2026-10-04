@@ -61,7 +61,7 @@ from adminsite.views.writing import FormResult
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
-    from adminsite.backends.sqlalchemy.session import SessionAdapter
+    from adminsite.database import SessionAdapter
 
 __all__ = [
     "HISTORY_LIMIT",

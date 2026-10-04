@@ -10,20 +10,21 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ColumnReference, ModelView
-from adminsite.backends.sqlalchemy import (
+from adminsite.database import Database
+from adminsite.filters import (
     BooleanFilter,
     ChoiceFilter,
-    Database,
     DateRangeFilter,
+    FilterOption,
+    FilterValue,
     NumberRangeFilter,
     RelationFilter,
     SQLAlchemyRepository,
     SQLFilter,
-    SQLFilterContext,
     TextFilter,
-    filter_for,
+    parse_filters,
 )
-from adminsite.filters import FilterOption, FilterValue, parse_filters
+from adminsite.filters.sql import SQLFilterContext, filter_for
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus
 

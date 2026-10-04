@@ -6,11 +6,11 @@ from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, u
 from sqlalchemy.sql import Executable
 from starlette.requests import Request
 
+from adminsite._orm.loader import build_load_options
+from adminsite._orm.values import to_column_type
 from adminsite.audit.entry import Change, diff
-from adminsite.backends.sqlalchemy.loader import build_load_options
-from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.backends.sqlalchemy.values import to_column_type
 from adminsite.columns import ColumnReference, path_of
+from adminsite.database import SessionAdapter
 from adminsite.query import QuerySpec
 from adminsite.security import RequestAction
 

@@ -5,11 +5,7 @@ from sqlalchemy import Engine, exc, func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
 
-from adminsite.backends.sqlalchemy import (
-    AsyncSessionAdapter,
-    Database,
-    SyncSessionAdapter,
-)
+from adminsite.database import AsyncSessionAdapter, Database, SyncSessionAdapter
 from adminsite.exceptions import AdminSiteError, IntegrityError
 from tests.models import Customer, Order, Product
 from tests.support import REFUSED, spare_product

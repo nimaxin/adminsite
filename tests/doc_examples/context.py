@@ -50,7 +50,7 @@ from adminsite import (
 )
 from adminsite.actions import Input, Selection, action
 from adminsite.auth import AuthProvider, PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.fields import (
     ComputedField,
     DecimalField,

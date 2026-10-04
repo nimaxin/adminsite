@@ -14,7 +14,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 from adminsite import AdminSiteError, Descending, Field, Inline, ModelView
-from adminsite.backends.sqlalchemy import SQLAlchemyInspector
 from adminsite.fields import (
     BooleanField,
     ComputedField,
@@ -25,6 +24,7 @@ from adminsite.fields import (
     StringField,
     UUIDField,
 )
+from adminsite.inspector import SQLAlchemyInspector
 from tests.models import Customer, Order, OrderItem
 from tests.reference import startup_mistakes
 from tests.reference.startup_mistakes import EXPECTED

@@ -9,9 +9,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 ## Layout
 
 - `src/adminsite/` is the package. `admin.py` builds the app and its routes, `views/` holds
-  `ModelView` and the parts it is built from (below), `http/` holds the endpoints,
-  `backends/sqlalchemy/` holds everything that touches SQLAlchemy, `fields/` and `filters/` are
-  what they say.
+  `ModelView` and the parts it is built from (below), `http/` holds the endpoints, `_orm/` builds
+  the statements a view runs, `database.py` hands out sessions, `inspector.py` reads the models,
+  and `fields/` and `filters/` are what they say.
 - `src/adminsite/templates/adminsite/` holds the Jinja templates; `widgets/` has one file per form
   control.
 - `src/adminsite/static/adminsite.css` is built from `frontend/` and committed. HTMX and Alpine are
@@ -109,10 +109,11 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 - **Every control has an accessible name**: a `<label for>`, `aria-label` or `aria-labelledby`.
   `tests/test_accessibility.py` checks the main pages.
 - **Reads go through the view**, so `scope_query` and `allows` always apply. Never query a model
-  directly from an endpoint. Nothing under `http/` imports SQLAlchemy or `adminsite.backends` when
-  it runs, only `SessionAdapter` under `TYPE_CHECKING` for annotations; `tests/test_web_layer.py`
-  fails otherwise. Catch `adminsite.exceptions.IntegrityError`, which the backend raises for a
-  change the database refuses, never SQLAlchemy's.
+  directly from an endpoint. Nothing under `http/` imports SQLAlchemy or the ORM layer
+  (`adminsite._orm`, `adminsite.database`, `adminsite.inspector`, the SQL filters) when it runs,
+  only `SessionAdapter` under `TYPE_CHECKING` for annotations; `tests/test_web_layer.py` fails
+  otherwise. Catch `adminsite.exceptions.IntegrityError`, which the session raises for a change
+  the database refuses, never SQLAlchemy's.
 - **No N+1 queries.** Load what a page shows with the page; the tests count statements.
 - **Code must work on SQLite, Postgres and MySQL.** Convert keys read from URLs with
   `to_column_type`. MySQL refuses a `LIMIT` straight inside `IN (...)`.

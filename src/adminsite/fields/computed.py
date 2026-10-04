@@ -8,7 +8,7 @@ from adminsite.fields.base import BaseField
 from adminsite.text import as_text
 
 if TYPE_CHECKING:
-    from adminsite.backends.sqlalchemy.session import SessionAdapter
+    from adminsite.database import SessionAdapter
 
 __all__ = [
     "LOADED",

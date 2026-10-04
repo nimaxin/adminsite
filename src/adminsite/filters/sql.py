@@ -7,9 +7,9 @@ from typing import Any, Generic, TypeVar
 
 from sqlalchemy import ColumnElement, Select, false, func
 
-from adminsite.backends.sqlalchemy.repository import Scope, SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
-from adminsite.backends.sqlalchemy.values import to_column_type
+from adminsite._orm.repository import Scope, SQLAlchemyRepository
+from adminsite._orm.values import to_column_type
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import InvalidPathError
 from adminsite.filters.base import (
     Filter,

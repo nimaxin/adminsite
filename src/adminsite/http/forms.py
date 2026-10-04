@@ -21,7 +21,7 @@ from adminsite.views.picker import PICKER_LIMIT, Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
-    from adminsite.backends.sqlalchemy.session import SessionAdapter
+    from adminsite.database import SessionAdapter
 
 __all__ = [
     "build_rows",

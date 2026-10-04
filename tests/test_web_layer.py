@@ -1,8 +1,9 @@
 """The pages reach the database only through the view.
 
-No module under http/ imports SQLAlchemy or adminsite's backend when it
-runs. One may name the session's type under TYPE_CHECKING, for its
-annotations, and nothing more from the backend. So every page reads through
+No module under http/ imports SQLAlchemy or adminsite's ORM layer when it
+runs: adminsite._orm, adminsite.database, adminsite.inspector and the SQL
+filters. One may name the session's type under TYPE_CHECKING, for its
+annotations, and nothing more from that layer. So every page reads through
 the view, where the scope and the permissions apply, and sees adminsite's
 own errors.
 """
@@ -14,9 +15,19 @@ import pytest
 
 HTTP = Path(__file__).parent.parent / "src" / "adminsite" / "http"
 PACKAGE = "adminsite.http"
-KEPT_OUT = ("sqlalchemy", "adminsite.backends")
-# The one name from the backend a page may import, under TYPE_CHECKING only.
-SESSION_TYPE = "adminsite.backends.sqlalchemy.session.SessionAdapter"
+KEPT_OUT = (
+    "sqlalchemy",
+    "adminsite._orm",
+    "adminsite.database",
+    "adminsite.inspector",
+    "adminsite.filters",
+)
+# A filter's values and options, which a page may read: none of them
+# touches the database.
+LET_IN = ("adminsite.filters.base",)
+# The one name from the ORM layer a page may import, under TYPE_CHECKING
+# only.
+SESSION_TYPE = "adminsite.database.SessionAdapter"
 
 
 def is_type_checking(test: ast.expr) -> bool:
@@ -40,7 +51,7 @@ def imported(source: str, package: str = PACKAGE) -> tuple[list[str], list[str]]
     """The names a file imports when it runs, and those only type checkers read.
 
     A from import counts as the name it imports, written out in full, so
-    `from adminsite import backends` reads as adminsite.backends.
+    `from adminsite import database` reads as adminsite.database.
     """
     run: list[str] = []
     typed: list[str] = []
@@ -69,12 +80,16 @@ def imported_when_run(source: str, package: str = PACKAGE) -> list[str]:
     return imported(source, package)[0]
 
 
+def within(module: str, names: tuple[str, ...]) -> bool:
+    return any(module == name or module.startswith(f"{name}.") for name in names)
+
+
 def kept_out(module: str) -> bool:
-    return any(module == name or module.startswith(f"{name}.") for name in KEPT_OUT)
+    return within(module, KEPT_OUT) and not within(module, LET_IN)
 
 
 def named_for_types_beyond_the_session(source: str) -> list[str]:
-    """What a file imports from the backend under TYPE_CHECKING, but the session."""
+    """What a file imports from the ORM layer under TYPE_CHECKING, but the session."""
     return [
         name for name in imported(source)[1] if kept_out(name) and name != SESSION_TYPE
     ]
@@ -121,28 +136,28 @@ class TestTheCheckItself:
     def test_it_sees_an_import_inside_a_function(self) -> None:
         source = (
             "def read():\n"
-            "    from adminsite.backends.sqlalchemy import SQLAlchemyRepository\n"
+            "    from adminsite._orm.repository import SQLAlchemyRepository\n"
         )
 
         assert kept_out(imported_when_run(source)[0])
 
     def test_it_writes_out_a_relative_import(self) -> None:
-        source = "from ..backends.sqlalchemy import session\n"
+        source = "from .._orm import repository\n"
 
-        assert imported_when_run(source) == ["adminsite.backends.sqlalchemy.session"]
+        assert imported_when_run(source) == ["adminsite._orm.repository"]
 
     def test_it_sees_a_module_imported_from_its_package(self) -> None:
-        written = imported_when_run("from adminsite import backends\n")
-        relative = imported_when_run("from .. import backends\n")
+        written = imported_when_run("from adminsite import database\n")
+        relative = imported_when_run("from .. import database\n")
 
-        assert written == relative == ["adminsite.backends"]
+        assert written == relative == ["adminsite.database"]
         assert kept_out(written[0])
 
     def test_it_leaves_out_what_only_type_checkers_read(self) -> None:
         source = (
             "from typing import TYPE_CHECKING\n"
             "if TYPE_CHECKING:\n"
-            "    from adminsite.backends.sqlalchemy.session import SessionAdapter\n"
+            "    from adminsite.database import SessionAdapter\n"
         )
 
         assert imported_when_run(source) == ["typing.TYPE_CHECKING"]
@@ -154,10 +169,17 @@ class TestTheCheckItself:
             "if TYPE_CHECKING:\n"
             "    from sqlalchemy import Select\n"
             "    from adminsite.admin import Admin\n"
-            "    from adminsite.backends.sqlalchemy.session import SessionAdapter\n"
+            "    from adminsite.database import SessionAdapter\n"
         )
 
         assert named_for_types_beyond_the_session(source) == ["sqlalchemy.Select"]
+
+    def test_a_filters_values_are_let_in_and_the_sql_filters_kept_out(
+        self,
+    ) -> None:
+        assert not kept_out("adminsite.filters.base.FilterValue")
+        assert kept_out("adminsite.filters.sql.SQLFilter")
+        assert kept_out("adminsite.filters.SQLAlchemyRepository")
 
     def test_it_sees_what_runs_when_type_checkers_do_not(self) -> None:
         source = (

@@ -13,7 +13,7 @@ from starlette.requests import Request
 from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.fields import RelationField
 from tests.models import Order, Product
 

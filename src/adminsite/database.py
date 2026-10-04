@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, TypeVar
 
-from sqlalchemy import Engine, Result, exc
+from sqlalchemy import Engine, Result, Select, exc
 from sqlalchemy.engine import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Session, sessionmaker
@@ -21,11 +21,19 @@ __all__ = [
     "Database",
     "SessionAdapter",
     "SessionSource",
+    "Statement",
     "SyncSessionAdapter",
     "database_refusals",
 ]
 
 T = TypeVar("T")
+
+Statement = TypeVar("Statement", bound=Select[Any])
+"""The select a view's `scope_query` is given, and hands back narrowed.
+
+A type variable, so the hook returns the same kind of select it was given:
+`statement.where(...)` does, and a new `select(Order)` is a type error.
+"""
 
 # execute returns rows of any number of columns. SQLAlchemy 2.0 types a result
 # by a tuple, Result[tuple[int, str]], and 2.1 column by column, Result[int,

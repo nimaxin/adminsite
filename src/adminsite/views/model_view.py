@@ -17,22 +17,14 @@ if TYPE_CHECKING:
     from adminsite.audit import AuditStore
     from adminsite.views.registry import ViewRegistry
 
+from adminsite._orm.repository import Scope, SQLAlchemyRepository
 from adminsite.actions.action import Action
 from adminsite.actions.selection import Selection
-from adminsite.backends.sqlalchemy.filters import (
-    SQLFilter,
-)
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import (
-    Scope,
-    SQLAlchemyRepository,
-    Statement,
-)
-from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.columns import (
     ColumnReference,
     Descending,
 )
+from adminsite.database import SessionAdapter, Statement
 from adminsite.exceptions import (
     AdminSiteError,
     NotAModelError,
@@ -45,7 +37,9 @@ from adminsite.fields import (
     FieldRegistry,
     default_registry,
 )
+from adminsite.filters.sql import SQLFilter
 from adminsite.i18n import gettext as _
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import CountMode, Pagination
 from adminsite.security import Permission, RequestAction, permission_name
 from adminsite.text import (

@@ -22,7 +22,7 @@ from adminsite import (
     SaveContext,
 )
 from adminsite.actions import Selection
-from adminsite.backends.sqlalchemy import (
+from adminsite.database import (
     AsyncSessionAdapter,
     Database,
     SessionAdapter,

@@ -21,7 +21,7 @@ from adminsite.audit import (
 )
 from adminsite.audit.store import record_or_warn
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Order
 
 

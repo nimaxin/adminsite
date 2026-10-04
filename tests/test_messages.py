@@ -9,7 +9,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, Html, Message, ModelView
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from tests.models import Order
 
 

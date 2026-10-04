@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
-from adminsite.protocols import ModelInspector
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.text import names_itself
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ def name_linked(
     record: Any,
     *,
     views: "ViewRegistry | None",
-    inspector: ModelInspector,
+    inspector: SQLAlchemyInspector,
     as_seen: bool = True,
 ) -> str:
     """Name a record a link points at, the same way wherever it shows.
@@ -86,7 +86,7 @@ def name_all_linked(
     value: Any,
     *,
     views: "ViewRegistry | None",
-    inspector: ModelInspector,
+    inspector: SQLAlchemyInspector,
     as_seen: bool = True,
 ) -> str:
     """Name what a link holds: one record, or each of several.

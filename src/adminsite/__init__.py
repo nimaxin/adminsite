@@ -1,9 +1,9 @@
 from importlib.metadata import version
 
 from adminsite.admin import Admin
-from adminsite.backends.sqlalchemy.repository import Statement
 from adminsite.columns import ColumnReference, Descending, Link
 from adminsite.dashboard import Chart, ModelCounts, RecentRecords, Stat, Widget
+from adminsite.database import Statement
 from adminsite.exceptions import (
     AdminSiteError,
     InvalidPathError,
@@ -17,7 +17,6 @@ from adminsite.fields import BaseField, Field
 from adminsite.messages import Message
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
-from adminsite.protocols import ModelInspector
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.saved_views import SavedView, SavedViews
 from adminsite.schema import (
@@ -63,7 +62,6 @@ __all__ = [
     "Link",
     "Message",
     "ModelCounts",
-    "ModelInspector",
     "ModelSchema",
     "ModelView",
     "NotAModelError",

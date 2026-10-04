@@ -5,7 +5,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, Html, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import ComputedField
 from tests.models import Customer, Product
 

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Select, func, select
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.http.urls import Urls
 from adminsite.query import CountMode, Sort
 from adminsite.security import Permission, RequestAction

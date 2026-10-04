@@ -11,7 +11,7 @@ from sqlalchemy import select
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView, SaveContext
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderStatus
 

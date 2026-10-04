@@ -10,7 +10,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, Inline, ModelView, Statement
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
 from tests.models import Customer, Order, OrderItem, OrderStatus

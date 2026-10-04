@@ -10,8 +10,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, Field, Inline, Link, ModelView, Statement
-from adminsite.backends.sqlalchemy import Database
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
 from adminsite.views.picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product

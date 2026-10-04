@@ -8,10 +8,10 @@ from sqlalchemy import Select
 from starlette.applications import Starlette
 
 from adminsite import Admin, CountMode, ModelView, Pagination
-from adminsite.backends.sqlalchemy import Database
-from adminsite.backends.sqlalchemy import repository as repository_module
-from adminsite.backends.sqlalchemy.cursor import decode_cursor, encode_cursor
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite._orm import repository as repository_module
+from adminsite._orm.cursor import decode_cursor, encode_cursor
+from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite.database import Database
 from adminsite.query import Page, QuerySpec, Sort
 from tests.models import Order
 from tests.support import Backend, count_queries

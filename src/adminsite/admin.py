@@ -20,9 +20,8 @@ from adminsite.audit import AuditLog, AuditStore
 from adminsite.audit.actor import USER_KEY
 from adminsite.audit.store import lives_in
 from adminsite.auth import AuthProvider
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.session import Database, SessionSource
 from adminsite.dashboard import ModelCounts, Widget
+from adminsite.database import Database, SessionSource
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import api, endpoints
@@ -31,6 +30,7 @@ from adminsite.http.templating import Templates
 from adminsite.http.urls import STATIC_DIR, Urls
 from adminsite.i18n import activate, negotiate
 from adminsite.i18n import gettext as _
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.pages import AdminPage
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews

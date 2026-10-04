@@ -438,7 +438,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import func, select
 
-from adminsite.backends.sqlalchemy import SessionAdapter
+from adminsite.database import SessionAdapter
 
 
 async def member_counts(
@@ -517,7 +517,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.fields import JSONField
 
 

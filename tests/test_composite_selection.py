@@ -12,8 +12,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditLog
-from adminsite.backends.sqlalchemy import Database
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from tests.models import Shelf
 from tests.support import request_from
 

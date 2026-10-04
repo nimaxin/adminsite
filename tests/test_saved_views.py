@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, Field, ModelView, SavedView, SavedViews
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.saved_views import clean_query
 from tests.models import Order
 from tests.support import request_from

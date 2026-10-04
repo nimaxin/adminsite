@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField
 from tests.models import Customer, Order

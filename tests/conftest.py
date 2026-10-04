@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.http import templating
 from tests.factories import build_sample_data
 from tests.models import Base

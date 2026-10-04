@@ -71,7 +71,7 @@ The classes you use most, with their signatures and docstrings.
 
 ## Filters
 
-::: adminsite.backends.sqlalchemy.SQLFilter
+::: adminsite.filters.SQLFilter
     options:
       inherited_members: true
       members: [multiple, template, options, condition, apply]

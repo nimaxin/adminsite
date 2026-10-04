@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.audit import AuditEntry, AuditEvent, AuditLog
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Customer, Order, Product
 
 

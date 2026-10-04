@@ -6,7 +6,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BooleanField, EnumField
 from adminsite.fields.tones import NEUTRAL, TONE_NAMES

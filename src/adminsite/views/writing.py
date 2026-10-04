@@ -6,8 +6,8 @@ from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import QueryableAttribute
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.session import SessionAdapter
 from adminsite.columns import describe
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.views.inline import InlineRow
 

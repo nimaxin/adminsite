@@ -20,11 +20,11 @@ from adminsite.actions.selection import Selection
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, diff
 from adminsite.audit.inputs import recorded_inputs
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.messages import Message
 from adminsite.security import Permission
 from adminsite.views.auditing import AuditRecorder

@@ -4,7 +4,12 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
-from adminsite.filters import Filter, FilterOption, FilterValue, parse_filters
+from adminsite.filters.base import (
+    Filter,
+    FilterOption,
+    FilterValue,
+    parse_filters,
+)
 from adminsite.http.urls import PAGING_KEYS
 from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec, Sort
@@ -12,7 +17,7 @@ from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
-    from adminsite.backends.sqlalchemy.session import SessionAdapter
+    from adminsite.database import SessionAdapter
 
 __all__ = [
     "COLUMNS_KEY",

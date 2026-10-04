@@ -11,7 +11,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, BaseField, Field, ModelView, RequestAction
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import RefusedError
 from adminsite.imports import (
     ImportProblem,

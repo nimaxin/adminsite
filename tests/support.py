@@ -5,7 +5,7 @@ from types import TracebackType
 from sqlalchemy import Engine, event
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Product
 
 # What people read when the database refuses a change, whatever the rule.

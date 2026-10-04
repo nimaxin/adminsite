@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Customer, Order, Product
 
 

@@ -36,7 +36,7 @@ from adminsite.audit import (
     diff,
 )
 from adminsite.auth import AuthProvider, PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import RefusedError
 from adminsite.fields import EnumField
 from adminsite.views.writing import SaveContext

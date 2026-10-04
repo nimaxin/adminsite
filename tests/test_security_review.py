@@ -13,7 +13,7 @@ from starlette.requests import Request
 from adminsite import Admin, Inline, ModelView, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderItem, Product, Setting
 from tests.support import spare_product

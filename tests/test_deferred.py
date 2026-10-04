@@ -5,7 +5,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from tests.models import Setting
 from tests.support import Backend, count_queries, request_from

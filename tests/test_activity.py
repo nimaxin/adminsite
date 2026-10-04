@@ -10,7 +10,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.audit import AuditEntry, AuditEvent, AuditLog
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import Field
 from adminsite.http.activity import position_of, read_position
 from adminsite.http.history import describe

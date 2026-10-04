@@ -7,12 +7,11 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from sqlalchemy import inspect as sqlalchemy_inspect
 from starlette.requests import Request
 
+from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.actions.selection import Selection
 from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import (
     IntegrityError,
     PermissionDeniedError,
@@ -22,6 +21,7 @@ from adminsite.exceptions import (
 from adminsite.fields import RelationField
 from adminsite.fields.files import FileField, NewFile
 from adminsite.i18n import gettext as _
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.security import Permission, RequestAction
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.inline import InlineRow

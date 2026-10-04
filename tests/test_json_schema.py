@@ -11,7 +11,7 @@ from starlette.applications import Starlette
 from typing_extensions import TypedDict
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import JSONField
 from adminsite.fields.documents import (

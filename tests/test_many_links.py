@@ -11,7 +11,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Statement
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import RelationField
 from tests.models import Article, Tag, article_tags

@@ -22,7 +22,7 @@ class AdminSiteError(Exception):
 
 
 class NotAModelError(AdminSiteError):
-    """Raised when a class is not a mapped model of the backend in use."""
+    """Raised when a class is not a mapped SQLAlchemy model."""
 
     def __init__(self, model: object) -> None:
         name = getattr(model, "__name__", repr(model))

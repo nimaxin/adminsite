@@ -8,7 +8,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, BaseField, Statement
 from adminsite.actions import Selection, action
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.security import Permission, RequestAction
 from adminsite.views import ModelView

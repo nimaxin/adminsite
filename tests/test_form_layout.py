@@ -17,7 +17,7 @@ from adminsite import (
     RowWidget,
     TabsWidget,
 )
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.views.layout import Placed, arrange, read_layout
 from tests.models import Customer, Order
 

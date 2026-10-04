@@ -4,7 +4,6 @@ from typing import Any
 
 import pytest
 
-from adminsite.backends.sqlalchemy import SQLAlchemyInspector
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import (
     BooleanField,
@@ -21,6 +20,7 @@ from adminsite.fields import (
     default_registry,
 )
 from adminsite.fields.tones import NEUTRAL
+from adminsite.inspector import SQLAlchemyInspector
 from tests.models import Customer, Order, OrderStatus, Product
 
 

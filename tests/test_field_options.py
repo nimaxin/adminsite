@@ -6,7 +6,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, Field, Link, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import RelationField, StringField
 from tests.models import Customer, Order, Product
 

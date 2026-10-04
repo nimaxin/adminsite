@@ -6,7 +6,7 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-from adminsite.backends.sqlalchemy.values import to_column_type
+from adminsite._orm.values import to_column_type
 
 __all__ = [
     "decode_cursor",

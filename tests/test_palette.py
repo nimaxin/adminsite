@@ -7,7 +7,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission, Statement
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Customer, Order, Product
 
 

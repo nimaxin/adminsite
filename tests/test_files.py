@@ -10,7 +10,7 @@ from starlette.datastructures import Headers, UploadFile
 from starlette.exceptions import HTTPException
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import FieldValidationError, RefusedError
 from adminsite.fields import FileField, ImageField
 from adminsite.fields.files import UNCHANGED, NewFile

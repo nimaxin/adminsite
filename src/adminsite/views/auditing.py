@@ -11,7 +11,7 @@ from adminsite.audit.actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
 from adminsite.audit.inputs import HIDDEN
 from adminsite.audit.store import record_or_warn
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
 from adminsite.views.view_fields import ViewFields

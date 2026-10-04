@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy.orm import defer, joinedload, selectinload
 from sqlalchemy.orm.strategy_options import _AbstractLoad
 
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
+from adminsite.inspector import SQLAlchemyInspector
 
 __all__ = [
     "RelationTree",

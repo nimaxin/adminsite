@@ -271,7 +271,7 @@ entries in the admin's own database can join the transaction instead, so each ch
 entries are saved together. It needs two more methods:
 
 ```python
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 
 
 class SharedChangeLogStore(ChangeLogStore):

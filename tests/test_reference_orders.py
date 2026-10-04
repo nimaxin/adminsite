@@ -19,7 +19,7 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.reference import gallery, orders
 from tests.reference.models import (
     Customer,

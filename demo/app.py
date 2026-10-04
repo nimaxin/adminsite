@@ -31,7 +31,7 @@ from adminsite.audit import (
 )
 from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.fields import ImageField
 from adminsite.files import LocalStorage
 from adminsite.saved_views import saved_view_metadata

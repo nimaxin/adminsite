@@ -10,7 +10,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.i18n import (
     activate,
     direction,

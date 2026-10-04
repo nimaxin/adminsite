@@ -12,7 +12,7 @@ from starlette.responses import PlainTextResponse, Response
 from adminsite import Admin, ModelView, Permission
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditLog
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderStatus

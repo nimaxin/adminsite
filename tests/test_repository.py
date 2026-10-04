@@ -2,10 +2,11 @@ from decimal import Decimal
 
 import pytest
 
-from adminsite.backends.sqlalchemy import Database, SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.loader import build_load_options
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite._orm.loader import build_load_options
+from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite.database import Database
 from adminsite.exceptions import InvalidPathError
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import CountMode, QuerySpec, Sort
 from tests.models import Customer, Order, OrderItem, Shelf
 from tests.support import Backend, count_queries

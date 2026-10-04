@@ -26,7 +26,8 @@ from adminsite import (
     Sort,
 )
 from adminsite.audit import AuditLog
-from adminsite.backends.sqlalchemy import Database, TextFilter
+from adminsite.database import Database
+from adminsite.filters import TextFilter
 from adminsite.imports import build_plan, import_columns, read_table
 from tests.models import Customer, Order, OrderItem, OrderStatus, Shelf
 from tests.support import request_from

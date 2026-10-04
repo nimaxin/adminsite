@@ -41,7 +41,7 @@ A card reads either a SQLAlchemy `select`, or an async function that receives th
 returns the value:
 
 ```python
-from adminsite.backends.sqlalchemy import SessionAdapter
+from adminsite.database import SessionAdapter
 
 
 async def active_customers(session: SessionAdapter) -> int:

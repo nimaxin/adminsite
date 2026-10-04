@@ -12,7 +12,7 @@ from starlette.requests import Request
 from adminsite import Admin, ModelView, Permission
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.auth import AuthProvider, PasswordAuth, SignInRefusedError, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Order, Product
 
 PASSWORDS = {"nima": hash_password("letmein"), "clerk": hash_password("letmein")}

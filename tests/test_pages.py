@@ -11,7 +11,7 @@ from starlette.responses import PlainTextResponse, RedirectResponse, Response
 
 from adminsite import Admin, AdminPage, ModelView, Plugin
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from tests.models import Customer, Order
 

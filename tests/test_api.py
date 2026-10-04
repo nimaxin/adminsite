@@ -11,7 +11,7 @@ from starlette.responses import Response
 from adminsite import Admin, Field, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
 from adminsite.auth import PasswordAuth, hash_password
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import EnumField
 from tests.models import Customer, Order, OrderStatus, Product
 from tests.support import REFUSED

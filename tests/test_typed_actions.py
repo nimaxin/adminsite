@@ -20,7 +20,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission
 from adminsite.actions import Action, Input, Selection, action
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import (
     BooleanField,

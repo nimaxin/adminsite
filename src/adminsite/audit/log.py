@@ -5,11 +5,7 @@ from sqlalchemy import Select, and_, insert, or_, select
 
 from adminsite.audit.entry import AuditEntry, audit_metadata, audit_table
 from adminsite.audit.store import AuditQuery
-from adminsite.backends.sqlalchemy.session import (
-    Database,
-    SessionAdapter,
-    SessionSource,
-)
+from adminsite.database import Database, SessionAdapter, SessionSource
 from adminsite.storage import Store
 
 __all__ = [

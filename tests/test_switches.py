@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView, Permission, RecentRecords
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.models import Customer, Order, Product
 
 ICON = '<svg viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>'

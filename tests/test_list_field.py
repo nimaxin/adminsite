@@ -11,7 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database, SQLAlchemyInspector
+from adminsite.database import Database
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import (
     IntegerField,
@@ -21,6 +21,7 @@ from adminsite.fields import (
     default_registry,
 )
 from adminsite.imports import normalize
+from adminsite.inspector import SQLAlchemyInspector
 from tests.models import Setting
 
 POSTGRES_URL = os.environ.get("ADMINSITE_POSTGRES_URL", "")

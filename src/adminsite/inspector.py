@@ -29,7 +29,7 @@ __all__ = [
 
 
 class SQLAlchemyInspector:
-    """Describes SQLAlchemy models, the way `ModelInspector` asks for."""
+    """Describes SQLAlchemy models: their columns, relationships and keys."""
 
     def __init__(self) -> None:
         self._cache: dict[type[Any], ModelSchema] = {}

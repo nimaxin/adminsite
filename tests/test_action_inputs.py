@@ -12,7 +12,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import BooleanField, EnumField
 from tests.models import Order
 

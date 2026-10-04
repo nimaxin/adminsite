@@ -7,7 +7,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import EnumField, StringField
 from adminsite.query import QuerySpec

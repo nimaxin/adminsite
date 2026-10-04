@@ -40,7 +40,7 @@ Choice and boolean filters show how many records each option matches. The counts
 but not the other filters, so they stay steady while you pick. On a big table, turn them off:
 
 ```python
-from adminsite.backends.sqlalchemy import ChoiceFilter
+from adminsite.filters import ChoiceFilter
 
 
 class OrderView(ModelView[Order]):
@@ -62,7 +62,7 @@ from datetime import timedelta
 
 from sqlalchemy import ColumnElement, func
 
-from adminsite.backends.sqlalchemy import SQLAlchemyRepository, SQLFilter
+from adminsite.filters import SQLAlchemyRepository, SQLFilter
 from adminsite.filters import FilterContext, FilterOption, FilterValue
 
 

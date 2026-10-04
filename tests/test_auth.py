@@ -14,7 +14,7 @@ from adminsite.auth import (
     hash_password,
     verify_password,
 )
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
 from adminsite.security import Permission
 from tests.models import Product

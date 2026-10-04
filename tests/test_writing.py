@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import func, select
 
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import RecordNotFoundError, RefusedError
 from adminsite.fields import Field, RelationField
 from adminsite.query import QuerySpec

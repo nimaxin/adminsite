@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.filters import SQLFilter
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
 from adminsite.exceptions import AdminSiteError
+from adminsite.filters.sql import SQLFilter
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
 from adminsite.security import RequestAction

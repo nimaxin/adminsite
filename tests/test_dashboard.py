@@ -22,8 +22,8 @@ from adminsite import (
     Stat,
     Widget,
 )
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
 from adminsite.dashboard import ChartData, label_text, round_axis
+from adminsite.database import Database, SessionAdapter
 from tests.models import Customer, Order, OrderStatus
 
 

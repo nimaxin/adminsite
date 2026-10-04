@@ -36,7 +36,7 @@ from starlette.requests import HTTPConnection, Request
 
 from adminsite.actions.action import ON_RECORD, ON_SELECTION, ON_VIEW, RESERVED_INPUTS
 from adminsite.actions.selection import Selection
-from adminsite.backends.sqlalchemy.session import AsyncSessionAdapter, SessionAdapter
+from adminsite.database import AsyncSessionAdapter, SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import (
     BaseField,

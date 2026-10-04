@@ -3,9 +3,7 @@
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from adminsite.backends.sqlalchemy.filters import SQLFilter, filter_for
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
+from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.columns import (
     ColumnReference,
     Descending,
@@ -16,6 +14,8 @@ from adminsite.columns import (
 )
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BaseField, ComputedField, Field
+from adminsite.filters.sql import SQLFilter, filter_for
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
 from adminsite.security import RequestAction

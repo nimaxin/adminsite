@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.inspector import SQLAlchemyInspector
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import InvalidPathError, PermissionDeniedError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
+from adminsite.inspector import SQLAlchemyInspector
 from adminsite.views.inline import Inline, InlineRow
 
 if TYPE_CHECKING:

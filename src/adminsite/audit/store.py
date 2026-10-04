@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from adminsite.audit.entry import AuditEntry, AuditEvent
-from adminsite.backends.sqlalchemy.session import Database
+from adminsite.database import Database
 
 __all__ = [
     "AuditQuery",

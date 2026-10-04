@@ -4,7 +4,7 @@ from sqlalchemy import Connection, Engine, MetaData, Table, create_engine, inspe
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateColumn
 
-from adminsite.backends.sqlalchemy.session import Database, SessionSource
+from adminsite.database import Database, SessionSource
 
 __all__ = [
     "Store",

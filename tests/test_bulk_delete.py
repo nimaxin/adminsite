@@ -13,7 +13,7 @@ from starlette.requests import Request
 from adminsite import Admin, ModelView, Permission
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views import saving
 from adminsite.views.writing import DeleteContext

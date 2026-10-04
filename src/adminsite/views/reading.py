@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
 
-from adminsite.backends.sqlalchemy.filters import SQLFilter, SQLFilterContext
-from adminsite.backends.sqlalchemy.repository import SQLAlchemyRepository
-from adminsite.backends.sqlalchemy.session import SessionAdapter
+from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
 from adminsite.fields.computed import LOADED
 from adminsite.filters import FilterOption, FilterValue
+from adminsite.filters.sql import SQLFilter, SQLFilterContext
 from adminsite.query import Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
 from adminsite.security import Permission

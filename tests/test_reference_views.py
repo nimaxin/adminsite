@@ -16,7 +16,7 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 
 from adminsite import Admin, ModelView, RefusedError
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from tests.reference.models import Product, ProductStatus, Supplier
 from tests.reference.products import ProductView, SupplierView
 from tests.support import request_from

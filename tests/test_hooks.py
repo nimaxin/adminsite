@@ -7,7 +7,7 @@ from sqlalchemy import select
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import RefusedError
 from adminsite.views.writing import SaveContext
 from tests.models import Customer, Product

@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, Inline, ModelView
 from adminsite.audit import AuditLog, AuditQuery
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.fields import RelationField
 from tests.models import Customer, Order, Product
 

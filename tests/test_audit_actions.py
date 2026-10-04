@@ -21,7 +21,7 @@ from adminsite.audit import (
     audit_metadata,
 )
 from adminsite.audit.inputs import looks_secret, recorded_inputs
-from adminsite.backends.sqlalchemy import Database, SessionAdapter
+from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import RefusedError
 from adminsite.fields import DecimalField, StringField
 from tests.models import Customer, Order, OrderStatus

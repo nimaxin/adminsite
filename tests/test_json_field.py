@@ -8,7 +8,7 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite.backends.sqlalchemy import Database
+from adminsite.database import Database
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import JSONField, default_registry
 from adminsite.schema import FieldSchema
