@@ -1,9 +1,10 @@
 """Write a release's notes from its section of CHANGELOG.md.
 
-    python .github/release_notes.py 0.1.0a11 > notes.md
+    python .github/release_notes.py 0.1.0a12 > notes.md
 
 The changelog wraps its lines, and GitHub shows every line break in release
-notes, so each paragraph and each point is joined back onto one line.
+notes, so each paragraph and each point is joined back onto one line; table
+rows stay one to a line.
 """
 
 import sys
@@ -39,7 +40,7 @@ def unwrapped(lines: list[str]) -> list[str]:
         starts_part = (
             fenced
             or not line.strip()
-            or line.lstrip().startswith(("- ", "#"))
+            or line.lstrip().startswith(("- ", "#", "|"))
             or not joined
             or not joined[-1].strip()
             or joined[-1].startswith("```")

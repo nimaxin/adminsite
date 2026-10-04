@@ -20,7 +20,7 @@ the version you install.
 ## Installation
 
 ```
-pip install adminsite==0.1.0a11
+pip install adminsite==0.1.0a12
 ```
 
 Add the driver your database needs, such as `asyncpg` or `aiosqlite`.

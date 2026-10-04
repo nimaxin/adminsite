@@ -1,17 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a12
 
-- The Reference page documents every parameter, setting and return value of the public API,
-  from the docstrings, so an editor shows the same when you hover over `Admin(`, `Field(` or a
-  setting of `ModelView`. The guide pages link there instead of listing each option again.
-- A `JSONField` with `partial=True` draws only the fields a record sets, each with Remove, and an
-  Add a field box that finds the others by name or description, where it drew a Not set row for
-  every field of the schema. The record page lists the fields left out on one line, Not set (48),
-  which opens to name them.
-- The package is laid out the way Starlette's is: a module a project imports is named for what it
-  holds, and machinery starts with an underscore. Behaviour is unchanged, but these imports move,
-  and the old paths stop working:
+The package is laid out the way Starlette's is: a module a project imports is named for what it
+holds, and machinery starts with an underscore. A `JSONField` with `partial=True` shows only the
+fields a record sets, with a box to add the others, and the Reference page documents every
+parameter of the public API.
+
+Before upgrading:
+
+- Behaviour is unchanged, but these imports move, and the old paths stop working:
 
 | Name | Was imported from | Now from |
 | --- | --- | --- |
@@ -27,6 +25,16 @@
 | `ViewRegistry`, `SavedView` | `adminsite` | `adminsite.views`, `adminsite.saved_views` |
 | `InvalidPathError`, `NotAModelError`, `UnknownFieldError` | `adminsite` | `adminsite.exceptions` |
 | `ModelInspector` | `adminsite` | removed: `SQLAlchemyInspector` was its one implementation |
+
+What changed:
+
+- The Reference page documents every parameter, setting and return value of the public API,
+  from the docstrings, so an editor shows the same when you hover over `Admin(`, `Field(` or a
+  setting of `ModelView`. The guide pages link there instead of listing each option again.
+- A `JSONField` with `partial=True` draws only the fields a record sets, each with Remove, and an
+  Add a field box that finds the others by name or description, where it drew a Not set row for
+  every field of the schema. The record page lists the fields left out on one line, Not set (48),
+  which opens to name them.
 
 ## 0.1.0a11
 
