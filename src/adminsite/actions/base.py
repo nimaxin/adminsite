@@ -2,13 +2,13 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal, TypeAlias, TypeVar
 
+from adminsite._text import humanize
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
-from adminsite.security import Permission
-from adminsite.text import humanize
+from adminsite.permissions import Permission
 
 if TYPE_CHECKING:
-    from adminsite.actions.parameters import ActionCall
+    from adminsite.actions._parameters import ActionCall
     from adminsite.fields import BaseField
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "Action",
     "ActionTarget",
     "Handler",
+    "Input",
     "action",
     "action_of",
 ]
@@ -216,3 +217,38 @@ def action_of(candidate: object) -> Action | None:
     """The action a method carries, if it was marked as one."""
     found = getattr(candidate, MARKER, None)
     return found if isinstance(found, Action) else None
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Input:
+    """How an action asks for one value, written in the parameter's annotation.
+
+    ```python
+    from typing import Annotated
+
+    from adminsite.actions import Input
+
+    reason: Annotated[str, Input(label="Reason", multiline=True)]
+    ```
+
+    An option the type has no use for, such as `multiline` on an `int`,
+    stops the admin when it starts.
+
+    Args:
+        label: The text above the input. Left empty, the parameter's name
+            in words: `tracking_number` reads "Tracking number".
+        help_text: A line under the input.
+        multiline: A box of several lines, for a `str`.
+        accept: For an `UploadFile`, the types offered, as a browser's
+            `accept` takes them, such as ".csv".
+        max_size: For an `UploadFile`, the largest file taken, in bytes.
+        secret: Whether the audit log keeps `***` instead of the value.
+            Left as None, a name such as `password` or `api_key` decides.
+    """
+
+    label: str = ""
+    help_text: str = ""
+    multiline: bool = False
+    accept: str = ""
+    max_size: int | None = None
+    secret: bool | None = None

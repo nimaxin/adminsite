@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
-from adminsite.actions.action import Action
+from adminsite.actions.base import Action
 from adminsite.fields import (
     BaseField,
     EnumField,

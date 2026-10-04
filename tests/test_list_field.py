@@ -11,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
+from adminsite._importing import normalize
 from adminsite.database import Database
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import (
@@ -20,7 +21,6 @@ from adminsite.fields import (
     StringField,
     default_registry,
 )
-from adminsite.imports import normalize
 from adminsite.inspector import SQLAlchemyInspector
 from tests.models import Setting
 

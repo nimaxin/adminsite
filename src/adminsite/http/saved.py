@@ -7,8 +7,8 @@ from starlette.responses import RedirectResponse, Response
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
 from adminsite.saved_views import SavedView, SavedViews, clean_query
-from adminsite.security import Permission
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:

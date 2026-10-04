@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
+from adminsite.markup import plain
 from adminsite.query import QuerySpec
-from adminsite.text import plain
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:

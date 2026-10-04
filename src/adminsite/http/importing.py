@@ -4,12 +4,7 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from adminsite.exceptions import AdminSiteError
-from adminsite.http.saved import owner_of
-from adminsite.http.templating import add_message
-from adminsite.http.urls import Urls
-from adminsite.i18n import gettext as _
-from adminsite.imports import (
+from adminsite._importing import (
     ImportPlan,
     ImportProblem,
     build_plan,
@@ -19,7 +14,12 @@ from adminsite.imports import (
     save_plan,
     template_csv,
 )
-from adminsite.security import Permission
+from adminsite.exceptions import AdminSiteError
+from adminsite.http.saved import owner_of
+from adminsite.http.templating import add_message
+from adminsite.http.urls import Urls
+from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ from starlette.responses import RedirectResponse, Response, StreamingResponse
 
 from adminsite.actions import Selection
 from adminsite.audit import AuditEntry, AuditEvent, AuditQuery, actor_of
-from adminsite.audit.actor import NAME_LIMIT
+from adminsite.audit._actor import NAME_LIMIT
 from adminsite.audit.store import record_or_warn
 from adminsite.dashboard import load_dashboard
 from adminsite.exceptions import (
@@ -29,6 +29,7 @@ from adminsite.http.activity import (
     position_of,
     read_filters,
 )
+from adminsite.http.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.http.documents import document_form
 from adminsite.http.export import stream_csv
 from adminsite.http.forms import (
@@ -51,10 +52,9 @@ from adminsite.http.saved import delete_view, owner_of, save_view, saved_for
 from adminsite.http.templating import add_message
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
 from adminsite.query import CountMode
 from adminsite.saved_views import clean_query
-from adminsite.security import Permission
-from adminsite.security.csrf import FIELD_NAME, TOKEN_HEADER, is_valid
 from adminsite.views import ModelView
 from adminsite.views.picker import RESULT_LIMIT, Picker
 from adminsite.views.writing import FormResult

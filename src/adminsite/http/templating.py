@@ -14,10 +14,10 @@ from jinja2 import (
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
+from adminsite.http.csrf import hidden_input
 from adminsite.http.urls import Urls, sort_state
 from adminsite.i18n import direction, gettext, native_name
 from adminsite.messages import Message, stored_message
-from adminsite.security.csrf import hidden_input
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

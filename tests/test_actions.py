@@ -10,8 +10,8 @@ from adminsite.actions import Selection, action
 from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import EnumField, StringField
+from adminsite.permissions import Permission
 from adminsite.query import QuerySpec
-from adminsite.security import Permission
 from tests.models import Customer, Order, OrderStatus, Product
 from tests.support import REFUSED, Backend, count_queries, request_from
 

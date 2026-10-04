@@ -2,10 +2,10 @@
 
 from typing import TYPE_CHECKING, Any
 
+from adminsite._text import names_itself
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.text import names_itself
 
 if TYPE_CHECKING:
     from adminsite.views.registry import ViewRegistry

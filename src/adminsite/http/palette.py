@@ -6,8 +6,8 @@ from starlette.responses import Response
 
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
 from adminsite.query import CountMode
-from adminsite.security import Permission
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

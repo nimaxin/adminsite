@@ -9,8 +9,8 @@ from adminsite import (
     RelationDirection,
     UnknownFieldError,
 )
+from adminsite._text import humanize, humanize_class, pluralize, snake_case
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.text import humanize, humanize_class, pluralize, snake_case
 from tests.models import (
     Article,
     Customer,

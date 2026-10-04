@@ -25,7 +25,7 @@ REFERENCE = Path(__file__).parent.parent / "docs" / "reference.md"
 
 
 def resolve(target: str) -> Any:
-    """The object a `:::` line names, such as adminsite.actions.action.action."""
+    """The object a `:::` line names, such as adminsite.filters.SQLFilter."""
     parts = target.split(".")
     for cut in range(len(parts), 0, -1):
         try:

@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
+from adminsite._text import humanize
 from adminsite.audit import AuditEntry, AuditEvent
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import DateTimeField
 from adminsite.i18n import gettext as _
-from adminsite.security import RequestAction
-from adminsite.text import humanize
+from adminsite.permissions import RequestAction
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

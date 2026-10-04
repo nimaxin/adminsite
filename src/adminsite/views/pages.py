@@ -8,9 +8,9 @@ from starlette.requests import Request
 from adminsite.exceptions import AdminSiteError
 from adminsite.filters.sql import SQLFilter
 from adminsite.inspector import SQLAlchemyInspector
+from adminsite.permissions import RequestAction
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
-from adminsite.security import RequestAction
 from adminsite.views.inline import Inline
 from adminsite.views.layout import Placed, arrange
 from adminsite.views.settings import SettingsReader

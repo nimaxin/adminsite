@@ -3,12 +3,12 @@ from dataclasses import KW_ONLY, dataclass, field
 from enum import Enum
 from typing import Any, Self
 
+from adminsite._text import humanize
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
 from adminsite.fields.tones import NEUTRAL, Tones, tone_number
 from adminsite.i18n import gettext as _
 from adminsite.schema import FieldSchema
-from adminsite.text import humanize
 
 __all__ = [
     "TONES",

@@ -4,13 +4,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import fields as dataclass_fields
 from typing import Any, Literal, TypeAlias
 
+from adminsite._text import template_names
 from adminsite.columns import describe
 from adminsite.exceptions import AdminSiteError, InvalidPathError, UnknownFieldError
 from adminsite.fields import BaseField, Field, FieldRegistry, RelationField
 from adminsite.inspector import SQLAlchemyInspector
+from adminsite.permissions import RequestAction
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationDirection
-from adminsite.security import RequestAction
-from adminsite.text import template_names
 
 __all__ = [
     "Takes",

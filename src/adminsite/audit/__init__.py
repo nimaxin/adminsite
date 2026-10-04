@@ -1,4 +1,4 @@
-from adminsite.audit.actor import Actor, actor_of
+from adminsite.audit._actor import Actor, actor_of
 from adminsite.audit.entry import (
     AuditEntry,
     AuditEvent,

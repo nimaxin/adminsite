@@ -16,7 +16,7 @@ from adminsite.auth import (
 )
 from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError
-from adminsite.security import Permission
+from adminsite.permissions import Permission
 from tests.models import Product
 
 SECRET = "a-secret-for-the-tests"

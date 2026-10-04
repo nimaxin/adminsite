@@ -9,24 +9,24 @@ from markupsafe import Markup
 from starlette.requests import Request
 from starlette.responses import Response
 
-from adminsite.actions.action import Action, action_of
-from adminsite.actions.parameters import (
+from adminsite.actions._parameters import (
     ASYNC_SESSION,
     ActionCall,
     async_session_refused,
     read_call,
 )
+from adminsite.actions.base import Action, action_of
 from adminsite.actions.selection import Selection
-from adminsite.audit.actor import actor_of
+from adminsite.audit._actor import actor_of
+from adminsite.audit._inputs import recorded_inputs
 from adminsite.audit.entry import AuditEntry, AuditEvent, diff
-from adminsite.audit.inputs import recorded_inputs
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.messages import Message
-from adminsite.security import Permission
+from adminsite.permissions import Permission
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.links import Links
 from adminsite.views.naming import name_all_linked

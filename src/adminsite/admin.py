@@ -16,8 +16,9 @@ from starlette.responses import (
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from adminsite._text import snake_case
 from adminsite.audit import AuditLog, AuditStore
-from adminsite.audit.actor import USER_KEY
+from adminsite.audit._actor import USER_KEY
 from adminsite.audit.store import lives_in
 from adminsite.auth import AuthProvider
 from adminsite.dashboard import ModelCounts, Widget
@@ -25,6 +26,7 @@ from adminsite.database import Database, SessionSource
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
 from adminsite.http import api, endpoints
+from adminsite.http.csrf import TOKEN_HEADER, is_valid
 from adminsite.http.palette import palette
 from adminsite.http.templating import Templates
 from adminsite.http.urls import STATIC_DIR, Urls
@@ -32,11 +34,9 @@ from adminsite.i18n import activate, negotiate
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.pages import AdminPage
+from adminsite.permissions import Permission
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
-from adminsite.security import Permission
-from adminsite.security.csrf import TOKEN_HEADER, is_valid
-from adminsite.text import snake_case
 from adminsite.views import ModelView, ViewRegistry
 from adminsite.views.model_view import view_class
 

@@ -16,9 +16,9 @@ from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BaseField, ComputedField, Field
 from adminsite.filters.sql import SQLFilter, filter_for
 from adminsite.inspector import SQLAlchemyInspector
+from adminsite.permissions import RequestAction
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
-from adminsite.security import RequestAction
 from adminsite.views.checks import (
     Takes,
     check_excluded,

@@ -34,7 +34,14 @@ from sqlalchemy.orm import Mapper
 from starlette.datastructures import UploadFile
 from starlette.requests import HTTPConnection, Request
 
-from adminsite.actions.action import ON_RECORD, ON_SELECTION, ON_VIEW, RESERVED_INPUTS
+from adminsite._text import choice_label, humanize
+from adminsite.actions.base import (
+    ON_RECORD,
+    ON_SELECTION,
+    ON_VIEW,
+    RESERVED_INPUTS,
+    Input,
+)
 from adminsite.actions.selection import Selection
 from adminsite.database import AsyncSessionAdapter, SessionAdapter
 from adminsite.exceptions import AdminSiteError
@@ -55,7 +62,6 @@ from adminsite.fields import (
     UUIDField,
 )
 from adminsite.fields.files import UploadField
-from adminsite.text import choice_label, humanize
 
 __all__ = [
     "ASKS_FOR",
@@ -68,7 +74,6 @@ __all__ = [
     "ActionCall",
     "Handed",
     "HandedKind",
-    "Input",
     "InputGroup",
     "async_session_refused",
     "read_call",
@@ -104,41 +109,6 @@ ASKS_FOR = (
     "or a dataclass of these, and hands over Request, AsyncSession and "
     "SessionAdapter."
 )
-
-
-@dataclass(frozen=True, kw_only=True, slots=True)
-class Input:
-    """How an action asks for one value, written in the parameter's annotation.
-
-    ```python
-    from typing import Annotated
-
-    from adminsite.actions import Input
-
-    reason: Annotated[str, Input(label="Reason", multiline=True)]
-    ```
-
-    An option the type has no use for, such as `multiline` on an `int`,
-    stops the admin when it starts.
-
-    Args:
-        label: The text above the input. Left empty, the parameter's name
-            in words: `tracking_number` reads "Tracking number".
-        help_text: A line under the input.
-        multiline: A box of several lines, for a `str`.
-        accept: For an `UploadFile`, the types offered, as a browser's
-            `accept` takes them, such as ".csv".
-        max_size: For an `UploadFile`, the largest file taken, in bytes.
-        secret: Whether the audit log keeps `***` instead of the value.
-            Left as None, a name such as `password` or `api_key` decides.
-    """
-
-    label: str = ""
-    help_text: str = ""
-    multiline: bool = False
-    accept: str = ""
-    max_size: int | None = None
-    secret: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

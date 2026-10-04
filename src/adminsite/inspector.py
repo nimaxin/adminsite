@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import UnmappedColumnError
 from sqlalchemy.orm.interfaces import MANYTOMANY, MANYTOONE
 from sqlalchemy.types import TypeDecorator, TypeEngine, UserDefinedType
 
+from adminsite._text import humanize, humanize_class, pluralize, snake_case
 from adminsite.exceptions import (
     InvalidPathError,
     NotAModelError,
@@ -21,7 +22,6 @@ from adminsite.schema import (
     RelationDirection,
     RelationSchema,
 )
-from adminsite.text import humanize, humanize_class, pluralize, snake_case
 
 __all__ = [
     "SQLAlchemyInspector",

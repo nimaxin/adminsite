@@ -57,7 +57,7 @@ The classes you use most, with their signatures and docstrings.
 
 ## Actions
 
-::: adminsite.actions.action.action
+::: adminsite.actions.action
 
 ::: adminsite.actions.Selection
     options:

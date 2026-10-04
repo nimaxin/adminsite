@@ -2,11 +2,11 @@ from collections.abc import Iterable
 from dataclasses import KW_ONLY, dataclass
 from typing import TYPE_CHECKING, Any, Self
 
+from adminsite._text import RecordValues
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
 from adminsite.i18n import gettext as _
 from adminsite.schema import RelationSchema
-from adminsite.text import RecordValues
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView

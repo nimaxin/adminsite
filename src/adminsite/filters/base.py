@@ -2,7 +2,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
-from adminsite.text import humanize
+from adminsite._text import humanize
 
 __all__ = [
     "Filter",

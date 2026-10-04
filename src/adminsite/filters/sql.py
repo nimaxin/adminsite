@@ -9,6 +9,7 @@ from sqlalchemy import ColumnElement, Select, false, func
 
 from adminsite._orm.repository import Scope, SQLAlchemyRepository
 from adminsite._orm.values import to_column_type
+from adminsite._text import humanize
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import InvalidPathError
 from adminsite.filters.base import (
@@ -20,7 +21,6 @@ from adminsite.filters.base import (
 from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec
 from adminsite.schema import FieldSchema
-from adminsite.text import humanize
 
 __all__ = [
     "DISTINCT_LIMIT",

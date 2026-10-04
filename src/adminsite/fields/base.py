@@ -5,11 +5,12 @@ from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import QueryableAttribute
 
+from adminsite._text import humanize
 from adminsite.columns import Link, describe, written_path
 from adminsite.exceptions import FieldValidationError
 from adminsite.i18n import gettext as _
+from adminsite.markup import as_text
 from adminsite.schema import FieldSchema
-from adminsite.text import as_text, humanize
 
 __all__ = [
     "BaseField",

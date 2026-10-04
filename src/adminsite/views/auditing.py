@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from sqlalchemy import inspect as sqlalchemy_inspect
 from starlette.requests import Request
 
-from adminsite.audit.actor import actor_of
+from adminsite.audit._actor import actor_of
+from adminsite.audit._inputs import HIDDEN
 from adminsite.audit.entry import AuditEntry, AuditEvent, Change, diff
-from adminsite.audit.inputs import HIDDEN
 from adminsite.audit.store import record_or_warn
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError

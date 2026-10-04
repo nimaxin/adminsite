@@ -4,9 +4,9 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
+from adminsite._text import snake_case
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
-from adminsite.text import snake_case
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

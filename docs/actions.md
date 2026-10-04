@@ -254,7 +254,7 @@ rather than accepted because the class said so.
 `@action` takes the button's `label`, a `confirm` question, `inputs` to ask for as they are,
 `dangerous` for a red button, the `permission` it needs, its `name` in the URL, and `audit_answer`
 to keep a secret answer out of the [audit log](audit.md#actions).
-[`@action`][adminsite.actions.action.action] says what each one does.
+[`@action`][adminsite.actions.action] says what each one does.
 
 ## Refusing
 

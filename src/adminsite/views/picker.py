@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any
 from starlette.requests import Request
 
 from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite._text import template_names
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.fields import RelationField
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import CountMode, Page, QuerySpec
-from adminsite.text import template_names
 from adminsite.views.model_view import ModelView
 
 if TYPE_CHECKING:

@@ -14,8 +14,8 @@ from adminsite.filters import (
     NumberRangeFilter,
     RelationFilter,
 )
+from adminsite.permissions import RequestAction
 from adminsite.query import CountMode, Sort
-from adminsite.security import RequestAction
 from adminsite.views import ModelView, ViewRegistry
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
 from tests.support import request_from

@@ -11,8 +11,8 @@ from adminsite._orm.values import to_column_type
 from adminsite.audit.entry import Change, diff
 from adminsite.columns import ColumnReference, path_of
 from adminsite.database import SessionAdapter
+from adminsite.permissions import RequestAction
 from adminsite.query import QuerySpec
-from adminsite.security import RequestAction
 
 if TYPE_CHECKING:
     from adminsite.views import ModelView

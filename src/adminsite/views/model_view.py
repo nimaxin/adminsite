@@ -18,7 +18,8 @@ if TYPE_CHECKING:
     from adminsite.views.registry import ViewRegistry
 
 from adminsite._orm.repository import Scope, SQLAlchemyRepository
-from adminsite.actions.action import Action
+from adminsite._text import RecordValues, names_itself, pluralize, snake_case
+from adminsite.actions.base import Action
 from adminsite.actions.selection import Selection
 from adminsite.columns import (
     ColumnReference,
@@ -40,14 +41,8 @@ from adminsite.fields import (
 from adminsite.filters.sql import SQLFilter
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
+from adminsite.permissions import Permission, RequestAction, permission_name
 from adminsite.query import CountMode, Pagination
-from adminsite.security import Permission, RequestAction, permission_name
-from adminsite.text import (
-    RecordValues,
-    names_itself,
-    pluralize,
-    snake_case,
-)
 from adminsite.views.action_runner import DELETE_ACTION, ActionRunner
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.form_parsing import FormParser

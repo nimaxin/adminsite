@@ -23,9 +23,9 @@ from adminsite.http.endpoints import perform
 from adminsite.http.listing import read_list_request
 from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.markup import plain
 from adminsite.messages import Message
-from adminsite.security import Permission, RequestAction
-from adminsite.text import plain
+from adminsite.permissions import Permission, RequestAction
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:

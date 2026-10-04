@@ -19,8 +19,8 @@ from sqlalchemy import (
     select,
 )
 
+from adminsite._storage import Store
 from adminsite.database import Database, SessionSource
-from adminsite.storage import Store
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult

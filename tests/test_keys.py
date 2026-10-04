@@ -11,9 +11,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from starlette.applications import Starlette
 
 from adminsite import Admin, AdminSiteError, Field, Inline, ModelView, SaveContext
+from adminsite._importing import build_plan
 from adminsite.database import Database
 from adminsite.fields import RelationField
-from adminsite.imports import build_plan
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.views.picker import Picker
 from tests.models import Shelf

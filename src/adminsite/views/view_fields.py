@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from sqlalchemy import inspect as sqlalchemy_inspect
 
 from adminsite._orm.repository import SQLAlchemyRepository
-from adminsite.audit.inputs import looks_secret
+from adminsite.audit._inputs import looks_secret
 from adminsite.columns import path_of
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import (
@@ -18,7 +18,7 @@ from adminsite.fields import (
 )
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.security import RequestAction
+from adminsite.permissions import RequestAction
 from adminsite.views.checks import (
     check_kind,
     check_link_title,

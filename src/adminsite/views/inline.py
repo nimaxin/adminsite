@@ -9,8 +9,8 @@ from starlette.requests import Request
 from adminsite.columns import describe, path_of
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BaseField, Field
+from adminsite.permissions import RequestAction
 from adminsite.schema import RelationDirection
-from adminsite.security import RequestAction
 from adminsite.views.checks import check_title
 from adminsite.views.settings import default_paths
 

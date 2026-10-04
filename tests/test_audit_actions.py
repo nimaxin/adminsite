@@ -20,7 +20,7 @@ from adminsite.audit import (
     AuditQuery,
     audit_metadata,
 )
-from adminsite.audit.inputs import looks_secret, recorded_inputs
+from adminsite.audit._inputs import looks_secret, recorded_inputs
 from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import RefusedError
 from adminsite.fields import DecimalField, StringField

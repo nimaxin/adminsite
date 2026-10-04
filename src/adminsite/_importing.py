@@ -19,8 +19,8 @@ from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import EnumField, FileField, ListField, RelationField
 from adminsite.http.export import as_cell
 from adminsite.i18n import gettext as _
-from adminsite.security import RequestAction
-from adminsite.text import plain
+from adminsite.markup import plain
+from adminsite.permissions import RequestAction
 from adminsite.views import ModelView
 
 __all__ = [

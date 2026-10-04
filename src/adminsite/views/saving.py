@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.actions.selection import Selection
-from adminsite.audit.actor import actor_of
+from adminsite.audit._actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import (
@@ -22,7 +22,7 @@ from adminsite.fields import RelationField
 from adminsite.fields.files import FileField, NewFile
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.security import Permission, RequestAction
+from adminsite.permissions import Permission, RequestAction
 from adminsite.views.auditing import AuditRecorder
 from adminsite.views.inline import InlineRow
 from adminsite.views.links import Links

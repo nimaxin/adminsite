@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from starlette.requests import Request
 
 from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite._text import template_names
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
 from adminsite.fields.computed import LOADED
 from adminsite.filters import FilterOption, FilterValue
 from adminsite.filters.sql import SQLFilter, SQLFilterContext
+from adminsite.permissions import Permission
 from adminsite.query import Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
-from adminsite.security import Permission
-from adminsite.text import template_names
 from adminsite.views.naming import mark_unseen
 from adminsite.views.pages import PageFields
 from adminsite.views.settings import SettingsReader

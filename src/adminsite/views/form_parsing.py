@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Generic, TypeGuard, TypeVar
 from sqlalchemy.orm import class_mapper
 from starlette.requests import Request
 
-from adminsite.actions.action import Action
+from adminsite.actions.base import Action
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import BaseField, EnumField, JSONField, RelationField
 from adminsite.fields.documents import DocumentError

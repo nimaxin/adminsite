@@ -10,7 +10,7 @@ from adminsite import Admin, BaseField, Statement
 from adminsite.actions import Selection, action
 from adminsite.database import Database
 from adminsite.exceptions import PermissionDeniedError
-from adminsite.security import Permission, RequestAction
+from adminsite.permissions import Permission, RequestAction
 from adminsite.views import ModelView
 from tests.models import Customer, Order, OrderStatus
 from tests.support import request_from

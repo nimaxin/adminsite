@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from adminsite.columns import ColumnReference
 from adminsite.exceptions import AdminSiteError
 from adminsite.fields.base import BaseField
-from adminsite.text import as_text
+from adminsite.markup import as_text
 
 if TYPE_CHECKING:
     from adminsite.database import SessionAdapter

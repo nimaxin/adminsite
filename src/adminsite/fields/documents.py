@@ -33,6 +33,7 @@ from pydantic import BaseModel, TypeAdapter, create_model
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_core import ErrorDetails, to_jsonable_python
 
+from adminsite._text import choice_label, humanize_class
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields.base import Field
 from adminsite.fields.choice import EnumField
@@ -47,7 +48,6 @@ from adminsite.fields.scalars import (
 )
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 from adminsite.i18n import gettext as _
-from adminsite.text import choice_label, humanize_class
 
 __all__ = [
     "DRAWN",

@@ -3,10 +3,10 @@ from typing import Any
 
 from sqlalchemy import Select, and_, insert, or_, select
 
+from adminsite._storage import Store
 from adminsite.audit.entry import AuditEntry, audit_metadata, audit_table
 from adminsite.audit.store import AuditQuery
 from adminsite.database import Database, SessionAdapter, SessionSource
-from adminsite.storage import Store
 
 __all__ = [
     "BATCH_SIZE",
