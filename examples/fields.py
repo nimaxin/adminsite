@@ -174,6 +174,34 @@ class ShopSettings(pydantic.BaseModel):
     promotion: PercentOff | AmountOff | None = pydantic.Field(
         None, description="A share or an amount off, written as JSON."
     )
+    currency: Literal["EUR", "USD", "GBP"] = pydantic.Field(
+        "EUR", description="The currency prices and invoices are written in."
+    )
+    prices_include_tax: bool = pydantic.Field(
+        True, description="Show prices with tax included."
+    )
+    minimum_order: Annotated[
+        float, pydantic.Field(ge=0, description="Orders below this are refused.")
+    ] = 0
+    low_stock_threshold: Annotated[
+        int, pydantic.Field(ge=0, description="Warn when fewer than this are left.")
+    ] = 5
+    returns_window: Annotated[
+        int,
+        pydantic.Field(
+            ge=0, le=365, description="Days a buyer has to send an order back."
+        ),
+    ] = 30
+    order_number_prefix: Annotated[
+        str, pydantic.Field(max_length=10, description="Starts every order number.")
+    ] = "ACME-"
+    support_email: str = pydantic.Field(
+        "help@acme.example", description="Where buyers' questions go."
+    )
+    invoice_footer: str = pydantic.Field("", description="Printed under every invoice.")
+    closed_on: date | None = pydantic.Field(
+        None, description="A day the shop takes no orders, such as a holiday."
+    )
 
 
 class Showcase(Base):

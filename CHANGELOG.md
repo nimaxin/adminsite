@@ -5,6 +5,10 @@
 - The Reference page documents every parameter, setting and return value of the public API,
   from the docstrings, so an editor shows the same when you hover over `Admin(`, `Field(` or a
   setting of `ModelView`. The guide pages link there instead of listing each option again.
+- A `JSONField` with `partial=True` draws only the fields a record sets, each with Remove, and an
+  Add a field box that finds the others by name or description, where it drew a Not set row for
+  every field of the schema. The record page lists the fields left out on one line, Not set (48),
+  which opens to name them.
 
 ## 0.1.0a11
 

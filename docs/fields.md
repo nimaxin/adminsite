@@ -364,11 +364,16 @@ class CustomerGroupView(ModelView[CustomerGroup]):
     ]
 ```
 
-Each property has **Set** or **Clear** beside it. One left unset reads "Not set", sends nothing, and
-is left out of the document, so a group that sets two of five settings saves those two keys only.
-A property that is set starts at its default and is checked as usual; with a Pydantic model its
-validators run for each property that is set. Other Pydantic types, and JSON Schema dicts, are
-checked by each part's own field. The record page reads "Not set" for what is left unset.
+The form draws only the properties the document sets, each with **Remove** beside it. Under them,
+**Add a field** opens a list of the others in the schema's order, each with its description, and
+typing narrows it by either. One added appears in its own place and takes the focus. A property
+left unset sends nothing and is left out of the document, so a group that sets two of fifty
+settings saves those two keys and shows those two rows. A property that is set starts at its
+default and is checked as usual; with a Pydantic model its validators run for each property that
+is set. Other Pydantic types, and JSON Schema dicts, are checked by each part's own field.
+
+The record page lists what is set, then a line such as **Not set (48)**, which opens to name the
+rest.
 
 ## Lists
 
