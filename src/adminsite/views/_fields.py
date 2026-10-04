@@ -19,19 +19,26 @@ from adminsite.fields import (
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
-from adminsite.views.checks import (
+from adminsite.views._checks import (
     check_kind,
     check_link_title,
     check_list_flags,
     check_options_used,
 )
-from adminsite.views.naming import HIDDEN, is_unseen, name_all_linked, name_linked
-from adminsite.views.settings import SettingsReader
+from adminsite.views._linked_names import (
+    HIDDEN,
+    is_unseen,
+    name_all_linked,
+    name_linked,
+)
+from adminsite.views._settings import SettingsReader
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["ViewFields"]
+__all__ = [
+    "ViewFields",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")

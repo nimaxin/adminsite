@@ -12,7 +12,7 @@ from starlette.requests import Request
 from adminsite import Admin, Field, Inline, Link, ModelView, Statement
 from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
-from adminsite.views.picker import PICKER_LIMIT
+from adminsite.views._picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
 from tests.support import Backend, count_queries, request_from
 

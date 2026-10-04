@@ -18,15 +18,15 @@ PACKAGE = "adminsite.views"
 # From the bottom up. A module in a row imports only modules of the rows
 # before it.
 LAYERS = [
-    ["checks", "naming", "layout"],
-    ["settings"],
-    ["view_fields", "inline"],
-    ["pages", "writing"],
-    ["reading", "form_parsing", "auditing"],
-    ["links"],
-    ["saving", "action_runner"],
+    ["_checks", "_linked_names", "layout", "inlines", "contexts"],
+    ["_settings"],
+    ["_fields", "_inline_views"],
+    ["_pages"],
+    ["_reader", "_forms", "_audit"],
+    ["_links"],
+    ["_saver", "_actions"],
     ["model_view"],
-    ["registry", "picker"],
+    ["registry", "_picker"],
 ]
 ROW = {module: row for row, modules in enumerate(LAYERS) for module in modules}
 
@@ -75,24 +75,24 @@ def test_a_module_imports_only_the_rows_below_it(path: Path) -> None:
 
 class TestTheCheckItself:
     def test_it_lets_a_module_import_a_row_below(self) -> None:
-        source = "from adminsite.views.view_fields import ViewFields\n"
+        source = "from adminsite.views._fields import ViewFields\n"
 
-        assert reaching_up("pages", source) == []
+        assert reaching_up("_pages", source) == []
 
     def test_it_sees_a_module_reaching_up(self) -> None:
-        source = "from adminsite.views.saving import Saver\n"
+        source = "from adminsite.views._saver import Saver\n"
 
-        assert reaching_up("pages", source) == ["saving"]
+        assert reaching_up("_pages", source) == ["_saver"]
 
     def test_it_sees_a_module_beside_it(self) -> None:
-        source = "from adminsite.views.auditing import AuditRecorder\n"
+        source = "from adminsite.views._audit import AuditRecorder\n"
 
-        assert reaching_up("reading", source) == ["auditing"]
+        assert reaching_up("_reader", source) == ["_audit"]
 
     def test_it_sees_an_import_inside_a_function(self) -> None:
         source = "def build():\n    from adminsite.views.model_view import ModelView\n"
 
-        assert reaching_up("inline", source) == ["model_view"]
+        assert reaching_up("_inline_views", source) == ["model_view"]
 
     def test_it_leaves_out_what_only_type_checkers_read(self) -> None:
         source = (
@@ -101,4 +101,4 @@ class TestTheCheckItself:
             "    from adminsite.views.model_view import ModelView\n"
         )
 
-        assert reaching_up("pages", source) == []
+        assert reaching_up("_pages", source) == []

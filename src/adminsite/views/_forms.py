@@ -11,18 +11,63 @@ from adminsite.exceptions import FieldValidationError
 from adminsite.fields import BaseField, EnumField, JSONField, RelationField
 from adminsite.fields.documents import DocumentError
 from adminsite.fields.files import UNCHANGED, FileField, UploadField
-from adminsite.views.inline import Inline, InlineRow
-from adminsite.views.pages import PageFields
-from adminsite.views.view_fields import ViewFields
-from adminsite.views.writing import FormData, FormResult
+from adminsite.views._fields import ViewFields
+from adminsite.views._pages import PageFields
+from adminsite.views.inlines import Inline
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["FormParser"]
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from adminsite.views.model_view import ModelView
+
+__all__ = [
+    "FormParser",
+    "FormResult",
+    "InlineRow",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")
+
+
+FormData = Mapping[str, str | Sequence[str]]
+
+
+@dataclass
+class InlineRow:
+    """One child as it came back from the form."""
+
+    key: str
+    values: dict[str, Any] = field(default_factory=dict)
+    delete: bool = False
+    # Where the row sat in the form, which names its inputs, so a refusal
+    # about one of them can be shown beside it.
+    index: int | None = None
+
+    @property
+    def is_new(self) -> bool:
+        """Whether this row adds a child rather than changing one."""
+        return not self.key
+
+
+@dataclass(frozen=True, slots=True)
+class FormResult:
+    """What a submitted form turned into: values, or messages to show."""
+
+    values: dict[str, Any] = field(default_factory=dict)
+    errors: dict[str, str] = field(default_factory=dict)
+    # Child rows for each inline, keyed by the inline's name.
+    inline_rows: dict[str, list[InlineRow]] = field(default_factory=dict)
+
+    @property
+    def ok(self) -> bool:
+        """Whether the form can be saved."""
+        return not self.errors
 
 
 class FormParser(Generic[M]):

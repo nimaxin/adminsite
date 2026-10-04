@@ -8,7 +8,7 @@ from adminsite._http.form_rows import Choice, FormRow
 from adminsite._http.forms import title_for
 from adminsite.fields import EnumField, RelationField
 from adminsite.views import Inline, ModelView
-from adminsite.views.picker import PICKER_LIMIT, Picker
+from adminsite.views._picker import PICKER_LIMIT, Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

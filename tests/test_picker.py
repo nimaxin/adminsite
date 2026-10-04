@@ -12,7 +12,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.database import Database
 from adminsite.fields import RelationField
-from adminsite.views.picker import RESULT_LIMIT
+from adminsite.views._picker import RESULT_LIMIT
 from tests.models import Customer, Order, OrderItem, OrderStatus
 
 

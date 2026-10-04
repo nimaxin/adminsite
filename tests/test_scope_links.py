@@ -10,7 +10,7 @@ from starlette.requests import Request
 
 from adminsite import Admin, Link, ModelView, Statement
 from adminsite.database import Database
-from adminsite.views.naming import mark_unseen
+from adminsite.views._linked_names import mark_unseen
 from tests.models import Customer, Order, OrderStatus
 from tests.support import Backend, count_queries
 

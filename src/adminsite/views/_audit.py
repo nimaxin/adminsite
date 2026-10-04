@@ -14,12 +14,14 @@ from adminsite.audit.store import record_or_warn
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
-from adminsite.views.view_fields import ViewFields
+from adminsite.views._fields import ViewFields
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["AuditRecorder"]
+__all__ = [
+    "AuditRecorder",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")

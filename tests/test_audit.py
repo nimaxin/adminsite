@@ -39,7 +39,7 @@ from adminsite.auth import AuthProvider, PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.exceptions import RefusedError
 from adminsite.fields import EnumField
-from adminsite.views.writing import SaveContext
+from adminsite.views.contexts import SaveContext
 from tests.models import Order, OrderStatus, Product
 from tests.support import spare_product
 

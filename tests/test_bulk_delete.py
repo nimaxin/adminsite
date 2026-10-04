@@ -15,8 +15,8 @@ from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.database import Database
 from adminsite.exceptions import RefusedError
-from adminsite.views import saving
-from adminsite.views.writing import DeleteContext
+from adminsite.views import _saver as saving
+from adminsite.views.contexts import DeleteContext
 from tests.models import Customer, Product
 from tests.support import REFUSED
 

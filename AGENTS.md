@@ -31,27 +31,30 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 `ModelView` keeps what users write: the settings, the `get_` methods, `allows`, `scope_query`,
 `get_actions` and the hooks. The work is done by parts it builds in `__init__`, from the bottom row
 up, each handed the parts it uses. Templates and `_http/` reach a part through the view, such as
-`view._pages.form_fields(request, record)`. A module imports only modules of the rows below its
-own; `tests/test_view_layers.py` fails otherwise.
+`view._pages.form_fields(request, record)`. A part's module is named for the attribute the view
+holds it as, so `view._reader` lives in `_reader.py`, and the modules a project imports carry no
+underscore. A module imports only modules of the rows below its own; `tests/test_view_layers.py`
+fails otherwise.
 
-| Row | Module | The view holds it as | What it does |
-| --- | --- | --- | --- |
-| 1 | `checks.py` | | The startup checks, and the messages they stop the admin with |
-| 1 | `naming.py` | | How a linked record is named |
-| 1 | `layout.py` | | `PanelWidget`, `FieldsetWidget`, `RowWidget`, `TabsWidget`, and arranging them for one page |
-| 2 | `settings.py` | `view._settings` | The settings read into paths and checked, once, at startup |
-| 3 | `view_fields.py` | `view._fields` | The field for each path, and what a record holds and shows there |
-| 3 | `inline.py` | `view._inline_views` | `Inline`, `InlineRow`, and the child view of each inline |
-| 4 | `pages.py` | `view._pages` | The fields each page shows this user, and which of them are editable |
-| 4 | `writing.py` | | `SaveContext`, `DeleteContext` and `SaveValues`, which the hooks get |
-| 5 | `reading.py` | `view._reader` | Pages of records, one record, filter choices and computed values |
-| 5 | `form_parsing.py` | `view._forms` | A submitted form, its inline rows and an action's inputs, as values |
-| 5 | `auditing.py` | `view._audit` | The entries a change writes to the audit log |
-| 6 | `links.py` | `view._links` | The records a submitted link names, read through the linked view |
-| 7 | `saving.py` | `view._saver` | A save or a delete in one transaction, with its hooks and files |
-| 7 | `action_runner.py` | `view._actions` | The actions offered to a request, run and written down |
-| 8 | `model_view.py` | | `ModelView` itself |
-| 9 | `registry.py`, `picker.py` | | The admin's views; the records a link may offer |
+| Row | Module | What it does |
+| --- | --- | --- |
+| 1 | `_checks.py` | The startup checks, and the messages they stop the admin with |
+| 1 | `_linked_names.py` | How a linked record is named |
+| 1 | `layout.py` | `PanelWidget`, `FieldsetWidget`, `RowWidget`, `TabsWidget`, and arranging them for one page |
+| 1 | `inlines.py` | `Inline`, the setting |
+| 1 | `contexts.py` | `SaveContext`, `DeleteContext` and `SaveValues`, which the hooks get |
+| 2 | `_settings.py` | The settings read into paths and checked, once, at startup |
+| 3 | `_fields.py` | The field for each path, and what a record holds and shows there |
+| 3 | `_inline_views.py` | The child view of each inline |
+| 4 | `_pages.py` | The fields each page shows this user, and which of them are editable |
+| 5 | `_reader.py` | Pages of records, one record, filter choices and computed values |
+| 5 | `_forms.py` | A submitted form, its inline rows and an action's inputs, as values |
+| 5 | `_audit.py` | The entries a change writes to the audit log |
+| 6 | `_links.py` | The records a submitted link names, read through the linked view |
+| 7 | `_saver.py` | A save or a delete in one transaction, with its hooks and files |
+| 7 | `_actions.py` | The actions offered to a request, run and written down |
+| 8 | `model_view.py` | `ModelView` itself |
+| 9 | `registry.py`, `_picker.py` | The admin's views; the records a link may offer |
 
 Where a change goes:
 
@@ -59,7 +62,7 @@ Where a change goes:
   into paths in `SettingsReader.__init__`, which checks every name. When the answer can depend on
   the request, add a `get_` method beside it; `PageFields` calls it and checks an answer other
   than the setting itself through `SettingsReader`.
-- **A startup check:** a function in `checks.py`, called where the setting is read.
+- **A startup check:** a function in `_checks.py`, called where the setting is read.
 - **A hook:** a method on `ModelView` that does nothing by default, called by the part that does
   the work, such as `Saver` for a save.
 - **A rule about which fields a page shows:** `PageFields`, which the pages, the export, the

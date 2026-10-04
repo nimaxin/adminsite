@@ -9,7 +9,7 @@ from adminsite.exceptions import RecordNotFoundError, RefusedError
 from adminsite.fields import Field, RelationField
 from adminsite.query import QuerySpec
 from adminsite.views import ModelView
-from adminsite.views.writing import DeleteContext, SaveContext
+from adminsite.views.contexts import DeleteContext, SaveContext
 from tests.models import Customer, Order, OrderItem, OrderStatus, Product
 from tests.support import REFUSED, request_from, spare_product
 

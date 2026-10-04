@@ -23,12 +23,12 @@ from adminsite.fields.files import FileField, NewFile
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import Permission, RequestAction
-from adminsite.views.auditing import AuditRecorder
-from adminsite.views.inline import InlineRow
-from adminsite.views.links import Links
-from adminsite.views.pages import PageFields
-from adminsite.views.view_fields import ViewFields
-from adminsite.views.writing import (
+from adminsite.views._audit import AuditRecorder
+from adminsite.views._fields import ViewFields
+from adminsite.views._forms import InlineRow
+from adminsite.views._links import Links
+from adminsite.views._pages import PageFields
+from adminsite.views.contexts import (
     DeleteContext,
     SaveContext,
     SaveValues,
@@ -38,7 +38,10 @@ from adminsite.views.writing import (
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["BULK_DELETE_LIMIT", "Saver"]
+__all__ = [
+    "BULK_DELETE_LIMIT",
+    "Saver",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")

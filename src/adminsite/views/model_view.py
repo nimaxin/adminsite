@@ -43,21 +43,19 @@ from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import Permission, RequestAction, permission_name
 from adminsite.query import CountMode, Pagination
-from adminsite.views.action_runner import DELETE_ACTION, ActionRunner
-from adminsite.views.auditing import AuditRecorder
-from adminsite.views.form_parsing import FormParser
-from adminsite.views.inline import Inline, InlineViews
+from adminsite.views._actions import DELETE_ACTION, ActionRunner
+from adminsite.views._audit import AuditRecorder
+from adminsite.views._fields import ViewFields
+from adminsite.views._forms import FormParser
+from adminsite.views._inline_views import InlineViews
+from adminsite.views._links import Links
+from adminsite.views._pages import PageFields
+from adminsite.views._reader import Reader
+from adminsite.views._saver import Saver
+from adminsite.views._settings import SettingsReader
+from adminsite.views.contexts import DeleteContext, SaveContext
+from adminsite.views.inlines import Inline
 from adminsite.views.layout import LayoutEntry
-from adminsite.views.links import Links
-from adminsite.views.pages import PageFields
-from adminsite.views.reading import Reader
-from adminsite.views.saving import Saver
-from adminsite.views.settings import SettingsReader
-from adminsite.views.view_fields import ViewFields
-from adminsite.views.writing import (
-    DeleteContext,
-    SaveContext,
-)
 
 __all__ = [
     "ModelView",

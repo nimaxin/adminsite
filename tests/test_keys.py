@@ -15,7 +15,7 @@ from adminsite._importing import build_plan
 from adminsite.database import Database
 from adminsite.fields import RelationField
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.views.picker import Picker
+from adminsite.views._picker import Picker
 from tests.models import Shelf
 from tests.support import Backend, request_from
 

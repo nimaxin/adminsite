@@ -15,7 +15,7 @@ from adminsite.exceptions import FieldValidationError, RefusedError
 from adminsite.fields import FileField, ImageField
 from adminsite.fields.files import UNCHANGED, NewFile
 from adminsite.files import LocalStorage, name_of, safe_name
-from adminsite.views.writing import SaveContext
+from adminsite.views.contexts import SaveContext
 from tests.models import Product
 from tests.support import request_from
 

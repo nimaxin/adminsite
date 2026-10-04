@@ -30,7 +30,7 @@ from adminsite.i18n import gettext as _
 from adminsite.messages import add_message
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
-from adminsite.views.writing import FormResult
+from adminsite.views._forms import FormResult
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

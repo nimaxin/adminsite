@@ -1,5 +1,5 @@
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, overload
 
 from sqlalchemy import inspect as sqlalchemy_inspect
@@ -9,37 +9,18 @@ from starlette.requests import Request
 from adminsite.columns import describe
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
-from adminsite.views.inline import InlineRow
 
 __all__ = [
     "DeleteContext",
-    "FormData",
-    "FormResult",
     "SaveContext",
     "SaveValue",
     "SaveValues",
     "stored_values",
 ]
 
-FormData = Mapping[str, str | Sequence[str]]
 
 M = TypeVar("M")
 T = TypeVar("T")
-
-
-@dataclass(frozen=True, slots=True)
-class FormResult:
-    """What a submitted form turned into: values, or messages to show."""
-
-    values: dict[str, Any] = field(default_factory=dict)
-    errors: dict[str, str] = field(default_factory=dict)
-    # Child rows for each inline, keyed by the inline's name.
-    inline_rows: dict[str, list[InlineRow]] = field(default_factory=dict)
-
-    @property
-    def ok(self) -> bool:
-        """Whether the form can be saved."""
-        return not self.errors
 
 
 class SaveValues:

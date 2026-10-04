@@ -19,7 +19,7 @@ from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
-from adminsite.views.checks import (
+from adminsite.views._checks import (
     Takes,
     check_excluded,
     check_path,
@@ -31,7 +31,10 @@ from adminsite.views.layout import Placed, read_layout
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["SettingsReader", "default_paths"]
+__all__ = [
+    "SettingsReader",
+    "default_paths",
+]
 
 T = TypeVar("T")
 

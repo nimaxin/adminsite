@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, Field, ModelView
 from adminsite.database import Database
 from adminsite.exceptions import RefusedError
-from adminsite.views.writing import DeleteContext, SaveContext
+from adminsite.views.contexts import DeleteContext, SaveContext
 from tests.models import Customer, Order, Product
 from tests.support import REFUSED, spare_product
 

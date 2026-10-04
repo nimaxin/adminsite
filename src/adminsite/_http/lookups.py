@@ -13,7 +13,7 @@ from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
-from adminsite.views.picker import RESULT_LIMIT, Picker
+from adminsite.views._picker import RESULT_LIMIT, Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin

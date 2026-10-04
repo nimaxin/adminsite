@@ -27,16 +27,19 @@ from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.messages import Message
 from adminsite.permissions import Permission
-from adminsite.views.auditing import AuditRecorder
-from adminsite.views.links import Links
-from adminsite.views.naming import name_all_linked
-from adminsite.views.pages import PageFields
-from adminsite.views.view_fields import ViewFields
+from adminsite.views._audit import AuditRecorder
+from adminsite.views._fields import ViewFields
+from adminsite.views._linked_names import name_all_linked
+from adminsite.views._links import Links
+from adminsite.views._pages import PageFields
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["DELETE_ACTION", "ActionRunner"]
+__all__ = [
+    "DELETE_ACTION",
+    "ActionRunner",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")

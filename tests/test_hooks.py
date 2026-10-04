@@ -9,7 +9,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.database import Database
 from adminsite.exceptions import RefusedError
-from adminsite.views.writing import SaveContext
+from adminsite.views.contexts import SaveContext
 from tests.models import Customer, Product
 from tests.support import request_from
 

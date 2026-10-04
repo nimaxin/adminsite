@@ -11,12 +11,15 @@ from adminsite.exceptions import InvalidPathError, PermissionDeniedError, Refuse
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.views.inline import Inline, InlineRow
+from adminsite.views._forms import InlineRow
+from adminsite.views.inlines import Inline
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["Links"]
+__all__ = [
+    "Links",
+]
 
 
 class Links:

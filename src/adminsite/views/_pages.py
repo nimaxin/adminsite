@@ -11,15 +11,17 @@ from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
-from adminsite.views.inline import Inline
+from adminsite.views._fields import ViewFields
+from adminsite.views._settings import SettingsReader
+from adminsite.views.inlines import Inline
 from adminsite.views.layout import Placed, arrange
-from adminsite.views.settings import SettingsReader
-from adminsite.views.view_fields import ViewFields
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["PageFields"]
+__all__ = [
+    "PageFields",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")

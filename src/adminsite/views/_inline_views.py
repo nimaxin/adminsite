@@ -1,9 +1,6 @@
-from collections.abc import Sequence
 from copy import copy
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.orm import QueryableAttribute
 from starlette.requests import Request
 
 from adminsite.columns import describe, path_of
@@ -11,91 +8,20 @@ from adminsite.exceptions import AdminSiteError
 from adminsite.fields import BaseField, Field
 from adminsite.permissions import RequestAction
 from adminsite.schema import RelationDirection
-from adminsite.views.checks import check_title
-from adminsite.views.settings import default_paths
+from adminsite.views._checks import check_title
+from adminsite.views._settings import default_paths
+from adminsite.views.inlines import Inline
 
 if TYPE_CHECKING:
-    from adminsite.columns import ColumnReference
     from adminsite.fields import FieldRegistry
     from adminsite.inspector import SQLAlchemyInspector
     from adminsite.schema import ModelSchema
+    from adminsite.views._settings import SettingsReader
     from adminsite.views.model_view import ModelView
-    from adminsite.views.settings import SettingsReader
 
 __all__ = [
-    "Inline",
-    "InlineRow",
     "InlineViews",
 ]
-
-
-@dataclass(frozen=True)
-class Inline:
-    """Child records edited inside their parent's form, such as order lines.
-
-    ```python
-    class OrderView(ModelView[Order]):
-        inlines = [
-            Inline(
-                Order.items,
-                fields=[OrderItem.product, OrderItem.quantity, OrderItem.unit_price],
-            )
-        ]
-    ```
-
-    Each child shows as a row of inputs, with a button to remove it, and
-    new rows can be added in the form. Everything is saved in one
-    transaction with the parent.
-
-    Args:
-        relation: The relationship on the parent that holds the children,
-            by attribute or by name, such as `Order.items`.
-        fields: The child's fields, in order, written as a view's are, so
-            `Field(OrderItem.added_at, read_only=True)` shows a value it
-            never edits. Left empty, every field but those the relationship
-            fills in.
-        label: The heading above the rows. Left empty, the relationship's
-            name.
-        blank_rows: How many blank rows the table starts with while it has
-            no rows yet.
-        can_delete: Whether rows can be removed, which deletes the child.
-        record_title: How a child is named, as a view's `record_title`.
-    """
-
-    relation: str | QueryableAttribute[Any]
-    fields: Sequence["ColumnReference | Field[Any]"] = ()
-    label: str = ""
-    blank_rows: int = 1
-    can_delete: bool = True
-    record_title: str = ""
-
-    @property
-    def name(self) -> str:
-        """The relationship's name, which the inline's inputs start with."""
-        if isinstance(self.relation, str):
-            return self.relation
-        return self.relation.key
-
-    def input_name(self, index: int | str, path: str) -> str:
-        """The name a child's input carries in the submitted form."""
-        return f"{self.name}-{index}-{path}"
-
-
-@dataclass
-class InlineRow:
-    """One child as it came back from the form."""
-
-    key: str
-    values: dict[str, Any] = field(default_factory=dict)
-    delete: bool = False
-    # Where the row sat in the form, which names its inputs, so a refusal
-    # about one of them can be shown beside it.
-    index: int | None = None
-
-    @property
-    def is_new(self) -> bool:
-        """Whether this row adds a child rather than changing one."""
-        return not self.key
 
 
 class InlineViews(dict[str, "ModelView[Any]"]):

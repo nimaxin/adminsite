@@ -16,15 +16,17 @@ from adminsite.filters.sql import SQLFilter, SQLFilterContext
 from adminsite.permissions import Permission
 from adminsite.query import Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
-from adminsite.views.naming import mark_unseen
-from adminsite.views.pages import PageFields
-from adminsite.views.settings import SettingsReader
-from adminsite.views.view_fields import ViewFields
+from adminsite.views._fields import ViewFields
+from adminsite.views._linked_names import mark_unseen
+from adminsite.views._pages import PageFields
+from adminsite.views._settings import SettingsReader
 
 if TYPE_CHECKING:
     from adminsite.views.model_view import ModelView
 
-__all__ = ["Reader"]
+__all__ = [
+    "Reader",
+]
 
 # The model of the view this part belongs to.
 M = TypeVar("M")
