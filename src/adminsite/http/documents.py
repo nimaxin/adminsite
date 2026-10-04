@@ -187,8 +187,14 @@ class _Builder:
                 key_count=len(shape.keys),
             )
         if isinstance(shape, Value):
+            # The field shows the note under its input itself; the entry
+            # keeps it for the list that adds a field left unset.
             return DocumentEntry(
-                "value", name, label=label, row=self.value_row(shape.field, name)
+                "value",
+                name,
+                label=label,
+                note=note,
+                row=self.value_row(shape.field, name),
             )
         return DocumentEntry("value", name, label=label)
 

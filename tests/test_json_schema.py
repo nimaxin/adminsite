@@ -677,7 +677,7 @@ class TestAPartialDocument:
             "options.zones",
             "options.fees",
         ]
-        assert "Orders above this ship free." in page.text
+        assert "Orders above this ship free." in box.group(0)
         assert 'aria-label="Add a field"' in page.text
 
     async def test_every_unset_field_keeps_its_inputs_unsent(
