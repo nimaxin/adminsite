@@ -1,4 +1,5 @@
 import html
+import json
 import re
 from collections.abc import AsyncIterator
 from typing import Annotated, Any, Literal
@@ -606,6 +607,20 @@ async def overrides(database: Database) -> AsyncIterator[httpx.AsyncClient]:
         yield client
 
 
+def held(page: httpx.Response) -> list[str]:
+    """The fields a partial form starts with as set, by name."""
+    found = re.search(r"picked: (\[.*?\])\}\)'", page.text)
+    assert found is not None
+    return [item["value"] for item in json.loads(found.group(1))]
+
+
+def settable_tag(page: httpx.Response, name: str) -> str:
+    """The opening tag of the part that holds one field of a partial form."""
+    found = re.search(rf'<div [^>]*data-settable="options\.{name}"[^>]*>', page.text)
+    assert found is not None
+    return found.group(0)
+
+
 class TestAPartialDocument:
     def test_only_what_is_set_is_read(self) -> None:
         document = Document(Delivery, name="options", partial=True)
@@ -635,16 +650,83 @@ class TestAPartialDocument:
             "options.free_over": "Seven is an unlucky threshold."
         }
 
-    async def test_two_of_five_open_set_and_the_rest_unset(
+    async def test_only_what_is_set_is_drawn(
         self, overrides: httpx.AsyncClient
     ) -> None:
         page = await overrides.get("/admin/settings/1/edit")
 
-        assert 'name="options.carriers~set"' in page.text
-        assert 'name="options.free_over~set"' in page.text
-        assert 'name="options.express~set"' in page.text
-        assert page.text.count('x-data="{ set: true }"') == 2
-        assert page.text.count('x-data="{ set: false }"') == 3
+        assert held(page) == ["options.carriers", "options.free_over"]
+        for name in ("carriers", "free_over"):
+            assert "x-cloak" not in settable_tag(page, name)
+        for name in ("express", "zones", "fees"):
+            assert "x-cloak" in settable_tag(page, name)
+        assert 'aria-label="Remove Carriers"' in page.text
+
+    async def test_every_field_waits_in_the_box_in_the_schemas_order(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+
+        box = re.search(r'<ul id="unset-options".*?</ul>', page.text, flags=re.DOTALL)
+        assert box is not None
+        offered = re.findall(r'role="option"[^>]*data-value="([^"]+)"', box.group(0))
+        assert offered == [
+            "options.carriers",
+            "options.free_over",
+            "options.express",
+            "options.zones",
+            "options.fees",
+        ]
+        assert "Orders above this ship free." in page.text
+        assert 'aria-label="Add a field"' in page.text
+
+    async def test_every_unset_field_keeps_its_inputs_unsent(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+
+        for name in ("carriers", "free_over", "express", "zones", "fees"):
+            assert f'name="options.{name}~set"' in page.text
+        assert page.text.count('<fieldset class="min-w-0 grow"') == 5
+        assert re.search(
+            r"fieldset[^>]*'!holds\(\"options.express\"\)' disabled>", page.text
+        )
+
+    async def test_a_record_with_nothing_set_says_so(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/new")
+
+        assert held(page) == []
+        assert re.search(r'<p class="text-muted" x-show="!picked.length" >', page.text)
+        assert "Nothing set." in page.text
+
+    async def test_a_field_with_a_mistake_stays_in_view(
+        self, overrides: httpx.AsyncClient
+    ) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+
+        answer = await overrides.post(
+            "/admin/settings/1/edit",
+            data={
+                "_csrf": token_in(page),
+                "name": "delivery",
+                "options~form": "1",
+                "options.free_over~set": "1",
+                "options.free_over": "7",
+            },
+        )
+
+        assert answer.status_code == 422
+        assert held(answer) == ["options.free_over"]
+        assert "Seven is an unlucky threshold." in answer.text
+
+    async def test_every_control_has_a_name(self, overrides: httpx.AsyncClient) -> None:
+        page = await overrides.get("/admin/settings/1/edit")
+        controls = Controls()
+        controls.feed(page.text)
+
+        assert controls.unnamed() == []
 
     async def test_it_saves_back_as_the_keys_set(
         self, overrides: httpx.AsyncClient, database: Database

@@ -235,6 +235,46 @@
     };
   }
 
+  // The box under a document whose fields may each be left unset, which adds
+  // one back: a picker whose list is the fields left out and whose choices
+  // are the fields that are set. A field added shows in its own place and
+  // takes the focus; one removed hands the focus back to the box.
+  function fieldAdder(config) {
+    const adder = recordPicker({ ...config, multiple: true, ordered: true, local: true });
+    Object.defineProperty(adder, "placeholder", {
+      get() {
+        return this.open ? this.searchHint : this.hint;
+      },
+    });
+    const enter = adder.enter;
+    // Set while the focus comes back after a remove, so the list stays shut.
+    adder.quiet = false;
+    adder.enter = function () {
+      if (this.quiet) {
+        this.quiet = false;
+        return;
+      }
+      enter.call(this);
+    };
+    adder.choose = function (value, label) {
+      this.picked = [...this.picked, { value, label }];
+      this.close();
+      this.$nextTick(() => {
+        const part = this.$root.querySelector(`[data-settable="${CSS.escape(value)}"]`);
+        part?.querySelector("fieldset :is(input:not([type=hidden]), select, textarea)")?.focus();
+      });
+    };
+    adder.remove = function (value) {
+      this.picked = this.picked.filter((item) => item.value !== value);
+      this.$nextTick(() => {
+        this.quiet = true;
+        this.$refs.search.focus();
+        if (document.activeElement !== this.$refs.search) this.quiet = false;
+      });
+    };
+    return adder;
+  }
+
   // Where a document stops being JSON: the place, and the name of what is
   // wrong there in JSON_WORDS. A document with nothing wrong gives ok.
   function checkJSON(text) {

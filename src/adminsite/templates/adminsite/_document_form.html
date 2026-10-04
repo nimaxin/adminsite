@@ -130,26 +130,20 @@
   {%- endif -%}
 {%- endmacro -%}
 
-{#- A property that may be left out of the document. Unset, its inputs sit in
-    a disabled fieldset, so none of them is sent, and it reads Not set. -#}
+{#- A field that may be left out of the document, drawn only while it is
+    set. Unset, it is hidden and its inputs sit in a disabled fieldset, so
+    none of them is sent; the box under the document adds it back, in its
+    own place. -#}
 {%- macro settable_part(entry) -%}
-  <div class="flex min-w-0 items-start gap-3 sm:col-span-2" x-data="{ set: {{ 'true' if entry.is_set else 'false' }} }">
-    <div class="min-w-0 grow">
-      <fieldset class="min-w-0" :disabled="!set" x-show="set" {% if not entry.is_set %}disabled x-cloak{% endif %}>
-        <input type="hidden" name="{{ entry.name }}~set" value="1">
-        <div class="grid gap-5 sm:grid-cols-2">{{ part(entry) }}</div>
-      </fieldset>
-      <div class="flex flex-col gap-1.5" x-show="!set" {% if entry.is_set %}x-cloak{% endif %}>
-        <span class="text-[13px] font-medium text-muted">{{ entry.label }}</span>
-        <span class="flex h-10 items-center rounded-field border border-dashed border-line-strong px-3 text-muted">{{ _('Not set') }}</span>
-      </div>
-    </div>
-    <button type="button" class="btn btn-ghost btn-sm mt-5 shrink-0" @click="set = !set"
-            :class="set ? 'text-muted' : 'text-link'"
-            :aria-label='set ? {{ _("Clear {thing}", thing=entry.label)|tojson }} : {{ _("Set {thing}", thing=entry.label)|tojson }}'>
-      <span x-show="set" {% if not entry.is_set %}x-cloak{% endif %}>{{ _('Clear') }}</span>
-      <span x-show="!set" {% if entry.is_set %}x-cloak{% endif %}>{{ _('Set') }}</span>
-    </button>
+  <div class="flex min-w-0 items-start gap-3 sm:col-span-2" data-settable="{{ entry.name }}"
+       x-show='holds({{ entry.name|tojson }})' {% if not entry.is_set %}x-cloak{% endif %}>
+    <fieldset class="min-w-0 grow" :disabled='!holds({{ entry.name|tojson }})' {% if not entry.is_set %}disabled{% endif %}>
+      <input type="hidden" name="{{ entry.name }}~set" value="1">
+      <div class="grid gap-5 sm:grid-cols-2">{{ part(entry) }}</div>
+    </fieldset>
+    <button type="button" class="btn btn-ghost btn-sm mt-5 shrink-0 text-muted"
+            @click='remove({{ entry.name|tojson }})'
+            aria-label="{{ _('Remove {name}', name=entry.label) }}">{{ _('Remove') }}</button>
   </div>
 {%- endmacro -%}
 
@@ -161,10 +155,61 @@
   </div>
 {%- endmacro -%}
 
+{#- A document whose fields may each be left unset: the fields that are set,
+    then a box that adds one of the others. The box is a picker whose list is
+    the fields left out, in the schema's order, each with its description,
+    and whose choices are the fields that are set. -#}
+{%- macro partial_parts(entries, name) -%}
+  {%- set settable = entries|selectattr("settable")|list -%}
+  {%- set held = namespace(items=[]) -%}
+  {%- for entry in settable if entry.is_set -%}
+    {%- set held.items = held.items + [{"value": entry.name, "label": entry.label}] -%}
+  {%- endfor -%}
+  {%- set list_id = "unset-" ~ name|replace(".", "-") -%}
+  <div class="flex flex-col gap-5 rounded-box border border-line bg-subtle p-4"
+       x-data='fieldAdder({list: {{ list_id|tojson }}, hint: {{ _("Add a field")|tojson }}, search: {{ _("Search fields")|tojson }}, picked: {{ held.items|tojson }}})'>
+    <div x-show="picked.length" {% if not held.items %}x-cloak{% endif %}>{{ parts(entries) }}</div>
+    <p class="text-muted" x-show="!picked.length" {% if held.items %}x-cloak{% endif %}>{{ _('Nothing set.') }}</p>
+    <div class="relative w-full max-w-sm" x-show="picked.length < {{ settable|length }}"
+         {% if held.items|length == settable|length %}x-cloak{% endif %}>
+      {#- A press anywhere in the box goes to the text in it, as in any input. -#}
+      <div class="input h-10 w-full cursor-text gap-2 border-dashed" @mousedown="press($event)">
+        <span class="text-link">{{ icons.icon("plus", 16) }}</span>
+        <input type="text" x-ref="search" role="combobox" class="min-w-24 flex-1"
+               autocomplete="off" spellcheck="false" aria-label="{{ _('Add a field') }}"
+               aria-autocomplete="list" aria-controls="{{ list_id }}"
+               :aria-expanded="open.toString()" :aria-activedescendant="activeId || null"
+               x-model="query" :placeholder="placeholder"
+               @focus="enter()" @click="enter()" @blur="close()" @input="typed()" @keydown="key($event)">
+      </div>
+      <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg"
+           x-show="open" x-cloak @mousedown.prevent>
+        <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ _('Fields not set') }}"
+            class="max-h-72 overflow-auto p-1">
+          {% for entry in settable %}
+            {#- Found by its description as well as its name. -#}
+            <li role="option" class="flex cursor-pointer flex-col rounded-field px-2.5 py-1.5 data-[active=true]:bg-base-200"
+                data-value="{{ entry.name }}" aria-selected="false"
+                x-show='offers({{ entry.name|tojson }}, {{ (entry.label ~ " " ~ entry.note)|tojson }})'
+                @mousedown.prevent @mouseenter="hover($el)"
+                @click='choose({{ entry.name|tojson }}, {{ entry.label|tojson }})'>
+              <span class="min-w-0 break-words">{{ entry.label }}</span>
+              {% if entry.note %}<span class="text-[12.5px] leading-snug text-muted">{{ entry.note }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="px-3.5 py-2.5 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
+      </div>
+    </div>
+  </div>
+{%- endmacro -%}
+
 {#- The Form and JSON switch sits in the field's own title line. -#}
 <input type="hidden" name="{{ row.path }}~form" value="1">
 <div x-show="view === 'form'">
-  {%- if document.kind == "group" -%}
+  {%- if document.kind == "group" and document.entries|selectattr("settable")|first -%}
+    {{ partial_parts(document.entries, row.path) }}
+  {%- elif document.kind == "group" -%}
     <div class="rounded-box border border-line bg-subtle p-4">{{ parts(document.entries) }}</div>
   {%- else -%}
     <div class="grid sm:grid-cols-2">{{ part(document) }}</div>
