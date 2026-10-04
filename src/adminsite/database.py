@@ -145,27 +145,64 @@ class SessionAdapter(ABC):
 
     @abstractmethod
     async def execute(self, statement: Executable) -> Result:  # type: ignore[type-arg]
-        """Run a statement and return its result."""
+        """Run a statement and return its result.
+
+        Args:
+            statement: A select, an insert, an update or a delete.
+
+        Returns:
+            SQLAlchemy's result, rows read as they come.
+        """
 
     @abstractmethod
     async def scalars(self, statement: Executable) -> ScalarResult[Any]:
-        """Run a statement and return the first column of every row."""
+        """Run a statement and return the first column of every row.
+
+        Args:
+            statement: A select, usually of whole records.
+
+        Returns:
+            The values, such as the records a `select(Order)` finds.
+        """
 
     @abstractmethod
     async def scalar(self, statement: Executable) -> Any:
-        """Run a statement and return a single value."""
+        """Run a statement and return a single value.
+
+        Args:
+            statement: A select of one value, such as a count.
+
+        Returns:
+            The first column of the first row, or None without one.
+        """
 
     @abstractmethod
     async def get(self, model: type[T], key: Any) -> T | None:
-        """Load one record by primary key, or nothing if it is missing."""
+        """Load one record by primary key, or nothing if it is missing.
+
+        Args:
+            model: The model to load.
+            key: The primary key, a tuple for a composite one.
+
+        Returns:
+            The record, or None.
+        """
 
     @abstractmethod
     async def add(self, record: Any) -> None:
-        """Put a new record into the session."""
+        """Put a new record into the session.
+
+        Args:
+            record: The record, inserted at the next flush or commit.
+        """
 
     @abstractmethod
     async def delete(self, record: Any) -> None:
-        """Mark a record for deletion."""
+        """Mark a record for deletion.
+
+        Args:
+            record: The record, deleted at the next flush or commit.
+        """
 
     @abstractmethod
     async def flush(self) -> None:
@@ -187,7 +224,18 @@ class SessionAdapter(ABC):
 
     @abstractmethod
     async def run(self, work: Callable[[Session], T]) -> T:
-        """Run a function against the underlying sync session."""
+        """Run a function against the underlying sync session.
+
+        For SQLAlchemy calls the adapter has no method for: through
+        `run_sync` with an async engine, and on the session's own thread
+        with a sync one.
+
+        Args:
+            work: A function given SQLAlchemy's sync `Session`.
+
+        Returns:
+            What the function returns.
+        """
 
     @abstractmethod
     async def close(self) -> None:
@@ -356,7 +404,12 @@ class SyncSessionAdapter(SessionAdapter):
 
 
 class Database:
-    """Hands out sessions, hiding whether the engine is async or not."""
+    """Hands out sessions, hiding whether the engine is async or not.
+
+    Args:
+        source: An engine, an async engine, or a session factory for either,
+            as `Admin` takes it.
+    """
 
     def __init__(self, source: SessionSource) -> None:
         self.is_async = isinstance(source, AsyncEngine | async_sessionmaker)
@@ -384,7 +437,12 @@ class Database:
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[SessionAdapter]:
-        """Open a session and close it when the block ends."""
+        """Open a session and close it when the block ends.
+
+        Returns:
+            A context manager that hands over the session: `async with
+            database.session() as session:`.
+        """
         adapter = self.open()
         try:
             yield adapter

@@ -99,7 +99,14 @@ class SQLFilter(Filter, Generic[M]):
 
 
 class ChoiceFilter(SQLFilter[Any]):
-    """Pick one or more values from a fixed list, such as a status."""
+    """Pick one or more values from a fixed list, such as a status.
+
+    Args:
+        name: The filter's name in the URL.
+        choices: The options as (value, label) pairs.
+        show_counts: Whether each option says how many records it matches.
+        **options: `path` and `label`, as `SQLFilter` takes them.
+    """
 
     multiple = True
     template = "choice"
@@ -136,7 +143,14 @@ class ChoiceFilter(SQLFilter[Any]):
 
 
 class BooleanFilter(SQLFilter[Any]):
-    """A yes or no column."""
+    """A yes or no column.
+
+    Args:
+        name: The filter's name in the URL.
+        yes_label: What the option for yes says.
+        no_label: What the option for no says.
+        **options: `path` and `label`, as `SQLFilter` takes them.
+    """
 
     template = "choice"
 
@@ -171,7 +185,14 @@ class BooleanFilter(SQLFilter[Any]):
 
 
 class NumberRangeFilter(SQLFilter[Any]):
-    """A range of numbers, written as `min,max` with either side empty."""
+    """A range of numbers, written as `min,max` with either side empty.
+
+    Args:
+        name: The filter's name in the URL.
+        presets: Ranges offered as options, as (value, label) pairs, each
+            value written as `min,max`: `("0,50", "Under 50")`.
+        **options: `path` and `label`, as `SQLFilter` takes them.
+    """
 
     template = "range"
     # What each end of the range is typed into.
@@ -229,7 +250,14 @@ class NumberRangeFilter(SQLFilter[Any]):
 
 
 class DateRangeFilter(SQLFilter[Any]):
-    """A period, either one of the shortcuts or `from,to` as dates."""
+    """A period, either one of the shortcuts or `from,to` as dates.
+
+    Args:
+        name: The filter's name in the URL.
+        now: The moment the shortcuts, such as the last 7 days, count from.
+            Left out, the time each request is read.
+        **options: `path` and `label`, as `SQLFilter` takes them.
+    """
 
     template = "range"
     input_type = "date"
@@ -298,7 +326,14 @@ class DateRangeFilter(SQLFilter[Any]):
 
 
 class RelationFilter(SQLFilter[Any]):
-    """Records linked to one of the chosen related records."""
+    """Records linked to one of the chosen related records.
+
+    Args:
+        name: The filter's name in the URL.
+        key: The related model's column the chosen values are matched
+            against.
+        **options: `path` and `label`, as `SQLFilter` takes them.
+    """
 
     multiple = True
     template = "relation"

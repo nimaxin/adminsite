@@ -11,17 +11,27 @@ class Permission(StrEnum):
     """The things a user can be allowed to do with a view."""
 
     VIEW = "view"
+    """Opening the view's list, and seeing it in the sidebar."""
     CREATE = "create"
+    """Adding a record."""
     EDIT = "edit"
+    """Changing a record. The permission an action asks for, unless it says."""
     DELETE = "delete"
+    """Deleting a record, alone or with others."""
     EXPORT = "export"
-    # Opening one record's page. A view whose list says everything can
-    # switch it off.
+    """Downloading the list as CSV."""
     VIEW_DETAIL = "detail"
+    """Opening one record's page.
+
+    A view whose list says everything can switch it off.
+    """
     IMPORT = "import"
-    # Reading the audit log: a record's History tab, and the view's entries
-    # on the Activity page.
+    """Importing records from a file."""
     HISTORY = "history"
+    """Reading the audit log.
+
+    A record's History tab, and the view's entries on the Activity page.
+    """
 
 
 class RequestAction(StrEnum):

@@ -9,6 +9,24 @@
   Add a field box that finds the others by name or description, where it drew a Not set row for
   every field of the schema. The record page lists the fields left out on one line, Not set (48),
   which opens to name them.
+- The package is laid out the way Starlette's is: a module a project imports is named for what it
+  holds, and machinery starts with an underscore. Behaviour is unchanged, but these imports move,
+  and the old paths stop working:
+
+| Name | Was imported from | Now from |
+| --- | --- | --- |
+| `Database`, `SessionAdapter`, `Statement` | `adminsite.backends.sqlalchemy` | `adminsite.database` |
+| `SQLAlchemyInspector` | `adminsite.backends.sqlalchemy` | `adminsite.inspector` |
+| `SQLFilter`, `ChoiceFilter` and the other built-in filters, `SQLAlchemyRepository` | `adminsite.backends.sqlalchemy` | `adminsite.filters` |
+| `Permission`, `RequestAction` | `adminsite.security` | `adminsite.permissions`, or `adminsite` as before |
+| `add_message` | `adminsite.http.templating` | `adminsite.messages` |
+| `Html` | `adminsite.text` | `adminsite.markup`, or `adminsite` as before |
+| `SaveContext`, `DeleteContext` | `adminsite.views.writing` | `adminsite.views.contexts`, or `adminsite` as before |
+| `QuerySpec`, `Page`, `Sort` | `adminsite` | `adminsite.query` |
+| `FieldSchema`, `ModelSchema`, `RelationSchema` | `adminsite` | `adminsite.schema` |
+| `ViewRegistry`, `SavedView` | `adminsite` | `adminsite.views`, `adminsite.saved_views` |
+| `InvalidPathError`, `NotAModelError`, `UnknownFieldError` | `adminsite` | `adminsite.exceptions` |
+| `ModelInspector` | `adminsite` | removed: `SQLAlchemyInspector` was its one implementation |
 
 ## 0.1.0a11
 

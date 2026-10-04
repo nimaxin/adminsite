@@ -101,6 +101,10 @@ class BooleanField(Field[bool | None]):
     Its badge is green for yes and grey for no, unless `tones` says: for a
     flag whose yes is the bad case, `{True: "rose", False: None}` draws a
     rose badge when it is set and nothing when it is not.
+
+    Args:
+        tones: The colour of each value's badge, by name, or one name for
+            both. None for a value draws it with no badge.
     """
 
     _: KW_ONLY

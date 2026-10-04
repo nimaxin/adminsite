@@ -24,6 +24,10 @@ class ListField(Field[Sequence[Any] | None]):
     ```python
     ListField(Product.sizes, item=IntegerField("sizes"))
     ```
+
+    Args:
+        item: The field each value is read and shown by. Left out, the one
+            the column's type of item calls for.
     """
 
     _: KW_ONLY

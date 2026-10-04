@@ -40,7 +40,13 @@ class FieldRegistry:
         self._by_type: dict[type[Any], type[Field[Any]]] = {}
 
     def register(self, python_type: type[Any], field_class: type[Field[Any]]) -> None:
-        """Use this field type for columns holding this Python type."""
+        """Use this field type for columns holding this Python type.
+
+        Args:
+            python_type: The type of value a column holds, such as `Decimal`
+                or a type of your own.
+            field_class: The field adminsite picks for such a column.
+        """
         self._by_type[python_type] = field_class
 
     def field_class_for(self, schema: FieldSchema) -> type[Field[Any]]:
@@ -105,3 +111,8 @@ def build_default_registry() -> FieldRegistry:
 
 
 default_registry = build_default_registry()
+"""The registry every admin uses unless it is given another.
+
+Register a field here to have it picked for every column of a type:
+`default_registry.register(Percentage, PercentField)`.
+"""

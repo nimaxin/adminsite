@@ -41,7 +41,14 @@ class ViewRegistry:
             raise AdminSiteError(f"No view is called {name!r}.") from None
 
     def find(self, name: str) -> ModelView[Any] | None:
-        """Find a view by name, or nothing if there is none."""
+        """Find a view by name, or nothing if there is none.
+
+        Args:
+            name: The view's name, as in its URL, such as "orders".
+
+        Returns:
+            The view, or None.
+        """
         return self._by_name.get(name)
 
     def for_model(self, model: type[Any]) -> ModelView[Any] | None:

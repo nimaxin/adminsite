@@ -84,7 +84,14 @@ def read_messages(request: Request) -> list[dict[str, str]]:
 
 
 def add_message(request: Request, text: "str | Message", kind: str = "info") -> None:
-    """Leave a message for the page the user lands on next."""
+    """Leave a message for the page the user lands on next.
+
+    Args:
+        request: The request being answered.
+        text: What to say, escaped unless given as `Html`, or a `Message`.
+        kind: "error" draws it as a problem; anything else, such as the
+            default "info", as news that fades.
+    """
     session = request.scope.get("session")
     if session is None:
         return

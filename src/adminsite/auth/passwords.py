@@ -40,7 +40,15 @@ def hash_password(password: str, *, iterations: int = ITERATIONS) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
-    """Check a password against a stored hash, in constant time."""
+    """Check a password against a stored hash, in constant time.
+
+    Args:
+        password: The password typed.
+        stored: A hash `hash_password` made.
+
+    Returns:
+        Whether they match. A hash in any other form never does.
+    """
     try:
         algorithm, rounds, salt, digest = stored.split("$")
         iterations = int(rounds)

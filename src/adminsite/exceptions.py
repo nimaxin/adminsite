@@ -114,7 +114,15 @@ class RecordNotFoundError(AdminSiteError):
 
 
 class FieldValidationError(AdminSiteError):
-    """Raised when a submitted value cannot be stored in a field."""
+    """Raised when a submitted value cannot be stored in a field.
+
+    A field's `parse` or `to_python` raises it, and the form shows the
+    message under that field.
+
+    Args:
+        field_name: The path of the field, such as "total".
+        message: What to tell the person, such as "Enter a whole number.".
+    """
 
     def __init__(self, field_name: str, message: str) -> None:
         super().__init__(message)
@@ -149,6 +157,10 @@ class SignInRefusedError(AdminSiteError):
     The reason goes to the audit log, never to the person signing in, who
     sees only what `sign_in_failed` returns. Pass the account when there is
     one, such as an inactive user, so the attempt is filed under them.
+
+    Args:
+        reason: Why the sign in was refused, for the audit log.
+        user: The account the attempt was for, where there is one.
     """
 
     def __init__(self, reason: str, user: object = None) -> None:
