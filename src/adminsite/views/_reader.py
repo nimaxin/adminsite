@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
 
-from adminsite._orm.repository import SQLAlchemyRepository
+from adminsite._orm.repository import Scope, SQLAlchemyRepository
 from adminsite._text import template_names
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
@@ -224,27 +224,74 @@ class Reader(Generic[M]):
         *,
         limit: int,
         request: Request,
-    ) -> tuple[Sequence[Any], int]:
+    ) -> "tuple[list[tuple[Any, ModelView[Any] | None]], int]":
         """The first records a to-many link of this record holds, and the total.
 
-        Read through the linked model's own view, as a picker is, so its
-        `scope_query` leaves out records, and their count, that it hides
-        from this user. A model no view shows is read directly.
+        Read as the list reads a link: through the view it names, or else
+        through every view of the linked model, so a record any of them
+        holds is named and counted, and one that none holds is left out.
+        Each record comes with the view that opens it, or None. A model no
+        view shows is read directly.
         """
         await self._view._ensure(Permission.VIEW_DETAIL, request=request, record=record)
-        item = self._fields.field_for(path)
-        target = (
-            self._view._views.for_relation(item)
-            if self._view._views is not None and isinstance(item, RelationField)
-            else None
-        )
-        return await self._repository.related(
+        targets = self._linked_views(path, self._schema.relations[path].target)
+        records, total = await self._repository.related(
             session,
             record,
             path,
             limit=limit,
-            scope=target._scope_for(request) if target is not None else None,
+            scope=self._held_by_any(targets, request),
         )
+        openers = await self._views_that_open(session, targets, records, request)
+        return list(zip(records, openers, strict=True)), total
+
+    def _held_by_any(
+        self, targets: "Sequence[ModelView[Any]]", request: Request
+    ) -> Scope | None:
+        """A scope that keeps what any of these views holds, or None for everything."""
+        if not targets or not all(target._scoped for target in targets):
+            return None
+        if len(targets) == 1:
+            return targets[0]._scope_for(request)
+        return targets[0]._repository.within_any(
+            [target._scope_for(request) for target in targets]
+        )
+
+    async def _views_that_open(
+        self,
+        session: SessionAdapter,
+        targets: "Sequence[ModelView[Any]]",
+        records: Sequence[Any],
+        request: Request,
+    ) -> "list[ModelView[Any] | None]":
+        """The view each linked record opens in, or None where none will.
+
+        The first of the views that holds it and lets this user open it.
+        Each view's scope is asked once, for the records still without one.
+        """
+        found: list[ModelView[Any] | None] = [None] * len(records)
+        for target in targets:
+            waiting = [index for index, opener in enumerate(found) if opener is None]
+            if not waiting:
+                break
+            # The records were read through a lone view's scope, so it holds them.
+            if target._scoped and len(targets) > 1:
+                held = await target._repository.visible_keys(
+                    session,
+                    [records[index] for index in waiting],
+                    target._scope_for(request),
+                )
+                waiting = [
+                    index
+                    for index in waiting
+                    if target._fields.identity_of(records[index]) in held
+                ]
+            for index in waiting:
+                if await target.allows(
+                    Permission.VIEW_DETAIL, request=request, record=records[index]
+                ):
+                    found[index] = target
+        return found
 
     async def load_values(
         self,

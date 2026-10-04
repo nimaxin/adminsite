@@ -8,7 +8,7 @@ from adminsite.database import Database
 from adminsite.exceptions import InvalidPathError
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import CountMode, QuerySpec, Sort
-from tests.models import Customer, Order, OrderItem, Shelf
+from tests.models import Customer, Order, OrderItem, OrderStatus, Shelf
 from tests.support import Backend, count_queries
 
 
@@ -355,6 +355,36 @@ class TestSingleRecords:
             record = (await orders.list(session, QuerySpec(limit=1))).rows[0]
 
             assert orders.identity_of(record) == str(record.id)
+
+
+class TestAScopeOfSeveral:
+    async def test_it_keeps_what_any_of_them_keeps(
+        self, database: Database, orders: SQLAlchemyRepository[Order]
+    ) -> None:
+        scope = orders.within_any(
+            [
+                lambda statement: statement.where(Order.status == OrderStatus.PAID),
+                lambda statement: statement.where(Order.status == OrderStatus.REFUNDED),
+            ]
+        )
+        async with database.session() as session:
+            page = await orders.list(session, QuerySpec(), scope)
+
+        assert sorted(row.status for row in page) == ["paid", "paid", "refunded"]
+        assert page.total == 3
+
+    async def test_a_key_of_two_columns(self, database: Database) -> None:
+        shelves = SQLAlchemyRepository(Shelf)
+        scope = shelves.within_any(
+            [
+                lambda statement: statement.where(Shelf.aisle == "B"),
+                lambda statement: statement.where(Shelf.slot == 2),
+            ]
+        )
+        async with database.session() as session:
+            page = await shelves.list(session, QuerySpec(), scope)
+
+        assert [str(row) for row in page] == ["A2", "B1"]
 
 
 class TestCounting:
