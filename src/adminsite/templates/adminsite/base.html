@@ -692,10 +692,13 @@
     {% endif %}
 
     {#- The page sits on a raised panel, so it reads apart from the sidebar. -#}
-    <main id="content" tabindex="-1"
+    <main id="content" tabindex="-1" x-data="{ scrolled: false }"
           class="flex min-h-0 flex-1 flex-col bg-base-100 focus:outline-none lg:overflow-hidden lg:rounded-box lg:border lg:border-base-300 lg:shadow-panel">
       {% block breadcrumb %}{% endblock %}
-      <header class="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-4 lg:px-7 {% block header_class %}lg:py-5{% endblock %}">
+      {#- Once the page scrolls, a line under the header keeps what scrolls
+          beneath it apart from it: the same line the tabs below it draw. -#}
+      <header class="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-transparent px-4 py-4 data-scrolled:border-base-300 lg:px-7 {% block header_class %}lg:py-5{% endblock %}"
+              :data-scrolled="scrolled">
         <label for="navigation" class="btn btn-square btn-ghost btn-sm -ms-1.5 lg:hidden" aria-label="{{ _('Open the menu') }}">
           {{ icons.icon("menu", 18) }}
         </label>
@@ -713,7 +716,8 @@
       {#- Relative, so text kept for screen readers ("sr-only") is placed inside
           this scrolling area. Placed against the page instead, a label low in a
           long form stretched the page and made the whole window scroll. -#}
-      <div class="relative flex min-h-0 flex-1 flex-col overflow-auto">
+      <div class="relative flex min-h-0 flex-1 flex-col overflow-auto"
+           @scroll.passive="scrolled = $el.scrollTop > 0">
         {% block content %}{% endblock %}
       </div>
     </main>

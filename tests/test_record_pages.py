@@ -96,6 +96,14 @@ class TestDetail:
 
         assert EMPTY in response.text
 
+    async def test_the_header_draws_a_line_once_the_page_scrolls(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/products/1")
+
+        assert '@scroll.passive="scrolled = $el.scrollTop > 0"' in response.text
+        assert "data-scrolled:border-base-300" in response.text
+
 
 class DescribedProducts(ModelView[Product]):
     """The description in the list, and read only on the form."""

@@ -182,7 +182,7 @@ class TestThePage:
         # "sr-only" text is placed against the nearest positioned ancestor.
         # Were that the page, a label low in a long form would stretch the
         # page past the window, so the scrolling area is positioned itself.
-        assert re.search(r'<div class="relative [^"]*overflow-auto">', page.text)
+        assert re.search(r'<div class="relative [^"]*overflow-auto"[^>]*>', page.text)
         assert page.text.count('class="sr-only"') >= 2
 
     async def test_the_sidebar_is_named_and_marks_where_you_are(

@@ -8,6 +8,8 @@
 - An empty value shows as a grey hyphen in place of an em dash, now in the list too, where its
   cell was blank, and screen readers say "Not set". One template draws it,
   `adminsite/_empty.html`, so a project can change it through `template_dirs`.
+- Every page draws a line under its header once it scrolls, so the rows that scroll beneath it
+  no longer run into it.
 
 ## 0.1.0a12
 
