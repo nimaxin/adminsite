@@ -14,20 +14,15 @@ from adminsite import Admin, ModelView
 from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import JSONField
-from adminsite.fields.documents import (
-    Document,
+from adminsite.fields._documents.document import Document, DocumentError
+from adminsite.fields._documents.inputs import (
     DocumentChoice,
     DocumentCode,
-    DocumentError,
     DocumentInteger,
     DocumentNumber,
     DocumentSwitch,
-    Fixed,
-    Group,
-    Pairs,
-    Rows,
-    Value,
 )
+from adminsite.fields._documents.shapes import Fixed, Group, Pairs, Rows, Value
 from tests.models import Setting
 from tests.test_accessibility import Controls
 

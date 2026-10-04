@@ -4,13 +4,13 @@ from dataclasses import KW_ONLY, dataclass, field
 from typing import Any
 
 from adminsite.exceptions import FieldValidationError
-from adminsite.fields.base import Field
-from adminsite.fields.documents import (
-    DRAWN,
+from adminsite.fields._documents.document import (
     Document,
     DocumentError,
     is_schema_function,
 )
+from adminsite.fields._documents.shapes import DRAWN
+from adminsite.fields.base import Field
 from adminsite.i18n import gettext as _
 
 __all__ = [

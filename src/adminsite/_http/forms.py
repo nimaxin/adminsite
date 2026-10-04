@@ -14,7 +14,7 @@ from adminsite.fields import (
     JSONField,
     RelationField,
 )
-from adminsite.fields.documents import DRAWN
+from adminsite.fields._documents.shapes import DRAWN
 from adminsite.views import ModelView
 from adminsite.views._linked_names import name_linked
 from adminsite.views._picker import PICKER_LIMIT, Picker

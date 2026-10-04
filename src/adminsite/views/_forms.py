@@ -9,7 +9,7 @@ from starlette.requests import Request
 from adminsite.actions.base import Action
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import BaseField, EnumField, JSONField, RelationField
-from adminsite.fields.documents import DocumentError
+from adminsite.fields._documents.document import DocumentError
 from adminsite.fields.files import UNCHANGED, FileField, UploadField
 from adminsite.views._fields import ViewFields
 from adminsite.views._pages import PageFields

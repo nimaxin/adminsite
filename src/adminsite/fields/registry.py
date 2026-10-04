@@ -5,9 +5,9 @@ from typing import Any, TypeVar
 from uuid import UUID
 
 from adminsite.fields.base import Field
-from adminsite.fields.choice import EnumField
+from adminsite.fields.choices import EnumField
 from adminsite.fields.json_field import JSONField
-from adminsite.fields.list_field import ListField
+from adminsite.fields.lists import ListField
 from adminsite.fields.scalars import (
     BooleanField,
     DecimalField,

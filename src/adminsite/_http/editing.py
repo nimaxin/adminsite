@@ -25,7 +25,7 @@ from adminsite.exceptions import (
     RefusedError,
 )
 from adminsite.fields import JSONField
-from adminsite.fields.documents import DocumentError
+from adminsite.fields._documents.document import DocumentError
 from adminsite.i18n import gettext as _
 from adminsite.messages import add_message
 from adminsite.permissions import Permission

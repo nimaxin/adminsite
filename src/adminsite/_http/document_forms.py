@@ -11,16 +11,15 @@ from typing import Any
 
 from adminsite._http.form_rows import Choice, FormRow, chosen_in_order
 from adminsite.fields import EnumField, Field
-from adminsite.fields.documents import (
+from adminsite.fields._documents.document import Document, row_numbers
+from adminsite.fields._documents.shapes import (
     SET,
-    Document,
     Fixed,
     Group,
     Pairs,
     Rows,
     Shape,
     Value,
-    row_numbers,
     segment,
 )
 from adminsite.i18n import gettext as _

@@ -21,7 +21,7 @@ from adminsite.fields import (
     ListField,
     RelationField,
 )
-from adminsite.fields.documents import DocumentError
+from adminsite.fields._documents.document import DocumentError
 from adminsite.i18n import gettext as _
 from adminsite.markup import plain
 from adminsite.messages import Message
