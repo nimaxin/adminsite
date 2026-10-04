@@ -194,24 +194,19 @@ async def many_links_named(
             item = view._fields.field_for(path)
             if not isinstance(item, RelationField):
                 continue
-            records, total = await view._reader.fetch_related(
+            held, total = await view._reader.fetch_related(
                 session, record, path, limit=MANY_LINKS_SHOWN, request=request
             )
-            # The records were read through this view, so it opens them too,
-            # and asking it costs no query per record.
-            target = admin.views.for_relation(item)
-            names = []
-            for one in records:
-                opens = (
-                    urls.detail(target, target._fields.identity_of(one))
-                    if target is not None
-                    and await target.allows(
-                        Permission.VIEW_DETAIL, request=request, record=one
-                    )
-                    else ""
+            names = [
+                (
+                    view._fields.name_linked(item, one),
+                    urls.detail(opener, opener._fields.identity_of(one))
+                    if opener is not None
+                    else "",
                 )
-                names.append((view._fields.name_linked(item, one), opens))
-            shown[path] = LinkedMany(names, total - len(records))
+                for one, opener in held
+            ]
+            shown[path] = LinkedMany(names, total - len(held))
     return shown
 
 

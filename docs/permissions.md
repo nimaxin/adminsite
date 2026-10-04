@@ -89,8 +89,10 @@ That includes a picker on someone else's form. When an order links to a customer
 through `CustomerView`, so it offers only the customers this user may see, and offers none at all
 where they may not open the view. See [Fields](fields.md#links-to-many-records).
 
-The record page reads a link to many records the same way. A customer's page names their orders
-through `OrderView`, so an order its scope hides is neither named nor counted in "and 12 more".
+The record page reads a link to many records through the linked views too. A customer's page names
+their orders through `OrderView`, so an order its scope hides is neither named nor counted in "and
+12 more". Where orders are split between views, an order counts when one of them holds it, as in
+the list.
 
 Any other page showing a linked record asks its view too. An order whose customer
 `CustomerView.scope_query` hides shows that customer as "Hidden", with no name and no link, in the

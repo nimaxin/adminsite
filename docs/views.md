@@ -344,8 +344,8 @@ a form, so it needs no `read_only=True`.
 
 A link to many records, such as `invoices` above, is the exception. It is never loaded whole,
 since a user may have thousands: the page names the first 20 and says how many more there are, in
-two small queries. Both read through the linked model's own view, so its `scope_query` applies to
-the names and to the count.
+two small queries. Both read through the linked model's views, so their `scope_query` applies to
+the names and to the count, as under [Which view a link opens](#which-view-a-link-opens).
 
 A linked record's name links to its own page wherever its view lets this user open it, for a link
 to one record and for each record a link to many names. With the [audit log](audit.md) on, a line
@@ -555,4 +555,6 @@ a view of another model, stops the admin before its first page, with the views o
 listed.
 
 Without `view`, a card for a record the first view's scope leaves out opens the first view that
-does hold it, rather than a page that answers 404.
+does hold it, rather than a page that answers 404. A link to many records on the record page works
+the same way: it names and counts each record one of the model's views holds, as the list does,
+and each name opens the first view that holds it. With `view`, it names only what that view holds.

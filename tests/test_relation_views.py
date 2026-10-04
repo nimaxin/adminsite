@@ -291,6 +291,135 @@ class TestAToManyLinkThroughAScopedView:
         assert len(orders) == 2
 
 
+class PaidOrderView(ModelView[Order]):
+    """The paid orders."""
+
+    name = "paid_orders"
+    record_title = "Order #{id}"
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Order.status == OrderStatus.PAID)
+
+
+class RefundView(ModelView[Order]):
+    """The refunded orders, which the paid view leaves out."""
+
+    name = "refunds"
+    record_title = "Order #{id}"
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Order.status == OrderStatus.REFUNDED)
+
+
+class RefundedCustomerView(ModelView[Customer]):
+    """Customers whose orders are read and linked through the refunds alone."""
+
+    name = "refunded_customers"
+    record_title = "{name}"
+    fields = ["name", RelationField("orders", view=RefundView)]
+
+
+def serve(database: Database, *views: type[ModelView[Any]]) -> httpx.AsyncClient:
+    app = Starlette()
+    app.mount("/admin", Admin(database, views=list(views)))
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
+
+
+async def orders_by_status(
+    database: Database, customer: int
+) -> dict[OrderStatus, list[int]]:
+    async with database.session() as session:
+        rows = await session.execute(
+            select(Order.id, Order.status)
+            .where(Order.customer_id == customer)
+            .order_by(Order.id)
+        )
+        found: dict[OrderStatus, list[int]] = {}
+        for key, status in rows.all():
+            found.setdefault(status, []).append(int(key))
+    return found
+
+
+def named(page: httpx.Response) -> set[int]:
+    """The orders a page names."""
+    return {int(key) for key in re.findall(r"Order #(\d+)\b", page.text)}
+
+
+class TestAToManyLinkSeveralViewsCouldOpen:
+    async def test_each_record_opens_the_view_that_holds_it(
+        self, database: Database
+    ) -> None:
+        aisha, _order = await customer_and_order(database, "aisha@khan.co.uk")
+        orders = await orders_by_status(database, aisha)
+        [paid], [refunded] = orders[OrderStatus.PAID], orders[OrderStatus.REFUNDED]
+
+        async with serve(database, CustomerView, PaidOrderView, RefundView) as client:
+            page = await client.get(f"/admin/customers/{aisha}")
+
+        assert named(page) == {paid, refunded}
+        assert f'href="/admin/paid_orders/{paid}">Order #{paid}</a>' in page.text
+        assert f'href="/admin/refunds/{refunded}">Order #{refunded}</a>' in page.text
+
+    async def test_it_names_and_counts_what_any_of_them_holds(
+        self, backend: Backend
+    ) -> None:
+        aisha, _order = await customer_and_order(backend.database, "aisha@khan.co.uk")
+        statuses = [OrderStatus.PAID, OrderStatus.REFUNDED, OrderStatus.PENDING]
+        async with backend.database.session() as session:
+            for day in range(1, 31):
+                await session.add(
+                    Order(
+                        customer_id=aisha,
+                        status=statuses[day % 3],
+                        created_at=datetime(2026, 8, day % 28 + 1),
+                    )
+                )
+            await session.commit()
+        orders = await orders_by_status(backend.database, aisha)
+        held = len(orders[OrderStatus.PAID]) + len(orders[OrderStatus.REFUNDED])
+
+        views = (CustomerView, PaidOrderView, RefundView)
+        async with serve(backend.database, *views) as client:
+            with count_queries(backend) as queries:
+                page = await client.get(f"/admin/customers/{aisha}")
+
+        assert f"and {held - 20:,} more" in page.text
+        assert len(named(page)) == 20
+        assert not named(page) & set(orders[OrderStatus.PENDING])
+        # Two read them and one for each view links them, however many there are.
+        reads = [item for item in queries.statements if "FROM orders" in item]
+        assert len(reads) == 4
+
+    async def test_a_view_without_a_scope_opens_the_rest(
+        self, database: Database
+    ) -> None:
+        aisha, _order = await customer_and_order(database, "aisha@khan.co.uk")
+        orders = await orders_by_status(database, aisha)
+        [paid], [refunded] = orders[OrderStatus.PAID], orders[OrderStatus.REFUNDED]
+
+        async with serve(database, CustomerView, PaidOrderView, OrderView) as client:
+            page = await client.get(f"/admin/customers/{aisha}")
+
+        assert f'href="/admin/paid_orders/{paid}">' in page.text
+        assert f'href="/admin/orders/{refunded}">' in page.text
+
+    async def test_a_link_that_names_a_view_reads_through_it_alone(
+        self, database: Database
+    ) -> None:
+        aisha, _order = await customer_and_order(database, "aisha@khan.co.uk")
+        orders = await orders_by_status(database, aisha)
+        [refunded] = orders[OrderStatus.REFUNDED]
+
+        views = (RefundedCustomerView, PaidOrderView, RefundView)
+        async with serve(database, *views) as client:
+            page = await client.get(f"/admin/refunded_customers/{aisha}")
+
+        assert named(page) == {refunded}
+        assert f'href="/admin/refunds/{refunded}">' in page.text
+
+
 class CustomerFormView(ModelView[Customer]):
     """A to-many link on the form, which the record page shows as well."""
 

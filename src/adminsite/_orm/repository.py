@@ -13,6 +13,7 @@ from sqlalchemy import (
     or_,
     select,
     text,
+    tuple_,
 )
 from sqlalchemy.orm import aliased, class_mapper, with_parent
 from sqlalchemy.orm.strategy_options import _AbstractLoad
@@ -377,6 +378,24 @@ class SQLAlchemyRepository(Generic[M]):
             )
         rows = (await session.execute(statement)).all()
         return {",".join(str(value) for value in row) for row in rows}
+
+    def within_any(self, scopes: Sequence[Scope]) -> Scope:
+        """A scope that keeps each record any of these scopes keeps.
+
+        For a link several views could open, so a record any of them holds
+        is read and counted once.
+        """
+        columns = self._primary_key_columns()
+        key = columns[0] if len(columns) == 1 else tuple_(*columns)
+        # Not correlated: each scope picks its keys from the whole table, not
+        # from the row of the statement it narrows.
+        kept = or_(
+            *(
+                key.in_(scope(select(*columns).select_from(self.model)).correlate(None))
+                for scope in scopes
+            )
+        )
+        return lambda statement: statement.where(kept)
 
     async def related(
         self,

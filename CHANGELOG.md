@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- When the linked model has several views, a record page names and counts a link to many records
+  as the list does: each record one of those views holds, linked to the first that holds it. It
+  read through the first view alone, so records only another view held were left out.
+
 ## 0.1.0a12
 
 The package is laid out the way Starlette's is: a module a project imports is named for what it
