@@ -185,7 +185,7 @@
                     {% elif value %}
                       {{ value }}
                     {% else %}
-                      <span class="text-muted">—</span>
+                      {% include "adminsite/_empty.html" %}
                     {% endif %}
                   </dd>
                 </div>
@@ -215,7 +215,7 @@
                 {% for cells in table.rows %}
                   <tr>
                     {% for text in cells %}
-                      <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{{ text or "—" }}</td>
+                      <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{% if text %}{{ text }}{% else %}{% include "adminsite/_empty.html" %}{% endif %}</td>
                     {% endfor %}
                   </tr>
                 {% else %}

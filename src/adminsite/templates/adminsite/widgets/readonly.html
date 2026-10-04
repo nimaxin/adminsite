@@ -1,4 +1,5 @@
 {#- A value that cannot be changed reads as text, not as a greyed out box. It
-    carries no name, so it is never sent back. -#}
+    carries no name, so it is never sent back. An empty one shows the hyphen as
+    its placeholder, so the hyphen is never taken for its value. -#}
 <input class="h-10 w-full truncate border-0 bg-transparent p-0 tabular-nums outline-none"
-       id="{{ row.input_id }}" value="{{ row.display or '—' }}" readonly {{ field_attrs|default('') }}>
+       id="{{ row.input_id }}" value="{{ row.display }}" placeholder="-" readonly {{ field_attrs|default('') }}>

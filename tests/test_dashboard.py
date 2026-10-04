@@ -105,7 +105,7 @@ class TestStat:
             database, Stat("None", select(func.sum(Order.total)).where(Order.id < 0))
         )
 
-        assert data.value == "—"
+        assert data.value == "-"
 
     async def test_a_function_can_give_the_value(self, database: Database) -> None:
         async def active(session: SessionAdapter) -> int:

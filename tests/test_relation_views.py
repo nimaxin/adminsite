@@ -482,6 +482,10 @@ def value_of(page: httpx.Response, label: str) -> str:
     return re.sub(r"<[^>]+>", "", found.group(1)).strip()
 
 
+# An empty value as value_of reads it: the hyphen, then what a screen reader says.
+EMPTY = "-Not set"
+
+
 class TestAToManyLinkThatHoldsNothing:
     async def test_the_record_page_shows_it_empty(
         self, pages: httpx.AsyncClient, database: Database
@@ -491,7 +495,7 @@ class TestAToManyLinkThatHoldsNothing:
         page = await pages.get(f"/admin/customers/{nadia}")
 
         assert page.status_code == 200
-        assert value_of(page, "Orders") == "—"
+        assert value_of(page, "Orders") == EMPTY
 
     async def test_so_does_one_that_is_on_the_form(
         self, pages: httpx.AsyncClient, database: Database
@@ -501,7 +505,7 @@ class TestAToManyLinkThatHoldsNothing:
         page = await pages.get(f"/admin/customer_forms/{nadia}")
 
         assert page.status_code == 200
-        assert value_of(page, "Orders") == "—"
+        assert value_of(page, "Orders") == EMPTY
 
 
 class TestAComputedFieldThatReadsAShownLink:
@@ -539,4 +543,4 @@ class TestAComputedFieldThatReadsAShownLink:
 
         assert page.status_code == 200
         assert value_of(page, "Item count") == "0"
-        assert value_of(page, "Items") == "—"
+        assert value_of(page, "Items") == EMPTY

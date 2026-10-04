@@ -26,6 +26,7 @@ Keep the same relative path. To replace the sign in page, create
 | `adminsite/form.html`, `_field.html`, `_inlines.html` | The create and edit form, and its child rows |
 | `adminsite/dashboard/*.html` | The overview's cards |
 | `adminsite/_icons.html`, `_values.html` | The icons, and how a status or a yes and no is drawn |
+| `adminsite/_empty.html` | An empty value: a grey hyphen, and "Not set" for screen readers |
 | `adminsite/widgets/*.html` | One form control each |
 | `adminsite/activity.html` | The activity page |
 | `adminsite/login.html` | Signing in |

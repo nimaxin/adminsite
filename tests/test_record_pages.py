@@ -12,6 +12,12 @@ from adminsite.views.contexts import DeleteContext, SaveContext
 from tests.models import Customer, Order, Product
 from tests.support import REFUSED, spare_product
 
+# How an empty value is drawn: a hyphen, and words for a screen reader.
+EMPTY = (
+    '<span class="text-muted" aria-hidden="true">-</span>'
+    '<span class="sr-only">Not set</span>'
+)
+
 
 class ProductView(ModelView[Product]):
     fields = ["id", "name", "price", "description"]
@@ -88,7 +94,37 @@ class TestDetail:
     async def test_an_empty_value_shows_a_dash(self, client: httpx.AsyncClient) -> None:
         response = await client.get("/admin/products/1")
 
-        assert "—" in response.text
+        assert EMPTY in response.text
+
+
+class DescribedProducts(ModelView[Product]):
+    """The description in the list, and read only on the form."""
+
+    name = "described"
+    fields = ["name", Field("description", read_only=True)]
+
+
+@pytest.fixture
+def described(database: Database) -> httpx.AsyncClient:
+    app = Starlette()
+    app.mount("/admin", Admin(database, views=[DescribedProducts]))
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
+
+
+class TestAnEmptyValue:
+    async def test_the_list_shows_a_dash(self, described: httpx.AsyncClient) -> None:
+        response = await described.get("/admin/described")
+
+        assert EMPTY in response.text
+
+    async def test_a_read_only_field_shows_it_as_a_placeholder(
+        self, described: httpx.AsyncClient
+    ) -> None:
+        response = await described.get("/admin/described/1/edit")
+
+        assert 'value="" placeholder="-" readonly' in response.text
 
 
 class TestCreating:

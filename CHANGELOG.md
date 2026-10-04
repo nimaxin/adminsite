@@ -5,6 +5,9 @@
 - When the linked model has several views, a record page names and counts a link to many records
   as the list does: each record one of those views holds, linked to the first that holds it. It
   read through the first view alone, so records only another view held were left out.
+- An empty value shows as a grey hyphen in place of an em dash, now in the list too, where its
+  cell was blank, and screen readers say "Not set". One template draws it,
+  `adminsite/_empty.html`, so a project can change it through `template_dirs`.
 
 ## 0.1.0a12
 

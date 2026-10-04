@@ -96,13 +96,15 @@
                   {% elif view._fields.hides(row, path) %}
                     {#- Read through a record its own view keeps from this user. -#}
                     <span class="text-muted">{{ text }}</span>
-                  {% elif widget == "image" and text %}
+                  {% elif not text %}
+                    {% include "adminsite/_empty.html" %}
+                  {% elif widget == "image" %}
                     {% set stored = view._fields.value_at(row, path) %}
                     <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
                          class="size-8 rounded-md object-cover" loading="lazy">
-                  {% elif widget == "file" and text %}
+                  {% elif widget == "file" %}
                     <a class="text-link hover:underline" href="{{ urls.file(view, path, view._fields.value_at(row, path)) }}">{{ text }}</a>
-                  {% elif widget in ("select", "checkbox") and text %}
+                  {% elif widget in ("select", "checkbox") %}
                     {{ values.badge(item, view._fields.value_at(row, path), text) }}
                   {% elif widget in ("text", "textarea", "json") %}
                     <span class="block max-w-md truncate">{{ text }}</span>

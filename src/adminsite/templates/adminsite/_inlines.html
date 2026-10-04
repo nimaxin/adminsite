@@ -31,7 +31,7 @@
                     <input type="hidden" name="{{ table.name }}-{{ index }}-key" value="{{ item.key }}">
                   {% endif %}
                   {% if row.readonly %}
-                    <span class="flex h-10 items-center text-muted">{{ row.display or "—" }}</span>
+                    <span class="flex h-10 items-center text-muted">{% if row.display %}{{ row.display }}{% else %}{% include "adminsite/_empty.html" %}{% endif %}</span>
                   {% else %}
                     {% set note_id = table.name ~ "-" ~ index ~ "-" ~ row.path|replace(".", "-") ~ "-note" %}
                     {% set field_attrs %}aria-label="{{ row.label }}"{% if row.error %} aria-invalid="true" aria-describedby="{{ note_id }}"{% endif %}{% endset %}
@@ -88,7 +88,7 @@
               <input type="hidden" name="{{ table.name }}-__index__-key" value="">
             {% endif %}
             {% if row.readonly %}
-              <span class="flex h-10 items-center text-muted">—</span>
+              <span class="flex h-10 items-center text-muted">{% include "adminsite/_empty.html" %}</span>
             {% else %}
               {% set field_attrs %}aria-label="{{ row.label }}"{% endset %}
               {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}

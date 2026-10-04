@@ -175,7 +175,7 @@ class Stat(Widget):
         change = None
         if current is not None and before:
             change = (float(current) - float(before)) / abs(float(before)) * 100
-        shown = "—" if current is None else self.format.format(current)
+        shown = "-" if current is None else self.format.format(current)
         return StatData(shown, change)
 
 
