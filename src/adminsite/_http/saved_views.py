@@ -4,9 +4,10 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from adminsite.http.templating import add_message
-from adminsite.http.urls import Urls
+from adminsite._http.requests import find_view, read_form
+from adminsite._http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.messages import add_message
 from adminsite.permissions import Permission
 from adminsite.saved_views import SavedView, SavedViews, clean_query
 from adminsite.views import ModelView
@@ -14,10 +15,16 @@ from adminsite.views import ModelView
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
+
+if TYPE_CHECKING:
+    from adminsite.admin import Admin
+
 __all__ = [
     "NAME_LIMIT",
+    "delete_list_view",
     "delete_view",
     "owner_of",
+    "save_list_view",
     "save_view",
     "saved_for",
 ]
@@ -92,3 +99,17 @@ async def delete_view(
             request, _("Only the person who saved a view can remove it."), "error"
         )
     return RedirectResponse(Urls(request).list(view), 303)
+
+
+async def save_list_view(admin: "Admin", request: Request) -> Response:
+    """Keep the current search, filters, sort and columns under a name."""
+    view = find_view(admin, request)
+    form = await read_form(request)
+    return await save_view(admin, request, view, form)
+
+
+async def delete_list_view(admin: "Admin", request: Request) -> Response:
+    """Remove a saved view."""
+    view = find_view(admin, request)
+    await read_form(request)
+    return await delete_view(admin, request, view)

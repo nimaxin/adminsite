@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from starlette.requests import Request
 from starlette.responses import Response
 
-from adminsite.http.urls import Urls
+from adminsite._http.urls import Urls
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
 from adminsite.query import CountMode

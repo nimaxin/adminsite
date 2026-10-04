@@ -1,6 +1,6 @@
 """The pages reach the database only through the view.
 
-No module under http/ imports SQLAlchemy or adminsite's ORM layer when it
+No module under _http/ imports SQLAlchemy or adminsite's ORM layer when it
 runs: adminsite._orm, adminsite.database, adminsite.inspector and the SQL
 filters. One may name the session's type under TYPE_CHECKING, for its
 annotations, and nothing more from that layer. So every page reads through
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-HTTP = Path(__file__).parent.parent / "src" / "adminsite" / "http"
-PACKAGE = "adminsite.http"
+HTTP = Path(__file__).parent.parent / "src" / "adminsite" / "_http"
+PACKAGE = "adminsite._http"
 KEPT_OUT = (
     "sqlalchemy",
     "adminsite._orm",
@@ -111,7 +111,7 @@ def test_a_page_module_never_imports_sqlalchemy(path: Path) -> None:
     ]
 
     assert reached == [], (
-        f"http/{page_module_name(path)} imports {', '.join(reached)}. Read "
+        f"_http/{page_module_name(path)} imports {', '.join(reached)}. Read "
         "through the view instead, and name the session's type under "
         "TYPE_CHECKING."
     )
@@ -122,7 +122,7 @@ def test_a_page_module_names_only_the_session_type_for_types(path: Path) -> None
     named = named_for_types_beyond_the_session(path.read_text(encoding="utf-8"))
 
     assert named == [], (
-        f"http/{page_module_name(path)} names {', '.join(named)} under "
+        f"_http/{page_module_name(path)} names {', '.join(named)} under "
         "TYPE_CHECKING. Only SessionAdapter may be named there."
     )
 

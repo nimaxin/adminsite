@@ -4,6 +4,9 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
+from adminsite._http.requests import find_view, read_form
+from adminsite._http.saved_views import owner_of
+from adminsite._http.urls import Urls
 from adminsite._importing import (
     ImportPlan,
     ImportProblem,
@@ -15,12 +18,14 @@ from adminsite._importing import (
     template_csv,
 )
 from adminsite.exceptions import AdminSiteError
-from adminsite.http.saved import owner_of
-from adminsite.http.templating import add_message
-from adminsite.http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.messages import add_message
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
+
+if TYPE_CHECKING:
+    from adminsite.admin import Admin
+
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -29,6 +34,10 @@ __all__ = [
     "MAX_BYTES",
     "PREVIEW_PROBLEMS",
     "PREVIEW_ROWS",
+    "import_form",
+    "import_preview",
+    "import_records",
+    "import_template",
     "preview",
     "rows_to_show",
     "run",
@@ -184,3 +193,29 @@ def summary(
             )
         )
     return " ".join(parts)
+
+
+async def import_form(admin: "Admin", request: Request) -> Response:
+    """The page for choosing a file to import."""
+    return await show_form(admin, request, find_view(admin, request))
+
+
+async def import_template(admin: "Admin", request: Request) -> Response:
+    """An empty CSV with the columns an import takes."""
+    view = find_view(admin, request)
+    await view._ensure(Permission.IMPORT, request=request)
+    return template_response(view, request)
+
+
+async def import_preview(admin: "Admin", request: Request) -> Response:
+    """Check an uploaded file and show what importing it would do."""
+    view = find_view(admin, request)
+    form = await read_form(request)
+    return await preview(admin, request, view, form)
+
+
+async def import_records(admin: "Admin", request: Request) -> Response:
+    """Import a file that was previewed."""
+    view = find_view(admin, request)
+    await read_form(request)
+    return await run(admin, request, view)

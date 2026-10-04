@@ -8,12 +8,12 @@ import pytest
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
+from adminsite._http.activity import position_of, read_position
+from adminsite._http.history import describe
 from adminsite.audit import AuditEntry, AuditEvent, AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.fields import Field
-from adminsite.http.activity import position_of, read_position
-from adminsite.http.history import describe
 from tests.models import Order, Product
 from tests.support import request_from
 

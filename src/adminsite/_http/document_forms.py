@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from adminsite._http.form_rows import Choice, FormRow, chosen_in_order
 from adminsite.fields import EnumField, Field
 from adminsite.fields.documents import (
     SET,
@@ -22,7 +23,6 @@ from adminsite.fields.documents import (
     row_numbers,
     segment,
 )
-from adminsite.http.rows import Choice, FormRow, chosen_in_order
 from adminsite.i18n import gettext as _
 
 __all__ = [

@@ -3,12 +3,24 @@ import io
 from collections.abc import AsyncIterator, Sequence
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl
 
 from starlette.requests import Request
+from starlette.responses import Response, StreamingResponse
 
+from adminsite._http.listing import read_list_request
+from adminsite._http.requests import find_view
+from adminsite.audit import AuditEntry, AuditEvent, actor_of
+from adminsite.audit.store import record_or_warn
 from adminsite.markup import plain
-from adminsite.query import QuerySpec
+from adminsite.permissions import Permission
+from adminsite.query import CountMode, QuerySpec
+from adminsite.saved_views import clean_query
 from adminsite.views import ModelView
+
+if TYPE_CHECKING:
+    from adminsite.admin import Admin
+
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -19,6 +31,8 @@ __all__ = [
     "as_cell",
     "csv_header",
     "csv_rows",
+    "export_records",
+    "list_query",
     "stream_csv",
 ]
 
@@ -101,3 +115,51 @@ async def stream_csv(
             if len(batch) < BATCH_SIZE:
                 return
             offset += BATCH_SIZE
+
+
+async def export_records(admin: "Admin", request: Request) -> Response:
+    """Stream the current list as CSV, filters and all."""
+    view = find_view(admin, request)
+    await view._ensure(Permission.EXPORT, request=request)
+
+    read = read_list_request(request, view)
+    spec = view._reader.build_spec(
+        request=request,
+        search=read.search,
+        filters=read.values,
+        sort=read.sort,
+        paths=read.columns,
+    ).replace(limit=None, offset=0, count=CountMode.NONE, keyset=False)
+
+    if admin.audit is not None:
+        # Written when the download starts: the list is the search and the
+        # filters, since the rows of a large export are too many to name.
+        await record_or_warn(
+            admin.audit,
+            [
+                AuditEntry(
+                    view=view.name,
+                    record_key="",
+                    event=AuditEvent.EXPORTED,
+                    inputs=list_query(request.url.query),
+                    **actor_of(request),
+                )
+            ],
+        )
+
+    filename = f"{view.name}.csv"
+    return StreamingResponse(
+        stream_csv(admin, view, spec, request, read.columns),
+        media_type="text/csv",
+        headers={"content-disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def list_query(query: str) -> dict[str, str | list[str]]:
+    """The search, filters, sort and columns a list was asked for, by name."""
+    found: dict[str, list[str]] = {}
+    for key, value in parse_qsl(clean_query(query)):
+        found.setdefault(key, []).append(value)
+    return {
+        key: values[0] if len(values) == 1 else values for key, values in found.items()
+    }

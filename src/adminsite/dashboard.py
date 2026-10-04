@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Select, func, select
 from starlette.requests import Request
 
+from adminsite._http.urls import Urls
 from adminsite.database import SessionAdapter
-from adminsite.http.urls import Urls
 from adminsite.permissions import Permission, RequestAction
 from adminsite.query import CountMode, Sort
 

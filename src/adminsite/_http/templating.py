@@ -14,10 +14,10 @@ from jinja2 import (
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
-from adminsite.http.csrf import hidden_input
-from adminsite.http.urls import Urls, sort_state
+from adminsite._http.csrf import hidden_input
+from adminsite._http.urls import Urls, sort_state
 from adminsite.i18n import direction, gettext, native_name
-from adminsite.messages import Message, stored_message
+from adminsite.messages import read_messages
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -26,10 +26,8 @@ __all__ = [
     "TEMPLATE_ROOT",
     "NavItem",
     "Templates",
-    "add_message",
     "current_key",
     "navigation",
-    "read_messages",
 ]
 
 TEMPLATE_ROOT = "adminsite"
@@ -145,23 +143,3 @@ def current_key(context: dict[str, Any]) -> str:
     if page is not None and hasattr(page, "name"):
         return f"page:{page.name}"
     return ""
-
-
-def read_messages(request: Request) -> list[dict[str, str]]:
-    """Take the one time messages left by the last request."""
-    session = request.scope.get("session")
-    if not session:
-        return []
-    messages = session.pop("adminsite_messages", [])
-    return list(messages)
-
-
-def add_message(request: Request, text: "str | Message", kind: str = "info") -> None:
-    """Leave a message for the page the user lands on next."""
-    session = request.scope.get("session")
-    if session is None:
-        return
-    # Assigned, not appended in place: the session is only saved when one of
-    # its keys is set, so a change inside the list would be lost.
-    waiting = list(session.get("adminsite_messages", []))
-    session["adminsite_messages"] = [*waiting, stored_message(text, kind)]

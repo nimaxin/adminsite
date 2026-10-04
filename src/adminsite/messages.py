@@ -2,9 +2,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from markupsafe import Markup
+from starlette.requests import Request
 
 __all__ = [
     "Message",
+    "add_message",
+    "read_messages",
     "stored_message",
 ]
 
@@ -69,3 +72,23 @@ def stored_message(answer: Any, kind: str) -> dict[str, Any]:
             "to_copy": answer.copy,
         }
     return {"text": str(answer), "html": isinstance(answer, Markup), "kind": kind}
+
+
+def read_messages(request: Request) -> list[dict[str, str]]:
+    """Take the one time messages left by the last request."""
+    session = request.scope.get("session")
+    if not session:
+        return []
+    messages = session.pop("adminsite_messages", [])
+    return list(messages)
+
+
+def add_message(request: Request, text: "str | Message", kind: str = "info") -> None:
+    """Leave a message for the page the user lands on next."""
+    session = request.scope.get("session")
+    if session is None:
+        return
+    # Assigned, not appended in place: the session is only saved when one of
+    # its keys is set, so a change inside the list would be lost.
+    waiting = list(session.get("adminsite_messages", []))
+    session["adminsite_messages"] = [*waiting, stored_message(text, kind)]

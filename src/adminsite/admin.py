@@ -16,6 +16,37 @@ from starlette.responses import (
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from adminsite._http import api
+from adminsite._http.actions import run_action
+from adminsite._http.activity import activity
+from adminsite._http.csrf import TOKEN_HEADER, is_valid
+from adminsite._http.dashboard import index
+from adminsite._http.detail import detail
+from adminsite._http.editing import (
+    create_form,
+    create_record,
+    delete_record,
+    document,
+    edit_form,
+    edit_record,
+)
+from adminsite._http.export import export_records
+from adminsite._http.files import stored_file
+from adminsite._http.importing import (
+    import_form,
+    import_preview,
+    import_records,
+    import_template,
+)
+from adminsite._http.languages import choose_language
+from adminsite._http.listing import list_records
+from adminsite._http.lookups import action_lookup, lookup
+from adminsite._http.pages import custom_page
+from adminsite._http.palette import palette
+from adminsite._http.saved_views import delete_list_view, save_list_view
+from adminsite._http.signing_in import login, login_form, logout
+from adminsite._http.templating import Templates
+from adminsite._http.urls import STATIC_DIR, Urls
 from adminsite._text import snake_case
 from adminsite.audit import AuditLog, AuditStore
 from adminsite.audit._actor import USER_KEY
@@ -25,11 +56,6 @@ from adminsite.dashboard import ModelCounts, Widget
 from adminsite.database import Database, SessionSource
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
-from adminsite.http import api, endpoints
-from adminsite.http.csrf import TOKEN_HEADER, is_valid
-from adminsite.http.palette import palette
-from adminsite.http.templating import Templates
-from adminsite.http.urls import STATIC_DIR, Urls
 from adminsite.i18n import activate, negotiate
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
@@ -432,7 +458,7 @@ class Admin:
         """Every route the admin answers."""
         # The fixed paths come first, so a record cannot be called "new".
         return [
-            Route("/", self._handler(endpoints.index), name="index"),
+            Route("/", self._handler(index), name="index"),
             Mount(
                 "/static",
                 app=StaticFiles(directory=STATIC_DIR),
@@ -440,19 +466,19 @@ class Admin:
             ),
             Route(
                 "/login",
-                self._handler(endpoints.login_form, guarded=False),
+                self._handler(login_form, guarded=False),
                 methods=["GET"],
                 name="login_form",
             ),
             Route(
                 "/login",
-                self._handler(endpoints.login, guarded=False),
+                self._handler(login, guarded=False),
                 methods=["POST"],
                 name="login",
             ),
             Route(
                 "/logout",
-                self._handler(endpoints.logout, guarded=False),
+                self._handler(logout, guarded=False),
                 methods=["POST"],
                 name="logout",
             ),
@@ -460,7 +486,7 @@ class Admin:
             # ever collide with them.
             Route(
                 "/-/language",
-                self._handler(endpoints.choose_language, guarded=False),
+                self._handler(choose_language, guarded=False),
                 methods=["POST"],
                 name="language",
             ),
@@ -471,124 +497,124 @@ class Admin:
             ),
             Route(
                 "/-/activity",
-                self._handler(endpoints.activity),
+                self._handler(activity),
                 name="activity",
             ),
             Route(
                 "/-/files/{view}/{path}/{key:path}",
-                self._handler(endpoints.stored_file),
+                self._handler(stored_file),
                 name="file",
             ),
             *self._api_routes(),
             *self._extra_routes,
             Route(
                 "/-/{page}",
-                self._handler(endpoints.custom_page),
+                self._handler(custom_page),
                 methods=["GET", "POST"],
                 name="page",
             ),
-            Route("/{view}", self._handler(endpoints.list_records), name="list"),
+            Route("/{view}", self._handler(list_records), name="list"),
             Route(
                 "/{view}/new",
-                self._handler(endpoints.create_form),
+                self._handler(create_form),
                 methods=["GET"],
                 name="create_form",
             ),
             Route(
                 "/{view}/new",
-                self._handler(endpoints.create_record),
+                self._handler(create_record),
                 methods=["POST"],
                 name="create",
             ),
             Route(
                 "/{view}/export",
-                self._handler(endpoints.export_records),
+                self._handler(export_records),
                 name="export",
             ),
             Route(
                 "/{view}/import",
-                self._handler(endpoints.import_form),
+                self._handler(import_form),
                 methods=["GET"],
                 name="import_form",
             ),
             Route(
                 "/{view}/import",
-                self._handler(endpoints.import_preview),
+                self._handler(import_preview),
                 methods=["POST"],
                 name="import_preview",
             ),
             Route(
                 "/{view}/import/template",
-                self._handler(endpoints.import_template),
+                self._handler(import_template),
                 methods=["GET"],
                 name="import_template",
             ),
             Route(
                 "/{view}/import/{token}",
-                self._handler(endpoints.import_records),
+                self._handler(import_records),
                 methods=["POST"],
                 name="import",
             ),
             Route(
                 "/{view}/saved-views",
-                self._handler(endpoints.save_list_view),
+                self._handler(save_list_view),
                 methods=["POST"],
                 name="save_view",
             ),
             Route(
                 "/{view}/saved-views/{saved}/delete",
-                self._handler(endpoints.delete_list_view),
+                self._handler(delete_list_view),
                 methods=["POST"],
                 name="delete_view",
             ),
             Route(
                 "/{view}/action/{name}",
-                self._handler(endpoints.run_action),
+                self._handler(run_action),
                 methods=["POST"],
                 name="action",
             ),
             Route(
                 "/{view}/action/{name}/lookup/{input}",
-                self._handler(endpoints.action_lookup),
+                self._handler(action_lookup),
                 name="action_lookup",
             ),
             Route(
                 "/{view}/lookup/{path}",
-                self._handler(endpoints.lookup),
+                self._handler(lookup),
                 name="lookup",
             ),
             Route(
                 "/{view}/document/{path}",
-                self._handler(endpoints.document),
+                self._handler(document),
                 methods=["POST"],
                 name="document",
             ),
             Route(
                 "/{view}/{key}/document/{path}",
-                self._handler(endpoints.document),
+                self._handler(document),
                 methods=["POST"],
                 name="record_document",
             ),
             Route(
                 "/{view}/{key}",
-                self._handler(endpoints.detail),
+                self._handler(detail),
                 name="detail",
             ),
             Route(
                 "/{view}/{key}/edit",
-                self._handler(endpoints.edit_form),
+                self._handler(edit_form),
                 methods=["GET"],
                 name="edit_form",
             ),
             Route(
                 "/{view}/{key}/edit",
-                self._handler(endpoints.edit_record),
+                self._handler(edit_record),
                 methods=["POST"],
                 name="edit",
             ),
             Route(
                 "/{view}/{key}/delete",
-                self._handler(endpoints.delete_record),
+                self._handler(delete_record),
                 methods=["POST"],
                 name="delete",
             ),

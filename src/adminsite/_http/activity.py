@@ -1,17 +1,28 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlette.datastructures import QueryParams
+from starlette.exceptions import HTTPException
+from starlette.requests import Request
+from starlette.responses import Response
 
+from adminsite._http.history import describe
+from adminsite._http.urls import Urls
 from adminsite.audit import AuditEntry, AuditEvent, AuditQuery
 from adminsite.audit.entry import SIGN_IN_EVENTS
+from adminsite.exceptions import PermissionDeniedError
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
+
+if TYPE_CHECKING:
+    from adminsite.admin import Admin
 
 __all__ = [
     "ACTIVITY_PAGE",
     "ActivityFilters",
+    "activity",
     "event_choices",
     "position_of",
     "read_filters",
@@ -137,3 +148,71 @@ def _text(value: str | None) -> str | None:
 
 def _start_of(day: date | None) -> datetime | None:
     return datetime.combine(day, time.min) if day is not None else None
+
+
+async def activity(admin: "Admin", request: Request) -> Response:
+    """The log across the admin, newest first, filtered and a page at a time."""
+    if admin.audit is None:
+        raise HTTPException(status_code=404, detail=_("Auditing is not switched on."))
+
+    # Filtering in the query, not afterwards, so every page is full of
+    # entries this person may read.
+    readable = await admin.history_views(request)
+    allowed = [view.name for view in readable]
+    # Signing in happens to no record, so its entries have no view.
+    sign_ins = admin.auth is not None and await admin.auth.may_read_sign_ins(
+        request, reads_everything=len(readable) == len(admin.views.views)
+    )
+    if sign_ins:
+        allowed.append("")
+    if not allowed:
+        raise PermissionDeniedError(Permission.HISTORY.value, _("the activity"))
+
+    choices = event_choices(sign_ins)
+    filters = read_filters(
+        request.query_params, allowed, [event for event, _label in choices]
+    )
+    # One more than a page says whether there is a page after this one.
+    found = await admin.audit.find(filters.query(allowed), limit=ACTIVITY_PAGE + 1)
+    entries = found[:ACTIVITY_PAGE]
+
+    urls = Urls(request)
+    older = (
+        urls.activity(**filters.params(older=position_of(entries[-1])))
+        if len(found) > ACTIVITY_PAGE
+        else None
+    )
+    tabs = [
+        (_("Everything"), urls.activity(**filters.params(view=None, older=None)), None),
+        *(
+            (
+                item.label_plural,
+                urls.activity(**filters.params(view=item.name, older=None)),
+                item.name,
+            )
+            for item in readable
+        ),
+    ]
+    return await admin.render(
+        "activity.html",
+        request,
+        {
+            "items": describe(admin, entries, request),
+            "tabs": tabs,
+            "filters": filters,
+            "event_choices": choices,
+            "older_url": older,
+            "newest_url": urls.activity(**filters.params(older=None))
+            if filters.older
+            else None,
+            "clear_url": urls.activity(view=filters.view),
+            "detail_views": {
+                view.name
+                for view in await admin.views_allowing(
+                    request, Permission.VIEW, Permission.VIEW_DETAIL
+                )
+            },
+            "view": None,
+            "on_activity": True,
+        },
+    )

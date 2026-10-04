@@ -6,8 +6,8 @@ from fastapi import FastAPI
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
+from adminsite._http.urls import STATIC_DIR
 from adminsite.database import Database
-from adminsite.http.urls import STATIC_DIR
 from tests.models import Customer, Order, Product
 
 

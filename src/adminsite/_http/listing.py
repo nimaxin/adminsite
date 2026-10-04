@@ -3,20 +3,30 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
+from starlette.responses import Response
 
+from adminsite._http.forms import rows_for_actions
+from adminsite._http.requests import find_view
+from adminsite._http.saved_views import owner_of, saved_for
+from adminsite._http.urls import PAGING_KEYS
 from adminsite.filters.base import (
     Filter,
     FilterOption,
     FilterValue,
     parse_filters,
 )
-from adminsite.http.urls import PAGING_KEYS
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission
 from adminsite.query import QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
+    from adminsite.database import SessionAdapter
+
+
+if TYPE_CHECKING:
+    from adminsite.admin import Admin
     from adminsite.database import SessionAdapter
 
 __all__ = [
@@ -31,6 +41,7 @@ __all__ = [
     "as_context",
     "build_panels",
     "export_params",
+    "list_records",
     "read_columns",
     "read_list_request",
     "read_page",
@@ -281,3 +292,88 @@ def as_context(
         "record_actions": view._actions.on("record", request),
         "view_actions": view._actions.on("view", request),
     }
+
+
+async def list_records(admin: "Admin", request: Request) -> Response:
+    """One page of records, with the search, filters and sort applied."""
+    view = find_view(admin, request)
+    read = read_list_request(request, view)
+
+    spec = view._reader.build_spec(
+        request=request,
+        search=read.search,
+        filters=read.values,
+        sort=read.sort,
+        page=read.page,
+        after=read.after,
+        before=read.before,
+        paths=read.columns,
+        size=read.size,
+    )
+    async with admin.database.session() as session:
+        page = await view._reader.fetch_page(session, spec, request=request)
+        await view._reader.load_values(
+            session,
+            list(page),
+            read.columns or view._pages.list_fields(request),
+            request=request,
+        )
+        panels = await build_panels(view, session, spec, request)
+
+    context = as_context(view, request, spec, page, panels, read)
+    context["can_create"] = await view.allows(
+        Permission.CREATE, request=request, record=None
+    )
+    context["can_export"] = await view.allows(
+        Permission.EXPORT, request=request, record=None
+    )
+    context["can_detail"] = await view.allows(
+        Permission.VIEW_DETAIL, request=request, record=None
+    )
+    context["can_edit"] = await view.allows(
+        Permission.EDIT, request=request, record=None
+    )
+    context["can_import"] = await view.allows(
+        Permission.IMPORT, request=request, record=None
+    )
+    # Offer only the actions this user may run.
+    allowed = [
+        item
+        for item in context["actions"]
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+    context["actions"] = allowed
+    context["view_actions"] = [
+        item
+        for item in context["view_actions"]
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+    record_actions = [
+        item
+        for item in context["record_actions"]
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+    context["record_actions"] = record_actions
+    context["action_rows"] = await rows_for_actions(
+        admin,
+        view,
+        [*allowed, *context["view_actions"], *record_actions],
+        request,
+    )
+    # A record action can be refused for one record and allowed for the next.
+    context["row_actions"] = {
+        view._fields.identity_of(record): [
+            item
+            for item in record_actions
+            if await view.allows(item.permission, request=request, record=record)
+        ]
+        for record in page
+    }
+    context["single_actions"] = [*record_actions, *context["view_actions"]]
+    context["saving_views"] = admin.saved_views is not None
+    context["saved_views"] = await saved_for(admin, view, request)
+    context["view_owner"] = owner_of(admin, request)
+    context["active_view"] = active_view(context["saved_views"], request.url.query)
+
+    template = "_table.html" if wants_partial(request) else "list.html"
+    return await admin.render(template, request, context)

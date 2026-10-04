@@ -9,9 +9,10 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 ## Layout
 
 - `src/adminsite/` is the package. `admin.py` builds the app and its routes, `views/` holds
-  `ModelView` and the parts it is built from (below), `http/` holds the endpoints, `_orm/` builds
-  the statements a view runs, `database.py` hands out sessions, `inspector.py` reads the models,
-  and `fields/` and `filters/` are what they say.
+  `ModelView` and the parts it is built from (below), `_http/` holds one module per page,
+  `_orm/` builds the statements a view runs, `database.py` hands out sessions, `inspector.py`
+  reads the models, and `fields/` and `filters/` are what they say. A name starting with an
+  underscore is machinery no project imports.
 - `src/adminsite/templates/adminsite/` holds the Jinja templates; `widgets/` has one file per form
   control.
 - `src/adminsite/static/adminsite.css` is built from `frontend/` and committed. HTMX and Alpine are
@@ -29,7 +30,7 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 
 `ModelView` keeps what users write: the settings, the `get_` methods, `allows`, `scope_query`,
 `get_actions` and the hooks. The work is done by parts it builds in `__init__`, from the bottom row
-up, each handed the parts it uses. Templates and `http/` reach a part through the view, such as
+up, each handed the parts it uses. Templates and `_http/` reach a part through the view, such as
 `view._pages.form_fields(request, record)`. A module imports only modules of the rows below its
 own; `tests/test_view_layers.py` fails otherwise.
 
@@ -109,7 +110,7 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 - **Every control has an accessible name**: a `<label for>`, `aria-label` or `aria-labelledby`.
   `tests/test_accessibility.py` checks the main pages.
 - **Reads go through the view**, so `scope_query` and `allows` always apply. Never query a model
-  directly from an endpoint. Nothing under `http/` imports SQLAlchemy or the ORM layer
+  directly from an endpoint. Nothing under `_http/` imports SQLAlchemy or the ORM layer
   (`adminsite._orm`, `adminsite.database`, `adminsite.inspector`, the SQL filters) when it runs,
   only `SessionAdapter` under `TYPE_CHECKING` for annotations; `tests/test_web_layer.py` fails
   otherwise. Catch `adminsite.exceptions.IntegrityError`, which the session raises for a change

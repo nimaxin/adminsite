@@ -75,7 +75,7 @@ another site never reaches it:
 ```python
 from starlette.responses import RedirectResponse, Response
 
-from adminsite.http.templating import add_message
+from adminsite.messages import add_message
 
 
 class Settings(AdminPage):

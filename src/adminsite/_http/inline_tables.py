@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
+from adminsite._http.form_rows import Choice, FormRow
+from adminsite._http.forms import title_for
 from adminsite.fields import EnumField, RelationField
-from adminsite.http.forms import title_for
-from adminsite.http.rows import Choice, FormRow
 from adminsite.views import Inline, ModelView
 from adminsite.views.picker import PICKER_LIMIT, Picker
 
