@@ -17,7 +17,12 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src tests
       - run: uv run pytest -q
+      # The package carries the docs' whole guide for coding agents, built
+      # from this commit, so it always matches the version it installs.
+      - run: uv run --group docs mkdocs build --strict
+      - run: cp site/llms-full.txt src/adminsite/llms-full.txt
       - run: uv build
+      - run: uv run python .github/check_guide.py
       - uses: actions/upload-artifact@v4
         with:
           name: distributions

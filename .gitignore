@@ -30,5 +30,6 @@ shop_uploads/
 fields_uploads/
 demo-data/
 
-# Built docs
+# Built docs, and the guide the release copies from them into the package
 site/
+src/adminsite/llms-full.txt

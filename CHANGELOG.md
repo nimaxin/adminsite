@@ -10,6 +10,9 @@
   `adminsite/_empty.html`, so a project can change it through `template_dirs`.
 - Every page draws a line under its header once it scrolls, so the rows that scroll beneath it
   no longer run into it.
+- The package carries `llms-full.txt`, the docs' whole guide for coding agents, built for the
+  version it installs. An agent with no network, or in a project pinned to an older release,
+  reads the guide that matches the code.
 
 ## 0.1.0a12
 

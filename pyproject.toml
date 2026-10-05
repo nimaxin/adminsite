@@ -88,6 +88,11 @@ docs = [
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
+# The docs' whole guide for coding agents, which the release copies in
+# before it builds, so the package carries the guide for its own version.
+[tool.hatch.build]
+artifacts = ["src/adminsite/llms-full.txt"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/adminsite"]
 

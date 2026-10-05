@@ -95,6 +95,8 @@ adminsite is one ASGI app, mounted inside yours. Every page and the JSON API go 
 - [Permissions](https://nimaxin.github.io/adminsite/permissions/) is worth reading before you put
   the admin in front of anyone.
 - The [reference](https://nimaxin.github.io/adminsite/reference/) lists every class and option.
+- An AI assistant can read [llms.txt](https://nimaxin.github.io/adminsite/llms.txt), or
+  `llms-full.txt` beside the code of the installed package: the whole guide, for that version.
 
 ## Contributing
 

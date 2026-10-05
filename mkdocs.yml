@@ -78,7 +78,8 @@ plugins:
         adminsite is an admin panel for SQLAlchemy 2.0 models. It is an ASGI app you mount into
         Starlette, FastAPI or Litestar with `app.mount("/admin", admin)`. It works with an async
         or a sync engine. Install with `pip install adminsite` (add `adminsite[excel]` for Excel
-        import) plus the database driver.
+        import) plus the database driver. The installed package carries this whole guide for its
+        own version, as `llms-full.txt` beside its code.
 
         The core pieces:
 

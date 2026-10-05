@@ -40,6 +40,23 @@ jobs:
       - run: uv sync --all-groups
       - run: uv run pytest -q
 
+  # The release builds the package with the docs' whole guide for coding
+  # agents inside it; this does the same, so a change that drops the guide
+  # fails here rather than in a release.
+  package:
+    name: Package with the guide
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --group docs
+      - run: uv run --group docs mkdocs build --strict
+      - run: cp site/llms-full.txt src/adminsite/llms-full.txt
+      - run: uv build
+      - run: uv run python .github/check_guide.py
+
   # The lock file pins the latest SQLAlchemy, so this job checks the oldest
   # series adminsite supports: its types and its behaviour.
   sqlalchemy-2-0:

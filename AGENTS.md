@@ -4,7 +4,9 @@ adminsite is an admin panel for SQLAlchemy 2.0 models, served as an ASGI app tha
 into Starlette, FastAPI or Litestar. Python 3.11+, managed with uv.
 
 This file is for agents changing adminsite itself. Agents using adminsite in another project should
-read https://nimaxin.github.io/adminsite/llms.txt instead.
+read https://nimaxin.github.io/adminsite/llms.txt instead, or `llms-full.txt` beside the code of
+the installed package, which matches its version. The release copies it in from the docs build;
+`.github/check_guide.py` checks the wheel holds it.
 
 ## Layout
 

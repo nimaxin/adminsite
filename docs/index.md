@@ -63,4 +63,13 @@ all come from your models.
 If an AI assistant helps you build with adminsite, point it at
 [llms.txt](https://nimaxin.github.io/adminsite/llms.txt), a short guide with links to every page,
 or [llms-full.txt](https://nimaxin.github.io/adminsite/llms-full.txt), the whole documentation in
-one file. Both are rebuilt with the docs, so they always match the current release.
+one file. Both are rebuilt with the docs from the main branch, which may be ahead of the release
+you installed.
+
+The installed package carries `llms-full.txt` too, built for its own version, so an assistant
+with no network, or in a project pinned to an older release, reads the guide that matches the
+code. It sits beside the code:
+
+```bash
+python -c "import adminsite, pathlib; print(pathlib.Path(adminsite.__file__).with_name('llms-full.txt'))"
+```
