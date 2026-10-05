@@ -251,10 +251,21 @@ rather than accepted because the class said so.
 
 ## Options
 
-`@action` takes the button's `label`, a `confirm` question, `inputs` to ask for as they are,
-`dangerous` for a red button, the `permission` it needs, its `name` in the URL, and `audit_answer`
-to keep a secret answer out of the [audit log](audit.md#actions).
+`@action` takes the button's `label`, an `icon` drawn before it, a `confirm` question, `inputs` to
+ask for as they are, `dangerous` for a red button, the `permission` it needs, its `name` in the
+URL, and `audit_answer` to keep a secret answer out of the [audit log](audit.md#actions).
 [`@action`][adminsite.actions.action] says what each one does.
+
+An `icon` takes what a view's [`icon`](views.md#an-icon-in-the-sidebar) takes, inline SVG markup
+or a picture's address, and is drawn wherever the action is offered: in the bar over the ticked
+rows, above the list, in a row's menu and on the record page.
+
+```python
+class OrderView(ModelView[Order]):
+    @action("Send the invoice", on="record", icon="icons/invoice.svg")
+    async def send_invoice(self, record: Order) -> str:
+        return f"Invoice for order {record.id} sent."
+```
 
 ## Refusing
 

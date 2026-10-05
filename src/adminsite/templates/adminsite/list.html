@@ -17,6 +17,7 @@
     {% for item in view_actions %}
       <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
               type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
+        {% if item.icon %}{{ icons.custom(item.icon, urls, "size-4" if item.dangerous else "size-4 text-muted") }}{% endif %}
         {{ item.label }}
       </button>
     {% endfor %}
@@ -38,7 +39,9 @@
       <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-56 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
         {% for item in view_actions %}
           <li><button type="button" class="{% if item.dangerous %}text-error{% endif %}"
-                      onclick='runRecordAction({{ item.name|tojson }}, "")'>{{ item.label }}</button></li>
+                      onclick='runRecordAction({{ item.name|tojson }}, "")'>
+            {%- if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif -%}
+            {{ item.label }}</button></li>
         {% endfor %}
         {% if can_import %}
           <li><a href="{{ urls.list(view) }}/import"><span class="text-muted">{{ icons.icon("upload", 14) }}</span>{{ _('Import') }}</a></li>

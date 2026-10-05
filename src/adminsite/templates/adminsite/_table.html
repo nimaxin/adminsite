@@ -192,12 +192,14 @@
               <button class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-ghost text-neutral-content hover:bg-neutral-content/10{% endif %}"
                       type="button"
                       onclick="document.getElementById('action-{{ item.name }}').showModal()">
+                {% if item.icon %}{{ icons.custom(item.icon, urls) }}{% endif %}
                 {{ item.label }}
               </button>
             {% else %}
               <button class="btn btn-sm {% if item.dangerous %}btn-error{% else %}btn-ghost text-neutral-content hover:bg-neutral-content/10{% endif %}"
                       type="submit"
                       formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                {% if item.icon %}{{ icons.custom(item.icon, urls) }}{% endif %}
                 {{ item.label }}
               </button>
             {% endif %}

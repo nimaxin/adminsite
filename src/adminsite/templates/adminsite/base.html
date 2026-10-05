@@ -748,10 +748,7 @@
           <a href="{{ url }}" {% if active %}aria-current="page"{% endif %}
              class="flex h-8.5 items-center gap-2.5 rounded-field border px-2.5 font-medium {% if active %}border-base-300 bg-base-100 text-base-content shadow-quiet{% else %}border-transparent text-base-content/80 hover:bg-base-100/70 hover:text-base-content{% endif %}">
             <span class="{% if active %}text-base-content{% else %}text-muted{% endif %} inline-flex size-4 items-center justify-center" aria-hidden="true">
-              {%- if icon_markup -%}
-                {#- The icon is yours: inline SVG, or the address of a picture. -#}
-                {%- if icon_markup.lstrip().startswith("<") %}{{ icon_markup|safe }}
-                {%- else %}<img src="{{ urls.asset(icon_markup) }}" alt="" class="size-4">{% endif -%}
+              {%- if icon_markup %}{{ icons.custom(icon_markup, urls) }}
               {%- else %}{{ icons.icon(icon_name or "rows") }}{% endif -%}
             </span>
             <span class="truncate">{{ label }}</span>

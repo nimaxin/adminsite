@@ -39,3 +39,13 @@
 {%- endif -%}
 </svg>
 {%- endmacro %}
+
+{#- An icon a project gives a view or an action: inline SVG markup, drawn as
+    it is, or the address of a picture, which `urls` resolves. Either one
+    fills the box `class` sizes, whatever size the markup asks for. -#}
+{% macro custom(icon, urls, class="size-4") -%}
+<span class="inline-flex shrink-0 items-center justify-center *:size-full {{ class }}" aria-hidden="true">
+  {%- if icon.lstrip().startswith("<") %}{{ icon|safe }}
+  {%- else %}<img src="{{ urls.asset(icon) }}" alt="">{% endif -%}
+</span>
+{%- endmacro %}
