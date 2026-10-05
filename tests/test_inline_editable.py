@@ -1,5 +1,5 @@
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -11,9 +11,20 @@ from pydantic import BaseModel
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, AdminSiteError, Field, Inline, Link, ModelView
+from adminsite import (
+    Admin,
+    AdminSiteError,
+    Field,
+    Inline,
+    Link,
+    ModelView,
+    RefusedError,
+    SaveContext,
+    Statement,
+)
 from adminsite._http.forms import build_rows
 from adminsite._http.listing import rows_context
+from adminsite.audit import AuditEvent, AuditLog
 from adminsite.database import Database
 from adminsite.fields import BaseField, ComputedField, FileField, JSONField
 from adminsite.files import LocalStorage
@@ -336,6 +347,32 @@ class PlainOrders(ModelView[Order]):
     fields = [Order.id, Order.status, Order.total, Order.note]
 
 
+class PendingOnly(OrderView):
+    """Shows only the orders still waiting."""
+
+    name = "pending"
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Order.status == OrderStatus.PENDING)
+
+
+class Locked(LockedWhenShipped):
+    name = "locked"
+
+
+class Stamped(OrderView):
+    """Notes in an order that its status moved, and leaves refunds to payments."""
+
+    name = "stamped"
+
+    async def before_save(self, context: SaveContext[Order]) -> None:
+        status = context.values[Order.status].get()
+        if status is OrderStatus.REFUNDED:
+            raise RefusedError("Refunds go through the payments page.")
+        if Order.status in context.values:
+            context.values[Order.note].set(f"Marked {status} from the list.")
+
+
 def serve(admin: Admin) -> httpx.AsyncClient:
     app = Starlette()
     app.mount("/admin", admin)
@@ -346,9 +383,37 @@ def serve(admin: Admin) -> httpx.AsyncClient:
 
 @pytest.fixture
 async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
-    admin = Admin(database, views=[OrderView, ChangesUnshipped, PlainOrders])
+    admin = Admin(
+        database,
+        views=[OrderView, ChangesUnshipped, PlainOrders, PendingOnly, Locked],
+    )
     async with serve(admin) as client:
         yield client
+
+
+@pytest.fixture
+def log(tmp_path: Path) -> Iterator[AuditLog]:
+    audit = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
+    yield audit
+    audit.close()
+
+
+@pytest.fixture
+async def stamped(
+    database: Database, log: AuditLog
+) -> AsyncIterator[httpx.AsyncClient]:
+    """A view whose save hook writes a note, with the audit log kept."""
+    admin = Admin(database, views=[Stamped], audit=log)
+    async with serve(admin) as client:
+        yield client
+
+
+async def stored_order(database: Database, key: int) -> Order:
+    """The order as the database holds it now."""
+    async with database.session() as session:
+        found = await session.get(Order, key)
+    assert found is not None
+    return found
 
 
 def editors(page: httpx.Response) -> list[str]:
@@ -437,3 +502,218 @@ class TestTheList:
                 await client.get("/admin/plain")
 
         assert editing.count == plain.count
+
+
+def saves_to(answer: httpx.Response) -> str:
+    """Where the editor in an answer sends its value."""
+    found = re.search(r'<form hx-post="([^"]+)"', answer.text)
+    assert found is not None
+    return found.group(1)
+
+
+class TestTheEditor:
+    async def test_it_holds_the_input_with_the_records_value(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        editor = await client.get("/admin/orders/2/edit/status")
+
+        assert editor.status_code == 200
+        assert '<option value="PAID" selected>' in editor.text
+        assert 'name="note"' not in editor.text
+        assert "Edit Status of Order #2" in editor.text
+
+    async def test_it_saves_where_it_came_from_with_the_lists_query(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        editor = await client.get("/admin/orders/2/edit/note?sort=-total")
+
+        assert saves_to(editor) == "/admin/orders/2/edit/note?sort=-total"
+
+    async def test_a_value_no_cell_offers_is_missing(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        for address in (
+            # A column the setting leaves out, the first column, which opens
+            # the record, and a name that is no field at all.
+            "/admin/orders/2/edit/total",
+            "/admin/orders/2/edit/id",
+            "/admin/orders/2/edit/nothing",
+            # A view without the setting.
+            "/admin/plain/2/edit/status",
+            # A column the list on show leaves out.
+            "/admin/orders/2/edit/note?cols=id,status",
+            # A record that is not there, and one out of the view's scope.
+            "/admin/orders/99/edit/status",
+            "/admin/pending/2/edit/status",
+            # A value locked for this record, and one kept from the edit form.
+            "/admin/locked/1/edit/note",
+            "/admin/locked/3/edit/status",
+        ):
+            assert (await client.get(address)).status_code == 404, address
+
+    async def test_the_same_values_open_where_a_cell_offers_them(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        for address in (
+            "/admin/orders/2/edit/status?cols=id,status",
+            "/admin/pending/3/edit/status",
+            "/admin/locked/3/edit/note",
+        ):
+            assert (await client.get(address)).status_code == 200, address
+
+    async def test_a_record_the_user_may_not_change_is_refused(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        answer = await client.get("/admin/unshipped/1/edit/status")
+
+        assert answer.status_code == 403
+
+
+class WithCustomer(OrderView):
+    """Shows each order's customer, a link the edit form leaves alone."""
+
+    name = "with_customer"
+    fields = [Order.id, Order.customer, Order.status, Order.note]
+    exclude_fields_from_edit = [Order.customer]
+
+
+class TestSavingAValue:
+    async def test_it_is_saved_and_its_row_drawn_again(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        saved = await client.post(
+            "/admin/orders/3/edit/status", data={"status": "PAID"}
+        )
+
+        assert saved.status_code == 200
+        assert saved.text.lstrip().startswith("<tr")
+        assert re.search(r'<span class="pill [^"]*">Paid</span>', saved.text)
+        assert 'data-edit-url="/admin/orders/3/edit/status"' in saved.text
+        toast = saved.text.split('hx-swap-oob="beforeend:#toasts"', 1)[1]
+        assert "Order #3 saved." in toast
+        assert (await stored_order(database, 3)).status is OrderStatus.PAID
+
+    async def test_only_that_value_is_read(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        await client.post(
+            "/admin/orders/3/edit/status",
+            data={"status": "PAID", "note": "Left at the door", "total": "1.00"},
+        )
+
+        order = await stored_order(database, 3)
+        assert order.status is OrderStatus.PAID
+        assert order.note is None
+        assert order.total == Decimal("72.00")
+
+    async def test_the_row_has_the_columns_on_show(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        saved = await client.post(
+            "/admin/orders/3/edit/status?cols=id,status", data={"status": "PAID"}
+        )
+
+        assert editors(saved) == ["/admin/orders/3/edit/status?cols=id,status"]
+        # Not the total, which the list on show leaves out.
+        assert "72.00" not in saved.text
+
+    async def test_a_value_it_cannot_read_comes_back_with_the_reason(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        answer = await client.post(
+            "/admin/orders/3/edit/status?sort=-total", data={"status": "lost"}
+        )
+
+        assert answer.status_code == 422
+        assert saves_to(answer) == "/admin/orders/3/edit/status?sort=-total"
+        assert 'aria-invalid="true"' in answer.text
+        assert "Choose one of the listed options." in answer.text
+        assert (await stored_order(database, 3)).status is OrderStatus.PENDING
+
+    async def test_a_hook_runs_and_the_audit_log_keeps_the_change(
+        self, stamped: httpx.AsyncClient, database: Database, log: AuditLog
+    ) -> None:
+        saved = await stamped.post(
+            "/admin/stamped/3/edit/status", data={"status": "PAID"}
+        )
+
+        assert saved.status_code == 200
+        # The note the hook wrote is saved with the status, and drawn.
+        assert "Marked paid from the list." in saved.text
+        order = await stored_order(database, 3)
+        assert order.note == "Marked paid from the list."
+        entry = (await log.history("stamped", "3"))[0]
+        assert entry.event is AuditEvent.UPDATED
+        assert entry.changes["status"] == ("Pending", "Paid")
+        assert entry.changes["note"] == ("", "Marked paid from the list.")
+
+    async def test_a_refusal_comes_back_under_the_input(
+        self, stamped: httpx.AsyncClient, database: Database, log: AuditLog
+    ) -> None:
+        answer = await stamped.post(
+            "/admin/stamped/3/edit/status", data={"status": "REFUNDED"}
+        )
+
+        assert answer.status_code == 422
+        note = re.search(r'id="field-status-note">(.*?)</p>', answer.text, re.DOTALL)
+        assert note is not None
+        assert "Refunds go through the payments page." in note.group(1)
+        assert (await stored_order(database, 3)).status is OrderStatus.PENDING
+        assert await log.history("stamped", "3") == []
+
+    async def test_a_value_no_cell_offers_is_never_saved(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        total = await client.post("/admin/orders/3/edit/total", data={"total": "1"})
+        hidden = await client.post(
+            "/admin/pending/2/edit/status", data={"status": "PENDING"}
+        )
+        refused = await client.post(
+            "/admin/unshipped/1/edit/status", data={"status": "PAID"}
+        )
+
+        assert [total.status_code, hidden.status_code, refused.status_code] == [
+            404,
+            404,
+            403,
+        ]
+        assert (await stored_order(database, 3)).total == Decimal("72.00")
+        assert (await stored_order(database, 2)).status is OrderStatus.PAID
+        assert (await stored_order(database, 1)).status is OrderStatus.SHIPPED
+
+    async def test_it_needs_the_forms_token(self, database: Database) -> None:
+        admin = Admin(database, views=[OrderView], secret_key="for-the-session")
+        async with serve(admin) as client:
+            editor = await client.get("/admin/orders/3/edit/status")
+            token = re.search(r'name="_csrf" value="([^"]+)"', editor.text)
+            assert token is not None
+            forged = await client.post(
+                "/admin/orders/3/edit/status", data={"status": "PAID"}
+            )
+            sent = await client.post(
+                "/admin/orders/3/edit/status",
+                data={"_csrf": token.group(1), "status": "PAID"},
+            )
+
+        assert forged.status_code == 403
+        assert sent.status_code == 200
+
+    async def test_it_costs_no_more_queries_than_the_edit_form(
+        self, backend: Backend
+    ) -> None:
+        admin = Admin(backend.database, views=[WithCustomer])
+        async with serve(admin) as client:
+            await client.get("/admin/with_customer")
+            with count_queries(backend) as form:
+                edited = await client.post(
+                    "/admin/with_customer/3/edit", data={"status": "PAID", "note": ""}
+                )
+            with count_queries(backend) as value:
+                saved = await client.post(
+                    "/admin/with_customer/7/edit/status", data={"status": "PAID"}
+                )
+
+        assert [edited.status_code, saved.status_code] == [303, 200]
+        # The row names the customer read with the order, not read again.
+        assert "Jonas Berg" in saved.text
+        assert value.count <= form.count

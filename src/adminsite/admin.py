@@ -39,6 +39,7 @@ from adminsite._http.importing import (
     import_template,
 )
 from adminsite._http.languages import choose_language
+from adminsite._http.list_editing import edit_value, save_value
 from adminsite._http.listing import list_records
 from adminsite._http.lookups import action_lookup, lookup
 from adminsite._http.pages import custom_page
@@ -611,6 +612,18 @@ class Admin:
                 self._handler(edit_record),
                 methods=["POST"],
                 name="edit",
+            ),
+            Route(
+                "/{view}/{key}/edit/{path}",
+                self._handler(edit_value),
+                methods=["GET"],
+                name="edit_value",
+            ),
+            Route(
+                "/{view}/{key}/edit/{path}",
+                self._handler(save_value),
+                methods=["POST"],
+                name="save_value",
             ),
             Route(
                 "/{view}/{key}/delete",

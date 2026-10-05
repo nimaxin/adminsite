@@ -24,6 +24,7 @@ class OrderView(ModelView[Order]):
         "created_at",
     ]
     exclude_fields_from_list = ["customer", "note", "created_at"]
+    inline_editable_fields = ["status"]
     list_filters = ("status", "total", "created_at")
     searchable_fields = ("customer.name",)
     inlines = (Inline("items", fields=("product", "quantity", "unit_price")),)
@@ -137,6 +138,7 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
         "/admin/orders",
         "/admin/orders/1",
         "/admin/orders/1/edit",
+        "/admin/orders/1/edit/status",
         "/admin/orders/new",
         "/admin/orders/import",
     ],
