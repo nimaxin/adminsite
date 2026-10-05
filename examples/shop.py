@@ -192,6 +192,9 @@ class OrderView(ModelView[Order]):
         Field(Order.note, hidden_in_list=True),
         Order.created_at,
     ]
+    # A status moves along often, so it changes straight from the list, and
+    # so does the note, once the Columns menu shows it.
+    inline_editable_fields = [Order.status, Order.note]
     searchable_fields = [
         Order.id,
         Link(Order.customer, Customer.name),
