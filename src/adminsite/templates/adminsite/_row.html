@@ -65,13 +65,14 @@
         {%- endset -%}
         {% if path in changes %}
           {#- A value this user may change opens an editor under it, so a
-              keyboard reaches it as well as a click. The dashed line says
-              it can be changed, the pencil shows on hover and focus. -#}
+              keyboard reaches it as well as a click. It looks like any other
+              value until hover or focus brings up a background and a pencil,
+              so a table of such cells stays quiet. -#}
           <button type="button" aria-haspopup="dialog"
                   class="group/value -mx-1.5 inline-flex max-w-full items-center gap-1.5 rounded-field px-1.5 py-1 text-start hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
                   data-edit-url="{{ urls.edit_value(view, key, path) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
                   onclick="openValueEditor(this)">
-            <span class="min-w-0 underline decoration-base-content/30 decoration-dashed underline-offset-4">{{ shown }}</span>
+            <span class="min-w-0">{{ shown }}</span>
             <span class="sr-only">{{ _('Edit {field}', field=view._fields.label_for(path)) }}</span>
             {{ icons.icon("pencil", 12, "text-muted opacity-0 group-hover/value:opacity-100 group-focus-visible/value:opacity-100") }}
           </button>
