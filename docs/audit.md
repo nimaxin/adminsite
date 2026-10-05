@@ -151,12 +151,15 @@ told it.
 
 Signing in happens to no model, so these entries have an empty `view` and no view's permissions
 decide who reads them. By default the Activity page shows them to someone who may read the history
-of every model. Override `AuthProvider.may_read_sign_ins` to let others see them too.
+of every model, with no `scope_query` leaving out any of its records. Override
+`AuthProvider.may_read_sign_ins` to let others see them too.
 
 ## The Activity page
 
 The Activity page lists the log newest first, fifty entries at a time, with a link to the older
-ones. Its tabs narrow it to one model, and its filters to:
+ones. Each person sees what their [permissions](permissions.md#history) let them read: an entry
+about a record shows where the record's History tab would. Its tabs narrow it to one model, and its
+filters to:
 
 - one kind of entry, such as changes, actions, exports or failed sign ins;
 - one person, by the key their provider gives them or by the name shown;

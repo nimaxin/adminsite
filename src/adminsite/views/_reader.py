@@ -1,6 +1,6 @@
 """What a view reads: its pages of records, one record, and what goes with them."""
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
@@ -137,6 +137,45 @@ class Reader(Generic[M]):
         if record is not None:
             await self._hide_unseen(session, [record], paths, request)
         return record
+
+    def narrows(self, request: Request) -> bool:
+        """Whether scope_query leaves out any record for this user.
+
+        One that hands the statement back as it came leaves out nothing, such
+        as for a superuser.
+        """
+        if not self._view._scoped:
+            return False
+        statement = self._repository.base_statement()
+        return self._view.scope_query(statement, request=request) is not statement
+
+    async def readable_history(
+        self, session: SessionAdapter, keys: Collection[str], *, request: Request
+    ) -> set[str]:
+        """The keys among these whose history this user may read.
+
+        As on the record's History tab: the scope holds the record, and
+        `allows` lets this user read its history. A key that names no record,
+        such as a deleted one's, counts only where the scope leaves out
+        nothing, as there is no record left to check it against.
+        """
+        await self._view._ensure(Permission.VIEW, request=request)
+        await self._view._ensure(Permission.HISTORY, request=request)
+        narrows = self.narrows(request)
+        if not narrows and not self._view._custom_allows:
+            return set(keys)
+        records = await self._repository.get_many(
+            session, keys, self._view._scope_for(request)
+        )
+        found = {self._fields.identity_of(record): record for record in records}
+        gone: set[str] = set() if narrows else {key for key in keys if key not in found}
+        return gone | {
+            key
+            for key, record in found.items()
+            if await self._view.allows(
+                Permission.HISTORY, request=request, record=record
+            )
+        }
 
     async def _hide_unseen(
         self,

@@ -1,8 +1,11 @@
 """What the security review found, each hole kept closed by a test."""
 
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from dataclasses import replace
+from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -10,8 +13,9 @@ import pytest
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, Inline, ModelView, Statement
+from adminsite import Admin, Inline, ModelView, Permission, Statement
 from adminsite.actions import Selection, action
+from adminsite.audit import AuditEntry, AuditEvent, AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.fields import EnumField
@@ -418,6 +422,176 @@ class TestInlineRowsStillWork:
             assert any(
                 item.product_id == 1 and item.quantity == 4 for item in order.items
             )
+
+
+ENTRY = re.compile(r'<li class="relative mb-6')
+MONDAY = datetime(2026, 9, 14)
+
+
+@pytest.fixture
+def log(tmp_path: Path) -> Iterator[AuditLog]:
+    audit = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
+    yield audit
+    audit.close()
+
+
+def change_to(order: int, minutes: int = 0) -> AuditEntry:
+    """A change to an order's note, written down so many minutes into Monday."""
+    return AuditEntry(
+        view="orders",
+        record_key=str(order),
+        record_title=f"Order {order}",
+        event=AuditEvent.UPDATED,
+        changes={"note": ("", f"note on order {order}")},
+        occurred_at=MONDAY + timedelta(minutes=minutes),
+    )
+
+
+class LenasOrders(ModelView[Order]):
+    """Only Lena's orders, 1 and 2, may be seen."""
+
+    name = "orders"
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Order.customer_id == 1)
+
+
+class EveryOrder(ModelView[Order]):
+    """A scope that leaves out nothing for this user, as for a superuser."""
+
+    name = "orders"
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement
+
+
+class OrdersButTheSecond(ModelView[Order]):
+    """Every order, but the history of order 2 is kept from this user."""
+
+    name = "orders"
+
+    async def allows(
+        self, action: Permission | str, *, request: Request, record: Order | None
+    ) -> bool:
+        if action == Permission.HISTORY and record is not None:
+            return record.id != 2
+        return await super().allows(action, request=request, record=record)
+
+
+async def activity_of(
+    database: Database,
+    view: type[ModelView[Order]],
+    log: AuditLog,
+    address: str = "/admin/-/activity",
+) -> httpx.Response:
+    async with client_for(Admin(database, views=[view], audit=log)) as client:
+        return await client.get(address)
+
+
+class TestTheActivityPageKeepsToTheScope:
+    """It showed every entry of a view, whatever the view's scope left out."""
+
+    async def test_a_record_out_of_scope_is_left_out(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record([change_to(1), change_to(3)])
+
+        page = await activity_of(database, LenasOrders, log)
+
+        assert "note on order 1" in page.text
+        assert "note on order 3" not in page.text
+
+    async def test_asking_for_it_by_key_finds_nothing(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record([change_to(3)])
+
+        page = await activity_of(
+            database, LenasOrders, log, "/admin/-/activity?view=orders&record=3"
+        )
+
+        assert "note on order 3" not in page.text
+        assert "Nothing matches these filters." in page.text
+
+    async def test_a_deleted_record_shows_where_the_scope_leaves_out_nothing(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record([replace(change_to(99), event=AuditEvent.DELETED)])
+
+        narrowed = await activity_of(database, LenasOrders, log)
+        whole = await activity_of(database, EveryOrder, log)
+
+        assert "note on order 99" not in narrowed.text
+        assert "note on order 99" in whole.text
+
+    async def test_allows_is_asked_about_each_record(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record([change_to(1), change_to(2)])
+
+        page = await activity_of(database, OrdersButTheSecond, log)
+
+        assert "note on order 1" in page.text
+        assert "note on order 2" not in page.text
+
+    async def test_a_page_reads_on_past_entries_kept_from_the_user(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record(
+            [change_to(1, minutes) for minutes in range(3)]
+            + [change_to(3, 10 + minutes) for minutes in range(200)]
+        )
+
+        page = await activity_of(database, LenasOrders, log)
+
+        assert len(ENTRY.findall(page.text)) == 3
+        assert "Older</a>" not in page.text
+
+    async def test_a_page_that_found_nothing_yet_leads_on(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        await log.record(
+            [change_to(1)] + [change_to(3, 1 + minutes) for minutes in range(2000)]
+        )
+
+        async with client_for(
+            Admin(database, views=[LenasOrders], audit=log)
+        ) as client:
+            first = await client.get("/admin/-/activity")
+            older = re.search(r'href="([^"]+)"[^>]*>Older</a>', first.text)
+            assert older is not None
+            second = await client.get(older.group(1).replace("&amp;", "&"))
+
+        assert "Nothing found." in first.text
+        assert len(ENTRY.findall(second.text)) == 1
+        assert "note on order 1" in second.text
+
+    async def test_sign_ins_are_for_someone_who_reads_every_record(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        accounts = {"lena": hash_password("letmein")}
+        for view, shown in ((LenasOrders, False), (EveryOrder, True)):
+            admin = Admin(
+                database,
+                views=[view],
+                audit=log,
+                auth=PasswordAuth(accounts),
+                secret_key="a-secret",
+            )
+            async with client_for(admin) as client:
+                login = await client.get("/admin/login")
+                await client.post(
+                    "/admin/login",
+                    data={
+                        "username": "lena",
+                        "password": "letmein",
+                        "_csrf": token_in(login),
+                    },
+                )
+                page = await client.get("/admin/-/activity")
+
+            assert ('value="signed_in"' in page.text) is shown, view.__name__
+            assert bool(ENTRY.findall(page.text)) is shown, view.__name__
 
 
 __all__ = ["OrderItem"]

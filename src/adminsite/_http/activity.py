@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -10,7 +10,7 @@ from starlette.responses import Response
 
 from adminsite._http.history import describe
 from adminsite._http.urls import Urls
-from adminsite.audit import AuditEntry, AuditEvent, AuditQuery
+from adminsite.audit import AuditEntry, AuditEvent, AuditQuery, AuditStore
 from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.i18n import gettext as _
@@ -18,19 +18,29 @@ from adminsite.permissions import Permission
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
+    from adminsite.views import ModelView
 
 __all__ = [
     "ACTIVITY_PAGE",
+    "LARGEST_READ",
+    "READS_PER_PAGE",
     "ActivityFilters",
     "activity",
     "event_choices",
     "position_of",
     "read_filters",
+    "read_page",
     "read_position",
+    "readable_entries",
 ]
 
 # How many entries one page of the Activity page shows.
 ACTIVITY_PAGE = 50
+# A page whose entries are mostly kept from the person reading reads on,
+# each read twice the one before, up to the largest, and stops after so
+# many reads: the next page goes on from there.
+LARGEST_READ = 400
+READS_PER_PAGE = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,18 +160,81 @@ def _start_of(day: date | None) -> datetime | None:
     return datetime.combine(day, time.min) if day is not None else None
 
 
+async def readable_entries(
+    admin: "Admin",
+    entries: Sequence[AuditEntry],
+    views: Sequence["ModelView[Any]"],
+    request: Request,
+) -> list[AuditEntry]:
+    """The entries whose record this person may read the history of.
+
+    Each view is asked once about all of its records among the entries. An
+    entry about no record, such as an export, needs only its view.
+    """
+    by_name = {view.name: view for view in views}
+    keys: dict[str, set[str]] = {}
+    for entry in entries:
+        if entry.record_key and entry.view in by_name:
+            keys.setdefault(entry.view, set()).add(entry.record_key)
+    readable: dict[str, set[str]] = {}
+    if keys:
+        async with admin.database.session() as session:
+            for name, wanted in keys.items():
+                readable[name] = await by_name[name]._reader.readable_history(
+                    session, wanted, request=request
+                )
+    return [
+        entry
+        for entry in entries
+        if not entry.record_key or entry.record_key in readable.get(entry.view, ())
+    ]
+
+
+async def read_page(
+    admin: "Admin",
+    store: AuditStore,
+    query: AuditQuery,
+    views: Sequence["ModelView[Any]"],
+    request: Request,
+) -> tuple[list[AuditEntry], AuditEntry | None]:
+    """A page of the entries this person may read, and the one the next page follows.
+
+    The query keeps to the views they may read. Which records they may read
+    the history of is only known once the entries are read, since the log
+    may be kept apart from the records, so a page reads on past the entries
+    it leaves out until it is full, the log runs out, or it has read
+    READS_PER_PAGE times.
+    """
+    kept: list[AuditEntry] = []
+    found: list[AuditEntry] = []
+    position = query.older_than
+    for read in range(READS_PER_PAGE):
+        # One more than a page says whether there is a page after this one.
+        size = min((ACTIVITY_PAGE + 1) * 2**read, LARGEST_READ)
+        found = await store.find(replace(query, older_than=position), limit=size)
+        kept += await readable_entries(admin, found, views, request)
+        if len(kept) > ACTIVITY_PAGE:
+            return kept[:ACTIVITY_PAGE], kept[ACTIVITY_PAGE - 1]
+        if len(found) < size or found[-1].id is None:
+            return kept, None
+        position = (found[-1].occurred_at, found[-1].id)
+    return kept, found[-1]
+
+
 async def activity(admin: "Admin", request: Request) -> Response:
     """The log across the admin, newest first, filtered and a page at a time."""
     if admin.audit is None:
         raise HTTPException(status_code=404, detail=_("Auditing is not switched on."))
 
-    # Filtering in the query, not afterwards, so every page is full of
-    # entries this person may read.
     readable = await admin.history_views(request)
     allowed = [view.name for view in readable]
-    # Signing in happens to no record, so its entries have no view.
+    # Signing in happens to no record, so its entries have no view, and are
+    # for someone who reads every record of every view.
+    everything = len(readable) == len(admin.views.views) and not any(
+        view._reader.narrows(request) for view in readable
+    )
     sign_ins = admin.auth is not None and await admin.auth.may_read_sign_ins(
-        request, reads_everything=len(readable) == len(admin.views.views)
+        request, reads_everything=everything
     )
     if sign_ins:
         allowed.append("")
@@ -172,14 +245,14 @@ async def activity(admin: "Admin", request: Request) -> Response:
     filters = read_filters(
         request.query_params, allowed, [event for event, _label in choices]
     )
-    # One more than a page says whether there is a page after this one.
-    found = await admin.audit.find(filters.query(allowed), limit=ACTIVITY_PAGE + 1)
-    entries = found[:ACTIVITY_PAGE]
+    entries, last = await read_page(
+        admin, admin.audit, filters.query(allowed), readable, request
+    )
 
     urls = Urls(request)
     older = (
-        urls.activity(**filters.params(older=position_of(entries[-1])))
-        if len(found) > ACTIVITY_PAGE
+        urls.activity(**filters.params(older=position_of(last)))
+        if last is not None
         else None
     )
     tabs = [

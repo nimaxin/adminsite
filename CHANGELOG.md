@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The Activity page shows an entry about a record only to someone who may read that record's
+  history, as its History tab does: the view's `scope_query` holds the record, and
+  `allows(Permission.HISTORY, record=...)` says yes. It checked the view alone, so someone whose
+  scope left records out read their changes there, or asked for one by its key. An entry about a
+  deleted record shows only where `scope_query` leaves nothing out for the user, and by default
+  so do sign ins.
 - When the linked model has several views, a record page names and counts a link to many records
   as the list does: each record one of those views holds, linked to the first that holds it. It
   read through the first view alone, so records only another view held were left out.

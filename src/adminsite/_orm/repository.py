@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
@@ -344,6 +344,13 @@ class SQLAlchemyRepository(Generic[M]):
             )
         return (await session.scalars(statement)).unique().first()
 
+    async def get_many(
+        self, session: SessionAdapter, keys: Iterable[Any], scope: Scope | None = None
+    ) -> Sequence[Any]:
+        """Load the records these keys name that the scope keeps, in one query."""
+        statement = self.base_statement(scope).where(self.keys_clause(keys))
+        return (await session.scalars(statement)).unique().all()
+
     async def visible_keys(
         self, session: SessionAdapter, records: Sequence[Any], scope: Scope
     ) -> set[str]:
@@ -554,23 +561,52 @@ class SQLAlchemyRepository(Generic[M]):
     def key_clause(self, key: Any) -> ColumnElement[bool]:
         """Match a record by its primary key, single or composite."""
         columns = self._primary_key_columns()
-        values = self.schema.key_parts(key)
-        if len(values) != len(columns):
-            # A key with the wrong number of parts, such as /orders/1,2 for a
-            # single key, names no record, so the caller answers "not found".
-            return false()
-        try:
-            converted = [
-                to_column_type(self.schema.field_named(name).python_type, value)
-                for name, value in zip(self.schema.primary_key, values, strict=True)
-            ]
-        except ValueError:
-            # A key that cannot be the column's type matches nothing, so the
-            # caller shows "not found" rather than a database error.
+        converted = self._key_values(key)
+        if converted is None:
+            # The caller answers "not found" rather than a database error.
             return false()
         return and_(
             *(column == value for column, value in zip(columns, converted, strict=True))
         )
+
+    def keys_clause(self, keys: Iterable[Any]) -> ColumnElement[bool]:
+        """Match the records these keys name, in one condition."""
+        columns = self._primary_key_columns()
+        wanted = [parts for key in keys if (parts := self._key_values(key)) is not None]
+        if not wanted:
+            return false()
+        if len(columns) == 1:
+            return cast(
+                "ColumnElement[bool]", columns[0].in_([parts[0] for parts in wanted])
+            )
+        return or_(
+            *(
+                and_(
+                    *(
+                        column == value
+                        for column, value in zip(columns, parts, strict=True)
+                    )
+                )
+                for parts in wanted
+            )
+        )
+
+    def _key_values(self, key: Any) -> Sequence[Any] | None:
+        """A key's parts as the types of their columns, or None if it names no record.
+
+        A key with the wrong number of parts, such as /orders/1,2 for a single
+        key, names no record, and nor does one that cannot be the column's type.
+        """
+        values = self.schema.key_parts(key)
+        if len(values) != len(self.schema.primary_key):
+            return None
+        try:
+            return [
+                to_column_type(self.schema.field_named(name).python_type, value)
+                for name, value in zip(self.schema.primary_key, values, strict=True)
+            ]
+        except ValueError:
+            return None
 
     def identity_of(self, record: Any) -> str:
         """Write the primary key of a record as one string, for a URL."""

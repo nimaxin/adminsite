@@ -63,6 +63,12 @@ The Activity page shows only entries from views where the user has both `VIEW` a
 only from views registered on this admin, so two admins sharing one log never show each other's
 entries. A user with no such view does not see the Activity page at all.
 
+Within those views, an entry about one record shows only where the record's History tab would: the
+view's `scope_query` holds the record, and `allows(Permission.HISTORY, record=record)` says yes. An
+entry about a record that has since been deleted shows only to a user `scope_query` leaves nothing
+out for, as there is no record left to check, so hand the statement back unchanged for a
+superuser. An entry about no record, such as an export, needs the view alone.
+
 ## Rows
 
 `scope_query` narrows every read the view makes:
@@ -81,7 +87,7 @@ Returning a new `select(Order)` in its place is a type error: it would drop what
 already asked for, such as the page's filters.
 
 It is applied to the list, its count, the counts beside its filters, opening one record, the CSV
-export and bulk actions. A row outside the scope cannot be seen, opened, changed or deleted, and
+export, bulk actions and the [history](#history) on the Activity page. A row outside the scope cannot be seen, opened, changed or deleted, and
 guessing its key in the URL gives a "not found". There is no path through the admin that forgets to
 check.
 

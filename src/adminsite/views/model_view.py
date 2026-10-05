@@ -319,6 +319,9 @@ class ModelView(Generic[M]):
         # Whether scope_query narrows anything, so a page showing this model's
         # records through a link asks it only when it does.
         self._scoped = type(self).scope_query is not ModelView.scope_query
+        # Whether allows is the project's own, which may answer differently
+        # for each record, so the Activity page loads the records to ask it.
+        self._custom_allows = type(self).allows is not ModelView.allows
 
         self._inline_views = InlineViews(
             self,
@@ -627,10 +630,14 @@ class ModelView(Generic[M]):
     def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         """Narrow every read to the rows this user may see.
 
-        This runs on the list, the count, a single record, an export and a
-        bulk action, so a row can never leak through a path that forgot to
-        check. A record it leaves out reads as Hidden where another view
-        links to it.
+        This runs on the list, the count, a single record, an export, a
+        bulk action and the history on the Activity page, so a row can never
+        leak through a path that forgot to check. A record it leaves out
+        reads as Hidden where another view links to it.
+
+        Hand the statement back unchanged for a user it leaves nothing out
+        for, such as a superuser. The Activity page then shows them the
+        history of deleted records too, which no scope can be checked against.
 
         Args:
             statement: A select of the view's model, about to run.

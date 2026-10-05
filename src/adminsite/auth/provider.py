@@ -164,14 +164,15 @@ class AuthProvider:
         """Whether this person sees who signed in, on the Activity page.
 
         Signing in belongs to no model, so no view's permissions decide it.
-        By default only someone who may read the history of every model
-        sees it, which `reads_everything` says. Override it to let in, say,
-        an auditor who reads less.
+        By default only someone who may read the history of every record of
+        every model sees it, which `reads_everything` says. Override it to
+        let in, say, an auditor who reads less.
 
         Args:
             request: The request being answered.
             reads_everything: Whether this person may read the history of
-                every view.
+                every view, with no `scope_query` leaving out any of its
+                records.
 
         Returns:
             True to show them the sign ins.
