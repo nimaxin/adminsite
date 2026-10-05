@@ -144,7 +144,7 @@ EUROS = "€{:,.2f}"
 
 
 def outline(paths: str) -> str:
-    """A sidebar icon drawn the way the admin draws its own."""
+    """An icon for the sidebar or an action, drawn the way the admin draws its own."""
     return (
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
         'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
@@ -206,12 +206,25 @@ class OrderView(ModelView[Order]):
         )
     ]
 
-    @action("Mark as paid", on="record")
+    @action(
+        "Mark as paid",
+        on="record",
+        icon=outline(
+            '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>'
+        ),
+    )
     async def mark_paid(self, record: Order, session: SessionAdapter) -> str:
         record.status = OrderStatus.PAID
         return f"Order #{record.id} marked as paid."
 
-    @action("Download as CSV", on="record", permission=Permission.EXPORT)
+    @action(
+        "Download as CSV",
+        on="record",
+        permission=Permission.EXPORT,
+        icon=outline(
+            '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>'
+        ),
+    )
     async def download(self, record: Order, session: SessionAdapter) -> Response:
         lines = "\n".join(
             f"{item.product.name},{item.quantity},{item.unit_price}"
@@ -233,7 +246,14 @@ class OrderView(ModelView[Order]):
         )
         return f"Today's orders come to €{total or 0}."
 
-    @action("Mark as shipped", confirm="Mark the chosen orders as shipped?")
+    @action(
+        "Mark as shipped",
+        confirm="Mark the chosen orders as shipped?",
+        icon=outline(
+            '<path d="M2 6h12v10H2z"/><path d="M14 10h4l4 3v3h-8"/>'
+            '<circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/>'
+        ),
+    )
     async def ship(
         self,
         selection: Selection[Order],

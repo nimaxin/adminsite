@@ -15,6 +15,7 @@
         <li>
           <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
                   onclick='runRecordAction({{ item.name|tojson }}, {{ key|tojson }})'>
+            {% if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif %}
             {{ item.label }}
           </button>
         </li>

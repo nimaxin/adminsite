@@ -51,6 +51,8 @@ class Action:
     confirm: str = ""
     permission: str = Permission.EDIT
     dangerous: bool = False
+    # Drawn before the label: inline SVG markup, or a picture's address.
+    icon: str = ""
     inputs: tuple["BaseField", ...] = ()
     on: ActionTarget = ON_SELECTION
     # Whether the audit log keeps what the action answered. Switch it off
@@ -114,6 +116,7 @@ def action(
     confirm: str = "",
     permission: str = Permission.EDIT,
     dangerous: bool = False,
+    icon: str = "",
     inputs: Sequence["BaseField"] = (),
     on: ActionTarget = ON_SELECTION,
     audit_answer: bool = True,
@@ -166,6 +169,9 @@ def action(
         permission: What the user needs to run it, as `allows` decides:
             `Permission.EDIT` unless you say, or a name of your own.
         dangerous: Whether the button is drawn in red.
+        icon: An icon drawn before the label wherever the action is
+            offered: inline SVG markup, or a picture's address, as a view's
+            `icon` takes.
         inputs: Fields to ask for as they are, each passed to the parameter
             of its name. The parameters' types usually say enough.
         on: What it acts on: "selection", "record" or "view", as above.
@@ -203,6 +209,7 @@ def action(
                 confirm=confirm,
                 permission=permission,
                 dangerous=dangerous,
+                icon=icon,
                 inputs=tuple(inputs),
                 on=on,
                 audit_answer=audit_answer,

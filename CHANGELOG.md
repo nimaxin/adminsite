@@ -10,6 +10,9 @@
   `adminsite/_empty.html`, so a project can change it through `template_dirs`.
 - Every page draws a line under its header once it scrolls, so the rows that scroll beneath it
   no longer run into it.
+- An action takes an `icon`, as a view does: inline SVG markup or a picture's address, drawn
+  before its label in the bar over the ticked rows, above the list, in a row's menu and on the
+  record page.
 
 ## 0.1.0a12
 
