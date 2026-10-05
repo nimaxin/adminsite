@@ -7,7 +7,15 @@ from typing import Any, Literal, TypeAlias
 from adminsite._text import template_names
 from adminsite.columns import describe
 from adminsite.exceptions import AdminSiteError, InvalidPathError, UnknownFieldError
-from adminsite.fields import BaseField, Field, FieldRegistry, RelationField
+from adminsite.fields import (
+    BaseField,
+    Field,
+    FieldRegistry,
+    FileField,
+    JSONField,
+    ListField,
+    RelationField,
+)
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationDirection
@@ -15,6 +23,7 @@ from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationDirect
 __all__ = [
     "Takes",
     "check_excluded",
+    "check_inline_editable",
     "check_kind",
     "check_link_title",
     "check_list_flags",
@@ -269,6 +278,57 @@ def check_list_flags(
     raise AdminSiteError(
         f"{both} hidden_in_list offers it among the columns people can add to "
         "the list; excluding it keeps it off the list altogether. Keep one."
+    )
+
+
+def check_inline_editable(
+    view: str,
+    path: str,
+    item: BaseField,
+    *,
+    fields: Sequence[str],
+    listed: Sequence[str],
+    filled_key: bool,
+    off_the_edit_form: bool,
+    locked: bool,
+    first: str,
+) -> None:
+    """Refuse a field inline_editable_fields names that no cell can change.
+
+    `fields` are the view's fields, `listed` the columns the list can show,
+    `filled_key` whether the database fills the field in, `off_the_edit_form`
+    whether the edit form leaves it out, `locked` whether it cannot change
+    once its record exists, and `first` the list's first column, which opens
+    the record.
+    """
+    if path not in fields:
+        problem = "which is not one of the view's fields. Add it to fields, or "
+    elif path not in listed:
+        problem = "which the list leaves out, so no cell holds it. Show it, or "
+    elif "." in path:
+        problem = "a column of a related model, which no form changes. "
+    elif not item.stored:
+        problem = "which is worked out rather than stored, so nothing is saved. "
+    elif filled_key:
+        problem = "a key the database fills in, which nobody types. "
+    elif off_the_edit_form:
+        problem = "which the edit form leaves out. Put it on the edit form, or "
+    elif locked:
+        problem = "which cannot change once its record exists. "
+    elif isinstance(item, FileField | ListField) or (
+        isinstance(item, JSONField) and item.schema is not None
+    ):
+        problem = f"a {type(item).__name__}, which needs the room of the edit form. "
+    elif path == first:
+        problem = (
+            "the list's first column, which opens the record. Put another "
+            "column first, or "
+        )
+    else:
+        return
+    leave = "leave it out here." if problem.endswith("or ") else "Leave it out here."
+    raise AdminSiteError(
+        f"{view}.inline_editable_fields names {describe(path)}, {problem}{leave}"
     )
 
 

@@ -47,6 +47,7 @@ __all__ = [
     "read_page",
     "read_page_size",
     "read_sort",
+    "rows_context",
     "sort_value",
     "total_text",
     "wants_partial",
@@ -294,6 +295,60 @@ def as_context(
     }
 
 
+async def rows_context(
+    view: ModelView[Any],
+    request: Request,
+    records: Sequence[Any],
+    columns: Sequence[str],
+) -> dict[str, Any]:
+    """What drawing these rows of the list needs, for this user.
+
+    Whether a row opens the record or its form, the actions on the ticked
+    rows and on each record this user may run, and the cells of each row
+    whose values change in place.
+    """
+    can_edit = await view.allows(Permission.EDIT, request=request, record=None)
+    selection = [
+        item
+        for item in view._actions.on("selection", request)
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+    record_actions = [
+        item
+        for item in view._actions.on("record", request)
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+    # A record action can be refused for one record and allowed for the next.
+    row_actions = {
+        view._fields.identity_of(record): [
+            item
+            for item in record_actions
+            if await view.allows(item.permission, request=request, record=record)
+        ]
+        for record in records
+    }
+    # So is a change: only a record this user may change offers a cell.
+    editing = can_edit and bool(view._settings.inline_editable_fields)
+    editable = {
+        view._fields.identity_of(record): view._pages.editable_in_list(
+            request, record, columns
+        )
+        for record in records
+        if editing
+        and await view.allows(Permission.EDIT, request=request, record=record)
+    }
+    return {
+        "can_detail": await view.allows(
+            Permission.VIEW_DETAIL, request=request, record=None
+        ),
+        "can_edit": can_edit,
+        "actions": selection,
+        "record_actions": record_actions,
+        "row_actions": row_actions,
+        "editable": editable,
+    }
+
+
 async def list_records(admin: "Admin", request: Request) -> Response:
     """One page of records, with the search, filters and sort applied."""
     view = find_view(admin, request)
@@ -327,49 +382,23 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     context["can_export"] = await view.allows(
         Permission.EXPORT, request=request, record=None
     )
-    context["can_detail"] = await view.allows(
-        Permission.VIEW_DETAIL, request=request, record=None
-    )
-    context["can_edit"] = await view.allows(
-        Permission.EDIT, request=request, record=None
-    )
     context["can_import"] = await view.allows(
         Permission.IMPORT, request=request, record=None
     )
+    context.update(await rows_context(view, request, list(page), read.columns))
     # Offer only the actions this user may run.
-    allowed = [
-        item
-        for item in context["actions"]
-        if await view.allows(item.permission, request=request, record=None)
-    ]
-    context["actions"] = allowed
     context["view_actions"] = [
         item
         for item in context["view_actions"]
         if await view.allows(item.permission, request=request, record=None)
     ]
-    record_actions = [
-        item
-        for item in context["record_actions"]
-        if await view.allows(item.permission, request=request, record=None)
-    ]
-    context["record_actions"] = record_actions
     context["action_rows"] = await rows_for_actions(
         admin,
         view,
-        [*allowed, *context["view_actions"], *record_actions],
+        [*context["actions"], *context["view_actions"], *context["record_actions"]],
         request,
     )
-    # A record action can be refused for one record and allowed for the next.
-    context["row_actions"] = {
-        view._fields.identity_of(record): [
-            item
-            for item in record_actions
-            if await view.allows(item.permission, request=request, record=record)
-        ]
-        for record in page
-    }
-    context["single_actions"] = [*record_actions, *context["view_actions"]]
+    context["single_actions"] = [*context["record_actions"], *context["view_actions"]]
     context["saving_views"] = admin.saved_views is not None
     context["saved_views"] = await saved_for(admin, view, request)
     context["view_owner"] = owner_of(admin, request)

@@ -1,0 +1,113 @@
+{#- The editor a list cell opens, filled by the server when a cell asks. It
+    sits outside the table's form, since a form cannot hold another, and in
+    the browser's top layer, so the scrolling table never clips it. Escape,
+    Cancel or a click outside closes it, and focus goes back to the cell. -#}
+<div id="value-editor" popover role="dialog" aria-labelledby="value-editor-title"
+     class="inset-auto m-0 w-80 max-w-[calc(100vw-1rem)] overflow-visible rounded-box border border-base-300 bg-base-100 p-3 text-base-content shadow-float">
+  <div id="value-editor-body"></div>
+  <p id="value-editor-failed" class="hidden text-[12.5px] text-error" role="alert">
+    {{ _('This value could not be changed. Reload the page and try again.') }}
+  </p>
+</div>
+<script>
+  // The cell whose editor is open, and how its row stood: a save draws the
+  // row again, which keeps its tick and the way its menu opens, and focus
+  // goes back to the cell once the editor closes.
+  let valueCell = null;
+  let valueRow = {};
+
+  function openValueEditor(cell) {
+    const editor = document.getElementById("value-editor");
+    const body = document.getElementById("value-editor-body");
+    const row = cell.closest("tr");
+    document.querySelectorAll("tr[data-editing]").forEach((one) => one.removeAttribute("data-editing"));
+    row.setAttribute("data-editing", "");
+    valueCell = cell;
+    valueRow = {
+      ticked: row.querySelector("input[name=keys]")?.checked ?? false,
+      upward: row.querySelector(".dropdown")?.classList.contains("dropdown-top") ?? false,
+    };
+    body.replaceChildren();
+    htmx.ajax("GET", cell.dataset.editUrl, { target: body, swap: "innerHTML" }).then(() => {
+      if (valueCell !== cell) return;
+      const loaded = body.querySelector("form") !== null;
+      document.getElementById("value-editor-failed").classList.toggle("hidden", loaded);
+      if (!editor.matches(":popover-open")) editor.showPopover();
+      placeValueEditor();
+      focusValueEditor();
+    });
+  }
+
+  // Under the cell from its start edge, or above it where the window ends.
+  function placeValueEditor() {
+    const editor = document.getElementById("value-editor");
+    if (!valueCell?.isConnected) return;
+    const cell = valueCell.getBoundingClientRect();
+    const box = editor.getBoundingClientRect();
+    const rightToLeft = getComputedStyle(valueCell).direction === "rtl";
+    let left = rightToLeft ? cell.right - box.width : cell.left;
+    left = Math.min(Math.max(left, 8), window.innerWidth - box.width - 8);
+    let top = cell.bottom + 6;
+    if (top + box.height > window.innerHeight - 8) top = Math.max(cell.top - box.height - 6, 8);
+    editor.style.left = left + "px";
+    editor.style.top = top + "px";
+  }
+
+  function focusValueEditor() {
+    const field = document.querySelector(
+      "#value-editor-body :is(input:not([type=hidden]), select, textarea)",
+    );
+    if (!field) return;
+    field.focus();
+    if (["text", "search", "email", "url", "tel", "number"].includes(field.type)) field.select();
+  }
+
+  document.getElementById("value-editor").addEventListener("beforetoggle", (event) => {
+    if (event.newState !== "closed") return;
+    document.querySelectorAll("tr[data-editing]").forEach((one) => one.removeAttribute("data-editing"));
+    document.getElementById("value-editor-body").replaceChildren();
+    document.getElementById("value-editor-failed").classList.add("hidden");
+    if (valueCell?.isConnected) valueCell.focus();
+    valueCell = null;
+  });
+
+  // A value that could not be saved comes back as the editor again, with the
+  // reason under the input, in place of the one that was sent.
+  document.addEventListener("htmx:beforeSwap", (event) => {
+    if (!event.detail.requestConfig?.elt?.closest?.("#value-editor")) return;
+    if (event.detail.xhr.status !== 422) return;
+    event.detail.target = document.getElementById("value-editor-body");
+    event.detail.swapOverride = "innerHTML";
+    event.detail.shouldSwap = true;
+    event.detail.isError = false;
+  });
+
+  document.addEventListener("htmx:afterSwap", (event) => {
+    if (event.detail.target?.id !== "value-editor-body") return;
+    placeValueEditor();
+    focusValueEditor();
+  });
+
+  // Saved: the row is drawn again in place, so put back how it stood, close
+  // the editor, and give focus to the same cell of the new row.
+  document.addEventListener("htmx:afterRequest", (event) => {
+    if (!event.detail.elt?.closest?.("#value-editor")) return;
+    if (!event.detail.successful) {
+      if (event.detail.xhr?.status !== 422) {
+        document.getElementById("value-editor-failed").classList.remove("hidden");
+      }
+      return;
+    }
+    const url = valueCell?.dataset.editUrl;
+    document.getElementById("value-editor").hidePopover();
+    const again = [...document.querySelectorAll("button[data-edit-url]")].find(
+      (button) => button.dataset.editUrl === url,
+    );
+    const row = again?.closest("tr");
+    if (!row) return;
+    const box = row.querySelector("input[name=keys]");
+    if (box) box.checked = valueRow.ticked;
+    row.querySelector(".dropdown")?.classList.toggle("dropdown-top", valueRow.upward);
+    again.focus();
+  });
+</script>

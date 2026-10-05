@@ -87,15 +87,20 @@ class FormParser(Generic[M]):
         *,
         record: M | None = None,
         request: Request,
+        paths: Sequence[str] | None = None,
     ) -> FormResult:
-        """Read a submitted form into values, collecting any messages."""
+        """Read a submitted form into values, collecting any messages.
+
+        `paths` reads only those fields, and no inline rows, as a value
+        changed straight from the list is read.
+        """
         result = FormResult()
         readonly = set(self._pages.readonly_paths(request, record))
         draft: M | None = None
 
         for path in self._pages.form_fields(request, record):
             item = self._fields.field_for(path)
-            if path in readonly:
+            if path in readonly or (paths is not None and path not in paths):
                 continue
             raw = data.get(path)
             if item.keeps_value_when_blank and record is not None and _is_blank(raw):
@@ -131,6 +136,8 @@ class FormParser(Generic[M]):
             except FieldValidationError as error:
                 result.errors[path] = error.message
 
+        if paths is not None:
+            return result
         for inline in self._view.get_inlines(request, record):
             result.inline_rows[inline.name] = self._parse_inline(
                 inline, data, result.errors, request, record

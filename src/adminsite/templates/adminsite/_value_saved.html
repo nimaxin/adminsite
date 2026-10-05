@@ -1,0 +1,4 @@
+{#- What a saved value answers with: the record's row drawn again, to take the
+    place of the one being edited, and a message in the corner. -#}
+{% include "adminsite/_row.html" %}
+<div hx-swap-oob="beforeend:#toasts">{% include "adminsite/_message.html" %}</div>

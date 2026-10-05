@@ -108,6 +108,11 @@ class SettingsReader:
             if name in schema.fields and schema.fields[name].has_default
         )
         self.list_filters = self.filters("list_filters", view.list_filters)
+        # The fields whose cells in the list change their value in place,
+        # checked against the list and the edit form once both are known.
+        self.inline_editable_fields = self.paths(
+            "inline_editable_fields", view.inline_editable_fields, takes="fields"
+        )
         # Where the forms and the record page put each field.
         self.form_layout = self._read_layout(view.form_layout)
 

@@ -92,6 +92,7 @@ plugins:
           leaves one off with `exclude_fields_from_list`, `_detail`, `_create`, `_edit` or
           `_export`, and `hidden_in_list=True` keeps a column in the Columns menu only. The
           other settings: `searchable_fields`, `sortable_fields`, `list_filters`,
+          `inline_editable_fields` (values changed straight from the list),
           `fields_default_sort` (`[Descending(Order.created_at)]`), `inlines`, `record_title`,
           `page_size`, `count_mode`, `pagination`, `can_create`/`can_edit`/`can_delete`/
           `can_delete_selected`/`can_view_detail`/`can_import`.

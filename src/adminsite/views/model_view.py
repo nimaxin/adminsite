@@ -181,6 +181,15 @@ class ModelView(Generic[M]):
     A column gets the filter that suits its type; a `SQLFilter` of your own
     decides for itself.
     """
+    inline_editable_fields: Sequence[ColumnReference] = ()
+    """The fields whose values can be changed straight from the list.
+
+    A cell of each opens a small editor under it, which saves that one value
+    as the edit form does: `allows`, `can_access_field`,
+    `get_readonly_fields`, the save hooks and the audit log all apply, and a
+    cell this user may not change stays plain text. The list's first column
+    opens the record, so it cannot be one of them.
+    """
     page_size: int = 25
     """How many rows a page of the list holds."""
     page_size_options: Sequence[int] = ()

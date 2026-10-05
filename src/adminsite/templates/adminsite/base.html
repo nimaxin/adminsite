@@ -658,38 +658,11 @@
     {% if admin.banner %}
       <p role="note" class="tone-0 shrink-0 px-4 py-2 text-center text-[13px] font-medium [&_a]:underline [&_a]:underline-offset-2 lg:mb-2 lg:rounded-box">{{ admin.banner }}</p>
     {% endif %}
-    {% if messages %}
-      {#- Good news fades after a few seconds; a problem stays until it is closed,
-          so nobody misses it for reading slowly, and so does a message that asks
-          to, or that holds a value to copy. -#}
-      <div class="toast toast-end toast-bottom z-50">
-        {% for message in messages %}
-          {% set problem = message.kind == 'error' %}
-          <div role="{{ 'alert' if problem else 'status' }}" x-data="{ shown: true, copied: false }" x-show="shown"
-               {% if not problem and not message.sticky %}x-init="setTimeout(() => shown = false, 6000)"{% endif %}
-               class="alert max-w-md items-start whitespace-normal {% if problem %}alert-error{% else %}alert-success{% endif %} alert-soft shadow-float">
-            <div class="flex min-w-0 flex-col gap-2">
-              <span>
-                {%- if message.html %}{{ message.text | safe }}{% else %}{{ message.text }}{% endif -%}
-                {% if message.link %} <a class="link font-medium" href="{{ message.link }}">{{ message.link_text or _('Open') }}</a>{% endif %}
-              </span>
-              {% if message.to_copy %}
-                <div class="flex items-center gap-2">
-                  <code x-ref="value" class="min-w-0 break-all rounded-field bg-base-100 px-2 py-1 font-mono text-[13px] text-base-content">{{ message.to_copy }}</code>
-                  <button type="button" class="btn btn-plain btn-xs shrink-0"
-                          @click="navigator.clipboard.writeText($refs.value.textContent); copied = true">
-                    <span x-show="!copied">{{ _('Copy') }}</span>
-                    <span x-show="copied" x-cloak>{{ _('Copied') }}</span>
-                  </button>
-                </div>
-              {% endif %}
-            </div>
-            <button type="button" class="btn btn-ghost btn-xs btn-square" @click="shown = false"
-                    aria-label="{{ _('Close') }}">{{ icons.icon("x", 14) }}</button>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
+    {#- The messages left for this page, in the corner. An answer from HTMX can
+        add one, as a value saved from the list does. -#}
+    <div class="toast toast-end toast-bottom z-50 empty:hidden" id="toasts">
+      {%- for message in messages %}{% include "adminsite/_message.html" %}{% endfor -%}
+    </div>
 
     {#- The page sits on a raised panel, so it reads apart from the sidebar. -#}
     <main id="content" tabindex="-1" x-data="{ scrolled: false }"

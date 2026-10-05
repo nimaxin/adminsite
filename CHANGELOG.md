@@ -13,6 +13,10 @@
 - An action takes an `icon`, as a view does: inline SVG markup or a picture's address, drawn
   before its label in the bar over the ticked rows, above the list, in a row's menu and on the
   record page.
+- A view's `inline_editable_fields` names fields whose values change straight from the list: a
+  cell opens an editor under it, which saves that one value as the edit form does, through
+  `allows`, `can_access_field`, `get_readonly_fields`, the save hooks and the audit log, and
+  draws the row again in place.
 
 ## 0.1.0a12
 
