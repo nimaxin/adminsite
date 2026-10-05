@@ -226,7 +226,8 @@ class OrderView(ModelView[Order]):
 Each of those cells shows a pencil when the pointer is over it or it has focus. A click, or Enter,
 opens an editor under the cell: the field's input from the edit form, and Save. The value is saved as the
 edit form saves it, with the save hooks and the audit log, and the row is drawn again in place,
-so the search, the filters and the page stay as they were.
+so the search, the filters and the page stay as they were. Save with the value left as it was
+only closes the editor: nothing is saved, so no hook runs.
 
 A cell offers its editor only where the edit form would let this user change that value: `allows`
 lets them edit the record, `can_access_field` shows them the field on the list and on the edit

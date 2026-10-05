@@ -15,6 +15,13 @@
   // goes back to the cell once the editor closes.
   let valueCell = null;
   let valueRow = {};
+  // What the editor would send as it opened: Save with nothing changed only
+  // closes it, so no hook runs and no message says a change was saved.
+  let valueAtOpen = null;
+
+  function formValues(form) {
+    return new URLSearchParams(new FormData(form)).toString();
+  }
 
   function openValueEditor(cell) {
     const editor = document.getElementById("value-editor");
@@ -27,6 +34,7 @@
       ticked: row.querySelector("input[name=keys]")?.checked ?? false,
       upward: row.querySelector(".dropdown")?.classList.contains("dropdown-top") ?? false,
     };
+    valueAtOpen = null;
     body.replaceChildren();
     htmx.ajax("GET", cell.dataset.editUrl, { target: body, swap: "innerHTML" }).then(() => {
       if (valueCell !== cell) return;
@@ -35,6 +43,12 @@
       if (!editor.matches(":popover-open")) editor.showPopover();
       placeValueEditor();
       focusValueEditor();
+      // Read on the next frame, once a field's own script has drawn its
+      // inputs, as a picker draws one for each record it holds.
+      requestAnimationFrame(() => {
+        const form = body.querySelector("form");
+        if (valueCell === cell && form) valueAtOpen = formValues(form);
+      });
     });
   }
 
@@ -69,6 +83,15 @@
     document.getElementById("value-editor-failed").classList.add("hidden");
     if (valueCell?.isConnected) valueCell.focus();
     valueCell = null;
+    valueAtOpen = null;
+  });
+
+  document.addEventListener("htmx:beforeRequest", (event) => {
+    const form = event.detail.elt;
+    if (form?.tagName !== "FORM" || !form.closest("#value-editor")) return;
+    if (valueAtOpen === null || formValues(form) !== valueAtOpen) return;
+    event.preventDefault();
+    document.getElementById("value-editor").hidePopover();
   });
 
   // A value that could not be saved comes back as the editor again, with the
