@@ -11,6 +11,7 @@ from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.query import Sort
 from adminsite.schema import ModelSchema, RelationDirection
+from adminsite.views._checks import check_inline_editable
 from adminsite.views._fields import ViewFields
 from adminsite.views._settings import SettingsReader
 from adminsite.views.inlines import Inline
@@ -54,6 +55,22 @@ class PageFields(Generic[M]):
         self._inspector = inspector
         self._schema = schema
         self._inline_views = inline_views
+        # Checked now, so a field no cell can change stops the admin starting
+        # rather than drawing a cell that never opens.
+        listed = self.listed()
+        shown = [path for path in listed if not fields.field_for(path).hidden_in_list]
+        for path in settings.inline_editable_fields:
+            check_inline_editable(
+                type(view).__name__,
+                path,
+                fields.field_for(path),
+                fields=settings.candidates,
+                listed=listed,
+                filled_key=path in settings.filled_keys,
+                off_the_edit_form=self.excluded_from(RequestAction.EDIT, path),
+                locked=self.locked(path, saved=True),
+                first=shown[0] if shown else "",
+            )
 
     def accessible(
         self, request: Request, paths: Sequence[str], action: RequestAction
@@ -290,6 +307,23 @@ class PageFields(Generic[M]):
         readonly = set(self.readonly_paths(request, record))
         return tuple(
             path for path in self.form_fields(request, record) if path not in readonly
+        )
+
+    def editable_in_list(
+        self, request: Request, record: M, columns: Sequence[str]
+    ) -> tuple[str, ...]:
+        """The columns of a row whose values this user can change in place.
+
+        Those `inline_editable_fields` names that the edit form lets this
+        user change on this record. The first column opens the record, so it
+        is never one of them.
+        """
+        wanted = self._settings.inline_editable_fields
+        if not wanted:
+            return ()
+        writable = set(self.writable_paths(request, record))
+        return tuple(
+            path for path in columns[1:] if path in wanted and path in writable
         )
 
     def inline_readonly(

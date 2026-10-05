@@ -65,5 +65,6 @@
   {% if saving_views %}{% include "adminsite/_saved_tabs.html" %}{% endif %}
   {% include "adminsite/_toolbar.html" %}
   {% include "adminsite/_table.html" %}
+  {% if view._settings.inline_editable_fields %}{% include "adminsite/_value_editing.html" %}{% endif %}
 </div>
 {% endblock %}

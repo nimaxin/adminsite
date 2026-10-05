@@ -69,6 +69,10 @@ class Urls:
         """Where a delete is posted."""
         return f"{self.base}/{view.name}/{key}/delete"
 
+    def edit_value(self, view: ModelView[Any], key: str, path: str) -> str:
+        """Where a list cell's editor is fetched, and where its value is saved."""
+        return f"{self.base}/{view.name}/{key}/edit/{path}"
+
     def action(self, view: ModelView[Any], name: str) -> str:
         """Where a bulk action is posted."""
         return f"{self.base}/{view.name}/action/{name}"

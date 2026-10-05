@@ -212,6 +212,36 @@ remembered in the session, so the list keeps those columns next time. The CSV ex
 too. Only columns on offer can be picked: a column `can_access_field` keeps from someone stays
 hidden from them, whatever the URL says.
 
+### Editing in the list
+
+A value that changes often, such as an order's status, can be changed straight from the list.
+Name its field in `inline_editable_fields`:
+
+```python
+class OrderView(ModelView[Order]):
+    fields = [Order.id, Order.customer, Order.status, Order.total, Order.note]
+    inline_editable_fields = [Order.status, Order.note]
+```
+
+Each of those cells draws its value with a dashed line under it. A click, or Enter, opens an
+editor under the cell: the field's input from the edit form, and Save. The value is saved as the
+edit form saves it, with the save hooks and the audit log, and the row is drawn again in place,
+so the search, the filters and the page stay as they were.
+
+A cell offers its editor only where the edit form would let this user change that value: `allows`
+lets them edit the record, `can_access_field` shows them the field on the list and on the edit
+form, and `get_readonly_fields` leaves it unlocked for this record. Any other cell is plain text.
+The first column opens the record, so it is never edited in place, and on a phone, where each
+row is a card, values change on the form.
+
+A save from the list holds that one value. A hook that reads another column through
+`context.values[...]` gets the record's current value, and `Order.note in context.values` tells a
+hook whether this save changes the note.
+
+The admin refuses, when it starts, a field no cell can change: a related model's column, a
+computed field, a key, a read-only field, a file, a `ListField`, a JSON column drawn as a form,
+and the list's first column.
+
 ### Rows per page
 
 `page_size` sets how many rows a page holds. Offer a few sizes and a menu appears above the list:

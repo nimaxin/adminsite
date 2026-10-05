@@ -43,11 +43,13 @@ async def build_rows(
     errors: Mapping[str, str] | None = None,
     request: Request,
     typed: Mapping[str, Any] | None = None,
+    paths: Sequence[str] | None = None,
 ) -> list[FormRow]:
     """Build the form, filled from the record or from what was submitted.
 
     `submitted` holds the values that were read; `typed` holds the text they
-    were read from, which is what a field that failed shows again.
+    were read from, which is what a field that failed shows again. `paths`
+    builds only those fields, as the editor a list cell opens does.
     """
     readonly = set(view._pages.readonly_paths(request, record))
     errors = errors or {}
@@ -59,6 +61,8 @@ async def build_rows(
 
     rows = []
     for path in view._pages.form_fields(request, record):
+        if paths is not None and path not in paths:
+            continue
         item = view._fields.field_for(path)
         if item.form_only:
             stored = starting.get(path)

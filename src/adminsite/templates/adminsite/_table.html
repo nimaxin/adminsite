@@ -56,64 +56,7 @@
         </thead>
         <tbody>
           {% for row in page %}
-            {% set key = view._fields.identity_of(row) %}
-            <tr class="hover:bg-subtle has-[input[name=keys]:checked]:bg-selected">
-              {% if actions %}
-                <td class="h-12 border-b border-line ps-4 pe-1 lg:ps-7">
-                  <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
-                         aria-label="{{ _('Select {name}', name=view.get_record_title(row)) }}"
-                         @change="
-                           picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
-                           everything = false;
-                         ">
-                </td>
-              {% endif %}
-              <td class="h-12 border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
-                {% with allowed = row_actions.get(key, []) if row_actions else [],
-                        title = view.get_record_title(row),
-                        edit_url = urls.edit(view, key) if can_edit else "",
-                        upward = loop.revindex <= 3 and loop.length > 5 %}
-                  {% include "adminsite/_row_actions.html" %}
-                {% endwith %}
-              </td>
-              {% for path in columns %}
-                {% set item = view._fields.field_for(path) %}
-                {% set widget = item.widget %}
-                {% set text = view._fields.display(row, path) %}
-                {% set amount = widget == 'number' and path not in view._schema.primary_key %}
-                <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if amount %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %}">
-                  {% if loop.first %}
-                    {#- The first cell opens the record, or the form where a view
-                        has no record page, or is plain text where it has neither. -#}
-                    {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
-                    {% set is_key = widget == "number" and path in view._schema.primary_key %}
-                    {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
-                    {% if opens %}
-                      <a class="font-medium text-link hover:underline {% if is_key %}font-mono text-[13px]{% endif %}" href="{{ opens }}">{{ shown }}</a>
-                    {% else %}
-                      <span class="font-medium {% if is_key %}font-mono text-[13px]{% endif %}">{{ shown }}</span>
-                    {% endif %}
-                  {% elif view._fields.hides(row, path) %}
-                    {#- Read through a record its own view keeps from this user. -#}
-                    <span class="text-muted">{{ text }}</span>
-                  {% elif not text %}
-                    {% include "adminsite/_empty.html" %}
-                  {% elif widget == "image" %}
-                    {% set stored = view._fields.value_at(row, path) %}
-                    <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
-                         class="size-8 rounded-md object-cover" loading="lazy">
-                  {% elif widget == "file" %}
-                    <a class="text-link hover:underline" href="{{ urls.file(view, path, view._fields.value_at(row, path)) }}">{{ text }}</a>
-                  {% elif widget in ("select", "checkbox") %}
-                    {{ values.badge(item, view._fields.value_at(row, path), text) }}
-                  {% elif widget in ("text", "textarea", "json") %}
-                    <span class="block max-w-md truncate">{{ text }}</span>
-                  {% else %}
-                    {{ text }}
-                  {% endif %}
-                </td>
-              {% endfor %}
-            </tr>
+            {% with upward = loop.revindex <= 3 and loop.length > 5 %}{% include "adminsite/_row.html" %}{% endwith %}
           {% else %}
             <tr>
               <td class="py-20 text-center text-muted" colspan="{{ columns|length + (2 if actions else 1) }}">

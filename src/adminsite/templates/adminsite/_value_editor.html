@@ -1,0 +1,18 @@
+{#- What the editor a list cell opens holds: the field's own input from the
+    edit form, and Save. Enter saves. A value that cannot be saved comes back
+    here, with the reason under the input; a saved one answers with the
+    record's row. `save_url` carries the list's query, so that row is drawn
+    with the columns on show. -#}
+<form hx-post="{{ save_url }}" hx-target="tr[data-editing]" hx-swap="outerHTML"
+      class="flex flex-col gap-3" novalidate>
+  {{ csrf_input | safe if csrf_input }}
+  <h2 id="value-editor-title" class="sr-only">
+    {{ _('Edit {field} of {record}', field=row.label, record=record_title) }}
+  </h2>
+  {% include "adminsite/_field.html" %}
+  <div class="flex justify-end gap-2">
+    <button type="button" class="btn btn-ghost btn-sm"
+            popovertarget="value-editor" popovertargetaction="hide">{{ _('Cancel') }}</button>
+    <button type="submit" class="btn btn-primary btn-sm">{{ _('Save') }}</button>
+  </div>
+</form>

@@ -1,0 +1,84 @@
+{#- One record's row of the list, drawn by the list and again when a value
+    changed in place is saved. `upward` opens the row's menu towards the
+    page, for the last rows of a long page. -#}
+{% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_values.html" as values %}
+{% set key = view._fields.identity_of(row) %}
+{#- The cells this user may change in place, on this record. -#}
+{% set changes = (editable|default({})).get(key, ()) %}
+<tr class="hover:bg-subtle has-[input[name=keys]:checked]:bg-selected">
+  {% if actions %}
+    <td class="h-12 border-b border-line ps-4 pe-1 lg:ps-7">
+      <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
+             aria-label="{{ _('Select {name}', name=view.get_record_title(row)) }}"
+             @change="
+               picked = $refs.actions.querySelectorAll('input[name=keys]:checked').length;
+               everything = false;
+             ">
+    </td>
+  {% endif %}
+  <td class="h-12 border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
+    {% with allowed = row_actions.get(key, []) if row_actions else [],
+            title = view.get_record_title(row),
+            edit_url = urls.edit(view, key) if can_edit else "",
+            upward = upward|default(false) %}
+      {% include "adminsite/_row_actions.html" %}
+    {% endwith %}
+  </td>
+  {% for path in columns %}
+    {% set item = view._fields.field_for(path) %}
+    {% set widget = item.widget %}
+    {% set text = view._fields.display(row, path) %}
+    {% set amount = widget == 'number' and path not in view._schema.primary_key %}
+    <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if amount %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %}">
+      {% if loop.first %}
+        {#- The first cell opens the record, or the form where a view
+            has no record page, or is plain text where it has neither. -#}
+        {% set opens = urls.detail(view, key) if can_detail else (urls.edit(view, key) if can_edit else "") %}
+        {% set is_key = widget == "number" and path in view._schema.primary_key %}
+        {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
+        {% if opens %}
+          <a class="font-medium text-link hover:underline {% if is_key %}font-mono text-[13px]{% endif %}" href="{{ opens }}">{{ shown }}</a>
+        {% else %}
+          <span class="font-medium {% if is_key %}font-mono text-[13px]{% endif %}">{{ shown }}</span>
+        {% endif %}
+      {% else %}
+        {%- set shown -%}
+          {% if view._fields.hides(row, path) %}
+            {#- Read through a record its own view keeps from this user. -#}
+            <span class="text-muted">{{ text }}</span>
+          {% elif not text %}
+            {% include "adminsite/_empty.html" %}
+          {% elif widget == "image" %}
+            {% set stored = view._fields.value_at(row, path) %}
+            <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
+                 class="size-8 rounded-md object-cover" loading="lazy">
+          {% elif widget == "file" %}
+            <a class="text-link hover:underline" href="{{ urls.file(view, path, view._fields.value_at(row, path)) }}">{{ text }}</a>
+          {% elif widget in ("select", "checkbox") %}
+            {{ values.badge(item, view._fields.value_at(row, path), text) }}
+          {% elif widget in ("text", "textarea", "json") %}
+            <span class="block max-w-md truncate">{{ text }}</span>
+          {% else %}
+            {{ text }}
+          {% endif %}
+        {%- endset -%}
+        {% if path in changes %}
+          {#- A value this user may change opens an editor under it, so a
+              keyboard reaches it as well as a click. The dashed line says
+              it can be changed, the pencil shows on hover and focus. -#}
+          <button type="button" aria-haspopup="dialog"
+                  class="group/value -mx-1.5 inline-flex max-w-full items-center gap-1.5 rounded-field px-1.5 py-1 text-start hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                  data-edit-url="{{ urls.edit_value(view, key, path) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+                  onclick="openValueEditor(this)">
+            <span class="min-w-0 underline decoration-base-content/30 decoration-dashed underline-offset-4">{{ shown }}</span>
+            <span class="sr-only">{{ _('Edit {field}', field=view._fields.label_for(path)) }}</span>
+            {{ icons.icon("pencil", 12, "text-muted opacity-0 group-hover/value:opacity-100 group-focus-visible/value:opacity-100") }}
+          </button>
+        {% else %}
+          {{ shown }}
+        {% endif %}
+      {% endif %}
+    </td>
+  {% endfor %}
+</tr>
