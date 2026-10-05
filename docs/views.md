@@ -223,8 +223,8 @@ class OrderView(ModelView[Order]):
     inline_editable_fields = [Order.status, Order.note]
 ```
 
-Each of those cells draws its value with a dashed line under it. A click, or Enter, opens an
-editor under the cell: the field's input from the edit form, and Save. The value is saved as the
+Each of those cells shows a pencil when the pointer is over it or it has focus. A click, or Enter,
+opens an editor under the cell: the field's input from the edit form, and Save. The value is saved as the
 edit form saves it, with the save hooks and the audit log, and the row is drawn again in place,
 so the search, the filters and the page stay as they were.
 
