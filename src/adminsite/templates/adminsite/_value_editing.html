@@ -92,10 +92,11 @@
   // the editor, and give focus to the same cell of the new row.
   document.addEventListener("htmx:afterRequest", (event) => {
     if (!event.detail.elt?.closest?.("#value-editor")) return;
+    // Sent back with its reason, the editor is drawn again above and stays
+    // open. htmx counts that answer a success, as the swap asked it to.
+    if (event.detail.xhr?.status === 422) return;
     if (!event.detail.successful) {
-      if (event.detail.xhr?.status !== 422) {
-        document.getElementById("value-editor-failed").classList.remove("hidden");
-      }
+      document.getElementById("value-editor-failed").classList.remove("hidden");
       return;
     }
     const url = valueCell?.dataset.editUrl;
