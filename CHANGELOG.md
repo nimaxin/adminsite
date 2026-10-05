@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a13
+
+Values change straight from the list: a view's `inline_editable_fields` opens an editor under a
+cell and saves it as the edit form does. The Activity page shows an entry about a record only to
+someone who may read that record's history, where before reading the view's history was enough,
+and actions take an icon.
+
+Before upgrading:
+
+- A `scope_query` that leaves nothing out for some users, such as superusers, should hand the
+  statement back unchanged for them. The Activity page counts any other answer as leaving records
+  out, and hides from those users the entries about deleted records and, by default, sign ins.
+- A project that overrides `_table.html`, `base.html`, `list.html`, `detail.html`, `_inlines.html`
+  or `widgets/readonly.html` should start its copy again from the new one. A list row is now drawn
+  by `_row.html`, and an empty value by `_empty.html`.
+
+What changed:
 
 - The Activity page shows an entry about a record only to someone who may read that record's
   history, as its History tab does: the view's `scope_query` holds the record, and
@@ -10,7 +26,7 @@
   so do sign ins.
 - When the linked model has several views, a record page names and counts a link to many records
   as the list does: each record one of those views holds, linked to the first that holds it. It
-  read through the first view alone, so records only another view held were left out.
+  read through the first view alone, so records only another view held were left out (#36).
 - An empty value shows as a grey hyphen in place of an em dash, now in the list too, where its
   cell was blank, and screen readers say "Not set". One template draws it,
   `adminsite/_empty.html`, so a project can change it through `template_dirs`.
@@ -18,11 +34,11 @@
   no longer run into it.
 - An action takes an `icon`, as a view does: inline SVG markup or a picture's address, drawn
   before its label in the bar over the ticked rows, above the list, in a row's menu and on the
-  record page.
+  record page (#38).
 - A view's `inline_editable_fields` names fields whose values change straight from the list: a
   cell opens an editor under it, which saves that one value as the edit form does, through
   `allows`, `can_access_field`, `get_readonly_fields`, the save hooks and the audit log, and
-  draws the row again in place.
+  draws the row again in place (#34).
 
 ## 0.1.0a12
 
