@@ -63,4 +63,5 @@ all come from your models.
 If an AI assistant helps you build with adminsite, point it at
 [llms.txt](https://nimaxin.github.io/adminsite/llms.txt), a short guide with links to every page,
 or [llms-full.txt](https://nimaxin.github.io/adminsite/llms-full.txt), the whole documentation in
-one file. Both are rebuilt with the docs, so they always match the current release.
+one file. Both are rebuilt with the docs from the main branch, so they may describe changes that
+are not released yet.
