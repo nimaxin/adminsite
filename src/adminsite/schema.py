@@ -40,6 +40,9 @@ class FieldSchema:
     # default, a server default or the database's numbering.
     has_default: bool = False
     max_length: int | None = None
+    # Whether a datetime column keeps the time zone, as one declared
+    # DateTime(timezone=True) does.
+    with_timezone: bool = False
     enum_values: tuple[str, ...] | None = None
     # For a column holding a list of values, such as a Postgres ARRAY, what
     # each value is. None for any other column.

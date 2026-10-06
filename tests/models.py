@@ -187,3 +187,17 @@ class Draft(Base):
 
     def __str__(self) -> str:
         return self.title
+
+
+class Meeting(Base):
+    """One time kept with its time zone and one kept without, for zone tests."""
+
+    __tablename__ = "meetings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    def __str__(self) -> str:
+        return self.title
