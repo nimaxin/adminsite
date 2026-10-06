@@ -86,6 +86,25 @@
     menu.classList.remove("invisible");
   }
 
+  // A filter's long list of choices narrows to what is typed above it, the
+  // way a picker's does. A choice already ticked stays, to be unticked.
+  function choiceSearch() {
+    return {
+      query: "",
+      empty: false,
+      init() {
+        this.$watch("query", () => {
+          this.empty = ![...this.$refs.choices.children].some((choice) => this.shows(choice));
+        });
+      },
+      shows(choice) {
+        const wanted = this.query.trim().toLowerCase();
+        return !wanted || choice.dataset.label.toLowerCase().includes(wanted)
+          || choice.querySelector("input").checked;
+      },
+    };
+  }
+
   // A picker: one box to type in, and a list under it that opens as soon as
   // the box is clicked or typed in. It holds one record or option, or
   // several, as chips in the order they were chosen. Its list is in the

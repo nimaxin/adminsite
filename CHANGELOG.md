@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A choice filter with more than 10 options has a search box above them, which narrows them to
+  those whose label holds what was typed. Ticked options stay in view while it does (#44).
 - The foot of the sidebar is one account menu: the name of whoever is signed in opens it, upwards,
   with a Dark mode switch, the language and the time zone, each opening its own menu beside it,
   and Sign out. They sat side by side before, and crowded the name out. Without signing in, the button reads Settings. A
