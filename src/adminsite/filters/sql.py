@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any, Generic, TypeVar
@@ -21,6 +21,7 @@ from adminsite.filters.base import (
 from adminsite.i18n import gettext as _
 from adminsite.query import QuerySpec
 from adminsite.schema import FieldSchema
+from adminsite.timezones import current_timezone, to_column_time, to_local_time
 
 __all__ = [
     "DISTINCT_LIMIT",
@@ -252,10 +253,14 @@ class NumberRangeFilter(SQLFilter[Any]):
 class DateRangeFilter(SQLFilter[Any]):
     """A period, either one of the shortcuts or `from,to` as dates.
 
+    The dates are days on the clock of the person filtering: a day starts at
+    their midnight, wherever the database keeps its times.
+
     Args:
         name: The filter's name in the URL.
-        now: The moment the shortcuts, such as the last 7 days, count from.
-            Left out, the time each request is read.
+        now: The moment the shortcuts, such as the last 7 days, count from,
+            in the database's time zone unless it has one of its own. Left
+            out, the time each request is read.
         **options: `path` and `label`, as `SQLFilter` takes them.
     """
 
@@ -290,12 +295,11 @@ class DateRangeFilter(SQLFilter[Any]):
         def build(
             column: ColumnElement[Any], field: FieldSchema
         ) -> ColumnElement[bool] | None:
-            wants_date = field.python_type is date
             clauses = []
             if start is not None:
-                clauses.append(column >= (start.date() if wants_date else start))
+                clauses.append(column >= self._compared(start, field))
             if end is not None:
-                clauses.append(column <= (end.date() if wants_date else end))
+                clauses.append(column <= self._compared(end, field))
             first, *rest = clauses
             for clause in rest:
                 first = first & clause
@@ -303,7 +307,14 @@ class DateRangeFilter(SQLFilter[Any]):
 
         return repository.condition_at(self.path, build)
 
+    def _compared(self, moment: datetime, field: FieldSchema) -> date | datetime:
+        """A moment on the reader's clock, as the column compares it."""
+        if field.python_type is date:
+            return moment.date()
+        return to_column_time(moment, with_timezone=field.with_timezone)
+
     def _period(self, raw: str) -> tuple[datetime | None, datetime | None]:
+        """The period asked for, as moments on the reader's clock."""
         for name, _label, days in self.PRESETS:
             if raw == name:
                 return self._now_value() - timedelta(days=days), None
@@ -311,7 +322,7 @@ class DateRangeFilter(SQLFilter[Any]):
         return self._day(start), self._day(end, end_of_day=True)
 
     def _now_value(self) -> datetime:
-        return self._now or datetime.now(UTC).replace(tzinfo=None)
+        return to_local_time(self._now or datetime.now(UTC))
 
     def _day(self, raw: str, end_of_day: bool = False) -> datetime | None:
         text = raw.strip()
@@ -321,7 +332,7 @@ class DateRangeFilter(SQLFilter[Any]):
             day = date.fromisoformat(text)
         except ValueError:
             return None
-        moment = datetime.combine(day, datetime.min.time())
+        moment = datetime.combine(day, time.min, tzinfo=current_timezone.get())
         return moment + timedelta(days=1, microseconds=-1) if end_of_day else moment
 
 

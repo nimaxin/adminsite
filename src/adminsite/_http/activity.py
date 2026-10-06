@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from starlette.datastructures import QueryParams
@@ -15,6 +15,7 @@ from adminsite.audit.entry import SIGN_IN_EVENTS
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
+from adminsite.timezones import to_column_time
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -157,7 +158,10 @@ def _text(value: str | None) -> str | None:
 
 
 def _start_of(day: date | None) -> datetime | None:
-    return datetime.combine(day, time.min) if day is not None else None
+    # The day starts at midnight on the reader's clock, and the log keeps UTC.
+    if day is None:
+        return None
+    return to_column_time(datetime.combine(day, time.min), stored_in=UTC)
 
 
 async def readable_entries(

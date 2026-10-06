@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from pydantic_core import to_jsonable_python
@@ -26,6 +27,7 @@ from adminsite.i18n import gettext as _
 from adminsite.markup import plain
 from adminsite.messages import Message
 from adminsite.permissions import Permission, RequestAction
+from adminsite.timezones import to_utc_time
 from adminsite.views import ModelView
 
 if TYPE_CHECKING:
@@ -142,6 +144,9 @@ def _one_value(
         if not value:
             return None
         return {"name": item.display(value), "url": urls.file(view, path, value)}
+    if isinstance(value, datetime):
+        # With its offset, so a program reading it knows the moment it names.
+        return to_jsonable_python(to_utc_time(value))
     return to_jsonable_python(value)
 
 
