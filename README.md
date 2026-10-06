@@ -73,7 +73,7 @@ minutes.
 - [Signing in](https://nimaxin.github.io/adminsite/auth/) with a fixed list of users or your own user table.
 - [Pages and plugins](https://nimaxin.github.io/adminsite/pages/) of your own, such as reports or settings, in the same
   layout.
-- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right to left layouts.
+- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right to left layouts, and every time shown in the reader's time zone.
 - [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones, and
   [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a screen reader.
 - [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL, with no N+1 queries.
