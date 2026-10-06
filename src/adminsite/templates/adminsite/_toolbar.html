@@ -54,18 +54,34 @@
             <legend class="mb-3 text-sm font-semibold">{{ panel.filter.label }}</legend>
             {% if panel.filter.template == "choice" %}
               {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
-              <div class="-mx-2 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
-                {% for option in panel.options %}
-                  <label class="flex h-8 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200">
-                    <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}"
-                           class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
-                           {% if option.value in panel.chosen %}checked{% endif %}>
-                    <span class="flex-1">{{ option.label }}</span>
-                    {% if option.count is not none %}
-                      <span class="text-xs tabular-nums text-muted">{{ option.count }}</span>
-                    {% endif %}
+              {#- A long list gets a box above it that narrows it as you type.
+                  The box has no name, so the filter never sends what was typed. -#}
+              <div {% if panel.searchable %}x-data="choiceSearch()"{% endif %}>
+                {% if panel.searchable %}
+                  <label class="input input-sm mb-2 w-full">
+                    <span class="text-muted">{{ icons.icon("search") }}</span>
+                    <input type="search" class="grow" x-model="query" @keydown.enter.prevent
+                           placeholder="{{ _('Search') }}"
+                           aria-label="{{ _('Search {things}', things=panel.filter.label|lower) }}">
                   </label>
-                {% endfor %}
+                {% endif %}
+                <div class="-mx-2 flex max-h-64 flex-col gap-0.5 overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
+                  {% for option in panel.options %}
+                    <label class="flex h-8 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200"
+                           {% if panel.searchable %}data-label="{{ option.label }}" x-show="shows($el)"{% endif %}>
+                      <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}"
+                             class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
+                             {% if option.value in panel.chosen %}checked{% endif %}>
+                      <span class="flex-1">{{ option.label }}</span>
+                      {% if option.count is not none %}
+                        <span class="text-xs tabular-nums text-muted">{{ option.count }}</span>
+                      {% endif %}
+                    </label>
+                  {% endfor %}
+                </div>
+                {% if panel.searchable %}
+                  <p class="py-2 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
+                {% endif %}
               </div>
             {% elif panel.filter.template == "range" %}
               {#- A shortcut, or a value at each end. What is sent is one value,

@@ -34,6 +34,10 @@ A column of a related model, such as `Link(Order.customer, Customer.region)`, fi
 relation without adding a join, so rows are never duplicated. Its name in the URL is
 `customer__region`.
 
+A choice filter with more than 10 options, such as a list of countries, has a search box above
+them. Typing narrows the options to those whose label holds what was typed, and the ones already
+ticked stay in view, so they can be unticked.
+
 ## Counts
 
 Choice and boolean filters show how many records each option matches. The counts follow the search

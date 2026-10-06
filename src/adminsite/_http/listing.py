@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 __all__ = [
     "COLUMNS_KEY",
     "COLUMNS_PARAM",
+    "SEARCHABLE_OVER",
     "SIZE_KEY",
     "SIZE_PARAM",
     "FilterPanel",
@@ -57,6 +58,8 @@ COLUMNS_PARAM = "cols"
 COLUMNS_KEY = "adminsite_columns"
 SIZE_PARAM = "size"
 SIZE_KEY = "adminsite_page_size"
+# A choice filter with more options than this gets a box to narrow them.
+SEARCHABLE_OVER = 10
 
 
 @dataclass
@@ -83,6 +86,11 @@ class FilterPanel:
         if self.value is None:
             return ""
         return self.filter.describe(self.value, self.options)
+
+    @property
+    def searchable(self) -> bool:
+        """Whether its choices are too many to read through without a search."""
+        return self.filter.template == "choice" and len(self.options) > SEARCHABLE_OVER
 
 
 @dataclass
