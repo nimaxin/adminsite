@@ -351,6 +351,8 @@ admin = Admin(
     audit=True,
     # Saved views go to adminsite_views.db.
     saved_views=True,
+    # Times follow each browser's time zone; this menu shows them in another.
+    timezones=["Europe/Paris", "Asia/Tehran", "America/New_York"],
 )
 app.mount("/admin", admin)
 
