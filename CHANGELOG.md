@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a14
+
+Times show on the clock of the person reading them: the browser says which time zone it is set to,
+every datetime is shown in that zone, and a time typed in is read in it. A menu can offer other
+zones, and a column declared `DateTime(timezone=True)` keeps the moment meant.
+
+Before upgrading:
+
+- A project whose database keeps local times rather than UTC should pass that zone as
+  `database_timezone`, or its times will show shifted.
+- A client of the JSON API that reads datetimes strictly should expect an offset after each one,
+  such as `2026-09-01T10:30:00Z`.
+- A project that overrides `base.html`, `login.html`, `detail.html` or `_history.html` should start
+  its copy again from the new one. The browser's zone is saved by `_browser_timezone.html`, which
+  `base.html` and `login.html` include.
+
+What changed:
 
 - Times show on the clock of the person reading them. The browser says which time zone it is set
   to, and a datetime is shown in that zone wherever it appears; a time typed into a form, the list,
