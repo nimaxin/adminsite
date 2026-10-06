@@ -43,7 +43,8 @@ filters by name such as `status=SHIPPED`, `page`, and `limit` up to 500.
 A record carries the fields the list shows, then those of the record page and the edit form, each
 under its name. `GET /-/api` lists those, then any more the create form takes. A
 relationship comes as the key of the linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
-cents are lost, dates and times in ISO format, and files as their name and address. A column read
+cents are lost, dates and times of day in ISO format, datetimes in UTC with their offset, such as
+`2026-09-01T10:30:00Z`, and files as their name and address. A column read
 through a link to many, such as `orders.total`, comes as a list with a value for each record. With
 [keyset pagination](views.md#large-tables), `page` is null and `next` and `previous` are cursors to
 pass back as `after` and `before`.
@@ -61,7 +62,9 @@ field, with status 422:
 
 Only the form's fields can be written, read only fields never: the create form's for a `POST`, the
 edit form's for a `PATCH`. A key people type is sent with the `POST` and is read only after, so a
-`PATCH` that sets it answers 422. Files are uploaded through the form.
+`PATCH` that sets it answers 422. Files are uploaded through the form. A datetime keeps the
+offset it is sent with; one sent without is read in the sender's time zone, which for an API token
+is the admin's [`timezone`](translations.md#time-zones).
 A [form-only field](fields.md#inputs-that-are-not-columns), such as a password, can be written and
 is never sent back; a password sent empty in a `PATCH` keeps the one there.
 A hook that refuses, or a delete other records depend on, answers 409 with the reason.

@@ -73,6 +73,61 @@ raise RefusedError(_("Shipped orders cannot be changed."))
 
 and add the text to `translations`.
 
+## Time zones
+
+Every time is shown on the clock of the person reading it. The browser says which time zone it is
+set to, and each datetime is shown in that zone: in the list, on the record page, in the form, the
+history and the export. A time typed into a form, the list, an import or the API is read in the
+same zone. Dates and times of day stay as they are.
+
+Until the browser has said, on the first page of a first visit and for a request with an API
+token, times are shown in `timezone`, which is UTC unless you choose:
+
+```python
+admin = Admin(engine, timezone="Asia/Tehran")
+```
+
+List more zones and a menu appears at the foot of the sidebar, beside the language one:
+
+```python
+admin = Admin(engine, timezones=["Europe/Paris", "Asia/Tehran"])
+```
+
+The menu names each zone with how far it is from UTC, such as "Tehran (UTC+03:30)", and offers the
+browser's own zone first, so choosing it follows the browser again. A choice is kept in a cookie
+for a year.
+
+### How the database keeps times
+
+A datetime the database keeps without a zone is taken to be in UTC, as
+`datetime.now(UTC).replace(tzinfo=None)` writes it. A project whose database keeps local times
+says which zone:
+
+```python
+admin = Admin(engine, database_timezone="Asia/Tehran")
+```
+
+A column declared `DateTime(timezone=True)` keeps its zone, so it is given a time with one, and
+Postgres stores the moment meant whatever zone its connection is set to.
+
+A time the clocks skip or repeat when they change, such as 02:30 on the night Paris moves its
+clocks forward, is refused with a message, since it names no one moment.
+
+The audit log writes times in UTC, whoever made the change, and the history says so beside a
+time that changed. The API sends each datetime in UTC with its offset, such as
+`2026-09-01T10:30:00Z`.
+
+In your own code, such as a dashboard card that counts today's orders, the zone of the person
+reading is `current_timezone`:
+
+```python
+from datetime import datetime
+
+from adminsite.timezones import current_timezone
+
+today = datetime.now(current_timezone.get()).date()
+```
+
 ## Adding a language to adminsite
 
 The catalogs live in `src/adminsite/locales`, one JSON file per language. To list every text a

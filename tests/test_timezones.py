@@ -408,6 +408,89 @@ class TestTheApi:
         assert in_utc(saved.ends_at) == datetime(2026, 10, 6, 12, 0)
 
 
+@pytest.fixture
+async def menu(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    admin = Admin(
+        database,
+        views=[OrderView],
+        timezones=["Europe/Paris", "Asia/Tokyo"],
+        secret_key="for-the-session",
+    )
+    async with serve(admin) as served:
+        served.cookies.set("adminsite_browser_timezone", "Asia/Tehran")
+        yield served
+
+
+async def choose(client: httpx.AsyncClient, timezone: str) -> httpx.Response:
+    home = await client.get("/admin/")
+    token = re.search(r'name="_csrf" value="([^"]+)"', home.text)
+    assert token is not None
+    return await client.post(
+        "/admin/-/timezone",
+        data={"_csrf": token.group(1), "timezone": timezone, "next": "/admin/orders"},
+    )
+
+
+class TestTheMenu:
+    async def test_an_admin_with_one_zone_has_none(self, database: Database) -> None:
+        async with serve(Admin(database, views=[OrderView])) as served:
+            page = await served.get("/admin/")
+
+        assert 'name="timezone"' not in page.text
+
+    async def test_it_names_each_zone_and_the_browsers_first(
+        self, menu: httpx.AsyncClient
+    ) -> None:
+        page = await menu.get("/admin/")
+        options = re.findall(r'<option value="([^"]*)" (selected)?>([^<]+)<', page.text)
+        zones = [(value, name) for value, _shown, name in options if "UTC" in name]
+
+        assert 'aria-label="Time zone"' in page.text
+        assert zones[0] == ("", "Tehran (UTC+03:30)")
+        assert [value for value, _name in zones[1:]] == [
+            "UTC",
+            "Europe/Paris",
+            "Asia/Tokyo",
+        ]
+        assert ("", "selected", "Tehran (UTC+03:30)") in options
+
+    async def test_a_choice_wins_over_the_browser_until_it_is_undone(
+        self, menu: httpx.AsyncClient
+    ) -> None:
+        answer = await choose(menu, "Asia/Tokyo")
+        chosen = await menu.get("/admin/")
+        await choose(menu, "")
+        undone = await menu.get("/admin/")
+
+        assert answer.status_code == 303
+        assert answer.headers["location"] == "/admin/orders"
+        assert re.search(r'value="Asia/Tokyo" selected>', chosen.text)
+        assert re.search(r'value="" selected>Tehran', undone.text)
+
+    async def test_a_zone_not_offered_is_ignored(self, menu: httpx.AsyncClient) -> None:
+        answer = await choose(menu, "Africa/Cairo")
+
+        assert "adminsite_timezone" not in answer.headers.get("set-cookie", "")
+
+    def test_a_choice_counts_only_while_the_menu_offers_it(
+        self, database: Database
+    ) -> None:
+        cookies = (
+            "adminsite_timezone=Europe/Paris; adminsite_browser_timezone=Asia/Tehran"
+        )
+        offered = Admin(database, timezones=["Europe/Paris"])
+        gone = Admin(database)
+
+        assert offered.timezone_for(asking(cookies)) == "Europe/Paris"
+        assert gone.timezone_for(asking(cookies)) == "Asia/Tehran"
+
+    def test_an_unknown_zone_in_the_menu_stops_the_admin(
+        self, database: Database
+    ) -> None:
+        with pytest.raises(AdminSiteError, match="'Europe/Pariss'"):
+            Admin(database, timezones=["Europe/Pariss"])
+
+
 class TestTheBrowserSaysItsZone:
     async def test_on_the_sign_in_page(self, client: httpx.AsyncClient) -> None:
         page = await client.get("/admin/login")

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Times show on the clock of the person reading them. The browser says which time zone it is set
+  to, and a datetime is shown in that zone wherever it appears; a time typed into a form, the list,
+  an import or the API is read in it. `Admin(timezone=...)` is the zone until the browser says,
+  and `timezones` adds a menu at the foot of the sidebar to choose another (#42). It sits with
+  the language menu on a row of their own, above the name of whoever is signed in.
+- A datetime the database keeps without a zone is taken to be in UTC, unless
+  `database_timezone` names another. A column declared `DateTime(timezone=True)` is given a time
+  with its zone, so Postgres stores the moment meant, whatever zone its connection is set to.
+- A time the clocks skip or repeat when they change is refused, rather than saved an hour off.
+- History and Activity show when each entry happened on the reader's clock, no longer followed
+  by "UTC". A changed time in the history reads as the log keeps it, in UTC, and says so. The date
+  filter and the Activity page count the reader's days.
+- The API sends each datetime in UTC with its offset, such as `2026-09-01T10:30:00Z`.
+- Windows installs `tzdata`, since it has no time zone database of its own.
+
 ## 0.1.0a13
 
 Values change straight from the list: a view's `inline_editable_fields` opens an editor under a

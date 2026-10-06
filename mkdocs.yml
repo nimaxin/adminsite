@@ -141,7 +141,7 @@ plugins:
           - api.md: The JSON API and token sign in
           - auth.md: Signing in and auth providers
           - databases.md: Async and sync engines, SQLite, Postgres and MySQL
-          - translations.md: Languages, Persian, right to left layouts
+          - translations.md: Languages, Persian, right to left layouts, time zones
           - accessibility.md: What the pages do for accessibility
           - customizing.md: Templates, widgets and the look
         Reference:

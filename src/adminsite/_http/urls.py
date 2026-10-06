@@ -124,6 +124,17 @@ class Urls:
         """Where the language menu is posted."""
         return f"{self.base}/-/language"
 
+    def timezone(self) -> str:
+        """Where the time zone menu is posted."""
+        return f"{self.base}/-/timezone"
+
+    def back(self, wanted: str) -> str:
+        """Where a menu goes back to: the page asked for, if it is in this site."""
+        # Only a path inside this site, so the form cannot send anyone elsewhere.
+        if not wanted.startswith("/") or wanted.startswith("//"):
+            return self.index()
+        return wanted
+
     def palette(self) -> str:
         """Where the command palette looks things up."""
         return f"{self.base}/-/search"

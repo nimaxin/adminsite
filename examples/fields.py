@@ -13,14 +13,24 @@ import uuid
 import zlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, Any, Literal, NotRequired
 
 import pydantic
 from fastapi import FastAPI
-from sqlalchemy import JSON, Column, ForeignKey, Integer, Numeric, String, Table, Text
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.pool import StaticPool
@@ -58,6 +68,11 @@ def outline(paths: str) -> str:
         'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
         f'stroke-linejoin="round">{paths}</svg>'
     )
+
+
+def utc_now() -> datetime:
+    """The time now in UTC, kept without its zone, as the admin reads such a time."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -220,6 +235,7 @@ class Showcase(Base):
     flagged: Mapped[bool | None]
     released_on: Mapped[date | None]
     updated_at: Mapped[datetime | None]
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     opens_at: Mapped[time | None]
     serial: Mapped[uuid.UUID | None] = mapped_column(default=uuid.uuid4)
     status: Mapped[Status] = mapped_column(default=Status.DRAFT)
@@ -231,7 +247,7 @@ class Showcase(Base):
     manual: Mapped[str | None] = mapped_column(String(255))
     photo: Mapped[str | None] = mapped_column(String(255))
     password_hash: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     category: Mapped[Category | None] = relationship()
@@ -366,6 +382,11 @@ def showcase_fields(
         ),
         Field(Showcase.released_on, help_text="DateField."),
         Field(Showcase.updated_at, hidden_in_list=True, help_text="DateTimeField."),
+        Field(
+            Showcase.starts_at,
+            hidden_in_list=True,
+            help_text="DateTimeField whose column keeps the time zone.",
+        ),
         Field(Showcase.opens_at, hidden_in_list=True, help_text="TimeField."),
         Field(Showcase.serial, hidden_in_list=True, help_text="UUIDField."),
         EnumField(
@@ -497,7 +518,7 @@ class ShowcaseView(ModelView[Showcase]):
             "Dates",
             [
                 (Showcase.released_on, Showcase.opens_at),
-                Showcase.updated_at,
+                (Showcase.updated_at, Showcase.starts_at),
                 Showcase.created_at,
                 Showcase.serial,
             ],
@@ -728,7 +749,7 @@ def build_gallery(uploads: Path) -> list[Base]:
         for name, colour in PHOTOS.items()
     }
     manual = sample_file(uploads, "manual.txt", b"How to use this item.\n")
-    now = datetime.now().replace(second=0, microsecond=0)
+    now = utc_now().replace(second=0, microsecond=0)
 
     everything = Showcase(
         name="Everything filled in",
@@ -745,6 +766,7 @@ def build_gallery(uploads: Path) -> list[Base]:
         flagged=False,
         released_on=date(2026, 3, 14),
         updated_at=now - timedelta(hours=3),
+        starts_at=now.replace(tzinfo=UTC) + timedelta(days=1),
         opens_at=time(9, 30),
         status=Status.ACTIVE,
         size="M",
