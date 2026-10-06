@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from datetime import UTC
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import inspect as sqlalchemy_inspect
@@ -14,6 +15,7 @@ from adminsite.audit.store import record_or_warn
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
+from adminsite.timezones import showing
 from adminsite.views._fields import ViewFields
 
 if TYPE_CHECKING:
@@ -42,13 +44,15 @@ class AuditRecorder(Generic[M]):
         """
         state = sqlalchemy_inspect(record, raiseerr=False)
         unloaded = state.unloaded if state is not None else set()
-        # What is true, whoever made the change: the log is read by others.
-        return {
-            path: self._fields.display(record, path, as_seen=False)
-            for path in paths
-            if path.split(".", 1)[0] not in unloaded
-            and not self._fields.form_only(path)
-        }
+        # What is true, whoever made the change: the log is read by others,
+        # so its times are in UTC rather than on the clock of whoever saved.
+        with showing(UTC):
+            return {
+                path: self._fields.display(record, path, as_seen=False)
+                for path in paths
+                if path.split(".", 1)[0] not in unloaded
+                and not self._fields.form_only(path)
+            }
 
     def masked(self, changes: Mapping[str, Change]) -> dict[str, Change]:
         """Changes as the audit log keeps them: a secret's values as ***.

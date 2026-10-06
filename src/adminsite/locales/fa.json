@@ -120,7 +120,7 @@
   "Last 30 days": "۳۰ روز گذشته",
   "Last 7 days": "۷ روز گذشته",
   "Last 90 days": "۹۰ روز گذشته",
-  "Last changed by {who} on {when} UTC": "آخرین تغییر را {who} در {when} به وقت UTC داده است",
+  "Last changed by {who} on {when}": "آخرین تغییر را {who} در {when} داده است",
   "Leave it empty to keep the current one.": "برای نگه داشتن مقدار فعلی، خالی بگذارید.",
   "Line {line}, column {column}: this is not valid JSON.": "سطر {line}، ستون {column}: این JSON درست نیست.",
   "Line {line}, column {column}: {problem}.": "سطر {line}، ستون {column}: {problem}.",
@@ -351,5 +351,6 @@
   "{thing} deleted.": "{thing} حذف شد.",
   "{thing} saved.": "{thing} ذخیره شد.",
   "{thing}, row {number}, {field}": "{thing}، ردیف {number}، {field}",
-  "{when} UTC": "{when} به وقت UTC"
+  "{when} UTC": "{when} به وقت UTC",
+  "{zone} skips or repeats this time when its clocks change. Enter another time.": "در {zone} هنگام تغییر ساعت، این زمان یا پیش نمی‌آید یا دو بار پیش می‌آید. زمان دیگری وارد کنید."
 }

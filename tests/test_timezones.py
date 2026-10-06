@@ -1,7 +1,9 @@
 """Times shown on the clock of the person reading them."""
 
+import re
 from collections.abc import AsyncIterator, Iterator
-from datetime import UTC
+from datetime import UTC, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -10,16 +12,18 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView
+from adminsite.audit import AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, FieldValidationError
+from adminsite.fields import DateTimeField
 from adminsite.timezones import (
     activate_timezone,
     current_timezone,
     database_timezone,
     find_timezone,
 )
-from tests.models import Order
+from tests.models import Meeting, Order
 
 TEHRAN = ZoneInfo("Asia/Tehran")
 PARIS = ZoneInfo("Europe/Paris")
@@ -39,6 +43,10 @@ def asking(cookies: str = "") -> Request:
 
 class OrderView(ModelView[Order]):
     fields = ["id", "created_at", "total"]
+
+
+class MeetingView(ModelView[Meeting]):
+    fields = ["title", "starts_at", "ends_at"]
 
 
 def serve(admin: Admin) -> httpx.AsyncClient:
@@ -128,6 +136,201 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
     )
     async with serve(admin) as served:
         yield served
+
+
+class TestShowingATime:
+    def test_utc_shows_it_as_kept(self) -> None:
+        field = DateTimeField("starts_at")
+
+        assert field.display(datetime(2026, 10, 6, 11, 0)) == "Oct 6, 2026 11:00"
+
+    def test_a_plain_time_is_in_the_database_zone(self) -> None:
+        activate_timezone(TEHRAN, PARIS)
+        field = DateTimeField("starts_at")
+
+        # 13:00 in Paris, still on summer time, is 11:00 UTC.
+        assert field.display(datetime(2026, 10, 6, 13, 0)) == "Oct 6, 2026 14:30"
+
+    def test_a_time_with_its_zone_keeps_it(self) -> None:
+        activate_timezone(TEHRAN, PARIS)
+        field = DateTimeField("starts_at")
+
+        shown = field.display(datetime(2026, 10, 6, 11, 0, tzinfo=UTC))
+
+        assert shown == "Oct 6, 2026 14:30"
+
+    def test_the_input_starts_on_the_persons_clock(self) -> None:
+        activate_timezone(TEHRAN, UTC)
+        field = DateTimeField("starts_at")
+
+        assert field.serialize(datetime(2026, 10, 6, 11, 0)) == "2026-10-06T14:30"
+
+    def test_a_format_is_written_on_the_persons_clock(self) -> None:
+        activate_timezone(TEHRAN, UTC)
+        field = DateTimeField("starts_at", format="{:%H:%M}")
+
+        assert field.text_for(None, datetime(2026, 10, 6, 11, 0)) == "14:30"
+
+
+class TestReadingATypedTime:
+    def test_on_the_persons_clock(self) -> None:
+        activate_timezone(TEHRAN, UTC)
+
+        parsed = DateTimeField("starts_at").parse("2026-10-06T14:30")
+
+        assert parsed == datetime(2026, 10, 6, 11, 0)
+
+    def test_kept_in_the_database_zone(self) -> None:
+        activate_timezone(TEHRAN, PARIS)
+
+        parsed = DateTimeField("starts_at").parse("2026-10-06T14:30")
+
+        assert parsed == datetime(2026, 10, 6, 13, 0)
+
+    def test_an_offset_typed_with_it_wins(self) -> None:
+        activate_timezone(TEHRAN, UTC)
+
+        parsed = DateTimeField("starts_at").parse("2026-10-06T14:30+02:00")
+
+        assert parsed == datetime(2026, 10, 6, 12, 30)
+
+    def test_a_column_that_keeps_the_zone_is_given_it(self) -> None:
+        activate_timezone(TEHRAN, UTC)
+        field = DateTimeField("starts_at", with_timezone=True)
+
+        parsed = field.parse("2026-10-06T14:30")
+
+        assert parsed.tzinfo is not None
+        assert parsed == datetime(2026, 10, 6, 11, 0, tzinfo=UTC)
+
+    @pytest.mark.parametrize("typed", ["2026-03-29T02:30", "2026-10-25T02:30"])
+    def test_a_time_the_clocks_skip_or_repeat_is_refused(self, typed: str) -> None:
+        activate_timezone(PARIS, UTC)
+
+        with pytest.raises(FieldValidationError, match="Europe/Paris skips or repeats"):
+            DateTimeField("starts_at").parse(typed)
+
+    def test_the_column_says_whether_it_keeps_the_zone(
+        self, database: Database
+    ) -> None:
+        view = Admin(database, views=[MeetingView]).views.find("meetings")
+        assert view is not None
+
+        kept = view._fields.field_for("starts_at")
+        plain = view._fields.field_for("ends_at")
+
+        assert isinstance(kept, DateTimeField) and kept.with_timezone is True
+        assert isinstance(plain, DateTimeField) and plain.with_timezone is False
+
+
+async def meeting(database: Database) -> Meeting | None:
+    async with database.session() as session:
+        return await session.get(Meeting, 1)
+
+
+def in_utc(moment: datetime | None) -> datetime | None:
+    """A stored time in UTC: a plain one is already, one with its zone is moved."""
+    if moment is None or moment.tzinfo is None:
+        return moment
+    return moment.astimezone(UTC).replace(tzinfo=None)
+
+
+@pytest.fixture
+async def meetings(database: Database) -> AsyncIterator[httpx.AsyncClient]:
+    admin = Admin(database, views=[MeetingView], secret_key="for-the-session")
+    async with serve(admin) as served:
+        served.cookies.set("adminsite_browser_timezone", "Asia/Tehran")
+        yield served
+
+
+class TestOnEveryDatabase:
+    async def test_a_typed_time_is_saved_as_the_moment_it_names(
+        self, meetings: httpx.AsyncClient, database: Database
+    ) -> None:
+        form = await meetings.get("/admin/meetings/new")
+        token = re.search(r'name="_csrf" value="([^"]+)"', form.text)
+        assert token is not None
+
+        answer = await meetings.post(
+            "/admin/meetings/new",
+            data={
+                "_csrf": token.group(1),
+                "title": "Planning",
+                "starts_at": "2026-10-06T14:30",
+                "ends_at": "2026-10-06T15:30",
+            },
+        )
+        saved = await meeting(database)
+
+        assert answer.status_code == 303
+        assert saved is not None
+        assert in_utc(saved.starts_at) == datetime(2026, 10, 6, 11, 0)
+        assert in_utc(saved.ends_at) == datetime(2026, 10, 6, 12, 0)
+
+    async def test_a_kept_time_is_shown_on_the_readers_clock(
+        self, meetings: httpx.AsyncClient, database: Database
+    ) -> None:
+        async with database.session() as session:
+            await session.add(
+                Meeting(
+                    title="Planning",
+                    starts_at=datetime(2026, 10, 6, 11, 0, tzinfo=UTC),
+                    ends_at=datetime(2026, 10, 6, 12, 0),
+                )
+            )
+            await session.commit()
+
+        page = await meetings.get("/admin/meetings/1")
+        form = await meetings.get("/admin/meetings/1/edit")
+
+        assert "Oct 6, 2026 14:30" in page.text
+        assert "Oct 6, 2026 15:30" in page.text
+        assert 'value="2026-10-06T14:30"' in form.text
+        assert 'value="2026-10-06T15:30"' in form.text
+
+
+@pytest.fixture
+def log(tmp_path: Path) -> Iterator[AuditLog]:
+    audit = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
+    yield audit
+    audit.close()
+
+
+class TestTheHistory:
+    async def test_shows_when_on_the_readers_clock_and_keeps_changes_in_utc(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        async with database.session() as session:
+            await session.add(
+                Meeting(title="Planning", ends_at=datetime(2026, 10, 6, 12, 0))
+            )
+            await session.commit()
+        admin = Admin(
+            database, views=[MeetingView], audit=log, secret_key="for-the-session"
+        )
+        async with serve(admin) as served:
+            served.cookies.set("adminsite_browser_timezone", "Asia/Tehran")
+            form = await served.get("/admin/meetings/1/edit")
+            token = re.search(r'name="_csrf" value="([^"]+)"', form.text)
+            assert token is not None
+            await served.post(
+                "/admin/meetings/1/edit",
+                data={
+                    "_csrf": token.group(1),
+                    "title": "Planning",
+                    "ends_at": "2026-10-06T16:30",
+                },
+            )
+            page = await served.get("/admin/meetings/1")
+        changed = re.search(r"Last changed by Someone on ([^<]+)</p>", page.text)
+
+        # Whoever saved it, the log says what the field held in UTC.
+        assert "Oct 6, 2026 12:00 UTC" in page.text
+        assert "Oct 6, 2026 13:00 UTC" in page.text
+        assert changed is not None
+        shown = datetime.strptime(changed.group(1), "%b %d, %Y %H:%M")
+        now = datetime.now(TEHRAN).replace(tzinfo=None)
+        assert abs(now - shown).total_seconds() < 120
 
 
 class TestTheBrowserSaysItsZone:

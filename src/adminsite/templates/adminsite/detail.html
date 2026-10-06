@@ -31,7 +31,7 @@
       {% endif %}
     </div>
     {% if changed %}
-      <p class="text-[13px] text-muted">{{ _('Last changed by {who} on {when} UTC', who=changed.who, when=changed.when) }}</p>
+      <p class="text-[13px] text-muted">{{ _('Last changed by {who} on {when}', who=changed.who, when=changed.when) }}</p>
     {% endif %}
   </div>
 {% endblock %}

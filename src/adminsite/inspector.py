@@ -123,6 +123,8 @@ class SQLAlchemyInspector:
             or column.server_default is not None
             or column.table.autoincrement_column is column,
             max_length=getattr(column.type, "length", None),
+            # A TypeDecorator answers for the type it wraps.
+            with_timezone=bool(getattr(column.type, "timezone", False)),
             enum_values=self._enum_values_of(column.type),
             item=self._read_item(name, column.type),
         )

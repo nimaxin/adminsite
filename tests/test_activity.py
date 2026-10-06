@@ -248,4 +248,4 @@ class TestPaging:
         record = await client.get("/admin/orders/1")
 
         # A change that failed changed nothing, so the line skips it.
-        assert "Last changed by lena on Sep 14, 2026 02:00 UTC" in record.text
+        assert "Last changed by lena on Sep 14, 2026 02:00</p>" in record.text

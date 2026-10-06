@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
@@ -77,14 +78,14 @@ def describe(
         items.append(
             HistoryItem(
                 entry=entry,
-                when=_WHEN.display(entry.occurred_at),
+                when=_WHEN.display(_in_utc(entry.occurred_at)),
                 who=entry.user or _("Someone"),
                 what=_verb(entry, view),
                 lines=[
                     ChangeLine(
                         label=_label(view, name),
-                        before=_text(before),
-                        after=_text(after),
+                        before=_change_text(view, name, before),
+                        after=_change_text(view, name, after),
                     )
                     for name, (before, after) in entry.changes.items()
                     if _readable(view, request, name)
@@ -158,6 +159,29 @@ def _text(value: object) -> str:
     if value is None or value == "":
         return _("empty")
     return str(value)
+
+
+def _in_utc(moment: datetime) -> datetime:
+    # The log keeps its times in UTC, whatever zone the database keeps.
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
+def _change_text(view: "ModelView[Any] | None", name: str, value: object) -> str:
+    """What a field held before or after a change, as the log wrote it down.
+
+    The log writes a time in UTC whoever saved it, and says so.
+    """
+    text = _text(value)
+    if value is None or value == "" or view is None:
+        return text
+    try:
+        item = view._fields.field_for(name)
+    except AdminSiteError:
+        # The field has gone from the model since the entry was written.
+        return text
+    if isinstance(item, DateTimeField):
+        return _("{when} UTC", when=text)
+    return text
 
 
 def _given_label(view: "ModelView[Any] | None", name: str) -> str:

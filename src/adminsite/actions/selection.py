@@ -1,5 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from sqlalchemy import Select, and_, delete, false, func, or_, select, tuple_, update
@@ -13,6 +14,7 @@ from adminsite.columns import ColumnReference, path_of
 from adminsite.database import SessionAdapter
 from adminsite.permissions import RequestAction
 from adminsite.query import QuerySpec
+from adminsite.timezones import showing
 
 if TYPE_CHECKING:
     from adminsite.views import ModelView
@@ -169,26 +171,29 @@ class Selection(Generic[M]):
         key_columns = self._primary_key_columns()
         statement = select(*key_columns, *columns).where(self._covered())
         result = await self.session.execute(statement)
-        for row in result.all():
-            key_parts, current = row[: len(key_columns)], row[len(key_columns) :]
-            key = ",".join(str(part) for part in key_parts)
-            before = {
-                name: self.view._fields.field_for(name).display(value)
-                for name, value in zip(names, current, strict=True)
-            }
-            if after is None:
-                changes = {
-                    name: (value, None) for name, value in before.items() if value
+        # The log is read by others, so its times are in UTC rather than on
+        # the clock of whoever ran the action.
+        with showing(UTC):
+            for row in result.all():
+                key_parts, current = row[: len(key_columns)], row[len(key_columns) :]
+                key = ",".join(str(part) for part in key_parts)
+                before = {
+                    name: self.view._fields.field_for(name).display(value)
+                    for name, value in zip(names, current, strict=True)
                 }
-            else:
-                changes = diff(
-                    before,
-                    {
-                        name: self.view._fields.field_for(name).display(after[name])
-                        for name in names
-                    },
-                )
-            self.changes[str(key)] = changes
+                if after is None:
+                    changes = {
+                        name: (value, None) for name, value in before.items() if value
+                    }
+                else:
+                    changes = diff(
+                        before,
+                        {
+                            name: self.view._fields.field_for(name).display(after[name])
+                            for name in names
+                        },
+                    )
+                self.changes[str(key)] = changes
 
     async def _run(self, statement: Executable) -> int:
         """Run a write and report how many rows it touched."""
