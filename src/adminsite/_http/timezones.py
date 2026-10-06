@@ -1,5 +1,6 @@
 """Switching the time zone the admin shows times in."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from starlette.requests import Request
@@ -18,8 +19,8 @@ if TYPE_CHECKING:
     from adminsite.admin import Admin
 
 __all__ = [
+    "TimezoneChoice",
     "choose_timezone",
-    "timezone_label",
     "timezone_menu",
 ]
 
@@ -46,27 +47,40 @@ async def choose_timezone(admin: "Admin", request: Request) -> Response:
     return response
 
 
-def timezone_menu(admin: "Admin", request: Request) -> list[tuple[str, str, bool]]:
-    """The menu's time zones: each one's value, its name and whether it is shown.
+@dataclass(frozen=True, slots=True)
+class TimezoneChoice:
+    """A time zone the menu offers, named by its city."""
 
-    Empty where the admin offers no other zone. The browser's own zone comes
-    first where the admin does not list it, so choosing it follows the
-    browser again.
+    value: str
+    """What choosing it posts: the zone's name, or nothing for the browser's."""
+    city: str
+    offset: str
+    """How far it is from UTC now, such as UTC+03:30; empty for UTC itself."""
+    shown: bool
+    """Whether times are shown in it now."""
+
+
+def timezone_menu(admin: "Admin", request: Request) -> list[TimezoneChoice]:
+    """The time zones the account menu offers, empty where it offers no other.
+
+    The browser's own zone comes first where the admin does not list it, so
+    choosing it follows the browser again.
     """
     if len(admin.timezones) < 2:
         return []
     shown = request.scope.get("adminsite_timezone", admin.timezone)
-    entries = [(name, timezone_label(name), name == shown) for name in admin.timezones]
+    choices = [_choice(name, name, shown) for name in admin.timezones]
     browser = request.cookies.get(BROWSER_TIMEZONE_COOKIE, "")
     if find_timezone(browser) is not None and browser not in admin.timezones:
-        entries.insert(0, ("", timezone_label(browser), browser == shown))
-    return entries
+        choices.insert(0, _choice("", browser, shown))
+    return choices
 
 
-def timezone_label(name: str) -> str:
-    """A time zone as the menu names it: its city and how far it is from UTC."""
+def _choice(value: str, name: str, shown: str) -> TimezoneChoice:
     found = find_timezone(name)
-    if found is None or name == "UTC":
-        return name
-    city = name.rpartition("/")[2].replace("_", " ")
-    return f"{city} ({offset_text(found)})"
+    return TimezoneChoice(
+        value=value,
+        city=name.rpartition("/")[2].replace("_", " "),
+        offset="" if found is None or name == "UTC" else offset_text(found),
+        shown=name == shown,
+    )

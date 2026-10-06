@@ -147,16 +147,17 @@ class Admin:
             weeks unless you say. None keeps it for the browser session.
         language: The language the admin speaks, such as "fa", and the
             default for anyone whose browser asks for none of `languages`.
-        languages: More languages people may switch to, in a menu at the
-            foot of the sidebar. The first visit follows the browser.
+        languages: More languages people may switch to, in the account menu
+            at the foot of the sidebar. The first visit follows the browser.
         translations: Your own wording, by language and then by the English
             text, such as `{"en": {"Username": "Email"}}`. It wins over the
             built in translations, and adds a language adminsite does not
             ship.
         timezone: The time zone times are shown in, such as "Asia/Tehran",
             until a person's browser says its own, and for an API token.
-        timezones: More time zones people may switch to, in a menu at the
-            foot of the sidebar. Until they do, times follow the browser.
+        timezones: More time zones people may switch to, in the account menu
+            at the foot of the sidebar. Until they do, times follow the
+            browser.
         database_timezone: The time zone the database keeps times in, for a
             column that keeps none of its own as `DateTime(timezone=True)`
             does.

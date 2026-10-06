@@ -218,7 +218,11 @@ class TestSwitchingLanguages:
         home = await both.get("/admin/")
         token = re.search(r'name="_csrf" value="([^"]+)"', home.text)
         assert token is not None
-        assert '<option value="fa" lang="fa" >فارسی</option>' in home.text
+        assert re.search(
+            r'form="language-form" name="language" value="fa" lang="fa"\s*>\s*'
+            r'<span class="flex-1">فارسی</span>',
+            home.text,
+        )
 
         answer = await both.post(
             "/admin/-/language",

@@ -48,12 +48,14 @@
     const saved = localStorage.getItem("adminsite-theme");
     if (saved) document.documentElement.dataset.theme = saved;
   } catch (error) {}
+  // Dark when chosen, or, until someone chooses, when the device is.
+  function themeIsDark() {
+    const chosen = document.documentElement.dataset.theme;
+    return chosen ? chosen === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  }
   function switchTheme() {
     const root = document.documentElement;
-    const dark = root.dataset.theme
-      ? root.dataset.theme === "dark"
-      : matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = dark ? "light" : "dark";
+    root.dataset.theme = themeIsDark() ? "light" : "dark";
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
 
@@ -752,59 +754,112 @@
         {% endif %}
       </nav>
 
+      {#- Who is signed in, and what each person sets for themselves: the theme,
+          the language and the time zone. One button at the foot of the
+          sidebar opens them upwards. Its buttons post the forms below it. -#}
+      {% set here = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+      {% set chosen = namespace(language="", city="") %}
+      {% for code, name in languages if code == language %}{% set chosen.language = name %}{% endfor %}
+      {% for choice in timezones if choice.shown %}{% set chosen.city = choice.city %}{% endfor %}
       <div class="border-t border-base-300 pt-2.5">
-      {#- The menus get a row of their own, so the person's name keeps its room. -#}
-      {% if languages|length > 1 or timezones %}
-        <div class="flex flex-wrap items-center gap-1 ps-1.5 pb-1">
-          {% if languages|length > 1 %}
-            <form method="post" action="{{ urls.language() }}">
-              {{ csrf_input | safe if csrf_input }}
-              <input type="hidden" name="next"
-                     value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
-              <select name="language" class="select select-ghost select-xs w-auto text-muted"
-                      aria-label="{{ _('Language') }}" onchange="this.form.submit()">
-                {% for code, name in languages %}
-                  <option value="{{ code }}" lang="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-              </select>
-            </form>
-          {% endif %}
-          {% if timezones %}
-            <form method="post" action="{{ urls.timezone() }}">
-              {{ csrf_input | safe if csrf_input }}
-              <input type="hidden" name="next"
-                     value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
-              <select name="timezone" class="select select-ghost select-xs w-auto text-muted"
-                      aria-label="{{ _('Time zone') }}" onchange="this.form.submit()">
-                {% for value, name, shown in timezones %}
-                  <option value="{{ value }}" {% if shown %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-              </select>
-            </form>
-          {% endif %}
-        </div>
-      {% endif %}
-      <div class="flex items-center gap-1 ps-1.5">
-        {% if user %}
-          <span class="me-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral text-xs font-semibold text-neutral-content"
-                aria-hidden="true">{{ user|string|first|upper }}</span>
-          <span class="min-w-0 flex-1 truncate font-medium">{{ user }}</span>
-        {% else %}
-          <span class="flex-1"></span>
-        {% endif %}
-        <button class="btn btn-square btn-ghost btn-sm text-muted" type="button"
-                onclick="switchTheme()" aria-label="{{ _('Switch between light and dark') }}">
-          {{ icons.icon("moon") }}
-        </button>
-        {% if user %}
-          <form method="post" action="{{ urls.logout() }}">
+        {% if languages|length > 1 %}
+          <form id="language-form" method="post" action="{{ urls.language() }}" hidden>
             {{ csrf_input | safe if csrf_input }}
-            <button class="btn btn-square btn-ghost btn-sm text-muted" type="submit" aria-label="{{ _('Sign out') }}">
-              {{ icons.icon("sign-out") }}
-            </button>
+            <input type="hidden" name="next" value="{{ here }}">
           </form>
         {% endif %}
-      </div>
+        {% if timezones %}
+          <form id="timezone-form" method="post" action="{{ urls.timezone() }}" hidden>
+            {{ csrf_input | safe if csrf_input }}
+            <input type="hidden" name="next" value="{{ here }}">
+          </form>
+        {% endif %}
+        {% if user %}
+          <form id="sign-out-form" method="post" action="{{ urls.logout() }}" hidden>
+            {{ csrf_input | safe if csrf_input }}
+          </form>
+        {% endif %}
+        <div class="dropdown dropdown-top w-full">
+          <div tabindex="0" role="button" aria-haspopup="true"
+               class="flex w-full cursor-pointer items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 shadow-quiet hover:bg-base-100/70">
+            {% if user %}
+              <span class="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral text-xs font-semibold text-neutral-content"
+                    aria-hidden="true">{{ user|string|first|upper }}</span>
+              <span class="min-w-0 flex-1 truncate font-medium">{{ user }}</span>
+            {% else %}
+              <span class="inline-flex size-7 shrink-0 items-center justify-center text-muted">{{ icons.icon("sliders") }}</span>
+              <span class="min-w-0 flex-1 truncate font-medium">{{ _('Settings') }}</span>
+            {% endif %}
+            <span class="text-muted">{{ icons.icon("chevrons-up-down") }}</span>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu z-30 mb-1.5 w-full rounded-box border border-base-300 bg-base-100 p-1.5 shadow-float">
+            <li>
+              <button type="button" role="switch" x-data="{ dark: themeIsDark() }" :aria-checked="dark.toString()"
+                      @click="switchTheme(); dark = themeIsDark()">
+                <span class="text-muted">{{ icons.icon("moon") }}</span>
+                <span class="flex-1">{{ _('Dark mode') }}</span>
+                <span class="relative h-4 w-7 shrink-0 rounded-full" :class="dark ? 'bg-primary' : 'bg-base-300'" aria-hidden="true">
+                  <span class="absolute start-0.5 top-0.5 size-3 rounded-full bg-base-100 transition-transform" :class="dark && 'translate-x-3 rtl:-translate-x-3'"></span>
+                </span>
+              </button>
+            </li>
+            {% if languages|length > 1 %}
+              <li>
+                <details>
+                  <summary>
+                    <span class="text-muted">{{ icons.icon("globe") }}</span>
+                    <span class="flex-1">{{ _('Language') }}</span>
+                    <span class="text-muted">{{ chosen.language }}</span>
+                  </summary>
+                  <ul>
+                    {#- daisyUI fills a menu item marked current like a pressed
+                        button; the choice in use reads as chosen, with a tick. -#}
+                    {% for code, name in languages %}
+                      <li>
+                        <button type="submit" form="language-form" name="language" value="{{ code }}" lang="{{ code }}"
+                                {% if code == language %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
+                          <span class="flex-1">{{ name }}</span>
+                          {% if code == language %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
+                        </button>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              </li>
+            {% endif %}
+            {% if timezones %}
+              <li>
+                <details>
+                  <summary>
+                    <span class="text-muted">{{ icons.icon("clock") }}</span>
+                    <span class="flex-1">{{ _('Time zone') }}</span>
+                    <span class="text-muted">{{ chosen.city }}</span>
+                  </summary>
+                  <ul>
+                    {% for choice in timezones %}
+                      <li>
+                        <button type="submit" form="timezone-form" name="timezone" value="{{ choice.value }}"
+                                {% if choice.shown %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
+                          <span class="flex-1">{{ choice.city }}</span>
+                          <span class="text-xs text-muted tabular-nums" dir="ltr">{{ choice.offset }}</span>
+                          {% if choice.shown %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
+                        </button>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              </li>
+            {% endif %}
+            {% if user %}
+              <li class="mt-1 border-t border-base-300 pt-1">
+                <button type="submit" form="sign-out-form">
+                  <span class="text-muted">{{ icons.icon("sign-out") }}</span>
+                  {{ _('Sign out') }}
+                </button>
+              </li>
+            {% endif %}
+          </ul>
+        </div>
       </div>
     </aside>
   </div>

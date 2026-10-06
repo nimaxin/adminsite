@@ -421,6 +421,20 @@ async def menu(database: Database) -> AsyncIterator[httpx.AsyncClient]:
         yield served
 
 
+ZONE_CHOICE = re.compile(
+    r'name="timezone" value="([^"]*)"\s*(aria-current="true")?[^>]*>\s*'
+    r'<span class="flex-1">([^<]+)</span>\s*<span[^>]*>([^<]*)</span>'
+)
+
+
+def zone_choices(page: str) -> list[tuple[str, str, str, bool]]:
+    """The menu's time zones: what each posts, its city, its offset, if it is shown."""
+    return [
+        (value, city, offset, bool(shown))
+        for value, shown, city, offset in ZONE_CHOICE.findall(page)
+    ]
+
+
 async def choose(client: httpx.AsyncClient, timezone: str) -> httpx.Response:
     home = await client.get("/admin/")
     token = re.search(r'name="_csrf" value="([^"]+)"', home.text)
@@ -442,17 +456,14 @@ class TestTheMenu:
         self, menu: httpx.AsyncClient
     ) -> None:
         page = await menu.get("/admin/")
-        options = re.findall(r'<option value="([^"]*)" (selected)?>([^<]+)<', page.text)
-        zones = [(value, name) for value, _shown, name in options if "UTC" in name]
+        choices = zone_choices(page.text)
 
-        assert 'aria-label="Time zone"' in page.text
-        assert zones[0] == ("", "Tehran (UTC+03:30)")
-        assert [value for value, _name in zones[1:]] == [
-            "UTC",
+        assert choices[0] == ("", "Tehran", "UTC+03:30", True)
+        assert choices[1] == ("UTC", "UTC", "", False)
+        assert [value for value, *_rest in choices[2:]] == [
             "Europe/Paris",
             "Asia/Tokyo",
         ]
-        assert ("", "selected", "Tehran (UTC+03:30)") in options
 
     async def test_a_choice_wins_over_the_browser_until_it_is_undone(
         self, menu: httpx.AsyncClient
@@ -464,8 +475,8 @@ class TestTheMenu:
 
         assert answer.status_code == 303
         assert answer.headers["location"] == "/admin/orders"
-        assert re.search(r'value="Asia/Tokyo" selected>', chosen.text)
-        assert re.search(r'value="" selected>Tehran', undone.text)
+        assert ("Asia/Tokyo", "Tokyo", "UTC+09:00", True) in zone_choices(chosen.text)
+        assert zone_choices(undone.text)[0] == ("", "Tehran", "UTC+03:30", True)
 
     async def test_a_zone_not_offered_is_ignored(self, menu: httpx.AsyncClient) -> None:
         answer = await choose(menu, "Africa/Cairo")

@@ -13,7 +13,7 @@ form errors, refusals, filter shortcuts and the history all come in Persian.
 
 ## Letting people choose
 
-Offer more than one language and a menu appears at the foot of the sidebar:
+Offer more than one language and the account menu, at the foot of the sidebar, lets people choose:
 
 ```python
 admin = Admin(engine, language="en", languages=["fa"])
@@ -87,14 +87,14 @@ token, times are shown in `timezone`, which is UTC unless you choose:
 admin = Admin(engine, timezone="Asia/Tehran")
 ```
 
-List more zones and a menu appears at the foot of the sidebar, beside the language one:
+List more zones and the account menu offers them, below the language:
 
 ```python
 admin = Admin(engine, timezones=["Europe/Paris", "Asia/Tehran"])
 ```
 
-The menu names each zone with how far it is from UTC, such as "Tehran (UTC+03:30)", and offers the
-browser's own zone first, so choosing it follows the browser again. A choice is kept in a cookie
+The menu names each zone by its city and how far it is from UTC, such as Tehran, UTC+03:30, and
+offers the browser's own zone first, so choosing it follows the browser again. A choice is kept in a cookie
 for a year.
 
 ### How the database keeps times
