@@ -59,6 +59,33 @@
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
 
+  // A menu opened from a row of another, such as the time zones from the
+  // account menu, opens beside that menu, towards the page, its foot level
+  // with the row. Where there is no room, as on a phone, it overlaps the
+  // menu instead, inside the window. It waits unseen until it is placed.
+  function placeBeside(event) {
+    const menu = event.target;
+    if (event.newState !== "open") {
+      menu.classList.add("invisible");
+      return;
+    }
+    const row = document.getElementById(menu.dataset.beside);
+    const beside = row.closest(".menu").getBoundingClientRect();
+    const level = row.getBoundingClientRect();
+    const gap = 6;
+    const towardsPage = getComputedStyle(row).direction === "rtl"
+      ? beside.left - gap - menu.offsetWidth
+      : beside.right + gap;
+    const left = Math.min(Math.max(towardsPage, gap), innerWidth - menu.offsetWidth - gap);
+    const top = Math.min(
+      Math.max(level.bottom - menu.offsetHeight, gap),
+      innerHeight - menu.offsetHeight - gap,
+    );
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.classList.remove("invisible");
+  }
+
   // A picker: one box to type in, and a list under it that opens as soon as
   // the box is clicked or typed in. It holds one record or option, or
   // several, as chips in the order they were chosen. Its list is in the
@@ -805,49 +832,22 @@
             </li>
             {% if languages|length > 1 %}
               <li>
-                <details>
-                  <summary>
-                    <span class="text-muted">{{ icons.icon("globe") }}</span>
-                    <span class="flex-1">{{ _('Language') }}</span>
-                    <span class="text-muted">{{ chosen.language }}</span>
-                  </summary>
-                  <ul>
-                    {#- daisyUI fills a menu item marked current like a pressed
-                        button; the choice in use reads as chosen, with a tick. -#}
-                    {% for code, name in languages %}
-                      <li>
-                        <button type="submit" form="language-form" name="language" value="{{ code }}" lang="{{ code }}"
-                                {% if code == language %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
-                          <span class="flex-1">{{ name }}</span>
-                          {% if code == language %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
-                        </button>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                </details>
+                <button type="button" id="language-row" popovertarget="language-menu">
+                  <span class="text-muted">{{ icons.icon("globe") }}</span>
+                  <span class="flex-1">{{ _('Language') }}</span>
+                  <span class="text-muted">{{ chosen.language }}</span>
+                  <span class="text-muted rtl:rotate-180">{{ icons.icon("chevron-right", 14) }}</span>
+                </button>
               </li>
             {% endif %}
             {% if timezones %}
               <li>
-                <details>
-                  <summary>
-                    <span class="text-muted">{{ icons.icon("clock") }}</span>
-                    <span class="flex-1">{{ _('Time zone') }}</span>
-                    <span class="text-muted">{{ chosen.city }}</span>
-                  </summary>
-                  <ul>
-                    {% for choice in timezones %}
-                      <li>
-                        <button type="submit" form="timezone-form" name="timezone" value="{{ choice.value }}"
-                                {% if choice.shown %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
-                          <span class="flex-1">{{ choice.city }}</span>
-                          <span class="text-xs text-muted tabular-nums" dir="ltr">{{ choice.offset }}</span>
-                          {% if choice.shown %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
-                        </button>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                </details>
+                <button type="button" id="timezone-row" popovertarget="timezone-menu">
+                  <span class="text-muted">{{ icons.icon("clock") }}</span>
+                  <span class="flex-1">{{ _('Time zone') }}</span>
+                  <span class="text-muted">{{ chosen.city }}</span>
+                  <span class="text-muted rtl:rotate-180">{{ icons.icon("chevron-right", 14) }}</span>
+                </button>
               </li>
             {% endif %}
             {% if user %}
@@ -859,6 +859,43 @@
               </li>
             {% endif %}
           </ul>
+          {#- The choices open as a menu of their own beside the row, in the top
+              layer, so the sidebar, which scrolls and so clips what overflows
+              it, cannot cut them off. They stay inside the dropdown, so it
+              stays open while they are used. daisyUI fills a menu item marked
+              current like a pressed button; the choice in use reads as chosen,
+              with a tick. -#}
+          {% if languages|length > 1 %}
+            <ul id="language-menu" popover data-beside="language-row" ontoggle="placeBeside(event)"
+                aria-label="{{ _('Language') }}"
+                class="menu invisible inset-auto m-0 w-44 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
+              {% for code, name in languages %}
+                <li>
+                  <button type="submit" form="language-form" name="language" value="{{ code }}" lang="{{ code }}"
+                          {% if code == language %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
+                    <span class="flex-1">{{ name }}</span>
+                    {% if code == language %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
+                  </button>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if timezones %}
+            <ul id="timezone-menu" popover data-beside="timezone-row" ontoggle="placeBeside(event)"
+                aria-label="{{ _('Time zone') }}"
+                class="menu invisible inset-auto m-0 w-56 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
+              {% for choice in timezones %}
+                <li>
+                  <button type="submit" form="timezone-form" name="timezone" value="{{ choice.value }}"
+                          {% if choice.shown %}aria-current="true" class="bg-base-200 text-base-content"{% endif %}>
+                    <span class="flex-1">{{ choice.city }}</span>
+                    <span class="text-xs text-muted tabular-nums" dir="ltr">{{ choice.offset }}</span>
+                    {% if choice.shown %}<span class="text-primary">{{ icons.icon("check", 14) }}</span>{% endif %}
+                  </button>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </div>
       </div>
     </aside>
