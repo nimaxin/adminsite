@@ -145,7 +145,7 @@ class TestReading:
         assert first["customer.name"] == "Lena Fischer"
         assert first["status"] == "shipped"
         assert first["total"] == "107.00"
-        assert first["created_at"] == "2026-09-01T10:30:00"
+        assert first["created_at"] == "2026-09-01T10:30:00Z"
 
     async def test_filters_search_and_pages(self, client: httpx.AsyncClient) -> None:
         shipped = (await client.get("/admin/-/api/orders?status=SHIPPED")).json()

@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import AsyncIterator, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -12,11 +12,14 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, ModelView
+from adminsite._http.activity import ActivityFilters
 from adminsite.audit import AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import DateTimeField
+from adminsite.filters import DateRangeFilter, FilterValue, SQLAlchemyRepository
+from adminsite.query import QuerySpec
 from adminsite.timezones import (
     activate_timezone,
     current_timezone,
@@ -331,6 +334,78 @@ class TestTheHistory:
         shown = datetime.strptime(changed.group(1), "%b %d, %Y %H:%M")
         now = datetime.now(TEHRAN).replace(tzinfo=None)
         assert abs(now - shown).total_seconds() < 120
+
+
+async def plan_two_meetings(database: Database) -> None:
+    """One late on Oct 6 in UTC, already Oct 7 in Tehran, and one earlier."""
+    async with database.session() as session:
+        for title, hour in (("Late", 21), ("Early", 19)):
+            await session.add(
+                Meeting(
+                    title=title,
+                    starts_at=datetime(2026, 10, 6, hour, 0, tzinfo=UTC),
+                    ends_at=datetime(2026, 10, 6, hour, 0),
+                )
+            )
+        await session.commit()
+
+
+class TestFilteringByDay:
+    @pytest.mark.parametrize("path", ["starts_at", "ends_at"])
+    async def test_a_day_is_the_readers_day(
+        self, database: Database, path: str
+    ) -> None:
+        await plan_two_meetings(database)
+        activate_timezone(TEHRAN, UTC)
+        meetings = SQLAlchemyRepository(Meeting, filters=(DateRangeFilter(path),))
+
+        async with database.session() as session:
+            page = await meetings.list(
+                session,
+                QuerySpec(filters=(FilterValue(path, ("2026-10-07,2026-10-07",)),)),
+            )
+
+        assert [found.title for found in page] == ["Late"]
+
+    def test_the_activity_page_reads_the_readers_days(self) -> None:
+        activate_timezone(TEHRAN, PARIS)
+        asked = ActivityFilters(since=date(2026, 10, 7), until=date(2026, 10, 7))
+
+        query = asked.query(["meetings"])
+
+        # The log keeps UTC, whatever zone the database keeps.
+        assert query.since == datetime(2026, 10, 6, 20, 30)
+        assert query.until == datetime(2026, 10, 7, 20, 30)
+
+
+class TestTheApi:
+    async def test_sends_times_in_utc_with_their_offset(
+        self, database: Database
+    ) -> None:
+        await plan_two_meetings(database)
+        async with serve(Admin(database, views=[MeetingView], api=True)) as served:
+            served.cookies.set("adminsite_browser_timezone", "Asia/Tehran")
+            record = (await served.get("/admin/-/api/meetings/1")).json()
+
+        assert record["starts_at"] == "2026-10-06T21:00:00Z"
+        assert record["ends_at"] == "2026-10-06T21:00:00Z"
+
+    async def test_reads_a_time_with_its_offset(self, database: Database) -> None:
+        async with serve(Admin(database, views=[MeetingView], api=True)) as served:
+            answer = await served.post(
+                "/admin/-/api/meetings",
+                json={
+                    "title": "Planning",
+                    "starts_at": "2026-10-06T14:30:00+03:30",
+                    "ends_at": "2026-10-06T15:30:00+03:30",
+                },
+            )
+        saved = await meeting(database)
+
+        assert answer.status_code == 201
+        assert saved is not None
+        assert in_utc(saved.starts_at) == datetime(2026, 10, 6, 11, 0)
+        assert in_utc(saved.ends_at) == datetime(2026, 10, 6, 12, 0)
 
 
 class TestTheBrowserSaysItsZone:
