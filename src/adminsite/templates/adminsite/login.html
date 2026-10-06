@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ _('Sign in') }} · {{ title }}</title>
 <link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
+{% include "adminsite/_browser_timezone.html" %}
 <script>
   try {
     const saved = localStorage.getItem("adminsite-theme");

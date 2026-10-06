@@ -64,6 +64,12 @@ from adminsite.pages import AdminPage
 from adminsite.permissions import Permission
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
+from adminsite.timezones import (
+    BROWSER_TIMEZONE_COOKIE,
+    activate_timezone,
+    find_timezone,
+    known_timezone,
+)
 from adminsite.views import ModelView, ViewRegistry
 from adminsite.views.model_view import view_class
 
@@ -143,9 +149,15 @@ class Admin:
             text, such as `{"en": {"Username": "Email"}}`. It wins over the
             built in translations, and adds a language adminsite does not
             ship.
+        timezone: The time zone times are shown in, such as "Asia/Tehran",
+            until a person's browser says its own, and for an API token.
+        database_timezone: The time zone the database keeps times in, for a
+            column that keeps none of its own as `DateTime(timezone=True)`
+            does.
 
     Raises:
-        AdminSiteError: When `auth` is given without a `secret_key`.
+        AdminSiteError: When `auth` is given without a `secret_key`, or a
+            time zone is not one the time zone database knows.
     """
 
     def __init__(
@@ -172,11 +184,15 @@ class Admin:
         language: str = "en",
         languages: Sequence[str] = (),
         translations: Mapping[str, Mapping[str, str]] | None = None,
+        timezone: str = "UTC",
+        database_timezone: str = "UTC",
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
                 "Signing in needs a secret_key to sign the session cookie."
             )
+        known_timezone(timezone)
+        self._database_zone = known_timezone(database_timezone)
         self.database = source if isinstance(source, Database) else Database(source)
         self.title = title
         self.banner = banner
@@ -213,6 +229,10 @@ class Admin:
         self.language = language
         self.languages = list(dict.fromkeys([language, *languages]))
         self.translations = dict(translations or {})
+        # The time zone times are shown in until the browser says its own,
+        # and the one the database keeps times in.
+        self.timezone = timezone
+        self.database_timezone = database_timezone
 
         for view in views:
             self.add_view(view)
@@ -409,11 +429,21 @@ class Admin:
                 return found
         return self.language
 
+    def timezone_for(self, request: Request) -> str:
+        """The time zone to show times in: the browser's, once it has said."""
+        browser = request.cookies.get(BROWSER_TIMEZONE_COOKIE, "")
+        if find_timezone(browser) is not None:
+            return browser
+        return self.timezone
+
     def speak(self, request: Request) -> str:
-        """Answer this request in its language."""
+        """Answer this request in its language, with times on its clock."""
         language = self.language_for(request)
         activate(language, self.translations)
         request.scope["adminsite_language"] = language
+        timezone = self.timezone_for(request)
+        activate_timezone(known_timezone(timezone), self._database_zone)
+        request.scope["adminsite_timezone"] = timezone
         return language
 
     async def _error_page(self, request: Request, error: Exception) -> Response:

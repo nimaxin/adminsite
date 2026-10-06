@@ -1,0 +1,12 @@
+{#- Times are shown on the browser's clock, so the browser says which time
+    zone it is set to. A cookie keeps it, written again when it changes. -#}
+<script>
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const kept = "adminsite_browser_timezone=" + zone;
+    if (zone && !document.cookie.split("; ").includes(kept)) {
+      document.cookie = kept + "; path=" + {{ urls.index()|tojson }}
+        + "; max-age=31536000; samesite=lax";
+    }
+  } catch (error) {}
+</script>
