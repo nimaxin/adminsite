@@ -220,6 +220,7 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         session_https_only=True,
         audit=WhatNotWho(AuditLog(engine, create_table=True)),
         saved_views=SavedViews(engine, create_table=True),
+        timezones=["Europe/Paris", "Asia/Tehran", "America/New_York"],
     )
     app.mount("/admin", admin)
     app.state.admin = admin
