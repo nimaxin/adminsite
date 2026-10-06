@@ -23,7 +23,8 @@ your machine with `uv run uvicorn examples.fields:app --reload`.
 | a relationship | `RelationField` | the linked record's name | a picker, or a search box on big tables |
 
 Labels come from the column name: `created_at` reads "Created at", and `customer_id` reads
-"Customer".
+"Customer". A `DateTimeField` shows a time on the clock of the person reading it, and reads a
+typed one on the same clock: see [Time zones](translations.md#time-zones).
 
 ## When a value does not fit
 
@@ -37,6 +38,7 @@ everything else still filled in:
 | `DecimalField` | Enter an amount, for example 12.50. |
 | a string longer than its column | Keep this to 120 characters or fewer. |
 | `EnumField` | Choose one of the listed options. |
+| `DateTimeField`, a time the clocks skip or repeat | Europe/Paris skips or repeats this time when its clocks change. Enter another time. |
 
 ## Choosing a field
 

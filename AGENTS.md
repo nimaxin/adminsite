@@ -11,8 +11,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 - `src/adminsite/` is the package. `admin.py` builds the app and its routes, `views/` holds
   `ModelView` and the parts it is built from (below), `_http/` holds one module per page,
   `_orm/` builds the statements a view runs, `database.py` hands out sessions, `inspector.py`
-  reads the models, and `fields/` and `filters/` are what they say. A name starting with an
-  underscore is machinery no project imports.
+  reads the models, `timezones.py` moves times between the database and each reader's clock, and
+  `fields/` and `filters/` are what they say. A name starting with an underscore is machinery no
+  project imports.
 - `src/adminsite/templates/adminsite/` holds the Jinja templates; `widgets/` has one file per form
   control.
 - `src/adminsite/static/adminsite.css` is built from `frontend/` and committed. HTMX and Alpine are

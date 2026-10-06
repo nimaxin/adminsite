@@ -47,6 +47,7 @@ from adminsite._http.palette import palette
 from adminsite._http.saved_views import delete_list_view, save_list_view
 from adminsite._http.signing_in import login, login_form, logout
 from adminsite._http.templating import Templates
+from adminsite._http.timezones import choose_timezone
 from adminsite._http.urls import STATIC_DIR, Urls
 from adminsite._text import snake_case
 from adminsite.audit import AuditLog, AuditStore
@@ -66,6 +67,7 @@ from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
 from adminsite.timezones import (
     BROWSER_TIMEZONE_COOKIE,
+    TIMEZONE_COOKIE,
     activate_timezone,
     find_timezone,
     known_timezone,
@@ -86,7 +88,9 @@ __all__ = [
 HEADINGS = {403: "Not allowed", 404: "Not found"}
 
 # Paths under /-/ that the admin keeps for itself.
-RESERVED_PAGES = frozenset({"activity", "api", "files", "language", "search", "static"})
+RESERVED_PAGES = frozenset(
+    {"activity", "api", "files", "language", "search", "static", "timezone"}
+)
 LANGUAGE_COOKIE = "adminsite_language"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -151,6 +155,8 @@ class Admin:
             ship.
         timezone: The time zone times are shown in, such as "Asia/Tehran",
             until a person's browser says its own, and for an API token.
+        timezones: More time zones people may switch to, in a menu at the
+            foot of the sidebar. Until they do, times follow the browser.
         database_timezone: The time zone the database keeps times in, for a
             column that keeps none of its own as `DateTime(timezone=True)`
             does.
@@ -185,13 +191,15 @@ class Admin:
         languages: Sequence[str] = (),
         translations: Mapping[str, Mapping[str, str]] | None = None,
         timezone: str = "UTC",
+        timezones: Sequence[str] = (),
         database_timezone: str = "UTC",
     ) -> None:
         if auth is not None and not secret_key:
             raise AdminSiteError(
                 "Signing in needs a secret_key to sign the session cookie."
             )
-        known_timezone(timezone)
+        for name in (timezone, *timezones):
+            known_timezone(name)
         self._database_zone = known_timezone(database_timezone)
         self.database = source if isinstance(source, Database) else Database(source)
         self.title = title
@@ -230,8 +238,9 @@ class Admin:
         self.languages = list(dict.fromkeys([language, *languages]))
         self.translations = dict(translations or {})
         # The time zone times are shown in until the browser says its own,
-        # and the one the database keeps times in.
+        # the ones people may switch to, and the one the database keeps.
         self.timezone = timezone
+        self.timezones = list(dict.fromkeys([timezone, *timezones]))
         self.database_timezone = database_timezone
 
         for view in views:
@@ -430,7 +439,11 @@ class Admin:
         return self.language
 
     def timezone_for(self, request: Request) -> str:
-        """The time zone to show times in: the browser's, once it has said."""
+        """The time zone to show times in: the one chosen, else the browser's."""
+        chosen = request.cookies.get(TIMEZONE_COOKIE, "")
+        # A choice counts while the menu that undoes it is there.
+        if len(self.timezones) > 1 and chosen in self.timezones:
+            return chosen
         browser = request.cookies.get(BROWSER_TIMEZONE_COOKIE, "")
         if find_timezone(browser) is not None:
             return browser
@@ -520,6 +533,12 @@ class Admin:
                 self._handler(choose_language, guarded=False),
                 methods=["POST"],
                 name="language",
+            ),
+            Route(
+                "/-/timezone",
+                self._handler(choose_timezone, guarded=False),
+                methods=["POST"],
+                name="timezone",
             ),
             Route(
                 "/-/search",

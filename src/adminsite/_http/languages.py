@@ -20,10 +20,7 @@ async def choose_language(admin: "Admin", request: Request) -> Response:
     """Switch the admin to another language, and go back where we were."""
     form = await read_form(request)
     wanted = str(form.get("language", ""))
-    back = str(form.get("next", "")) or Urls(request).index()
-    # Only a path inside this site, so the form cannot send anyone elsewhere.
-    if not back.startswith("/") or back.startswith("//"):
-        back = Urls(request).index()
+    back = Urls(request).back(str(form.get("next", "")))
     response = RedirectResponse(back, status_code=303)
     if wanted in admin.languages:
         response.set_cookie(

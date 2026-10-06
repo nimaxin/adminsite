@@ -15,6 +15,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from adminsite._http.csrf import hidden_input
+from adminsite._http.timezones import timezone_menu
 from adminsite._http.urls import Urls, sort_state
 from adminsite.i18n import direction, gettext, native_name
 from adminsite.messages import read_messages
@@ -98,6 +99,7 @@ class Templates:
             "language": language,
             "direction": direction(language),
             "languages": [(code, native_name(code)) for code in admin.languages],
+            "timezones": timezone_menu(admin, request),
         }
         values.update(context or {})
         values["current"] = current_key(values)

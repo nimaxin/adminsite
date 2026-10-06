@@ -253,6 +253,7 @@
   "This {thing} cannot be deleted, because other records still refer to it.": "این {thing} حذف نمی‌شود، چون موارد دیگری هنوز به آن وابسته‌اند.",
   "This {thing} could not be deleted. {reason}": "این {thing} حذف نشد. {reason}",
   "This {thing} could not be saved. {reason}": "این {thing} ذخیره نشد. {reason}",
+  "Time zone": "منطقهٔ زمانی",
   "To": "تا",
   "Today": "امروز",
   "Unfold all": "باز کردن همه",

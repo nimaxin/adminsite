@@ -752,26 +752,45 @@
         {% endif %}
       </nav>
 
-      <div class="flex items-center gap-1 border-t border-base-300 ps-1.5 pt-2.5">
+      <div class="border-t border-base-300 pt-2.5">
+      {#- The menus get a row of their own, so the person's name keeps its room. -#}
+      {% if languages|length > 1 or timezones %}
+        <div class="flex flex-wrap items-center gap-1 ps-1.5 pb-1">
+          {% if languages|length > 1 %}
+            <form method="post" action="{{ urls.language() }}">
+              {{ csrf_input | safe if csrf_input }}
+              <input type="hidden" name="next"
+                     value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
+              <select name="language" class="select select-ghost select-xs w-auto text-muted"
+                      aria-label="{{ _('Language') }}" onchange="this.form.submit()">
+                {% for code, name in languages %}
+                  <option value="{{ code }}" lang="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          {% endif %}
+          {% if timezones %}
+            <form method="post" action="{{ urls.timezone() }}">
+              {{ csrf_input | safe if csrf_input }}
+              <input type="hidden" name="next"
+                     value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
+              <select name="timezone" class="select select-ghost select-xs w-auto text-muted"
+                      aria-label="{{ _('Time zone') }}" onchange="this.form.submit()">
+                {% for value, name, shown in timezones %}
+                  <option value="{{ value }}" {% if shown %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+      <div class="flex items-center gap-1 ps-1.5">
         {% if user %}
           <span class="me-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral text-xs font-semibold text-neutral-content"
                 aria-hidden="true">{{ user|string|first|upper }}</span>
           <span class="min-w-0 flex-1 truncate font-medium">{{ user }}</span>
         {% else %}
           <span class="flex-1"></span>
-        {% endif %}
-        {% if languages|length > 1 %}
-          <form method="post" action="{{ urls.language() }}">
-            {{ csrf_input | safe if csrf_input }}
-            <input type="hidden" name="next"
-                   value="{{ request.url.path }}{{ '?' ~ request.url.query if request.url.query }}">
-            <select name="language" class="select select-ghost select-xs w-auto text-muted"
-                    aria-label="{{ _('Language') }}" onchange="this.form.submit()">
-              {% for code, name in languages %}
-                <option value="{{ code }}" lang="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
-              {% endfor %}
-            </select>
-          </form>
         {% endif %}
         <button class="btn btn-square btn-ghost btn-sm text-muted" type="button"
                 onclick="switchTheme()" aria-label="{{ _('Switch between light and dark') }}">
@@ -785,6 +804,7 @@
             </button>
           </form>
         {% endif %}
+      </div>
       </div>
     </aside>
   </div>
