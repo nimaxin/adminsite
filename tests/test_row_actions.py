@@ -207,6 +207,17 @@ class TestOnARecord:
         assert 'runRecordAction("confirm", "2")' in page.text
         assert 'id="action-form-confirm"' in listed.text
 
+    async def test_the_page_s_buttons_wrap_where_they_do_not_fit(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/orders/2")
+        header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
+
+        # Buttons of the header's own row, which wraps, not of a row of their
+        # own, which ran past the edge of the panel.
+        group = header.index('<div class="hidden sm:contents">')
+        assert group < header.index('runRecordAction("confirm", "2")')
+
     async def test_a_record_that_refuses_hides_its_button(
         self, client: httpx.AsyncClient
     ) -> None:
@@ -247,6 +258,15 @@ class TestOnTheView:
 
         assert "Sync from the provider" in listed.text
         assert 'runRecordAction("sync", "")' in listed.text
+
+    async def test_its_button_wraps_with_the_others(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        listed = await client.get("/admin/orders")
+        header = listed.text.split("<header", 1)[1].split("</header>", 1)[0]
+
+        group = header.index('<div class="hidden sm:contents">')
+        assert group < header.index('runRecordAction("sync", "")')
 
 
 class TestAnswersThatAreNotMessages:

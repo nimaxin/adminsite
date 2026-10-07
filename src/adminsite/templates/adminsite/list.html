@@ -12,8 +12,10 @@
 
 {% block header_actions %}
   {#- On a phone the page's other actions fold into one menu, so the header
-      keeps to a single line. -#}
-  <div class="hidden items-center gap-2 sm:flex">
+      keeps to a single line. Wider, each is a button of the header's own
+      row, which wraps where they do not all fit; kept apart in a row of
+      their own, they ran past the edge of the panel. -#}
+  <div class="hidden sm:contents">
     {% for item in view_actions %}
       <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
               type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>

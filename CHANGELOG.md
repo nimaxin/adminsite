@@ -13,6 +13,11 @@
   beside them, and the current tab's underline covers the line under them, as on a record page. A
   project that overrides `_saved_tabs.html`, `activity.html` or `_form_layout.html` should start
   its copy again from the new one (#61).
+- The buttons in a page's header wrap where they do not all fit. A list's own actions, and a
+  record's, sat in a row that never wrapped, so several of them ran past the edge of the panel and
+  could not be clicked, and below 1024 pixels wide the whole window scrolled sideways. A project
+  that overrides `list.html`, `detail.html` or `import_preview.html` should start its copy again
+  from the new one (#61).
 
 ## 0.1.0a15
 
