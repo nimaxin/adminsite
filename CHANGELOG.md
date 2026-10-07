@@ -43,6 +43,11 @@
   foot of the list, the page numbers and the first line of the Actions menu are drawn by
   `_records_count.html`, `_page_numbers.html` and `_bulk_summary.html`, which the total is sent
   back with (#64).
+- Nothing is left empty under the account menu at the foot of the sidebar. The closed language
+  and time zone menus were still laid out there, unseen, so the sidebar grew taller than the
+  window and scrolled. The sidebar now keeps to the window's height: its links scroll under the
+  account menu, which stays at the foot. A project that overrides `base.html` should start its
+  copy again from the new one.
 
 ## 0.1.0a15
 

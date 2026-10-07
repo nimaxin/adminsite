@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -12,6 +13,10 @@ from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from tests.models import Order
 from tests.test_auth import sign_in, token_from
+
+STYLESHEET = (
+    Path(__file__).parent.parent / "src" / "adminsite" / "static" / "adminsite.css"
+)
 
 
 class OrderView(ModelView[Order]):
@@ -84,3 +89,12 @@ class TestTheMenu:
         # One language and one zone: nothing to choose between.
         assert 'name="language"' not in page.text
         assert 'name="timezone"' not in page.text
+
+    def test_its_closed_menus_take_no_room(self) -> None:
+        # The language and time zone menus are popovers drawn with daisyUI's
+        # menu, whose display wins over the browser's own way of hiding a
+        # closed popover: laid out unseen under the account menu, they made
+        # the sidebar taller than the window.
+        stylesheet = STYLESHEET.read_text(encoding="utf-8")
+
+        assert "[popover]:not(:popover-open){display:none}" in stylesheet

@@ -877,7 +877,9 @@
 
   <div class="drawer-side z-40">
     <label for="navigation" class="drawer-overlay" aria-label="{{ _('Close the menu') }}"></label>
-    <aside class="flex min-h-full w-60 flex-col gap-3.5 bg-base-200 px-2.5 py-3.5 lg:w-58">
+    {#- As tall as the window, so its links scroll under the account menu,
+        which stays at the foot. -#}
+    <aside class="flex h-full w-60 flex-col gap-3.5 bg-base-200 px-2.5 py-3.5 lg:w-58">
       <a href="{{ urls.index() }}" class="flex h-8 items-center gap-2.5 px-1.5">
         <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" class="shrink-0">
           <rect width="24" height="24" rx="7" class="fill-accent"/>

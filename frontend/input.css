@@ -287,6 +287,15 @@
   transition: none;
 }
 
+/* A closed popover takes no room. The browser hides one with a rule that any
+   class setting display wins over, such as daisyUI's menu, so the closed
+   language and time zone menus were still laid out, unseen, under the account
+   menu, and the sidebar grew taller than the window. Outside any layer, so it
+   wins over those classes. */
+[popover]:not(:popover-open) {
+  display: none;
+}
+
 /* daisyUI turns on Chrome's base-select mode for every select, and in it a
    select that holds several options lays them out in a row, cut off and
    overlapping. That one stays the browser's own list, without the arrow. */
