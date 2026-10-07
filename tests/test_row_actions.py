@@ -285,8 +285,11 @@ class TestSelectionActionsStillWork:
             assert order is not None
             assert order.note == "seen"
 
-    async def test_their_bar_is_unchanged(self, client: httpx.AsyncClient) -> None:
+    async def test_they_sit_in_the_actions_menu(
+        self, client: httpx.AsyncClient
+    ) -> None:
         listed = await client.get("/admin/orders")
 
-        assert "Note them all" in listed.text
-        assert 'x-show="picked > 0"' in listed.text
+        menu = listed.text.split('<div id="bulk-actions"', 1)[1].split("</ul>", 1)[0]
+        assert "Note them all" in menu
+        assert ':disabled="!$store.selection.picked"' in menu
