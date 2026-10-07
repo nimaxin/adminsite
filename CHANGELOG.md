@@ -24,6 +24,13 @@
   link to many now are too, as is each value in the import preview. The record's page shows the
   whole value. A project that overrides `_row.html` or `import_preview.html` should start its copy
   again from the new one (#61).
+- A list over a big table no longer waits for its filters to count every row. A filter's options
+  are counted for the list page itself; the table that a new page, a sort, a search or a filter
+  redraws on its own shows no counts, and no longer counts them. A view whose `count_mode` is
+  `CountMode.ESTIMATED` or `CountMode.NONE` counts no filter's options, those built from a column
+  included, unless a filter is given `show_counts=True`. `BooleanFilter` takes `show_counts` as
+  `ChoiceFilter` does, and left out, both follow the view. A filter of your own that counts with
+  `count_by` follows the same rule (#60).
 
 ## 0.1.0a15
 

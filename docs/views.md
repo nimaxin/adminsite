@@ -318,6 +318,10 @@ than 10,000". On SQLite, which keeps no estimate, it counts exactly.
 `CountMode.NONE` skips the count altogether. The pager then shows no total and learns whether there
 is a next page by reading one extra row, so a page is a single query.
 
+Either mode also leaves the counts off the filters' options, since counting them reads every record
+the list may show. A filter given `show_counts=True` is counted all the same; see
+[Filters](filters.md#counts).
+
 **Paging.** `Pagination.KEYSET` continues from the last row seen instead of skipping rows, so page
 400 costs the same as page 1. The pager shows Previous and Next, without page numbers, and the URL
 carries a short cursor such as `?after=WyIyMDI2...`. The primary key is added to the order, so rows
