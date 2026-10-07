@@ -168,6 +168,14 @@
       .forEach((key) => sent.delete(key));
     keptAddress(own).forEach((value, key) => sent.append(key, value));
   });
+  // A new page or sort keeps the total the list shows, since it follows the
+  // search and the filters alone. The table sends it back, and the answer
+  // shows it again where they are the same, rather than counting again.
+  document.addEventListener("htmx:configRequest", (event) => {
+    if (event.detail.target?.id !== "records") return;
+    const kept = document.getElementById("records-total")?.dataset.kept;
+    if (kept) event.detail.headers["Adminsite-Total"] = kept;
+  });
   document.addEventListener("submit", (event) => {
     const form = event.target;
     if (!form.matches("form[data-keeps][method=get]")) return;

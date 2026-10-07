@@ -1,5 +1,6 @@
 """A list shows its rows at once, and their total follows in a request of its own."""
 
+import json
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -40,6 +41,13 @@ class PaidOrders(Orders):
 
     def scope_query(self, statement: Statement, *, request: Request) -> Statement:
         return statement.where(Order.status == OrderStatus.PAID)
+
+
+class FilteredOrders(Orders):
+    """Has a search and a filter, either of which changes the total."""
+
+    list_filters = [Order.status]
+    searchable_fields = ["customer.name"]
 
 
 class HiddenOrders(Orders):
@@ -173,3 +181,83 @@ class TestTheTotal:
             refused = await client.get("/admin/orders", headers=TOTAL_REQUEST)
 
         assert refused.status_code == 403
+
+
+def kept_from(total: str) -> str:
+    """What the table sends back of the total this answer shows."""
+    found = re.search(r"data-kept='([^']*)'", total)
+    assert found is not None
+    return found.group(1)
+
+
+def table_request(kept: str) -> dict[str, str]:
+    """The headers of a table HTMX redraws, sending back the total it shows."""
+    return {"HX-Request": "true", "Adminsite-Total": kept}
+
+
+class TestAKeptTotal:
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "/admin/orders?status=PAID&status=SHIPPED&page=2",
+            "/admin/orders?status=PAID&status=SHIPPED&sort=-total",
+            "/admin/orders?status=SHIPPED&status=PAID",
+        ],
+    )
+    async def test_a_new_page_or_sort_shows_it_without_counting(
+        self, backend: Backend, address: str
+    ) -> None:
+        async with open_admin(backend, FilteredOrders) as client:
+            total = await counted(client, "/admin/orders?status=PAID&status=SHIPPED")
+            with count_queries(backend) as queries:
+                table = await client.get(
+                    address, headers=table_request(kept_from(total))
+                )
+
+        assert totals(queries.statements) == []
+        assert counter(table.text) is None
+        assert "of 4" in table.text
+        assert "4 orders" in table.text
+        assert kept_from(table.text) == kept_from(total)
+
+    @pytest.mark.parametrize(
+        "address", ["/admin/orders?status=PAID", "/admin/orders?q=lena"]
+    )
+    async def test_a_new_search_or_filter_counts_again(
+        self, backend: Backend, address: str
+    ) -> None:
+        async with open_admin(backend, FilteredOrders) as client:
+            total = await counted(client, "/admin/orders")
+            table = await client.get(address, headers=table_request(kept_from(total)))
+
+        assert counter(table.text) is not None
+        assert "of 7" not in table.text
+
+    @pytest.mark.parametrize(
+        "change",
+        [
+            {"of": "another list"},
+            {"total": -1},
+            {"total": "7"},
+            {"total": True},
+            {"estimated": "no"},
+        ],
+    )
+    async def test_a_total_that_does_not_fit_is_ignored(
+        self, client: httpx.AsyncClient, change: dict[str, Any]
+    ) -> None:
+        kept = json.loads(kept_from(await counted(client, "/admin/orders")))
+        sent = json.dumps({**kept, **change})
+        table = await client.get("/admin/orders?page=2", headers=table_request(sent))
+
+        assert counter(table.text) is not None
+        assert "of 7" not in table.text
+
+    async def test_a_header_that_is_not_one_is_ignored(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        table = await client.get(
+            "/admin/orders?page=2", headers=table_request("seven, honestly")
+        )
+
+        assert counter(table.text) is not None
