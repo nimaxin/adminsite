@@ -86,6 +86,49 @@
     menu.classList.remove("invisible");
   }
 
+  // The table reloads on its own for a search, a sort, a page or a filter,
+  // and moves the address with it. A form or a link outside the table that
+  // carries the rest of the address takes it as it is now, not as it was
+  // when the page was drawn. Its data-keeps names the values it sets itself.
+  const PAGING_KEYS = ["page", "after", "before"];
+  function keptAddress(own) {
+    const params = new URLSearchParams(location.search);
+    [...own, ...PAGING_KEYS].forEach((key) => params.delete(key));
+    return params;
+  }
+  function ownKeys(element) {
+    return element.dataset.keeps.split(" ").filter(Boolean);
+  }
+  document.addEventListener("htmx:configRequest", (event) => {
+    const keeper = event.detail.elt.closest("[data-keeps]");
+    if (!keeper || event.detail.verb !== "get") return;
+    const own = ownKeys(keeper);
+    const sent = event.detail.formData;
+    [...new Set(sent.keys())].filter((key) => !own.includes(key)).forEach((key) => sent.delete(key));
+    keptAddress(own).forEach((value, key) => sent.append(key, value));
+  });
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!form.matches("form[data-keeps][method=get]")) return;
+    const own = ownKeys(form);
+    form.querySelectorAll("input[type=hidden]").forEach((input) => {
+      if (!own.includes(input.name)) input.remove();
+    });
+    keptAddress(own).forEach((value, key) => {
+      form.append(Object.assign(document.createElement("input"), { type: "hidden", name: key, value }));
+    });
+  }, true);
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-keeps]");
+    if (!link) return;
+    const own = ownKeys(link);
+    const params = keptAddress(own);
+    new URLSearchParams(link.search).forEach((value, key) => {
+      if (own.includes(key)) params.append(key, value);
+    });
+    link.search = params.toString();
+  }, true);
+
   // A filter's long list of choices narrows to what is typed above it, the
   // way a picker's does. A choice already ticked stays, to be unticked.
   function choiceSearch() {

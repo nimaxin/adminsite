@@ -27,7 +27,7 @@
       </a>
     {% endif %}
     {% if can_export %}
-      <a class="btn btn-plain btn-sm" href="{{ urls.export(view, **export_params) }}">
+      <a class="btn btn-plain btn-sm" href="{{ urls.export(view, **export_params) }}" data-keeps="">
         <span class="text-muted">{{ icons.icon("download") }}</span>{{ _('Export CSV') }}
       </a>
     {% endif %}
@@ -47,7 +47,7 @@
           <li><a href="{{ urls.list(view) }}/import"><span class="text-muted">{{ icons.icon("upload", 14) }}</span>{{ _('Import') }}</a></li>
         {% endif %}
         {% if can_export %}
-          <li><a href="{{ urls.export(view, **export_params) }}"><span class="text-muted">{{ icons.icon("download", 14) }}</span>{{ _('Export CSV') }}</a></li>
+          <li><a href="{{ urls.export(view, **export_params) }}" data-keeps=""><span class="text-muted">{{ icons.icon("download", 14) }}</span>{{ _('Export CSV') }}</a></li>
         {% endif %}
       </ul>
     </div>
