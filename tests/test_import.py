@@ -401,6 +401,15 @@ class TestImportPages:
         assert "Import 2 rows, skip 1" in page.text
         assert await customers(database) == 4
 
+    async def test_the_preview_cuts_a_long_value_short(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await preview(client, "id,name,email\n,Mia,mia@x.nl\n")
+
+        # Each value keeps to one width, so a long one ends in an ellipsis
+        # rather than stretch its column across the screen.
+        assert '<span class="block max-w-md truncate">mia@x.nl</span>' in page.text
+
     async def test_confirming_imports_the_good_rows(
         self, client: httpx.AsyncClient, database: Database
     ) -> None:
