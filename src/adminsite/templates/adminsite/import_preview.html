@@ -21,7 +21,7 @@
 
 {% block header_actions %}
   {% set problems = plan.count("error") %}
-  <form method="post" action="{{ urls.list(view) }}/import/{{ token }}" class="flex items-center gap-2">
+  <form method="post" action="{{ urls.list(view) }}/import/{{ token }}" class="flex flex-wrap items-center gap-2">
     {{ csrf_input | safe if csrf_input }}
     <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">{{ _('Choose another file') }}</a>
     <button class="btn btn-primary btn-sm" type="submit" {% if not plan.ready %}disabled{% endif %}>
