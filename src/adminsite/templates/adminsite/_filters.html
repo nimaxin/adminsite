@@ -24,7 +24,7 @@
               popovertarget="filters" popovertargetaction="hide"
               aria-label="{{ _('Close the filters') }}">{{ icons.icon("x") }}</button>
     </div>
-    <div class="relative min-h-0 flex-1 overflow-y-auto px-5">
+    <div class="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5">
       {% for panel in panels %}
         {% set name = panel.filter.name %}
         <div class="border-b border-line py-4 last:border-b-0">
@@ -43,7 +43,7 @@
                            aria-label="{{ _('Search {things}', things=panel.filter.label|lower) }}">
                   </label>
                 {% endif %}
-                <div class="relative -mx-2 flex max-h-64 flex-col gap-0.5 overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
+                <div class="relative -mx-2 flex max-h-64 flex-col gap-0.5 overflow-x-hidden overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
                   {% for option in panel.options %}
                     <label class="flex h-8 shrink-0 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200"
                            {% if panel.searchable %}data-label="{{ option.label }}" x-show="shows($el)"{% endif %}>

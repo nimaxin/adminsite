@@ -53,7 +53,7 @@
     {% if entry.label %}
       <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
     {% endif %}
-    <div class="relative overflow-x-auto rounded-field border border-base-300 bg-base-100">
+    <div class="relative overflow-x-auto overflow-y-hidden rounded-field border border-base-300 bg-base-100">
       <table class="w-full">
         <thead class="bg-subtle">
           <tr>
@@ -172,7 +172,9 @@
     <p class="text-muted" x-show="!picked.length" {% if held.items %}x-cloak{% endif %}>{{ _('Nothing set.') }}</p>
     <div class="relative w-full max-w-sm" x-show="picked.length < {{ settable|length }}"
          {% if held.items|length == settable|length %}x-cloak{% endif %}>
-      {#- A press anywhere in the box goes to the text in it, as in any input. -#}
+      {#- A press anywhere in the box goes to the text in it, as in any input.
+          In an inline table, which scrolls sideways, the list below it takes
+          its place and the row grows, as a picker's does. -#}
       <div class="input h-10 w-full cursor-text gap-2 border-dashed" @mousedown="press($event)">
         <span class="text-link">{{ icons.icon("plus", 16) }}</span>
         <input type="text" x-ref="search" role="combobox" class="min-w-24 flex-1"
@@ -182,7 +184,7 @@
                x-model="query" :placeholder="placeholder"
                @focus="enter()" @click="enter()" @blur="close()" @input="typed()" @keydown="key($event)">
       </div>
-      <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg"
+      <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg in-[table]:static"
            x-show="open" x-cloak @mousedown.prevent>
         <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ _('Fields not set') }}"
             class="relative max-h-72 overflow-auto p-1">

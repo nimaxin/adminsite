@@ -9,6 +9,10 @@
   inline rows on a tablet. Every box that scrolls now keeps what is placed inside it. A project
   that overrides `_table.html`, `detail.html` or `_inlines.html` should start its copy again from
   the new one (#61).
+- The tabs above a list, on the Activity page and in a form no longer show a small scrollbar
+  beside them, and the current tab's underline covers the line under them, as on a record page. A
+  project that overrides `_saved_tabs.html`, `activity.html` or `_form_layout.html` should start
+  its copy again from the new one (#61).
 
 ## 0.1.0a15
 
