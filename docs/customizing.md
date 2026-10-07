@@ -21,6 +21,7 @@ Keep the same relative path. To replace the sign in page, create
 | `adminsite/base.html` | The shell: sidebar, header, messages |
 | `adminsite/index.html` | The front page |
 | `adminsite/list.html`, `_toolbar.html`, `_table.html` | The list, its search and filters, and the table |
+| `adminsite/_filter_chips.html`, `_bulk_actions.html` | The filters in use, and the Actions menu for the ticked rows |
 | `adminsite/_saved_tabs.html`, `_row_actions.html` | The saved views above a list, and a row's menu |
 | `adminsite/detail.html`, `_history.html` | One record, and its history |
 | `adminsite/form.html`, `_field.html`, `_inlines.html` | The create and edit form, and its child rows |

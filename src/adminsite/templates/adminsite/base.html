@@ -59,15 +59,24 @@
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
 
+  // What is ticked in the list. The table and the Actions menu above it both
+  // read it, and the table starts it again each time it reloads.
+  document.addEventListener("alpine:init", () => {
+    Alpine.store("selection", { picked: 0, everything: false });
+  });
+
   // A menu that drops below what opened it, such as the Filter button or a
   // filter's chip, inside the window: above it where there is no room below.
+  // It lines up with the start of what opened it, or with the end for a menu
+  // marked `data-align="end"`, such as the Actions menu.
   function placeBelow(menu, anchor) {
     const at = anchor.getBoundingClientRect();
     const gap = 6;
-    const start = getComputedStyle(anchor).direction === "rtl"
+    const rightToLeft = getComputedStyle(anchor).direction === "rtl";
+    const edge = rightToLeft !== (menu.dataset.align === "end")
       ? at.right - menu.offsetWidth
       : at.left;
-    const left = Math.min(Math.max(start, gap), innerWidth - menu.offsetWidth - gap);
+    const left = Math.min(Math.max(edge, gap), innerWidth - menu.offsetWidth - gap);
     const below = at.bottom + gap;
     const top = below + menu.offsetHeight <= innerHeight - gap
       ? below

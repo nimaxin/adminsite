@@ -16,6 +16,10 @@
   `_toolbar.html` or `_table.html` should start its copy again from the new one (#46).
 - Changing the columns or the rows per page keeps the sort, the search and the filters. They were
   lost once the table had reloaded on its own, after a sort or a search (#46).
+- The actions for the ticked rows sit in an Actions menu above the list, which counts the ticked
+  rows and offers to select every matching one. Dangerous actions come last, under a line. It
+  replaces the bar that floated over the table. A project that overrides `_table.html` or
+  `_row.html` should start its copy again from the new one (#46).
 
 ## 0.1.0a14
 

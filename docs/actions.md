@@ -13,13 +13,14 @@ class OrderView(ModelView[Order]):
         return f"{changed} orders marked as shipped."
 ```
 
-Ticking rows shows a bar with the view's actions. What the method returns is shown to the user
-once it has run.
+Ticking rows turns on the Actions menu above the list, which says how many are ticked and lists the
+view's actions. What the method returns is shown to the user once it has run.
 
 ## Every row that matches
 
-Ticking every row on the page offers "Select all 12,408 matching". The selection then covers every
-row the current search and filters match, not only the page.
+Ticking every row on the page offers "Select all 12,408 matching" in the Actions menu, where more
+pages follow. The selection then covers every row the current search and filters match, not only
+the page.
 
 A `Selection` is a query, not a list of records, so an action over twelve thousand rows is still
 one statement. `await selection.update(**values)` and `await selection.delete()` change or delete
@@ -34,10 +35,10 @@ should go with their parent. Use `records()` when the hooks matter.
 
 ## Deleting the chosen rows
 
-Every view that allows deleting offers Delete in the bar that rises when rows are ticked, after
-asking to confirm. It deletes each record the way a single delete does: `allows(Permission.DELETE,
-record=...)`, `before_delete` and `after_delete` run for every one, and the audit log gets a
-delete entry for each.
+Every view that allows deleting offers Delete in the Actions menu, after asking to confirm. It
+deletes each record the way a single delete does: `allows(Permission.DELETE, record=...)`,
+`before_delete` and `after_delete` run for every one, and the audit log gets a delete entry for
+each.
 
 It is all or none. When one record is refused, by a hook, by a permission, or because other records
 still point at it, nothing is deleted and the message names that record. When the database refuses
@@ -252,13 +253,14 @@ rather than accepted because the class said so.
 ## Options
 
 `@action` takes the button's `label`, an `icon` drawn before it, a `confirm` question, `inputs` to
-ask for as they are, `dangerous` for a red button, the `permission` it needs, its `name` in the
-URL, and `audit_answer` to keep a secret answer out of the [audit log](audit.md#actions).
+ask for as they are, `dangerous` for a red button listed last, the `permission` it needs, its
+`name` in the URL, and `audit_answer` to keep a secret answer out of the
+[audit log](audit.md#actions).
 [`@action`][adminsite.actions.action] says what each one does.
 
 An `icon` takes what a view's [`icon`](views.md#an-icon-in-the-sidebar) takes, inline SVG markup
-or a picture's address, and is drawn wherever the action is offered: in the bar over the ticked
-rows, above the list, in a row's menu and on the record page.
+or a picture's address, and is drawn wherever the action is offered: in the Actions menu, above
+the list, in a row's menu and on the record page.
 
 ```python
 class OrderView(ModelView[Order]):
@@ -299,7 +301,7 @@ to fit in memory.
 
 | `on` | Where it appears | The method is handed |
 |---|---|---|
-| `"selection"`, the default | above the list, once rows are ticked | a `Selection[Order]` |
+| `"selection"`, the default | in the Actions menu, once rows are ticked | a `Selection[Order]` |
 | `"record"` | in each row's menu, and on the record's page | the record, to a parameter typed `Order` |
 | `"view"` | above the list, with nothing ticked | nothing in particular |
 

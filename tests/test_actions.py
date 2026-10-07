@@ -322,6 +322,78 @@ class TestDialogs:
         assert "confirm(" not in response.text
 
 
+def actions_menu(page: str) -> str:
+    """The Actions menu above the list, from its button to its end."""
+    found = re.search(r'<div id="bulk-actions".*?</ul>', page, re.DOTALL)
+    assert found is not None
+    return found.group(0)
+
+
+class TestTheActionsMenu:
+    async def test_it_waits_for_a_ticked_row(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders")
+
+        button = re.search(r'<button id="bulk-actions-button"[^>]*>', response.text)
+        assert button is not None
+        assert "disabled" in button.group(0)
+        assert ':disabled="!$store.selection.picked"' in button.group(0)
+        assert 'aria-label="Selection"' not in response.text
+
+    async def test_an_action_submits_the_tables_form(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders?status=PAID")
+
+        assert '<form id="records-actions" method="post"' in response.text
+        menu = actions_menu(response.text)
+        assert 'form="records-actions"' in menu
+        assert 'formaction="/admin/orders/action/one_by_one?status=PAID"' in menu
+
+    async def test_an_action_that_asks_first_opens_its_dialog(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+
+        menu = actions_menu(response.text)
+        assert "document.getElementById('action-ship').showModal()" in menu
+        assert "/action/ship" not in menu
+
+    async def test_what_cannot_be_undone_comes_last(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+
+        items = actions_menu(response.text).split('<ul class="menu', 1)[1]
+        tag = r"""<(?:[^>"']|"[^"]*"|'[^']*')*>"""
+        labels = [
+            " ".join(re.sub(tag, " ", "<li" + item).split())
+            for item in items.split("<li")[1:]
+        ]
+        assert "Mark as shipped" in labels[:-3]
+        assert labels[-3:] == ["Discard", "Delete", "Clear the selection"]
+
+    async def test_every_row_is_offered_where_more_pages_follow(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        paged = await client.get("/admin/orders")
+        one_page = await client.get("/admin/orders?status=SHIPPED")
+
+        assert "Select all 7 matching" in actions_menu(paged.text)
+        assert "Select all" not in actions_menu(one_page.text)
+
+    async def test_it_comes_back_with_the_table(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get(
+            "/admin/orders?status=PAID", headers={"HX-Request": "true"}
+        )
+
+        menu = re.search(r'<div id="bulk-actions"[^>]*>', response.text)
+        assert menu is not None
+        assert 'hx-swap-oob="true"' in menu.group(0)
+        assert "/action/one_by_one?status=PAID" in response.text
+
+
 class TestSelection:
     async def test_a_selection_counts_what_it_covers(self, database: Database) -> None:
         view = OrderView()

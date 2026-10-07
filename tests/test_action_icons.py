@@ -125,13 +125,11 @@ class TestWhereTheIconIsDrawn:
             icon_before_label(button, 'data-icon="sync"', "Sync") for button in found
         )
 
-    async def test_in_the_bar_over_the_ticked_rows(
-        self, client: httpx.AsyncClient
-    ) -> None:
+    async def test_in_the_actions_menu(self, client: httpx.AsyncClient) -> None:
         listed = await client.get("/admin/orders")
 
-        (bar,) = buttons(listed, 'formaction="/admin/orders/action/note"')
-        assert icon_before_label(bar, 'data-icon="note"', "Note them all")
+        (menu,) = buttons(listed, 'formaction="/admin/orders/action/note"')
+        assert icon_before_label(menu, 'data-icon="note"', "Note them all")
 
     async def test_not_in_the_dialog_that_asks_first(self, database: Database) -> None:
         class Asking(ModelView[Order]):

@@ -1,0 +1,69 @@
+{#- The Actions menu in the toolbar, for the rows ticked in the table below.
+    The table reloads on its own, so the two share what is ticked through a
+    store, and each action submits the table's form by its id. The table sends
+    the menu again with every reload, since "select all" counts what matches
+    now. Rows are ticked in the table, which a phone does not show. -#}
+{% import "adminsite/_icons.html" as icons %}
+{% if actions %}
+  {% set safe = actions|rejectattr("dangerous")|list %}
+  {% set dangerous = actions|selectattr("dangerous")|list %}
+  <div id="bulk-actions" class="max-md:hidden" x-data {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+    <button id="bulk-actions-button" class="btn btn-sm" type="button" popovertarget="bulk-actions-menu"
+            disabled :disabled="!$store.selection.picked"
+            :class="$store.selection.picked ? 'btn-soft btn-primary border-primary' : 'btn-plain'">
+      {{ _('Actions') }}
+      <span class="badge badge-sm badge-primary rounded-full px-1.5 tabular-nums" x-show="$store.selection.picked" x-cloak>
+        <span x-show="!$store.selection.everything" x-text="$store.selection.picked"></span>
+        <span x-show="$store.selection.everything">{{ total_text }}</span>
+      </span>
+      {{ icons.icon("chevron-down", 14) }}
+    </button>
+    {#- In the top layer, lined up with the button's end, so nothing scrolling
+        under it cuts it off. -#}
+    <div id="bulk-actions-menu" popover data-below="bulk-actions-button" data-align="end"
+         ontoggle="dropBelow(event)" aria-label="{{ _('Actions') }}"
+         class="invisible inset-auto m-0 w-72 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
+      <p class="px-2.5 pt-1.5 pb-2 text-xs text-muted">
+        <span x-show="!$store.selection.everything"><span x-text="$store.selection.picked"></span> {{ _('selected') }}</span>
+        {% if page.total is not none %}
+          <span x-show="$store.selection.everything" x-cloak>{{ _("All {count} matching rows are selected.", count=total_text) }}</span>
+          {#- Offered once the whole page is ticked, where more pages follow. -#}
+          {% if page.has_previous or page.has_next %}
+            <span x-show="!$store.selection.everything && $store.selection.picked >= {{ page|length }}" x-cloak>
+              &middot;
+              <button class="text-link underline underline-offset-3" type="button"
+                      @click="$store.selection.everything = true">{{ _("Select all {count} matching", count=total_text) }}</button>
+            </span>
+          {% endif %}
+        {% endif %}
+      </p>
+      {#- Whatever cannot be undone comes last, under a line of its own. -#}
+      <ul class="menu w-full p-0">
+        {% for item in safe + dangerous %}
+          <li {% if safe and loop.index0 == safe|length %}class="mt-1 border-t border-base-300 pt-1"{% endif %}>
+            <button class="{% if item.dangerous %}text-error{% endif %}"
+                    {% if item.needs_dialog %}type="button"
+                      onclick="this.closest('[popover]').hidePopover(); document.getElementById('action-{{ item.name }}').showModal()"
+                    {% else %}type="submit" form="records-actions"
+                      formaction="{{ urls.action(view, item.name) }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"
+                    {% endif %}>
+              {% if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif %}
+              {{ item.label }}
+            </button>
+          </li>
+        {% endfor %}
+        <li class="mt-1 border-t border-base-300 pt-1">
+          <button type="button"
+                  @click="
+                    document.querySelectorAll('#records-actions input[type=checkbox]').forEach(box => box.checked = false);
+                    $store.selection.picked = 0;
+                    $store.selection.everything = false;
+                    $el.closest('[popover]').hidePopover();
+                  ">
+            <span class="text-muted">{{ icons.icon("x", 14) }}</span>{{ _('Clear the selection') }}
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+{% endif %}

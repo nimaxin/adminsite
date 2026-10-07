@@ -1,8 +1,8 @@
-{#- Above the table: the search, the filters and the columns. Every filter
-    sits behind one Filter button. Each opens a small form of its own, below
-    the button or its chip, which applies as you pick and reloads only the
-    table, keeping the rest of the address. The filters in use show as chips
-    under the toolbar. -#}
+{#- Above the table: the search, the filters, the actions and the columns.
+    Every filter sits behind one Filter button. Each opens a small form of its
+    own, below the button or its chip, which applies as you pick and reloads
+    only the table, keeping the rest of the address. The filters in use show
+    as chips under the toolbar. -#}
 {% import "adminsite/_icons.html" as icons %}
 {%- set kept = request.query_params.multi_items()|list -%}
 <div class="flex flex-wrap items-center gap-2 px-4 py-3 lg:px-7">
@@ -142,6 +142,7 @@
   {% endif %}
 
   <span class="flex-1"></span>
+  {% include "adminsite/_bulk_actions.html" %}
   {% include "adminsite/_list_menus.html" %}
   {% include "adminsite/_list_forms.html" %}
 </div>
