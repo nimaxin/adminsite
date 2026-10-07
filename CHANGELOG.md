@@ -18,6 +18,12 @@
   could not be clicked, and below 1024 pixels wide the whole window scrolled sideways. A project
   that overrides `list.html`, `detail.html` or `import_preview.html` should start its copy again
   from the new one (#61).
+- A long value in a list ends in an ellipsis, whatever its kind, so no value makes its column
+  wider than a long text does. Only text, long text and JSON were cut short before; a record's
+  name, a list of values, the names of linked records, an email, a file and a value read through a
+  link to many now are too, as is each value in the import preview. The record's page shows the
+  whole value. A project that overrides `_row.html` or `import_preview.html` should start its copy
+  again from the new one (#61).
 
 ## 0.1.0a15
 

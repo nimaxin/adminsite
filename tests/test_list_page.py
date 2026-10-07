@@ -7,6 +7,7 @@ from starlette.applications import Starlette
 
 from adminsite import Admin, Link, ModelView
 from adminsite.database import Database
+from adminsite.fields import EmailField
 from tests.models import Customer, Order, OrderItem
 
 
@@ -404,7 +405,7 @@ class TestColumns:
         # In reach at the start of the row, however many columns follow.
         checkbox = row.index('name="keys"')
         menu = row.index("Actions for")
-        record = row.index('class="font-medium text-link')
+        record = row.index("font-medium text-link")
         assert checkbox < menu < record
 
     async def test_the_columns_share_the_width(self, client: httpx.AsyncClient) -> None:
@@ -470,3 +471,34 @@ class TestAColumnReadThroughLinksToMany:
             "orders.customer.email": ["lena@fischer.de", "lena@fischer.de"],
             "orders.items.quantity": [1, 2, 1],
         }
+
+
+class LongValuesView(ModelView[Customer]):
+    name = "long_values"
+    fields = [
+        Customer.name,
+        EmailField(Customer.email),
+        Customer.orders,
+        Link(Customer.orders, Order.total),
+    ]
+    fields_default_sort = [Customer.name]
+
+
+class TestLongValues:
+    async def test_every_kind_is_cut_short_where_it_is_long(
+        self, database: Database
+    ) -> None:
+        app = Starlette()
+        app.mount("/admin", Admin(database, views=[LongValuesView, OrderView]))
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/long_values")
+        row = page.text.split("<tbody>", 1)[1].split("</tr>", 1)[0]
+
+        # Text was cut short before; a record's name, an email, the names of
+        # many linked records and their values were not, so one long value
+        # could stretch its column across the screen.
+        link = r'<a class="block w-fit max-w-md truncate [^"]*" href="[^"]+">'
+        assert re.search(link + "Aisha Khan</a>", row)
+        assert row.count("max-w-md truncate") == 4
