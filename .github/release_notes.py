@@ -1,6 +1,6 @@
 """Write a release's notes from its section of CHANGELOG.md.
 
-    python .github/release_notes.py 0.1.0a14 > notes.md
+    python .github/release_notes.py 0.1.0a15 > notes.md
 
 The changelog wraps its lines, and GitHub shows every line break in release
 notes, so each paragraph and each point is joined back onto one line; table

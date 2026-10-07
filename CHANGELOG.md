@@ -1,28 +1,41 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a15
+
+The list is quicker to filter and to act on. The Filters button opens every filter at once, in a
+drawer over the list, and each applies as it is picked; the actions for the ticked rows sit in an
+Actions menu above the list. The foot of the sidebar is one account menu, and a long choice filter
+has a search box.
+
+Before upgrading:
+
+- A project that overrides `base.html`, `list.html`, `_toolbar.html`, `_table.html`, `_row.html`,
+  `_list_forms.html`, `_list_menus.html` or `_icons.html` should start its copy again from the new
+  one. The filters are drawn by `_filters.html` and the Actions menu by `_bulk_actions.html`,
+  which `_toolbar.html` includes.
+
+What changed:
 
 - A choice filter with more than 10 options has a search box above them, which narrows them to
   those whose label holds what was typed. Ticked options stay in view while it does (#44).
 - The foot of the sidebar is one account menu: the name of whoever is signed in opens it, upwards,
   with a Dark mode switch, the language and the time zone, each opening its own menu beside it,
   and Sign out. They sat side by side before, and crowded the name out. Without signing in, the
-  button reads Settings. A project that overrides `base.html` should start its copy again from the
-  new one.
+  button reads Settings.
 - The Filters button above the list opens every filter at once, in a drawer over the list, and
   each applies as it is picked: ticking a box or choosing a range reloads the list behind it, with
   no Apply button. On a phone the drawer covers the screen, and the button at its foot says how
   many records match. The filters in use show as chips under the toolbar, counted on the button. A
   chip opens the drawer at its filter, its cross takes it off, and Clear all takes every filter off
   but keeps the search and the sort. A range's chip says it in words, such as "Total: 100 or
-  more". A project that overrides `_toolbar.html` or `_table.html` should start its copy again from
-  the new one (#46).
-- Changing the columns or the rows per page keeps the sort, the search and the filters. They were
-  lost once the table had reloaded on its own, after a sort or a search (#46).
+  more" (#46).
+- The search box, the columns, the rows per page, Export CSV and Save this view keep the sort, the
+  search and the filters the list shows. They kept those the page was first drawn with, so once
+  the table had reloaded on its own, after a sort or a search, changing the columns lost the sort
+  and the export left out the search (#46).
 - The actions for the ticked rows sit in an Actions menu above the list, which counts the ticked
   rows and offers to select every matching one. Dangerous actions come last, under a line. It
-  replaces the bar that floated over the table. A project that overrides `_table.html` or
-  `_row.html` should start its copy again from the new one (#46).
+  replaces the bar that floated over the table (#46).
 
 ## 0.1.0a14
 
