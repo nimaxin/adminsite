@@ -1,6 +1,9 @@
 {#- How many records the list holds, under its heading. The table sends it
-    again with every search and page, so it never goes stale. -#}
+    again with every search and page, so it never goes stale. It keeps the
+    total for the search and the filters it was counted for, which the table
+    sends back with a new page or sort, and gets shown again without a count. -#}
 <p id="records-total" class="mt-0.5 min-h-5 text-[13px] text-muted"
-   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}
+   {% if page.total is not none %}data-kept='{{ {"of": total_key, "total": page.total, "estimated": page.estimated, "at_least": page.at_least}|tojson }}'{% endif %}>
   {%- if total_text %}{{ total_text }} {{ view.label_plural|lower }}{% endif -%}
 </p>

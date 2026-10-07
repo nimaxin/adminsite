@@ -1,5 +1,7 @@
+import hashlib
+import json
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = [
     "COLUMNS_KEY",
     "COLUMNS_PARAM",
+    "KEPT_TOTAL_HEADER",
     "SEARCHABLE_OVER",
     "SIZE_KEY",
     "SIZE_PARAM",
@@ -45,6 +48,7 @@ __all__ = [
     "asks_for_total",
     "build_panels",
     "export_params",
+    "kept_total",
     "list_records",
     "list_spec",
     "list_total",
@@ -56,6 +60,7 @@ __all__ = [
     "read_sort",
     "rows_context",
     "sort_value",
+    "total_key",
     "total_text",
     "wants_partial",
 ]
@@ -69,6 +74,9 @@ SEARCHABLE_OVER = 10
 # The element in the table that asks for the list's total once the rows are
 # on screen. htmx names it in the HX-Trigger header of that request.
 TOTAL_TRIGGER = "records-counter"
+# Where the table sends back the total it shows when it asks for a new page
+# or sort, which keep it.
+KEPT_TOTAL_HEADER = "adminsite-total"
 
 
 @dataclass
@@ -249,6 +257,41 @@ def asks_for_total(request: Request) -> bool:
     return request.headers.get("hx-trigger") == TOTAL_TRIGGER
 
 
+def total_key(read: ListRequest) -> str:
+    """What a list's total depends on, its search and its filters, in a few letters.
+
+    A new page, sort, page size or set of columns keeps the key, and so the
+    total.
+    """
+    parts = [read.search]
+    for value in read.values:
+        parts.extend(f"{value.name}={item}" for item in sorted(value.values))
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
+
+
+def kept_total(request: Request, key: str) -> dict[str, Any] | None:
+    """The total the table sent back with a new page or sort, if it is for this list.
+
+    Only a total for the same search and filters is taken, and only as
+    numbers. It is shown back to whoever sent it, and decides nothing that
+    is read from the database.
+    """
+    try:
+        sent = json.loads(request.headers.get(KEPT_TOTAL_HEADER, ""))
+    except ValueError:
+        return None
+    if not isinstance(sent, dict) or sent.get("of") != key:
+        return None
+    total = sent.get("total")
+    estimated = sent.get("estimated")
+    at_least = sent.get("at_least")
+    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+        return None
+    if not isinstance(estimated, bool) or not isinstance(at_least, bool):
+        return None
+    return {"total": total, "estimated": estimated, "at_least": at_least}
+
+
 def sort_value(spec: QuerySpec) -> str:
     """The sort as it appears in the URL, for keeping it across links."""
     return str(spec.sort[0]) if spec.sort else ""
@@ -307,6 +350,7 @@ def as_context(
         "page": page,
         "page_number": read.page,
         "total_text": total_text(page),
+        "total_key": total_key(read),
         "columns": read.columns,
         "page_size": read.size,
         "page_sizes": view._pages.page_sizes(request),
@@ -438,6 +482,11 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         page = await view._reader.fetch_page(
             session, spec.replace(count=CountMode.NONE), request=request
         )
+        # A new page or sort keeps the total the table already shows, which
+        # follows the search and the filters alone.
+        kept = kept_total(request, total_key(read))
+        if kept is not None:
+            page = replace(page, **kept)
         await view._reader.load_values(
             session,
             list(page),
