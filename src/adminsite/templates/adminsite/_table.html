@@ -219,7 +219,7 @@
     </span>
     <span class="flex-1"></span>
     {% if page_sizes %}
-      <select name="size" form="sizes-{{ view.name }}" onchange="this.form.submit()"
+      <select name="size" form="sizes-{{ view.name }}" onchange="this.form.requestSubmit()"
               class="select select-sm w-auto text-base-content" aria-label="{{ _('Rows per page') }}">
         {% for size in page_sizes %}
           <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>
