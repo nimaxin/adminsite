@@ -59,6 +59,49 @@
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
 
+  // A menu that drops below what opened it, such as the Filter button or a
+  // filter's chip, inside the window: above it where there is no room below.
+  function placeBelow(menu, anchor) {
+    const at = anchor.getBoundingClientRect();
+    const gap = 6;
+    const start = getComputedStyle(anchor).direction === "rtl"
+      ? at.right - menu.offsetWidth
+      : at.left;
+    const left = Math.min(Math.max(start, gap), innerWidth - menu.offsetWidth - gap);
+    const below = at.bottom + gap;
+    const top = below + menu.offsetHeight <= innerHeight - gap
+      ? below
+      : Math.max(gap, at.top - gap - menu.offsetHeight);
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+  // For a menu its own button opens: it waits unseen until it is placed.
+  function dropBelow(event) {
+    const menu = event.target;
+    if (event.newState !== "open") {
+      menu.classList.add("invisible");
+      return;
+    }
+    placeBelow(menu, document.getElementById(menu.dataset.below));
+    menu.classList.remove("invisible");
+  }
+  // A filter's form opens below what asked for it, the Filter button or the
+  // filter's chip, with the focus on its first choice.
+  function openFilter(id, anchor) {
+    const form = document.getElementById(id);
+    form.showPopover();
+    placeBelow(form, anchor);
+    form.querySelector("input:not([type=hidden])")?.focus({ preventScroll: true });
+  }
+  // Whatever controls a popover says whether it is open.
+  document.addEventListener("toggle", (event) => {
+    const popover = event.target;
+    if (!(popover instanceof HTMLElement) || !popover.id || !popover.hasAttribute("popover")) return;
+    document.querySelectorAll(`[aria-controls="${popover.id}"]`).forEach((control) => {
+      control.setAttribute("aria-expanded", String(event.newState === "open"));
+    });
+  }, true);
+
   // A menu opened from a row of another, such as the time zones from the
   // account menu, opens beside that menu, towards the page, its foot level
   // with the row. Where there is no room, as on a phone, it overlaps the

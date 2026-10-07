@@ -3,7 +3,10 @@
 <div id="records" class="relative flex min-h-0 flex-1 flex-col"
      x-data="{ picked: 0, everything: false }">
   {% if request.headers.get("hx-request") %}
-    {% with oob = true %}{% include "adminsite/_records_total.html" %}{% endwith %}
+    {% with oob = true %}
+      {% include "adminsite/_records_total.html" %}
+      {% include "adminsite/_filter_chips.html" %}
+    {% endwith %}
   {% endif %}
   <form method="post" class="flex min-h-0 flex-1 flex-col"
         x-ref="actions" action="{{ urls.action(view, '') }}">

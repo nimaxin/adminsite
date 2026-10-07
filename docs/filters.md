@@ -1,7 +1,9 @@
 # Filters
 
-Filters sit in a panel above the list. The ones in use show as chips, and the whole state lives in
-the URL, so a filtered list can be bookmarked or sent to someone.
+Filters sit behind the Filter button above the list, and each applies as it is picked: ticking a
+box or choosing a range reloads the list at once. The ones in use show as chips under the toolbar.
+A chip opens its filter again, and its cross takes it off. The whole state lives in the URL, so a
+filtered list can be bookmarked or sent to someone.
 
 ## Built in
 
