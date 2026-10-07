@@ -45,19 +45,33 @@ ticked stay in view, so they can be unticked.
 ## Counts
 
 Choice and boolean filters show how many records each option matches. The counts follow the search
-but not the other filters, so they stay steady while you pick. On a big table, turn them off:
+but not the other filters, so they stay steady while you pick. They are counted for the list page
+itself. A new page, sort, search or filter redraws only the table, which shows no counts, so nothing
+is counted for it.
+
+Counting reads every record the list may show, so a view that says its table is too big to count,
+with a `count_mode` of `CountMode.ESTIMATED` or `CountMode.NONE`, shows no counts beside its filters
+either. `show_counts` decides for one filter: `True` counts it whatever the view says, and `False`
+never does.
 
 ```python
-from adminsite.filters import ChoiceFilter
+from adminsite import CountMode
+from adminsite.filters import BooleanFilter, ChoiceFilter
 
 
 class OrderView(ModelView[Order]):
+    list_filters = [Order.status, BooleanFilter("high_risk", show_counts=False)]
+
+
+class EventView(ModelView[Event]):
+    count_mode = CountMode.ESTIMATED
     list_filters = [
         ChoiceFilter(
-            "status",
-            choices=[("PAID", "Paid"), ("SHIPPED", "Shipped")],
-            show_counts=False,
+            "kind",
+            choices=[("signup", "Sign up"), ("order", "Order")],
+            show_counts=True,
         ),
+        Event.created_at,
     ]
 ```
 
@@ -95,6 +109,11 @@ class OrderView(ModelView[Order]):
 `SQLFilter[Order]` is a filter of orders, so `repository` reads orders. `value.first` is the
 chosen option, and `value.values` holds all of them when the filter allows
 several (set `multiple = True` on the class).
+
+`options` can count as well: `await context.count_by(self.path)` counts the records grouped by the
+value at that path. It follows the rule for [counts](#counts), and gives none, without asking the
+database, where the list shows none for the filter. Set `show_counts = True` on the class to count
+it whatever the view says.
 
 When the filter needs to change the statement itself, for example to add a join, override `apply`
 instead of `condition`:

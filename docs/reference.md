@@ -94,7 +94,7 @@ The classes you use most, with their signatures and docstrings.
 ::: adminsite.filters.SQLFilter
     options:
       inherited_members: true
-      members: [multiple, template, options, condition, apply]
+      members: [multiple, template, show_counts, options, condition, apply]
 
 ::: adminsite.filters.FilterOption
 
