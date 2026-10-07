@@ -260,12 +260,12 @@ class Reader(Generic[M]):
         )
         offered: list[tuple[SQLFilter[Any], Sequence[FilterOption]]] = []
         for item in self._pages.list_filters(request):
-            counted = counts and self._counted(item)
+            counted = counts and self.counted(item)
             options = await item.options(replace(context, counts=counted))
             offered.append((item, options))
         return offered
 
-    def _counted(self, item: SQLFilter[Any]) -> bool:
+    def counted(self, item: SQLFilter[Any]) -> bool:
         """Whether a filter's options are counted: as it says, or as the view counts."""
         if item.show_counts is None:
             return self._view.count_mode is CountMode.EXACT

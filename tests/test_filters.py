@@ -427,6 +427,7 @@ class CountedOrders(ModelView[Order]):
 
     name = "orders"
     fields = ["id", "status", "total"]
+    searchable_fields = ["customer.name"]
     list_filters = [Order.status, Order.total]
     page_size = 2
 
@@ -463,26 +464,27 @@ class CustomersNotCountingActive(ModelView[Customer]):
     list_filters = [BooleanFilter("is_active", show_counts=False)]
 
 
+# What each list request sends: the whole page, the table HTMX redraws alone,
+# and the filters drawer asking for its counts as it opens.
+PAGE: dict[str, str] = {}
+TABLE = {"HX-Request": "true"}
+DRAWER = {"HX-Request": "true", "HX-Trigger": "filters"}
+
+
 async def counts_run(
     backend: Backend,
     view: type[ModelView[Any]],
     address: str,
-    *,
-    htmx: bool = False,
+    headers: dict[str, str],
 ) -> tuple[str, list[str]]:
-    """The page one list request draws, and the statements it ran to count options.
-
-    With `htmx`, the request is the one HTMX sends to redraw the table alone.
-    """
+    """What one list request answers, and the statements it ran to count options."""
     app = Starlette()
     app.mount("/admin", Admin(backend.database, views=[view]))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         with count_queries(backend) as queries:
-            response = await client.get(
-                address, headers={"HX-Request": "true"} if htmx else {}
-            )
+            response = await client.get(address, headers=headers)
 
     assert response.status_code == 200
     return response.text, [
@@ -490,19 +492,49 @@ async def counts_run(
     ]
 
 
-def shown_counts(page: str) -> list[str]:
-    """The counts the filters drawer shows beside the options."""
-    return re.findall(r'<span class="text-xs tabular-nums text-muted">(\d+)<', page)
+def shown_counts(answer: str) -> list[str]:
+    """The counts beside the options in the filters drawer, or in its answer."""
+    return re.findall(r'<span id="filter-[^"]*-count-\d+"[^>]*>(\d+)</span>', answer)
 
 
 class TestWhereOptionsAreCounted:
-    async def test_a_view_that_counts_exactly_counts_its_options(
+    @pytest.mark.parametrize("headers", [PAGE, TABLE], ids=["page", "table"])
+    async def test_the_list_itself_counts_none(
+        self, backend: Backend, headers: dict[str, str]
+    ) -> None:
+        page, counting = await counts_run(
+            backend, CountedOrders, "/admin/orders", headers
+        )
+
+        assert counting == []
+        assert shown_counts(page) == []
+
+    async def test_the_drawer_asks_for_them_as_it_opens(self, backend: Backend) -> None:
+        page, _counting = await counts_run(
+            backend, CountedOrders, "/admin/orders", PAGE
+        )
+
+        drawer = re.search(r'<div id="filters"[^>]*>', page)
+        assert drawer is not None
+        assert 'hx-trigger="toggle[filterCountsWanted(event)]"' in drawer.group(0)
+
+    async def test_a_view_that_counts_exactly_counts_them_for_the_drawer(
         self, backend: Backend
     ) -> None:
-        page, counting = await counts_run(backend, CountedOrders, "/admin/orders")
+        answer, counting = await counts_run(
+            backend, CountedOrders, "/admin/orders", DRAWER
+        )
 
         assert len(counting) == 1
-        assert shown_counts(page) == ["2", "2", "2", "1"]
+        assert shown_counts(answer) == ["2", "2", "2", "1"]
+
+    async def test_they_follow_the_search(self, backend: Backend) -> None:
+        answer, _counting = await counts_run(
+            backend, CountedOrders, "/admin/orders?q=lena", DRAWER
+        )
+
+        assert shown_counts(answer) == ["1", "1"]
+        assert 'data-search="lena"' in answer
 
     @pytest.mark.parametrize(
         ("view", "address"),
@@ -514,29 +546,33 @@ class TestWhereOptionsAreCounted:
     async def test_a_filter_told_not_to_count_runs_no_count(
         self, backend: Backend, view: type[ModelView[Any]], address: str
     ) -> None:
-        page, counting = await counts_run(backend, view, address)
+        page, _counting = await counts_run(backend, view, address, PAGE)
+        answer, counting = await counts_run(backend, view, address, DRAWER)
 
+        assert 'hx-trigger="toggle[' not in page
         assert counting == []
-        assert shown_counts(page) == []
+        assert shown_counts(answer) == []
 
     @pytest.mark.parametrize("view", [EstimatedOrders, UncountedOrders])
     async def test_a_view_too_big_to_count_counts_no_options(
         self, backend: Backend, view: type[ModelView[Order]]
     ) -> None:
-        page, counting = await counts_run(backend, view, "/admin/orders")
+        page, _counting = await counts_run(backend, view, "/admin/orders", PAGE)
+        answer, counting = await counts_run(backend, view, "/admin/orders", DRAWER)
 
+        assert 'hx-trigger="toggle[' not in page
         assert counting == []
-        assert shown_counts(page) == []
+        assert shown_counts(answer) == []
 
     async def test_a_filter_can_ask_to_be_counted_all_the_same(
         self, backend: Backend
     ) -> None:
-        page, counting = await counts_run(
-            backend, EstimatedOrdersCountingStatus, "/admin/orders"
+        answer, counting = await counts_run(
+            backend, EstimatedOrdersCountingStatus, "/admin/orders", DRAWER
         )
 
         assert len(counting) == 1
-        assert shown_counts(page) == ["2", "2"]
+        assert shown_counts(answer) == ["2", "2"]
 
     @pytest.mark.parametrize("view", [CountedOrders, EstimatedOrdersCountingStatus])
     @pytest.mark.parametrize(
@@ -550,7 +586,7 @@ class TestWhereOptionsAreCounted:
     async def test_the_table_redrawn_alone_counts_no_options(
         self, backend: Backend, view: type[ModelView[Order]], address: str
     ) -> None:
-        _page, counting = await counts_run(backend, view, address, htmx=True)
+        _page, counting = await counts_run(backend, view, address, TABLE)
 
         assert counting == []
 
@@ -558,7 +594,7 @@ class TestWhereOptionsAreCounted:
         self, backend: Backend
     ) -> None:
         page, _counting = await counts_run(
-            backend, CountedOrders, "/admin/orders?status=SHIPPED", htmx=True
+            backend, CountedOrders, "/admin/orders?status=SHIPPED", TABLE
         )
 
         assert "Status: Shipped" in page
