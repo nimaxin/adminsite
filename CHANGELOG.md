@@ -24,13 +24,25 @@
   link to many now are too, as is each value in the import preview. The record's page shows the
   whole value. A project that overrides `_row.html` or `import_preview.html` should start its copy
   again from the new one (#61).
-- A list over a big table no longer waits for its filters to count every row. A filter's options
-  are counted for the list page itself; the table that a new page, a sort, a search or a filter
-  redraws on its own shows no counts, and no longer counts them. A view whose `count_mode` is
-  `CountMode.ESTIMATED` or `CountMode.NONE` counts no filter's options, those built from a column
-  included, unless a filter is given `show_counts=True`. `BooleanFilter` takes `show_counts` as
-  `ChoiceFilter` does, and left out, both follow the view. A filter of your own that counts with
-  `count_by` follows the same rule (#60).
+- A list over a big table no longer waits for its filters to count every row. A view whose
+  `count_mode` is `CountMode.ESTIMATED` or `CountMode.NONE` counts no filter's options, those built
+  from a column included, unless a filter is given `show_counts=True`. `BooleanFilter` takes
+  `show_counts` as `ChoiceFilter` does, and left out, both follow the view. A filter of your own
+  that counts with `count_by` follows the same rule (#60).
+- A list shows its rows as soon as it has read them, whatever its `count_mode`. The total follows
+  in a request of its own and fills in under the heading, at the foot of the list, on the button
+  at the foot of the filters drawer on a phone and in the Actions menu, so an exact count of
+  millions of rows, or a filter on a column with no index, keeps nobody waiting. A new page or
+  sort keeps the total it has, and only a new search or filter counts again (#64).
+- The filters drawer asks for the counts beside its options as it opens, so the list never waits
+  for them, and a list nobody filters never counts them. It asks again after a new search, so the
+  counts always match the search the list shows; they kept those of the search the page was first
+  drawn with (#64).
+- A project that overrides `_table.html`, `_records_total.html`, `_bulk_actions.html`,
+  `_filters.html` or `base.html` should start its copy again from the new one. The count at the
+  foot of the list, the page numbers and the first line of the Actions menu are drawn by
+  `_records_count.html`, `_page_numbers.html` and `_bulk_summary.html`, which the total is sent
+  back with (#64).
 
 ## 0.1.0a15
 
