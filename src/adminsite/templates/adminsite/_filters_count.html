@@ -1,0 +1,4 @@
+{#- How many filters are on, on the Filters button. The table sends it again
+    with every reload. -#}
+<span id="filters-count" class="badge badge-sm badge-primary rounded-full px-1.5 tabular-nums empty:hidden"
+      {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>{% if chips %}{{ chips|length }}{% endif %}</span>

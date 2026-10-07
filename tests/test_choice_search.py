@@ -73,8 +73,8 @@ async def list_page(
 
 
 def panel_of(page: str) -> str:
-    """The region filter's panel, from its form to the end of the form."""
-    found = re.search(r'<form id="filter-region".*?</form>', page, re.DOTALL)
+    """The region filter's part of the filters drawer, from start to end."""
+    found = re.search(r'<fieldset id="filter-region".*?</fieldset>', page, re.DOTALL)
     assert found is not None
     return found.group(0)
 

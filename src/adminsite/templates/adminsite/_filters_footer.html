@@ -1,0 +1,18 @@
+{#- The foot of the filters drawer on a phone, where the drawer covers the
+    list: Clear all while a filter is on, and a button that shows the list
+    again, saying how many it holds. The table sends it again with every
+    reload, so the count is never stale. -#}
+{%- set names = panels|map(attribute="filter.name")|list -%}
+<div id="filters-footer" class="flex items-center gap-4 border-t border-line px-5 py-3 md:hidden"
+     {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+  {% if chips %}
+    {% set cleared = {"page": None, "after": None, "before": None} %}
+    {% for name in names %}{% set ignored = cleared.update({name: None}) %}{% endfor %}
+    <a class="font-medium underline underline-offset-3" href="{{ urls.here(**cleared) }}"
+       data-keeps="{{ names|join(' ') }}">{{ _('Clear all') }}</a>
+  {% endif %}
+  <button class="btn btn-primary ms-auto" type="button" popovertarget="filters" popovertargetaction="hide">
+    {%- if total_text %}{{ _('Show {count} {things}', count=total_text, things=view.label_plural|lower) }}
+    {%- else %}{{ _('Show {things}', things=view.label_plural|lower) }}{% endif -%}
+  </button>
+</div>

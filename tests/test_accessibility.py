@@ -224,15 +224,23 @@ class TestTheList:
         assert '<p id="records-status" class="sr-only" aria-live="polite">' in page.text
         assert '<span class="tabular-nums" data-count>' in page.text
 
-    async def test_each_filter_says_whether_it_is_open(
+    async def test_the_filters_drawer_is_named_by_its_heading(
         self, client: httpx.AsyncClient
     ) -> None:
         page = await client.get("/admin/orders")
 
-        assert re.search(
-            r'aria-expanded="false"\s+aria-controls="filter-status"', page.text
+        assert (
+            '<div id="filters" popover aria-labelledby="filters-heading"' in page.text
         )
-        assert 'id="filter-status"' in page.text
+        assert '<h2 id="filters-heading"' in page.text
+        assert 'aria-label="Close the filters"' in page.text
+
+    async def test_each_chip_says_whether_the_filters_are_open(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await client.get("/admin/orders?status=PAID")
+
+        assert re.search(r'aria-expanded="false"\s+aria-controls="filters"', page.text)
 
 
 class TestTheForm:

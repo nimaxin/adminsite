@@ -65,10 +65,10 @@
     Alpine.store("selection", { picked: 0, everything: false });
   });
 
-  // A menu that drops below what opened it, such as the Filter button or a
-  // filter's chip, inside the window: above it where there is no room below.
-  // It lines up with the start of what opened it, or with the end for a menu
-  // marked `data-align="end"`, such as the Actions menu.
+  // A menu that drops below the button that opened it, inside the window:
+  // above it where there is no room below. It lines up with the start of the
+  // button, or with the end for a menu marked `data-align="end"`, such as the
+  // Actions menu.
   function placeBelow(menu, anchor) {
     const at = anchor.getBoundingClientRect();
     const gap = 6;
@@ -94,13 +94,14 @@
     placeBelow(menu, document.getElementById(menu.dataset.below));
     menu.classList.remove("invisible");
   }
-  // A filter's form opens below what asked for it, the Filter button or the
-  // filter's chip, with the focus on its first choice.
-  function openFilter(id, anchor) {
-    const form = document.getElementById(id);
-    form.showPopover();
-    placeBelow(form, anchor);
-    form.querySelector("input:not([type=hidden])")?.focus({ preventScroll: true });
+  // A filter's chip opens the filters drawer at that filter, with the focus
+  // on its first choice.
+  function openFilters(id) {
+    const drawer = document.getElementById("filters");
+    if (!drawer.matches(":popover-open")) drawer.showPopover();
+    const filter = document.getElementById(id);
+    filter.scrollIntoView({ block: "nearest" });
+    filter.querySelector("input:not([type=hidden])")?.focus({ preventScroll: true });
   }
   // Whatever controls a popover says whether it is open.
   document.addEventListener("toggle", (event) => {
@@ -141,7 +142,9 @@
   // The table reloads on its own for a search, a sort, a page or a filter,
   // and moves the address with it. A form or a link outside the table that
   // carries the rest of the address takes it as it is now, not as it was
-  // when the page was drawn. Its data-keeps names the values it sets itself.
+  // when the page was drawn. Its data-keeps names the values it sets itself,
+  // and data-drops-empty leaves out the ones it sets to nothing, such as a
+  // filter not in use.
   const PAGING_KEYS = ["page", "after", "before"];
   function keptAddress(own) {
     const params = new URLSearchParams(location.search);
@@ -156,7 +159,11 @@
     if (!keeper || event.detail.verb !== "get") return;
     const own = ownKeys(keeper);
     const sent = event.detail.formData;
-    [...new Set(sent.keys())].filter((key) => !own.includes(key)).forEach((key) => sent.delete(key));
+    const empty = (key) => keeper.hasAttribute("data-drops-empty")
+      && sent.getAll(key).every((value) => value === "");
+    [...new Set(sent.keys())]
+      .filter((key) => !own.includes(key) || empty(key))
+      .forEach((key) => sent.delete(key));
     keptAddress(own).forEach((value, key) => sent.append(key, value));
   });
   document.addEventListener("submit", (event) => {

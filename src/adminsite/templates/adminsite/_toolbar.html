@@ -1,8 +1,6 @@
 {#- Above the table: the search, the filters, the actions and the columns.
-    Every filter sits behind one Filter button. Each opens a small form of its
-    own, below the button or its chip, which applies as you pick and reloads
-    only the table, keeping the rest of the address. The filters in use show
-    as chips under the toolbar. -#}
+    The Filters button opens every filter at once in a drawer over the list,
+    and the filters in use show as chips under the toolbar. -#}
 {% import "adminsite/_icons.html" as icons %}
 {%- set kept = request.query_params.multi_items()|list -%}
 <div class="flex flex-wrap items-center gap-2 px-4 py-3 lg:px-7">
@@ -25,120 +23,10 @@
   {% endif %}
 
   {% if panels %}
-    <button id="filter-button" class="btn btn-plain btn-sm" type="button" popovertarget="filter-fields">
-      <span class="text-muted">{{ icons.icon("filter") }}</span>{{ _('Filter') }}
+    <button id="filters-button" class="btn btn-plain btn-sm" type="button" popovertarget="filters">
+      <span class="text-muted">{{ icons.icon("filter") }}</span>{{ _('Filters') }}
+      {% include "adminsite/_filters_count.html" %}
     </button>
-    {#- The filters to choose from, in the top layer, so nothing scrolling
-        under them cuts them off. Each opens its own form below the button. -#}
-    <ul id="filter-fields" popover data-below="filter-button" ontoggle="dropBelow(event)"
-        aria-label="{{ _('Filter') }}"
-        class="menu invisible inset-auto m-0 w-60 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
-      {% for panel in panels %}
-        <li>
-          <button type="button" aria-expanded="false" aria-controls="filter-{{ panel.filter.name|replace('.', '-') }}"
-                  onclick="openFilter('filter-{{ panel.filter.name|replace('.', '-') }}', document.getElementById('filter-button'))">
-            {{ panel.filter.label }}
-          </button>
-        </li>
-      {% endfor %}
-    </ul>
-    {#- What makes a filter's form apply: a box ticked, a shortcut picked or a
-        range's end typed. The box that narrows a long list has no name, so
-        typing there applies nothing. Picking "between" waits for its ends, and
-        a date typed a digit at a time waits until the typing stops. -#}
-    {% set applies = {"choice": "change[target.name !== '']", "range": "change[target.value !== 'custom'] delay:300ms"} %}
-    {% for panel in panels %}
-      {% set name = panel.filter.name %}
-      {% set panel_id = "filter-" ~ name|replace(".", "-") %}
-      <form id="{{ panel_id }}" popover method="get" action="{{ urls.list(view) }}" data-keeps="{{ name }}"
-            {% if panel.filter.template in applies %}hx-get="{{ urls.list(view) }}" hx-trigger="{{ applies[panel.filter.template] }}"
-            hx-target="#records" hx-swap="outerHTML" hx-push-url="true"{% endif %}
-            aria-label="{{ panel.filter.label }}"
-            class="inset-auto m-0 w-80 max-w-[calc(100vw-2rem)] rounded-box border border-base-300 bg-base-100 p-4 text-base-content shadow-float">
-        {% for key, value in kept if key not in (name, "page", "after", "before") %}
-          <input type="hidden" name="{{ key }}" value="{{ value }}">
-        {% endfor %}
-        <fieldset>
-          <legend class="mb-3 text-sm font-semibold">{{ panel.filter.label }}</legend>
-          {% if panel.filter.template == "choice" %}
-            {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
-            {#- A long list gets a box above it that narrows it as you type.
-                The box has no name, so the filter never sends what was typed. -#}
-            <div {% if panel.searchable %}x-data="choiceSearch()"{% endif %}>
-              {% if panel.searchable %}
-                <label class="input input-sm mb-2 w-full">
-                  <span class="text-muted">{{ icons.icon("search") }}</span>
-                  <input type="search" class="grow" x-model="query" @keydown.enter.prevent
-                         placeholder="{{ _('Search') }}"
-                         aria-label="{{ _('Search {things}', things=panel.filter.label|lower) }}">
-                </label>
-              {% endif %}
-              <div class="-mx-2 flex max-h-64 flex-col gap-0.5 overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
-                {% for option in panel.options %}
-                  <label class="flex h-8 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200"
-                         {% if panel.searchable %}data-label="{{ option.label }}" x-show="shows($el)"{% endif %}>
-                    <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}"
-                           class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
-                           {% if option.value in panel.chosen %}checked{% endif %}>
-                    <span class="flex-1">{{ option.label }}</span>
-                    {% if option.count is not none %}
-                      <span class="text-xs tabular-nums text-muted">{{ option.count }}</span>
-                    {% endif %}
-                  </label>
-                {% endfor %}
-              </div>
-              {% if panel.searchable %}
-                <p class="py-2 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
-              {% endif %}
-            </div>
-          {% elif panel.filter.template == "range" %}
-            {#- A shortcut, or a value at each end. What is sent is one value,
-                the shortcut's name or the two ends joined by a comma. -#}
-            {% set current = panel.chosen[0] if panel.chosen else "" %}
-            {% set presets = panel.options|map(attribute="value")|list %}
-            {% set custom = current and current not in presets %}
-            {% set ends = (current.split(",") if custom else []) + ["", ""] %}
-            {% set kind = panel.filter.input_type|default("text") %}
-            <div x-data='{ preset: {{ (current if current in presets else ("custom" if custom else ""))|tojson }}, low: {{ ends[0]|tojson }}, high: {{ ends[1]|tojson }} }'>
-              <input type="hidden" name="{{ name }}"
-                     :value="preset && preset !== 'custom' ? preset : ((low || high) ? low + ',' + high : '')">
-              {% if panel.options %}
-                <div class="mb-3 grid grid-cols-2 gap-1.5">
-                  {% for option in panel.options %}
-                    <label class="flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
-                      <input type="radio" class="radio radio-xs radio-primary" value="{{ option.value }}" x-model="preset">
-                      {{ option.label }}
-                    </label>
-                  {% endfor %}
-                  <label class="col-span-2 flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
-                    <input type="radio" class="radio radio-xs radio-primary" value="custom" x-model="preset">
-                    {{ _('Between two dates') if kind == "date" else _('Between two values') }}
-                  </label>
-                </div>
-              {% endif %}
-              <div class="grid grid-cols-2 gap-2.5" {% if panel.options %}x-show="preset === 'custom'"{% endif %}>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted">
-                  {{ _('From') }}
-                  <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}"
-                         {% if kind == "number" %}step="any"{% endif %} x-model="low" value="{{ ends[0] }}">
-                </label>
-                <label class="flex flex-col gap-1 text-xs font-medium text-muted">
-                  {{ _('To') }}
-                  <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}"
-                         {% if kind == "number" %}step="any"{% endif %} x-model="high" value="{{ ends[1] }}">
-                </label>
-              </div>
-            </div>
-          {% else %}
-            <input class="input input-sm w-full" type="text" name="{{ name }}"
-                   value="{{ panel.chosen[0] if panel.chosen else '' }}"
-                   aria-label="{{ panel.filter.label }}" placeholder="{{ panel.filter.label|lower }}"
-                   hx-get="{{ urls.list(view) }}" hx-trigger="input changed delay:400ms, search"
-                   hx-include="closest form" hx-target="#records" hx-swap="outerHTML" hx-push-url="true">
-          {% endif %}
-        </fieldset>
-      </form>
-    {% endfor %}
   {% endif %}
 
   <span class="flex-1"></span>
@@ -147,3 +35,4 @@
   {% include "adminsite/_list_forms.html" %}
 </div>
 {% include "adminsite/_filter_chips.html" %}
+{% if panels %}{% include "adminsite/_filters.html" %}{% endif %}

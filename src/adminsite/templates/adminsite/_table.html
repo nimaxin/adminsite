@@ -8,6 +8,10 @@
     {% with oob = true %}
       {% include "adminsite/_records_total.html" %}
       {% include "adminsite/_filter_chips.html" %}
+      {% if panels %}
+        {% include "adminsite/_filters_count.html" %}
+        {% include "adminsite/_filters_footer.html" %}
+      {% endif %}
       {% include "adminsite/_bulk_actions.html" %}
     {% endwith %}
   {% endif %}
