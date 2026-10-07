@@ -103,6 +103,79 @@ class TestFilters:
         assert "q=a" in link
         assert "status=" not in link
 
+    async def test_clear_all_keeps_the_search_and_the_sort(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get(
+            "/admin/orders?status=SHIPPED&total=100,&q=a&sort=total&page=2"
+        )
+
+        clear = re.search(r'href="([^"]+)">Clear all</a>', response.text)
+        assert clear is not None
+        link = html.unescape(clear.group(1))
+        assert "q=a" in link
+        assert "sort=total" in link
+        assert "status=" not in link
+        assert "total=" not in link.replace("sort=total", "")
+        assert "page=" not in link
+
+    async def test_a_chip_opens_its_filter(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders?status=SHIPPED")
+
+        assert "openFilter('filter-status', this)" in response.text
+
+    async def test_no_chips_without_a_filter(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders")
+
+        assert "Clear all" not in response.text
+
+    async def test_the_chips_come_back_with_the_table(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get(
+            "/admin/orders?status=SHIPPED", headers={"HX-Request": "true"}
+        )
+
+        chips = re.search(r'<div id="filter-chips"[^>]*>', response.text)
+        assert chips is not None
+        assert 'hx-swap-oob="true"' in chips.group(0)
+        assert "Status: Shipped" in response.text
+
+    async def test_one_button_lists_the_filters(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+
+        assert 'popovertarget="filter-fields"' in response.text
+        listed = re.search(r'<ul id="filter-fields".*?</ul>', response.text, re.DOTALL)
+        assert listed is not None
+        for name in ("status", "total", "created_at"):
+            assert f"openFilter('filter-{name}'" in listed.group(0)
+
+    async def test_a_filter_applies_as_it_is_picked(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.get("/admin/orders")
+
+        form = re.search(
+            r'<form id="filter-status".*?</form>', response.text, re.DOTALL
+        )
+        assert form is not None
+        opening = html.unescape(form.group(0).split(">", 1)[0])
+        # The box narrowing a long list has no name, and applies nothing.
+        assert "hx-trigger=\"change[target.name !== '']\"" in opening
+        assert 'hx-target="#records"' in opening
+        assert 'hx-push-url="true"' in opening
+        assert 'data-keeps="status"' in opening
+        assert 'type="submit"' not in form.group(0)
+
+    async def test_a_range_waits_for_both_ends(self, client: httpx.AsyncClient) -> None:
+        response = await client.get("/admin/orders")
+
+        form = re.search(r'<form id="filter-created_at"[^>]*>', response.text)
+        assert form is not None
+        assert "target.value !== 'custom'" in html.unescape(form.group(0))
+
     async def test_a_range_filter_reads_from_the_url(
         self, client: httpx.AsyncClient
     ) -> None:

@@ -6,8 +6,16 @@
   those whose label holds what was typed. Ticked options stay in view while it does (#44).
 - The foot of the sidebar is one account menu: the name of whoever is signed in opens it, upwards,
   with a Dark mode switch, the language and the time zone, each opening its own menu beside it,
-  and Sign out. They sat side by side before, and crowded the name out. Without signing in, the button reads Settings. A
-  project that overrides `base.html` should start its copy again from the new one.
+  and Sign out. They sat side by side before, and crowded the name out. Without signing in, the
+  button reads Settings. A project that overrides `base.html` should start its copy again from the
+  new one.
+- The list's filters sit behind one Filter button, and each applies as it is picked: ticking a box
+  or choosing a range reloads the list at once, with no Apply button. The filters in use show as
+  chips under the toolbar. A chip opens its filter again, its cross takes it off, and Clear all
+  takes every filter off but keeps the search and the sort. A project that overrides
+  `_toolbar.html` or `_table.html` should start its copy again from the new one (#46).
+- Changing the columns or the rows per page keeps the sort, the search and the filters. They were
+  lost once the table had reloaded on its own, after a sort or a search (#46).
 
 ## 0.1.0a14
 
