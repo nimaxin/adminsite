@@ -9,11 +9,14 @@
   and Sign out. They sat side by side before, and crowded the name out. Without signing in, the
   button reads Settings. A project that overrides `base.html` should start its copy again from the
   new one.
-- The list's filters sit behind one Filter button, and each applies as it is picked: ticking a box
-  or choosing a range reloads the list at once, with no Apply button. The filters in use show as
-  chips under the toolbar. A chip opens its filter again, its cross takes it off, and Clear all
-  takes every filter off but keeps the search and the sort. A project that overrides
-  `_toolbar.html` or `_table.html` should start its copy again from the new one (#46).
+- The Filters button above the list opens every filter at once, in a drawer over the list, and
+  each applies as it is picked: ticking a box or choosing a range reloads the list behind it, with
+  no Apply button. On a phone the drawer covers the screen, and the button at its foot says how
+  many records match. The filters in use show as chips under the toolbar, counted on the button. A
+  chip opens the drawer at its filter, its cross takes it off, and Clear all takes every filter off
+  but keeps the search and the sort. A range's chip says it in words, such as "Total: 100 or
+  more". A project that overrides `_toolbar.html` or `_table.html` should start its copy again from
+  the new one (#46).
 - Changing the columns or the rows per page keeps the sort, the search and the filters. They were
   lost once the table had reloaded on its own, after a sort or a search (#46).
 - The actions for the ticked rows sit in an Actions menu above the list, which counts the ticked

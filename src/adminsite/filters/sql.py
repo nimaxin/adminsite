@@ -185,6 +185,12 @@ class BooleanFilter(SQLFilter[Any]):
         )
 
 
+def _ends(raw: str) -> tuple[str, str]:
+    """The two ends of a range as written, either one possibly empty."""
+    low, _separator, high = raw.partition(RANGE_SEPARATOR)
+    return low.strip(), high.strip()
+
+
 class NumberRangeFilter(SQLFilter[Any]):
     """A range of numbers, written as `min,max` with either side empty.
 
@@ -212,6 +218,19 @@ class NumberRangeFilter(SQLFilter[Any]):
     async def options(self, context: FilterContext) -> Sequence[FilterOption]:
         """List the shortcuts this filter offers, if any."""
         return tuple(FilterOption(value, label) for value, label in self.presets)
+
+    def describe(self, value: FilterValue, options: Sequence[FilterOption] = ()) -> str:
+        """Write the chip: a shortcut's label, or the range in words."""
+        low, high = _ends(value.first)
+        if value.first in {option.value for option in options} or not (low or high):
+            return super().describe(value, options)
+        if low and high:
+            shown = _("{low} to {high}", low=low, high=high)
+        elif low:
+            shown = _("{low} or more", low=low)
+        else:
+            shown = _("{high} or less", high=high)
+        return f"{self.label}: {shown}"
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]
@@ -283,6 +302,19 @@ class DateRangeFilter(SQLFilter[Any]):
         return tuple(
             FilterOption(value, _(label)) for value, label, _days in self.PRESETS
         )
+
+    def describe(self, value: FilterValue, options: Sequence[FilterOption] = ()) -> str:
+        """Write the chip: a shortcut's label, or the period in words."""
+        start, end = _ends(value.first)
+        if value.first in {option.value for option in options} or not (start or end):
+            return super().describe(value, options)
+        if start and end:
+            shown = _("{low} to {high}", low=start, high=end)
+        elif start:
+            shown = _("{day} or later", day=start)
+        else:
+            shown = _("{day} or earlier", day=end)
+        return f"{self.label}: {shown}"
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]

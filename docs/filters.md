@@ -1,9 +1,11 @@
 # Filters
 
-Filters sit behind the Filter button above the list, and each applies as it is picked: ticking a
-box or choosing a range reloads the list at once. The ones in use show as chips under the toolbar.
-A chip opens its filter again, and its cross takes it off. The whole state lives in the URL, so a
-filtered list can be bookmarked or sent to someone.
+The Filters button above the list opens every filter at once, in a drawer over the list. Each
+applies as it is picked: ticking a box or choosing a range reloads the list behind the drawer,
+which stays open. The ones in use show as chips under the toolbar, and the button counts them. A
+chip opens the drawer at its filter, and its cross takes it off. On a phone the drawer covers the
+screen, and the button at its foot says how many records match. The whole state lives in the URL,
+so a filtered list can be bookmarked or sent to someone.
 
 ## Built in
 
