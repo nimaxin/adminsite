@@ -97,7 +97,9 @@ def next_is_offered(page: str) -> bool:
 
 
 class TestTheRows:
-    @pytest.mark.parametrize("view", [Orders, EstimatedOrders, UncountedOrders])
+    @pytest.mark.parametrize(
+        "view", [Orders, EstimatedOrders, UncountedOrders, FilteredOrders]
+    )
     @pytest.mark.parametrize("htmx", [False, True], ids=["page", "table"])
     async def test_they_never_wait_for_a_count(
         self, backend: Backend, view: type[ModelView[Order]], htmx: bool

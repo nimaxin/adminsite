@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = [
     "COLUMNS_KEY",
     "COLUMNS_PARAM",
+    "FILTER_COUNTS_TRIGGER",
     "KEPT_TOTAL_HEADER",
     "SEARCHABLE_OVER",
     "SIZE_KEY",
@@ -45,9 +46,11 @@ __all__ = [
     "active_chips",
     "active_view",
     "as_context",
+    "asks_for_filter_counts",
     "asks_for_total",
     "build_panels",
     "export_params",
+    "filter_counts",
     "kept_total",
     "list_records",
     "list_spec",
@@ -77,6 +80,8 @@ TOTAL_TRIGGER = "records-counter"
 # Where the table sends back the total it shows when it asks for a new page
 # or sort, which keep it.
 KEPT_TOTAL_HEADER = "adminsite-total"
+# The filters drawer, which asks for its options' counts as it opens.
+FILTER_COUNTS_TRIGGER = "filters"
 
 
 @dataclass
@@ -86,6 +91,8 @@ class FilterPanel:
     filter: Filter
     options: Sequence[FilterOption] = ()
     value: FilterValue | None = None
+    # Whether its options are counted on this view, when the drawer asks.
+    counted: bool = False
 
     @property
     def active(self) -> bool:
@@ -234,7 +241,7 @@ async def build_panels(
 ) -> list[FilterPanel]:
     """Build each filter's control, with counts where it offers them.
 
-    `counts` says whether the page shows any. Left off, the options are
+    `counts` says whether the answer shows any. Left off, the options are
     still read, for the labels the chips are worded with.
     """
     chosen = {value.name: value for value in spec.filters}
@@ -242,7 +249,12 @@ async def build_panels(
         session, spec, request=request, counts=counts
     )
     return [
-        FilterPanel(filter=item, options=options, value=chosen.get(item.name))
+        FilterPanel(
+            filter=item,
+            options=options,
+            value=chosen.get(item.name),
+            counted=view._reader.counted(item),
+        )
         for item, options in offered
     ]
 
@@ -255,6 +267,11 @@ def wants_partial(request: Request) -> bool:
 def asks_for_total(request: Request) -> bool:
     """Whether this is the request that follows a list's rows, for their total."""
     return request.headers.get("hx-trigger") == TOTAL_TRIGGER
+
+
+def asks_for_filter_counts(request: Request) -> bool:
+    """Whether this is the filters drawer asking for its counts as it opens."""
+    return request.headers.get("hx-trigger") == FILTER_COUNTS_TRIGGER
 
 
 def total_key(read: ListRequest) -> str:
@@ -462,20 +479,37 @@ async def list_total(
     return await admin.render("_records_counted.html", request, context)
 
 
+async def filter_counts(
+    admin: "Admin", request: Request, view: ModelView[Any], spec: QuerySpec
+) -> Response:
+    """The counts beside the filters' options, asked for as the drawer opens.
+
+    They follow the search alone, so the drawer asks again only once the
+    search has changed.
+    """
+    async with admin.database.session() as session:
+        panels = await build_panels(view, session, spec, request, counts=True)
+    return await admin.render(
+        "_filter_counts.html", request, {"panels": panels, "search": spec.search}
+    )
+
+
 async def list_records(admin: "Admin", request: Request) -> Response:
     """One page of records, with the search, filters and sort applied.
 
     The rows never wait for a count. They come without their total, which
-    the table asks for in a request of its own once they are on screen.
+    the table asks for in a request of its own once they are on screen, and
+    without the counts beside the filters' options, which the filters
+    drawer asks for as it opens.
     """
     view = find_view(admin, request)
     read = read_list_request(request, view)
     spec = list_spec(view, request, read)
     if asks_for_total(request):
         return await list_total(admin, request, view, read, spec)
+    if asks_for_filter_counts(request):
+        return await filter_counts(admin, request, view, spec)
     # HTMX redraws the table alone, for a new page, sort, search or filter.
-    # The options' counts show only in the filters drawer, which it does not
-    # send again, so none are counted.
     partial = wants_partial(request)
 
     async with admin.database.session() as session:
@@ -493,7 +527,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
             read.columns or view._pages.list_fields(request),
             request=request,
         )
-        panels = await build_panels(view, session, spec, request, counts=not partial)
+        panels = await build_panels(view, session, spec, request, counts=False)
 
     context = as_context(view, request, spec, page, panels, read)
     # The table asks for the total once the rows are on screen, unless the

@@ -96,6 +96,14 @@
     placeBelow(menu, document.getElementById(menu.dataset.below));
     menu.classList.remove("invisible");
   }
+  // The filters drawer asks for the counts beside its options as it opens,
+  // unless it holds them already for the search the list shows: they follow
+  // the search alone.
+  function filterCountsWanted(event) {
+    const counted = document.getElementById("filters-counted");
+    const search = (new URLSearchParams(location.search).get("q") ?? "").trim();
+    return event.newState === "open" && counted?.dataset.search !== search;
+  }
   // A filter's chip opens the filters drawer at that filter, with the focus
   // on its first choice.
   function openFilters(id) {

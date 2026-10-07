@@ -3,10 +3,18 @@
     the list stays in view and changes as you go. On a phone it covers the
     screen, with a button at its foot that shows the list again. -#}
 {% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_option_count.html" as counts %}
 {%- set names = panels|map(attribute="filter.name")|list -%}
 {%- set kept = request.query_params.multi_items()|list -%}
+{%- set counted = panels|selectattr("counted")|list -%}
+{#- The counts beside the options follow the search, and come in a request of
+    their own as the drawer opens: again only once the search has changed, so
+    a list nobody filters never counts them. -#}
 <div id="filters" popover aria-labelledby="filters-heading"
+     {% if counted %}hx-get="{{ urls.list(view) }}" hx-trigger="toggle[filterCountsWanted(event)]"
+     hx-swap="none" hx-sync="this:replace" data-keeps=""{% endif %}
      class="inset-auto top-2 bottom-2 end-2 m-0 h-auto w-88 max-w-[calc(100vw-1rem)] overflow-hidden rounded-box border border-base-300 bg-base-100 p-0 text-base-content shadow-float max-md:inset-0 max-md:w-full max-md:max-w-none max-md:rounded-none max-md:border-0">
+  {% if counted %}<span id="filters-counted" hidden></span>{% endif %}
   {#- A box ticked, a shortcut picked or an end of a range typed applies the
       form; each of those is marked `data-applies`. The box that narrows a
       long list is not, nor is picking "between", which waits for its ends.
@@ -51,9 +59,7 @@
                              class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
                              {% if option.value in panel.chosen %}checked{% endif %}>
                       <span class="flex-1">{{ option.label }}</span>
-                      {% if option.count is not none %}
-                        <span class="text-xs tabular-nums text-muted">{{ option.count }}</span>
-                      {% endif %}
+                      {% if panel.counted %}{{ counts.slot(name, loop.index, option) }}{% endif %}
                     </label>
                   {% endfor %}
                 </div>

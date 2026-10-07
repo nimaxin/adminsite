@@ -1,0 +1,9 @@
+{#- The counts beside the filters' options, which the drawer asks for as it
+    opens. Each is swapped in on its own, so a box ticked meanwhile stays as
+    it is, and the drawer keeps the search they were counted for. -#}
+{% import "adminsite/_option_count.html" as counts %}
+<span id="filters-counted" hidden data-search="{{ search }}" hx-swap-oob="true"></span>
+{% for panel in panels if panel.counted %}
+  {% set name = panel.filter.name %}
+  {% for option in panel.options %}{{ counts.slot(name, loop.index, option, oob=true) }}{% endfor %}
+{% endfor %}

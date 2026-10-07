@@ -1,0 +1,9 @@
+{#- The count beside one option in the filters drawer. The drawer asks for the
+    counts as it opens, and each is then swapped in on its own. -#}
+{% macro slot(name, index, option, oob=false) -%}
+<span id="filter-{{ name|replace('.', '-') }}-count-{{ index }}"
+      class="text-xs tabular-nums text-muted empty:hidden"
+      {% if oob %}hx-swap-oob="true"{% endif %}>
+  {%- if option.count is not none %}{{ option.count }}{% endif -%}
+</span>
+{%- endmacro %}
