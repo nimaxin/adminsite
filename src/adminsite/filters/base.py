@@ -57,7 +57,11 @@ class FilterContext(Protocol):
     """What a filter can ask the database while building its options."""
 
     async def count_by(self, path: str) -> Mapping[str, int]:
-        """Count the matching records grouped by the value at this path."""
+        """Count the matching records grouped by the value at this path.
+
+        Empty, without asking the database, where the list shows no counts
+        for the filter asking: see `Filter.show_counts`.
+        """
         ...
 
     async def distinct(self, path: str, limit: int) -> Sequence[object]:
@@ -76,6 +80,13 @@ class Filter:
     """Whether several options can be picked at once, all in `value.values`."""
     template = "choice"
     """The control the list draws: "choice", "range", "relation" or "text"."""
+    show_counts: bool | None = None
+    """Whether each option says how many records it matches.
+
+    Counting reads every record the list may show, so None, the default,
+    leaves it to the view: the options are counted where its `count_mode` is
+    `CountMode.EXACT`, and not on a view too big to count.
+    """
 
     def __init__(
         self,

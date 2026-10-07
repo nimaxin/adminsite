@@ -1,6 +1,7 @@
 """What a view reads: its pages of records, one record, and what goes with them."""
 
 from collections.abc import Collection, Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from starlette.requests import Request
@@ -14,7 +15,7 @@ from adminsite.fields.computed import LOADED
 from adminsite.filters import FilterOption, FilterValue
 from adminsite.filters.sql import SQLFilter, SQLFilterContext
 from adminsite.permissions import Permission
-from adminsite.query import Page, Pagination, QuerySpec, Sort
+from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
 from adminsite.views._fields import ViewFields
 from adminsite.views._linked_names import mark_unseen
@@ -244,16 +245,23 @@ class Reader(Generic[M]):
         """Each filter beside the list, with the choices it offers.
 
         Counted within the scope, so a count never gives away how many
-        records the user may not see.
+        records the user may not see, and only where the filter's
+        `show_counts`, or else the view's count mode, asks for it.
         """
         await self._view._ensure(Permission.VIEW, request=request)
         context = SQLFilterContext(
             session, self._repository, spec, self._view._scope_for(request)
         )
         return [
-            (item, await item.options(context))
+            (item, await item.options(replace(context, counts=self._counted(item))))
             for item in self._pages.list_filters(request)
         ]
+
+    def _counted(self, item: SQLFilter[Any]) -> bool:
+        """Whether a filter's options are counted: as it says, or as the view counts."""
+        if item.show_counts is None:
+            return self._view.count_mode is CountMode.EXACT
+        return item.show_counts
 
     async def fetch_related(
         self,
