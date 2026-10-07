@@ -7,12 +7,13 @@
 {% block header %}<h1 class="text-[22px] font-semibold leading-tight tracking-tight">{{ _('Activity') }}</h1>{% endblock %}
 
 {% block content %}
-{#- It scrolls sideways, so without shrink-0 a long list below squeezes it away. -#}
-<nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
+{#- It scrolls sideways, so without shrink-0 a long list below squeezes it away.
+    Its line is drawn inside it, as above a list. -#}
+<nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto overflow-y-hidden px-4 shadow-[inset_0_-1px_var(--color-base-300)] lg:px-7" aria-label="{{ _('Sections') }}">
   {% for label, url, name in tabs %}
     {% set current = filters.view == name %}
     <a href="{{ url }}" {% if current %}aria-current="page"{% endif %}
-       class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if current %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+       class="flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if current %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
       {{ label }}
     </a>
   {% endfor %}

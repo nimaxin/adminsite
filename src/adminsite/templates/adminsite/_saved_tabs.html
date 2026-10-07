@@ -1,16 +1,19 @@
 {#- Saved views as tabs above the list, so they are one click away rather than
-    hidden in a menu. The first tab is the list as it comes. -#}
+    hidden in a menu. The first tab is the list as it comes. The line
+    under them is drawn inside the bar, so the current tab's underline
+    covers it: pulled over a border below the bar instead, the tabs stood
+    a pixel past it and the bar scrolled up and down. -#}
 {% import "adminsite/_icons.html" as icons %}
 {%- set on_all = not active_view and not request.url.query -%}
-<nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7"
+<nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto overflow-y-hidden px-4 shadow-[inset_0_-1px_var(--color-base-300)] lg:px-7"
      aria-label="{{ _('Saved views') }}">
   <a href="{{ urls.list(view) }}" {% if on_all %}aria-current="page"{% endif %}
-     class="-mb-px flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+     class="flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
     {{ _('All {things}', things=view.label_plural|lower) }}
   </a>
   {% for item in saved_views %}
     {% set on = active_view and active_view.id == item.id %}
-    <span class="group -mb-px flex h-10 shrink-0 items-center gap-1.5 border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
+    <span class="group flex h-10 shrink-0 items-center gap-1.5 border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
       <a href="{{ urls.list(view) }}{{ '?' ~ item.query if item.query }}" {% if on %}aria-current="page"{% endif %}
          class="text-[13.5px] font-medium {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
         {{ item.name }}

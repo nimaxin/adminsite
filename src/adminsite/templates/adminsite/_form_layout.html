@@ -31,7 +31,8 @@
     </section>
   {%- elif piece.kind == "tabs" -%}
     {#- One tab at a time, opening on the first that holds a mistake, with a
-        mark on each that does. The arrow keys move between them. -#}
+        mark on each that does. The arrow keys move between them. The line
+        under them is drawn inside the bar, as above a list. -#}
     {%- set tabs_id = "tabs-" ~ (piece.paths()|first)|replace(".", "-") -%}
     {%- set count = piece.children|length -%}
     {%- set start = namespace(index=0, found=false) -%}
@@ -42,7 +43,7 @@
       {%- endif -%}
     {%- endfor -%}
     <div class="min-w-0" x-data="{ tab: {{ start.index }} }">
-      <div role="tablist" class="relative -mt-1 flex gap-5 overflow-x-auto border-b border-line">
+      <div role="tablist" class="relative -mt-1 flex gap-5 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_var(--color-line)]">
         {%- for tab in piece.children %}
           {%- set index = loop.index0 %}
           <button role="tab" type="button" id="{{ tabs_id }}-{{ index }}" aria-controls="{{ tabs_id }}-panel-{{ index }}"
@@ -51,7 +52,7 @@
                   @click="tab = {{ index }}"
                   @keydown.arrow-right.prevent="tab = (tab + 1) % {{ count }}; $nextTick(() => document.getElementById('{{ tabs_id }}-' + tab).focus())"
                   @keydown.arrow-left.prevent="tab = (tab + {{ count - 1 }}) % {{ count }}; $nextTick(() => document.getElementById('{{ tabs_id }}-' + tab).focus())"
-                  class="-mb-px flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] font-medium"
+                  class="flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] font-medium"
                   :class="tab === {{ index }} ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
             {{- tab.title -}}
             {%- if tab.paths()|select("in", wrong)|list -%}
