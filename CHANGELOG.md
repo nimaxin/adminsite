@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- A list scrolls in one place, its table. Text kept for screen readers in a cell, such as "Not set"
+  in an empty one, stretched the page around the table to the table's full size, so the page grew
+  scrollbars of its own and scrolling them slid the toolbar and the pager away. The same text made
+  the whole page scroll sideways around a record page's related records on a phone and a form's
+  inline rows on a tablet. Every box that scrolls now keeps what is placed inside it. A project
+  that overrides `_table.html`, `detail.html` or `_inlines.html` should start its copy again from
+  the new one (#61).
+
 ## 0.1.0a15
 
 The list is quicker to filter and to act on. The Filters button opens every filter at once, in a

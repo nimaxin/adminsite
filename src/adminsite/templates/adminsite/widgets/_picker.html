@@ -88,7 +88,7 @@
        x-show="open" x-cloak @mousedown.prevent>
     <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ row.label }}"
         {% if picker_multiple %}aria-multiselectable="true"{% endif %}
-        class="max-h-64 overflow-auto p-1">
+        class="relative max-h-64 overflow-auto p-1">
       {% if local %}
         {% for choice in picker_options %}
           {% include "adminsite/widgets/_option.html" %}
