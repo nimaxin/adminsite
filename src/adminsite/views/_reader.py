@@ -240,22 +240,30 @@ class Reader(Generic[M]):
         return views.all_for_model(model)
 
     async def filter_options(
-        self, session: SessionAdapter, spec: QuerySpec, *, request: Request
+        self,
+        session: SessionAdapter,
+        spec: QuerySpec,
+        *,
+        request: Request,
+        counts: bool = True,
     ) -> list[tuple[SQLFilter[Any], Sequence[FilterOption]]]:
         """Each filter beside the list, with the choices it offers.
 
         Counted within the scope, so a count never gives away how many
-        records the user may not see, and only where the filter's
-        `show_counts`, or else the view's count mode, asks for it.
+        records the user may not see, and only where the page shows counts
+        and the filter's `show_counts`, or else the view's count mode, asks
+        for them.
         """
         await self._view._ensure(Permission.VIEW, request=request)
         context = SQLFilterContext(
             session, self._repository, spec, self._view._scope_for(request)
         )
-        return [
-            (item, await item.options(replace(context, counts=self._counted(item))))
-            for item in self._pages.list_filters(request)
-        ]
+        offered: list[tuple[SQLFilter[Any], Sequence[FilterOption]]] = []
+        for item in self._pages.list_filters(request):
+            counted = counts and self._counted(item)
+            options = await item.options(replace(context, counts=counted))
+            offered.append((item, options))
+        return offered
 
     def _counted(self, item: SQLFilter[Any]) -> bool:
         """Whether a filter's options are counted: as it says, or as the view counts."""

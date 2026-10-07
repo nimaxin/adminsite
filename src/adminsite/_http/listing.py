@@ -212,10 +212,18 @@ async def build_panels(
     session: "SessionAdapter",
     spec: QuerySpec,
     request: Request,
+    *,
+    counts: bool,
 ) -> list[FilterPanel]:
-    """Build each filter's control, with counts where it offers them."""
+    """Build each filter's control, with counts where it offers them.
+
+    `counts` says whether the page shows any. Left off, the options are
+    still read, for the labels the chips are worded with.
+    """
     chosen = {value.name: value for value in spec.filters}
-    offered = await view._reader.filter_options(session, spec, request=request)
+    offered = await view._reader.filter_options(
+        session, spec, request=request, counts=counts
+    )
     return [
         FilterPanel(filter=item, options=options, value=chosen.get(item.name))
         for item, options in offered
@@ -361,6 +369,10 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     """One page of records, with the search, filters and sort applied."""
     view = find_view(admin, request)
     read = read_list_request(request, view)
+    # HTMX redraws the table alone, for a new page, sort, search or filter.
+    # The options' counts show only in the filters drawer, which it does not
+    # send again, so none are counted.
+    partial = wants_partial(request)
 
     spec = view._reader.build_spec(
         request=request,
@@ -381,7 +393,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
             read.columns or view._pages.list_fields(request),
             request=request,
         )
-        panels = await build_panels(view, session, spec, request)
+        panels = await build_panels(view, session, spec, request, counts=not partial)
 
     context = as_context(view, request, spec, page, panels, read)
     context["can_create"] = await view.allows(
@@ -412,5 +424,5 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     context["view_owner"] = owner_of(admin, request)
     context["active_view"] = active_view(context["saved_views"], request.url.query)
 
-    template = "_table.html" if wants_partial(request) else "list.html"
+    template = "_table.html" if partial else "list.html"
     return await admin.render(template, request, context)

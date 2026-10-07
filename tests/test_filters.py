@@ -464,16 +464,25 @@ class CustomersNotCountingActive(ModelView[Customer]):
 
 
 async def counts_run(
-    backend: Backend, view: type[ModelView[Any]], address: str
+    backend: Backend,
+    view: type[ModelView[Any]],
+    address: str,
+    *,
+    htmx: bool = False,
 ) -> tuple[str, list[str]]:
-    """The page one list request draws, and the statements it ran to count options."""
+    """The page one list request draws, and the statements it ran to count options.
+
+    With `htmx`, the request is the one HTMX sends to redraw the table alone.
+    """
     app = Starlette()
     app.mount("/admin", Admin(backend.database, views=[view]))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
         with count_queries(backend) as queries:
-            response = await client.get(address)
+            response = await client.get(
+                address, headers={"HX-Request": "true"} if htmx else {}
+            )
 
     assert response.status_code == 200
     return response.text, [
@@ -528,6 +537,31 @@ class TestWhereOptionsAreCounted:
 
         assert len(counting) == 1
         assert shown_counts(page) == ["2", "2"]
+
+    @pytest.mark.parametrize("view", [CountedOrders, EstimatedOrdersCountingStatus])
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "/admin/orders?page=2",
+            "/admin/orders?sort=-total",
+            "/admin/orders?status=PAID",
+        ],
+    )
+    async def test_the_table_redrawn_alone_counts_no_options(
+        self, backend: Backend, view: type[ModelView[Order]], address: str
+    ) -> None:
+        _page, counting = await counts_run(backend, view, address, htmx=True)
+
+        assert counting == []
+
+    async def test_the_chips_it_sends_still_read_the_labels(
+        self, backend: Backend
+    ) -> None:
+        page, _counting = await counts_run(
+            backend, CountedOrders, "/admin/orders?status=SHIPPED", htmx=True
+        )
+
+        assert "Status: Shipped" in page
 
 
 class TestChips:
