@@ -45,9 +45,9 @@ ticked stay in view, so they can be unticked.
 ## Counts
 
 Choice and boolean filters show how many records each option matches. The counts follow the search
-but not the other filters, so they stay steady while you pick. They are counted for the list page
-itself. A new page, sort, search or filter redraws only the table, which shows no counts, so nothing
-is counted for it.
+but not the other filters, so they stay steady while you pick. They are counted in a request of
+their own as the drawer opens, so the list never waits for them, and a list nobody filters never
+counts them. Opened again, the drawer keeps them until the search changes.
 
 Counting reads every record the list may show, so a view that says its table is too big to count,
 with a `count_mode` of `CountMode.ESTIMATED` or `CountMode.NONE`, shows no counts beside its filters

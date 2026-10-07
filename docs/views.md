@@ -309,14 +309,20 @@ class EventView(ModelView[Event]):
     pagination = Pagination.KEYSET
 ```
 
-**Counting.** `CountMode.ESTIMATED` reads the row count Postgres and MySQL already keep in their
-statistics, which costs nothing, and shows "about 2,500,000". It does so only when nothing narrows
+**Counting.** A list never waits for its count. It shows its rows as soon as it has read them, and
+the total follows in a request of its own, filling in under the heading, at the foot of the list
+and in the Actions menu. A new page or sort keeps the total it has, and only a new search or
+filter counts again. Counting every match still costs the database, though, which the count mode
+decides.
+
+`CountMode.ESTIMATED` reads the row count Postgres and MySQL already keep in their statistics,
+which costs nothing, and shows "about 2,500,000". It does so only when nothing narrows
 the list and the table holds more than 10,000 rows; below that an exact count is cheap. Once a
 search, a filter or `scope_query` narrows the list, the count stops at 10,001 rows and shows "more
 than 10,000". On SQLite, which keeps no estimate, it counts exactly.
 
-`CountMode.NONE` skips the count altogether. The pager then shows no total and learns whether there
-is a next page by reading one extra row, so a page is a single query.
+`CountMode.NONE` skips the count altogether, and the list shows no total. The pager learns whether
+there is a next page by reading one extra row, as it does whatever the mode.
 
 Either mode also leaves the counts off the filters' options, since counting them reads every record
 the list may show. A filter given `show_counts=True` is counted all the same; see
