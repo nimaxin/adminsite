@@ -9,6 +9,7 @@ from adminsite._http.forms import rows_for_actions
 from adminsite._http.requests import find_view
 from adminsite._http.saved_views import owner_of, saved_for
 from adminsite._http.urls import PAGING_KEYS
+from adminsite.actions.base import Action
 from adminsite.filters.base import (
     Filter,
     FilterOption,
@@ -17,7 +18,7 @@ from adminsite.filters.base import (
 )
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
-from adminsite.query import QuerySpec, Sort
+from adminsite.query import CountMode, QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
 
@@ -35,14 +36,19 @@ __all__ = [
     "SEARCHABLE_OVER",
     "SIZE_KEY",
     "SIZE_PARAM",
+    "TOTAL_TRIGGER",
     "FilterPanel",
     "ListRequest",
     "active_chips",
     "active_view",
     "as_context",
+    "asks_for_total",
     "build_panels",
     "export_params",
     "list_records",
+    "list_spec",
+    "list_total",
+    "offered_actions",
     "read_columns",
     "read_list_request",
     "read_page",
@@ -60,6 +66,9 @@ SIZE_PARAM = "size"
 SIZE_KEY = "adminsite_page_size"
 # A choice filter with more options than this gets a box to narrow them.
 SEARCHABLE_OVER = 10
+# The element in the table that asks for the list's total once the rows are
+# on screen. htmx names it in the HX-Trigger header of that request.
+TOTAL_TRIGGER = "records-counter"
 
 
 @dataclass
@@ -235,6 +244,11 @@ def wants_partial(request: Request) -> bool:
     return request.headers.get("hx-request") == "true"
 
 
+def asks_for_total(request: Request) -> bool:
+    """Whether this is the request that follows a list's rows, for their total."""
+    return request.headers.get("hx-trigger") == TOTAL_TRIGGER
+
+
 def sort_value(spec: QuerySpec) -> str:
     """The sort as it appears in the URL, for keeping it across links."""
     return str(spec.sort[0]) if spec.sort else ""
@@ -311,6 +325,17 @@ def as_context(
     }
 
 
+async def offered_actions(
+    view: ModelView[Any], request: Request, target: str
+) -> list[Action]:
+    """The actions of one kind this user may run: on a selection, a record, the view."""
+    return [
+        item
+        for item in view._actions.on(target, request)
+        if await view.allows(item.permission, request=request, record=None)
+    ]
+
+
 async def rows_context(
     view: ModelView[Any],
     request: Request,
@@ -324,16 +349,8 @@ async def rows_context(
     whose values change in place.
     """
     can_edit = await view.allows(Permission.EDIT, request=request, record=None)
-    selection = [
-        item
-        for item in view._actions.on("selection", request)
-        if await view.allows(item.permission, request=request, record=None)
-    ]
-    record_actions = [
-        item
-        for item in view._actions.on("record", request)
-        if await view.allows(item.permission, request=request, record=None)
-    ]
+    selection = await offered_actions(view, request, "selection")
+    record_actions = await offered_actions(view, request, "record")
     # A record action can be refused for one record and allowed for the next.
     row_actions = {
         view._fields.identity_of(record): [
@@ -365,16 +382,9 @@ async def rows_context(
     }
 
 
-async def list_records(admin: "Admin", request: Request) -> Response:
-    """One page of records, with the search, filters and sort applied."""
-    view = find_view(admin, request)
-    read = read_list_request(request, view)
-    # HTMX redraws the table alone, for a new page, sort, search or filter.
-    # The options' counts show only in the filters drawer, which it does not
-    # send again, so none are counted.
-    partial = wants_partial(request)
-
-    spec = view._reader.build_spec(
+def list_spec(view: ModelView[Any], request: Request, read: ListRequest) -> QuerySpec:
+    """The read a list asks for: its search, filters, sort and page."""
+    return view._reader.build_spec(
         request=request,
         search=read.search,
         filters=read.values,
@@ -385,8 +395,49 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         paths=read.columns,
         size=read.size,
     )
+
+
+async def list_total(
+    admin: "Admin",
+    request: Request,
+    view: ModelView[Any],
+    read: ListRequest,
+    spec: QuerySpec,
+) -> Response:
+    """A list's total, asked for once its rows are on screen, and what shows it.
+
+    The page of rows is read again with it, since the foot of the list says
+    which rows the page holds, and reading them is cheap beside the count.
+    """
     async with admin.database.session() as session:
         page = await view._reader.fetch_page(session, spec, request=request)
+        panels = await build_panels(view, session, spec, request, counts=False)
+
+    context = as_context(view, request, spec, page, panels, read)
+    context["actions"] = await offered_actions(view, request, "selection")
+    return await admin.render("_records_counted.html", request, context)
+
+
+async def list_records(admin: "Admin", request: Request) -> Response:
+    """One page of records, with the search, filters and sort applied.
+
+    The rows never wait for a count. They come without their total, which
+    the table asks for in a request of its own once they are on screen.
+    """
+    view = find_view(admin, request)
+    read = read_list_request(request, view)
+    spec = list_spec(view, request, read)
+    if asks_for_total(request):
+        return await list_total(admin, request, view, read, spec)
+    # HTMX redraws the table alone, for a new page, sort, search or filter.
+    # The options' counts show only in the filters drawer, which it does not
+    # send again, so none are counted.
+    partial = wants_partial(request)
+
+    async with admin.database.session() as session:
+        page = await view._reader.fetch_page(
+            session, spec.replace(count=CountMode.NONE), request=request
+        )
         await view._reader.load_values(
             session,
             list(page),
@@ -396,6 +447,9 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         panels = await build_panels(view, session, spec, request, counts=not partial)
 
     context = as_context(view, request, spec, page, panels, read)
+    # The table asks for the total once the rows are on screen, unless the
+    # view never counts.
+    context["counting"] = page.total is None and view.count_mode is not CountMode.NONE
     context["can_create"] = await view.allows(
         Permission.CREATE, request=request, record=None
     )
@@ -406,12 +460,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
         Permission.IMPORT, request=request, record=None
     )
     context.update(await rows_context(view, request, list(page), read.columns))
-    # Offer only the actions this user may run.
-    context["view_actions"] = [
-        item
-        for item in context["view_actions"]
-        if await view.allows(item.permission, request=request, record=None)
-    ]
+    context["view_actions"] = await offered_actions(view, request, "view")
     context["action_rows"] = await rows_for_actions(
         admin,
         view,

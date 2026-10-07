@@ -8,7 +8,7 @@ from starlette.applications import Starlette
 from adminsite import Admin, ModelView
 from adminsite.database import Database
 from tests.models import Customer, Order
-from tests.support import request_from
+from tests.support import counted, request_from
 
 
 class OrderView(ModelView[Order]):
@@ -89,17 +89,15 @@ class TestOnThePage:
         self, client: httpx.AsyncClient
     ) -> None:
         await client.get("/admin/orders?size=5")
-        second = await client.get("/admin/orders?page=2")
+        second = await counted(client, "/admin/orders?page=2")
         filtered = await client.get("/admin/orders?status=PAID")
 
-        assert "1 to 5 of 7" not in second.text
-        assert "6 to 7 of 7" in second.text
+        assert "1 to 5 of 7" not in second
+        assert "6 to 7 of 7" in second
         assert rows(filtered) == 2
 
     async def test_paging_follows_the_size(self, client: httpx.AsyncClient) -> None:
-        page = await client.get("/admin/orders?size=5")
-
-        assert "1 to 5 of 7" in page.text
+        assert "1 to 5 of 7" in await counted(client, "/admin/orders?size=5")
 
     async def test_a_view_without_sizes_shows_no_menu(
         self, client: httpx.AsyncClient

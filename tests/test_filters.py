@@ -28,7 +28,7 @@ from adminsite.filters.base import parse_filters
 from adminsite.filters.sql import SQLFilterContext, filter_for
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus
-from tests.support import Backend, count_queries
+from tests.support import Backend, count_queries, counted
 
 NOW = datetime(2026, 9, 19, 9, 0)
 
@@ -409,10 +409,10 @@ class TestFiltersAddedPerRequest:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://testserver"
         ) as client:
-            listing = await client.get("/admin/orders?big=100")
+            listing = await counted(client, "/admin/orders?big=100")
             export = await client.get("/admin/orders/export?big=100")
 
-        total = re.search(r"(\d+) orders", listing.text)
+        total = re.search(r"(\d+) orders", listing)
         assert total is not None
         assert int(total.group(1)) == expected
         assert len(export.text.strip().splitlines()) - 1 == expected

@@ -60,9 +60,11 @@
   }
 
   // What is ticked in the list. The table and the Actions menu above it both
-  // read it, and the table starts it again each time it reloads.
+  // read it, and the table starts it again each time it reloads. Ticking
+  // every matching row keeps how many that is, as the menu and the dialogs
+  // say it.
   document.addEventListener("alpine:init", () => {
-    Alpine.store("selection", { picked: 0, everything: false });
+    Alpine.store("selection", { picked: 0, everything: false, matching: "", allMatching: "" });
   });
 
   // A menu that drops below the button that opened it, inside the window:
@@ -784,12 +786,22 @@
     });
     if (!items.length) input.removeAttribute("aria-activedescendant");
   }
-  // After HTMX replaces the list, say how many records it now shows.
+  // After HTMX replaces the list, say how many records it now shows: at once,
+  // or, where the total follows the rows, once it is in.
+  function announceCount() {
+    const status = document.getElementById("records-status");
+    const count = document.getElementById("records-count");
+    if (status && count) status.textContent = count.textContent.trim();
+  }
   document.addEventListener("htmx:afterSwap", (event) => {
     if (event.target.id !== "records") return;
-    const status = document.getElementById("records-status");
-    const count = event.target.querySelector("[data-count]");
-    if (status && count) status.textContent = count.textContent.trim();
+    const counter = document.getElementById("records-counter");
+    if (counter) counter.dataset.announce = "";
+    else announceCount();
+  });
+  document.addEventListener("htmx:oobAfterSwap", (event) => {
+    if (event.target.id !== "records-count") return;
+    if (document.getElementById("records-counter")?.hasAttribute("data-announce")) announceCount();
   });
   document.addEventListener("htmx:afterSwap", (event) => {
     if (event.target.id !== "palette-results") return;

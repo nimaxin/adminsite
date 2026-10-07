@@ -2,7 +2,8 @@
     The table reloads on its own, so the two share what is ticked through a
     store, and each action submits the table's form by its id. The table sends
     the menu again with every reload, since "select all" counts what matches
-    now. Rows are ticked in the table, which a phone does not show. -#}
+    now, and the total sends its first line again once it is in. Rows are
+    ticked in the table, which a phone does not show. -#}
 {% import "adminsite/_icons.html" as icons %}
 {% if actions %}
   {% set safe = actions|rejectattr("dangerous")|list %}
@@ -14,7 +15,7 @@
       {{ _('Actions') }}
       <span class="badge badge-sm badge-primary rounded-full px-1.5 tabular-nums" x-show="$store.selection.picked" x-cloak>
         <span x-show="!$store.selection.everything" x-text="$store.selection.picked"></span>
-        <span x-show="$store.selection.everything">{{ total_text }}</span>
+        <span x-show="$store.selection.everything" x-text="$store.selection.matching"></span>
       </span>
       {{ icons.icon("chevron-down", 14) }}
     </button>
@@ -23,20 +24,7 @@
     <div id="bulk-actions-menu" popover data-below="bulk-actions-button" data-align="end"
          ontoggle="dropBelow(event)" aria-label="{{ _('Actions') }}"
          class="invisible inset-auto m-0 w-72 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
-      <p class="px-2.5 pt-1.5 pb-2 text-xs text-muted">
-        <span x-show="!$store.selection.everything"><span x-text="$store.selection.picked"></span> {{ _('selected') }}</span>
-        {% if page.total is not none %}
-          <span x-show="$store.selection.everything" x-cloak>{{ _("All {count} matching rows are selected.", count=total_text) }}</span>
-          {#- Offered once the whole page is ticked, where more pages follow. -#}
-          {% if page.has_previous or page.has_next %}
-            <span x-show="!$store.selection.everything && $store.selection.picked >= {{ page|length }}" x-cloak>
-              &middot;
-              <button class="text-link underline underline-offset-3" type="button"
-                      @click="$store.selection.everything = true">{{ _("Select all {count} matching", count=total_text) }}</button>
-            </span>
-          {% endif %}
-        {% endif %}
-      </p>
+      {% include "adminsite/_bulk_summary.html" %}
       {#- Whatever cannot be undone comes last, under a line of its own. -#}
       <ul class="menu w-full p-0">
         {% for item in safe + dangerous %}

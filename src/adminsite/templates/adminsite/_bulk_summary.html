@@ -1,0 +1,21 @@
+{#- The line at the top of the Actions menu: how many rows are ticked, and, where
+    more pages follow, an offer to tick every matching one. That offer needs
+    the total, which comes after the rows, so this is sent again once it is
+    in. Taking it keeps what the menu and the dialogs then say about it. -#}
+<p id="bulk-actions-summary" class="px-2.5 pt-1.5 pb-2 text-xs text-muted"
+   {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+  <span x-show="!$store.selection.everything"><span x-text="$store.selection.picked"></span> {{ _('selected') }}</span>
+  {% if page.total is not none %}
+    <span x-show="$store.selection.everything" x-cloak>{{ _("All {count} matching rows are selected.", count=total_text) }}</span>
+    {#- Offered once the whole page is ticked, where more pages follow. -#}
+    {% if page.has_previous or page.has_next %}
+      <span x-show="!$store.selection.everything && $store.selection.picked >= {{ page|length }}" x-cloak>
+        &middot;
+        <button class="text-link underline underline-offset-3" type="button"
+                @click='$store.selection.everything = true;
+                        $store.selection.matching = {{ total_text|tojson }};
+                        $store.selection.allMatching = {{ _("All {count} matching rows", count=total_text)|tojson }}'>{{ _("Select all {count} matching", count=total_text) }}</button>
+      </span>
+    {% endif %}
+  {% endif %}
+</p>

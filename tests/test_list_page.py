@@ -9,6 +9,7 @@ from adminsite import Admin, Link, ModelView
 from adminsite.database import Database
 from adminsite.fields import EmailField
 from tests.models import Customer, Order, OrderItem
+from tests.support import counted
 
 
 class OrderView(ModelView[Order]):
@@ -41,16 +42,12 @@ class TestSearch:
     async def test_the_search_box_narrows_the_list(
         self, client: httpx.AsyncClient
     ) -> None:
-        response = await client.get("/admin/orders?q=lena")
-
-        assert "1 to 2 of 2" in response.text
+        assert "1 to 2 of 2" in await counted(client, "/admin/orders?q=lena")
 
     async def test_the_search_reaches_through_a_relationship(
         self, client: httpx.AsyncClient
     ) -> None:
-        response = await client.get("/admin/orders?q=fischer.de")
-
-        assert "1 to 2 of 2" in response.text
+        assert "1 to 2 of 2" in await counted(client, "/admin/orders?q=fischer.de")
 
     async def test_the_term_stays_in_the_box(self, client: httpx.AsyncClient) -> None:
         response = await client.get("/admin/orders?q=lena")
@@ -67,14 +64,12 @@ class TestSearch:
 
 class TestFilters:
     async def test_a_filter_narrows_the_list(self, client: httpx.AsyncClient) -> None:
-        response = await client.get("/admin/orders?status=SHIPPED")
-
-        assert "1 to 2 of 2" in response.text
+        assert "1 to 2 of 2" in await counted(client, "/admin/orders?status=SHIPPED")
 
     async def test_two_values_match_either(self, client: httpx.AsyncClient) -> None:
-        response = await client.get("/admin/orders?status=SHIPPED&status=PAID")
-
-        assert "1 to 4 of 4" in response.text
+        assert "1 to 4 of 4" in await counted(
+            client, "/admin/orders?status=SHIPPED&status=PAID"
+        )
 
     async def test_the_filter_panel_shows_counts(
         self, client: httpx.AsyncClient
@@ -144,7 +139,8 @@ class TestFilters:
             assert found is not None, part
             assert 'hx-swap-oob="true"' in found.group(0)
         assert "Status: Shipped" in response.text
-        assert "Show 2 orders" in response.text
+        assert "Show orders" in response.text
+        assert "Show 2 orders" in await counted(client, "/admin/orders?status=SHIPPED")
 
     async def test_the_filters_button_counts_the_filters_in_use(
         self, client: httpx.AsyncClient
@@ -230,16 +226,14 @@ class TestFilters:
     async def test_search_and_filter_work_together(
         self, client: httpx.AsyncClient
     ) -> None:
-        response = await client.get("/admin/orders?q=lena&status=SHIPPED")
-
-        assert "1 to 1 of 1" in response.text
+        assert "1 to 1 of 1" in await counted(
+            client, "/admin/orders?q=lena&status=SHIPPED"
+        )
 
     async def test_an_unknown_parameter_is_ignored(
         self, client: httpx.AsyncClient
     ) -> None:
-        response = await client.get("/admin/orders?colour=green")
-
-        assert "1 to 5 of 7" in response.text
+        assert "1 to 5 of 7" in await counted(client, "/admin/orders?colour=green")
 
 
 class TestSorting:
@@ -267,7 +261,7 @@ class TestSorting:
         response = await client.get("/admin/orders?q=lena&sort=total")
 
         assert "q=lena" in response.text
-        assert "1 to 2 of 2" in response.text
+        assert "1 to 2 of 2" in await counted(client, "/admin/orders?q=lena&sort=total")
 
 
 class LinkedOrderView(ModelView[Order]):
@@ -360,9 +354,7 @@ class TestPaging:
         assert "status=PAID" in response.text
 
     async def test_the_second_page_carries_on(self, client: httpx.AsyncClient) -> None:
-        response = await client.get("/admin/orders?page=2")
-
-        assert "6 to 7 of 7" in response.text
+        assert "6 to 7 of 7" in await counted(client, "/admin/orders?page=2")
 
 
 class TestPartialUpdates:
