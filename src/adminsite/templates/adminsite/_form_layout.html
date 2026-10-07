@@ -42,7 +42,7 @@
       {%- endif -%}
     {%- endfor -%}
     <div class="min-w-0" x-data="{ tab: {{ start.index }} }">
-      <div role="tablist" class="-mt-1 flex gap-5 overflow-x-auto border-b border-line">
+      <div role="tablist" class="relative -mt-1 flex gap-5 overflow-x-auto border-b border-line">
         {%- for tab in piece.children %}
           {%- set index = loop.index0 %}
           <button role="tab" type="button" id="{{ tabs_id }}-{{ index }}" aria-controls="{{ tabs_id }}-panel-{{ index }}"

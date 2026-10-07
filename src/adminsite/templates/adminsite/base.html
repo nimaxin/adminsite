@@ -880,7 +880,7 @@
         </li>
       {%- endmacro %}
 
-      <nav class="flex flex-1 flex-col overflow-y-auto" aria-label="{{ _('Main') }}">
+      <nav class="relative flex flex-1 flex-col overflow-y-auto" aria-label="{{ _('Main') }}">
         <ul class="flex flex-col gap-0.5">
           {{ nav_link(urls.index(), _('Overview'), on_overview, "overview") }}
         </ul>
@@ -1034,7 +1034,7 @@
              hx-trigger="input changed delay:200ms, palette-open from:body">
       <kbd class="kbd kbd-sm text-muted">Esc</kbd>
     </label>
-    <div id="palette-results" role="listbox" class="max-h-96 overflow-auto p-2"></div>
+    <div id="palette-results" role="listbox" class="relative max-h-96 overflow-auto p-2"></div>
   </div>
   <form method="dialog" class="modal-backdrop"><button aria-label="{{ _('Close') }}">{{ _('Close') }}</button></form>
 </dialog>

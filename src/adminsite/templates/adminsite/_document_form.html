@@ -53,7 +53,7 @@
     {% if entry.label %}
       <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
     {% endif %}
-    <div class="overflow-x-auto rounded-field border border-base-300 bg-base-100">
+    <div class="relative overflow-x-auto rounded-field border border-base-300 bg-base-100">
       <table class="w-full">
         <thead class="bg-subtle">
           <tr>
@@ -185,7 +185,7 @@
       <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg"
            x-show="open" x-cloak @mousedown.prevent>
         <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ _('Fields not set') }}"
-            class="max-h-72 overflow-auto p-1">
+            class="relative max-h-72 overflow-auto p-1">
           {% for entry in settable %}
             {#- Found by its description as well as its name. -#}
             <li role="option" class="flex cursor-pointer flex-col rounded-field px-2.5 py-1.5 data-[active=true]:bg-base-200"

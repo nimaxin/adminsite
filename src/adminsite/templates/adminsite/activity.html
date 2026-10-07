@@ -8,7 +8,7 @@
 
 {% block content %}
 {#- It scrolls sideways, so without shrink-0 a long list below squeezes it away. -#}
-<nav class="flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
+<nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto border-b border-base-300 px-4 lg:px-7" aria-label="{{ _('Sections') }}">
   {% for label, url, name in tabs %}
     {% set current = filters.view == name %}
     <a href="{{ url }}" {% if current %}aria-current="page"{% endif %}

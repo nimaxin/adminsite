@@ -20,7 +20,11 @@
     {{ csrf_input | safe if csrf_input }}
     <input type="hidden" name="everything" :value="$store.selection.everything ? '1' : ''">
 
-    <div class="min-h-0 flex-1 overflow-auto">
+    {#- Relative, so text kept for screen readers in a cell, such as "Not
+        set", is placed inside this box, which scrolls. Placed against the
+        list instead, it stretched the page around the table to the
+        table's full size, and the page scrolled as well as the table. -#}
+    <div class="relative min-h-0 flex-1 overflow-auto">
       <table class="w-full border-separate border-spacing-0 max-md:hidden">
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
