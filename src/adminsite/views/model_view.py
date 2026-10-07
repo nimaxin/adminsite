@@ -201,7 +201,9 @@ class ModelView(Generic[M]):
     """How hard the list works to say how many records match.
 
     `CountMode.ESTIMATED` suits a table of millions of rows on Postgres or
-    MySQL, and `CountMode.NONE` skips the count.
+    MySQL, and `CountMode.NONE` skips the count. Either also leaves the
+    counts off the filters' options, unless a filter is given
+    `show_counts=True`.
     """
     global_search: bool = True
     """Whether the command palette looks through this view's records."""

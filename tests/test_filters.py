@@ -5,11 +5,12 @@ from decimal import Decimal
 from typing import Any
 
 import httpx
+import pytest
 from sqlalchemy import ColumnElement, Select, func, select
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, ColumnReference, ModelView
+from adminsite import Admin, ColumnReference, CountMode, ModelView
 from adminsite.database import Database
 from adminsite.filters import (
     BooleanFilter,
@@ -27,6 +28,7 @@ from adminsite.filters.base import parse_filters
 from adminsite.filters.sql import SQLFilterContext, filter_for
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus
+from tests.support import Backend, count_queries
 
 NOW = datetime(2026, 9, 19, 9, 0)
 
@@ -151,13 +153,19 @@ class TestChoiceFilter:
             assert await context.count_by("status") == {"PAID": 2}
             assert await context.distinct("status") == [OrderStatus.PAID]
 
-    async def test_counts_can_be_switched_off(self, database: Database) -> None:
-        status = ChoiceFilter("status", choices=(("PAID", "Paid"),), show_counts=False)
-        async with database.session() as session:
-            context = SQLFilterContext(session, orders_with(status), QuerySpec())
-            options = await status.options(context)
+    async def test_nothing_is_counted_for_a_filter_whose_counts_are_hidden(
+        self, backend: Backend
+    ) -> None:
+        status = filter_for(orders_with(), "status")
+        async with backend.database.session() as session:
+            context = SQLFilterContext(
+                session, orders_with(status), QuerySpec(), counts=False
+            )
+            with count_queries(backend) as queries:
+                options = await status.options(context)
 
-            assert options[0].count is None
+        assert [option.count for option in options] == [None] * len(options)
+        assert queries.count == 0
 
 
 class TestOtherBuiltInFilters:
@@ -409,6 +417,117 @@ class TestFiltersAddedPerRequest:
         assert int(total.group(1)) == expected
         assert len(export.text.strip().splitlines()) - 1 == expected
         assert expected < 7
+
+
+STATUSES = [("PAID", "Paid"), ("SHIPPED", "Shipped")]
+
+
+class CountedOrders(ModelView[Order]):
+    """Counts the options of its filters, as a view that counts exactly does."""
+
+    name = "orders"
+    fields = ["id", "status", "total"]
+    list_filters = [Order.status, Order.total]
+    page_size = 2
+
+
+class EstimatedOrders(CountedOrders):
+    """Says its table is too big to count exactly."""
+
+    count_mode = CountMode.ESTIMATED
+
+
+class UncountedOrders(CountedOrders):
+    """Says its table is too big to count at all."""
+
+    count_mode = CountMode.NONE
+
+
+class EstimatedOrdersCountingStatus(EstimatedOrders):
+    """Counts the options of one filter all the same."""
+
+    list_filters = [ChoiceFilter("status", choices=STATUSES, show_counts=True)]
+
+
+class OrdersNotCountingStatus(CountedOrders):
+    """Counts its records, but not the options of its filter."""
+
+    list_filters = [ChoiceFilter("status", choices=STATUSES, show_counts=False)]
+
+
+class CustomersNotCountingActive(ModelView[Customer]):
+    """Counts its records, but not how many of them are active."""
+
+    name = "customers"
+    fields = ["name", "is_active"]
+    list_filters = [BooleanFilter("is_active", show_counts=False)]
+
+
+async def counts_run(
+    backend: Backend, view: type[ModelView[Any]], address: str
+) -> tuple[str, list[str]]:
+    """The page one list request draws, and the statements it ran to count options."""
+    app = Starlette()
+    app.mount("/admin", Admin(backend.database, views=[view]))
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        with count_queries(backend) as queries:
+            response = await client.get(address)
+
+    assert response.status_code == 200
+    return response.text, [
+        item for item in queries.statements if "group by" in item.lower()
+    ]
+
+
+def shown_counts(page: str) -> list[str]:
+    """The counts the filters drawer shows beside the options."""
+    return re.findall(r'<span class="text-xs tabular-nums text-muted">(\d+)<', page)
+
+
+class TestWhereOptionsAreCounted:
+    async def test_a_view_that_counts_exactly_counts_its_options(
+        self, backend: Backend
+    ) -> None:
+        page, counting = await counts_run(backend, CountedOrders, "/admin/orders")
+
+        assert len(counting) == 1
+        assert shown_counts(page) == ["2", "2", "2", "1"]
+
+    @pytest.mark.parametrize(
+        ("view", "address"),
+        [
+            (OrdersNotCountingStatus, "/admin/orders"),
+            (CustomersNotCountingActive, "/admin/customers"),
+        ],
+    )
+    async def test_a_filter_told_not_to_count_runs_no_count(
+        self, backend: Backend, view: type[ModelView[Any]], address: str
+    ) -> None:
+        page, counting = await counts_run(backend, view, address)
+
+        assert counting == []
+        assert shown_counts(page) == []
+
+    @pytest.mark.parametrize("view", [EstimatedOrders, UncountedOrders])
+    async def test_a_view_too_big_to_count_counts_no_options(
+        self, backend: Backend, view: type[ModelView[Order]]
+    ) -> None:
+        page, counting = await counts_run(backend, view, "/admin/orders")
+
+        assert counting == []
+        assert shown_counts(page) == []
+
+    async def test_a_filter_can_ask_to_be_counted_all_the_same(
+        self, backend: Backend
+    ) -> None:
+        page, counting = await counts_run(
+            backend, EstimatedOrdersCountingStatus, "/admin/orders"
+        )
+
+        assert len(counting) == 1
+        assert shown_counts(page) == ["2", "2"]
 
 
 class TestChips:

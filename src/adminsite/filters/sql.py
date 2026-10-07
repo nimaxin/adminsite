@@ -106,6 +106,8 @@ class ChoiceFilter(SQLFilter[Any]):
         name: The filter's name in the URL.
         choices: The options as (value, label) pairs.
         show_counts: Whether each option says how many records it matches.
+            Left out, they are counted where the view counts its records
+            exactly.
         **options: `path` and `label`, as `SQLFilter` takes them.
     """
 
@@ -117,7 +119,7 @@ class ChoiceFilter(SQLFilter[Any]):
         name: str,
         *,
         choices: Sequence[tuple[str, str]] = (),
-        show_counts: bool = True,
+        show_counts: bool | None = None,
         **options: Any,
     ) -> None:
         super().__init__(name, **options)
@@ -125,10 +127,8 @@ class ChoiceFilter(SQLFilter[Any]):
         self.show_counts = show_counts
 
     async def options(self, context: FilterContext) -> Sequence[FilterOption]:
-        """List the choices, with how many records each one matches."""
-        counts: Mapping[str, int] = {}
-        if self.show_counts:
-            counts = await context.count_by(self.path)
+        """List the choices, with how many records each one matches if counted."""
+        counts = await context.count_by(self.path)
         return tuple(
             FilterOption(value, label, counts.get(value) if counts else None)
             for value, label in self.choices
@@ -150,6 +150,9 @@ class BooleanFilter(SQLFilter[Any]):
         name: The filter's name in the URL.
         yes_label: What the option for yes says.
         no_label: What the option for no says.
+        show_counts: Whether each option says how many records it matches.
+            Left out, they are counted where the view counts its records
+            exactly.
         **options: `path` and `label`, as `SQLFilter` takes them.
     """
 
@@ -161,14 +164,16 @@ class BooleanFilter(SQLFilter[Any]):
         *,
         yes_label: str = "Yes",
         no_label: str = "No",
+        show_counts: bool | None = None,
         **options: Any,
     ) -> None:
         super().__init__(name, **options)
         self.yes_label = yes_label
         self.no_label = no_label
+        self.show_counts = show_counts
 
     async def options(self, context: FilterContext) -> Sequence[FilterOption]:
-        """Offer yes and no, with how many records each one matches."""
+        """Offer yes and no, with how many records each one matches if counted."""
         counts = await context.count_by(self.path)
         return (
             FilterOption("true", _(self.yes_label), counts.get("true")),
@@ -431,6 +436,8 @@ class SQLFilterContext:
     repository: SQLAlchemyRepository[Any]
     spec: QuerySpec
     scope: Scope | None = None
+    counts: bool = True
+    """Whether `count_by` counts: off for a filter whose counts the list hides."""
 
     async def count_by(self, path: str) -> Mapping[str, int]:
         """Count matching records grouped by the value at this path.
@@ -439,7 +446,11 @@ class SQLFilterContext:
         stay steady while the user changes their mind. A path this cannot
         count, such as one through a relationship, gives no counts rather
         than an error: the filter still works, it just shows no numbers.
+        A filter whose counts the list hides gets none either, and the
+        database is not asked.
         """
+        if not self.counts:
+            return {}
         try:
             column = self._own_column(path)
         except InvalidPathError:
