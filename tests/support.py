@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from types import TracebackType
 
+import httpx
 from sqlalchemy import Engine, event
 from starlette.requests import Request
 
@@ -79,6 +80,18 @@ def request_from(user: object = None) -> Request:
 def count_queries(backend: Backend) -> QueryCounter:
     """Count the queries a block of code runs against this backend."""
     return QueryCounter(backend.engine)
+
+
+# The headers of the request a list's table makes for its total, once its
+# rows are on screen.
+TOTAL_REQUEST = {"HX-Request": "true", "HX-Trigger": "records-counter"}
+
+
+async def counted(client: httpx.AsyncClient, address: str) -> str:
+    """What a list says once the total that follows its rows is in."""
+    response = await client.get(address, headers=TOTAL_REQUEST)
+    assert response.status_code == 200
+    return response.text
 
 
 async def spare_product(database: Database) -> int:

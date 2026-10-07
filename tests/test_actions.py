@@ -13,7 +13,7 @@ from adminsite.fields import EnumField, StringField
 from adminsite.permissions import Permission
 from adminsite.query import QuerySpec
 from tests.models import Customer, Order, OrderStatus, Product
-from tests.support import REFUSED, Backend, count_queries, request_from
+from tests.support import REFUSED, Backend, count_queries, counted, request_from
 
 
 class OrderView(ModelView[Order]):
@@ -375,11 +375,11 @@ class TestTheActionsMenu:
     async def test_every_row_is_offered_where_more_pages_follow(
         self, client: httpx.AsyncClient
     ) -> None:
-        paged = await client.get("/admin/orders")
-        one_page = await client.get("/admin/orders?status=SHIPPED")
+        paged = await counted(client, "/admin/orders")
+        one_page = await counted(client, "/admin/orders?status=SHIPPED")
 
-        assert "Select all 7 matching" in actions_menu(paged.text)
-        assert "Select all" not in actions_menu(one_page.text)
+        assert "Select all 7 matching" in paged
+        assert "Select all" not in one_page
 
     async def test_it_comes_back_with_the_table(
         self, client: httpx.AsyncClient

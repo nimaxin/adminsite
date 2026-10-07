@@ -20,6 +20,7 @@ from adminsite.i18n import (
 )
 from tests.messages import PACKAGE, missing
 from tests.models import Customer, Order
+from tests.support import counted
 
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
@@ -145,7 +146,7 @@ class TestAPersianAdmin:
         assert '<html lang="fa" dir="rtl">' in page.text
         assert "ویرایش" in page.text
         assert "جست‌وجو در orders" in page.text
-        assert "1 تا 7 از 7" in page.text
+        assert "1 تا 7 از 7" in await counted(persian, "/admin/orders")
 
     async def test_messages_are_translated(self, persian: httpx.AsyncClient) -> None:
         form = await persian.get("/admin/orders/1/edit")

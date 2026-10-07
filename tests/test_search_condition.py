@@ -9,7 +9,7 @@ from starlette.requests import Request
 from adminsite import Admin, ModelView
 from adminsite.actions import Selection, action
 from tests.models import Customer, Order
-from tests.support import Backend, count_queries
+from tests.support import Backend, count_queries, counted
 
 
 class CustomerView(ModelView[Customer]):
@@ -56,10 +56,11 @@ class TestTheViewsOwnCondition:
     ) -> None:
         with count_queries(backend) as queries:
             page = await client.get("/admin/customers?q=LENA@fischer.de")
+            total = await counted(client, "/admin/customers?q=LENA@fischer.de")
 
         assert "Lena Fischer" in page.text
         assert "Marco Rossi" not in page.text
-        assert "1 customer" in page.text
+        assert "1 customer" in total
         assert not any("like" in item for item in customer_queries(queries.statements))
 
     async def test_a_term_it_leaves_alone_is_searched_as_usual(

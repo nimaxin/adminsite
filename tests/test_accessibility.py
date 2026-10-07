@@ -222,7 +222,7 @@ class TestTheList:
         page = await client.get("/admin/orders")
 
         assert '<p id="records-status" class="sr-only" aria-live="polite">' in page.text
-        assert '<span class="tabular-nums" data-count>' in page.text
+        assert '<span id="records-count" class="tabular-nums"' in page.text
 
     async def test_the_filters_drawer_is_named_by_its_heading(
         self, client: httpx.AsyncClient

@@ -1,0 +1,10 @@
+{#- A list's total, which the table asks for once its rows are on screen. Each
+    place that shows it is swapped in on its own, so nothing else on the page
+    moves: not the rows, a box being ticked, or a menu that is open. -#}
+{% with oob = true %}
+  {% include "adminsite/_records_total.html" %}
+  {% include "adminsite/_records_count.html" %}
+  {% include "adminsite/_page_numbers.html" %}
+  {% if panels %}{% include "adminsite/_filters_footer.html" %}{% endif %}
+  {% if actions %}{% include "adminsite/_bulk_summary.html" %}{% endif %}
+{% endwith %}

@@ -9,6 +9,7 @@ from adminsite import Admin, ModelView
 from adminsite._http.urls import STATIC_DIR
 from adminsite.database import Database
 from tests.models import Customer, Order, Product
+from tests.support import counted
 
 
 class OrderView(ModelView[Order]):
@@ -127,14 +128,10 @@ class TestListPage:
         assert "." in response.text
 
     async def test_it_shows_one_page_at_a_time(self, client: httpx.AsyncClient) -> None:
-        response = await client.get("/admin/orders")
-
-        assert "1 to 3 of 7" in response.text
+        assert "1 to 3 of 7" in await counted(client, "/admin/orders")
 
     async def test_the_next_page_follows_on(self, client: httpx.AsyncClient) -> None:
-        response = await client.get("/admin/orders?page=2")
-
-        assert "4 to 6 of 7" in response.text
+        assert "4 to 6 of 7" in await counted(client, "/admin/orders?page=2")
 
     async def test_a_silly_page_number_is_ignored(
         self, client: httpx.AsyncClient
@@ -142,7 +139,7 @@ class TestListPage:
         response = await client.get("/admin/orders?page=nonsense")
 
         assert response.status_code == 200
-        assert "1 to 3 of 7" in response.text
+        assert "1 to 3 of 7" in await counted(client, "/admin/orders?page=nonsense")
 
     async def test_a_view_that_cannot_create_hides_the_button(
         self, client: httpx.AsyncClient

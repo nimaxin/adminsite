@@ -14,7 +14,7 @@ from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.database import Database
 from adminsite.query import Page, QuerySpec, Sort
 from tests.models import Order
-from tests.support import Backend, count_queries
+from tests.support import Backend, count_queries, counted
 
 NEWEST_FIRST = (Sort("created_at", descending=True),)
 
@@ -276,7 +276,7 @@ class TestKeysetListPage:
 
         assert "after=" in next_url
         assert "Page 1" not in first.text
-        assert "7 orders" in first.text
+        assert "7 orders" in await counted(client, "/admin/orders")
         assert second.status_code == 200
         assert back.text.count("/admin/orders/") == first.text.count("/admin/orders/")
 

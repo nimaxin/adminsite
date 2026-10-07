@@ -1,0 +1,21 @@
+{#- The numbered pages between Previous and Next, only where the count is exact
+    and pages have numbers: the first, the last, and the ones either side of
+    this one. The rows come before their total, so these are sent again once
+    it is in. -#}
+{%- set exact = page.total is not none and not page.estimated and not page.at_least -%}
+<span id="page-numbers" class="flex items-center gap-1 empty:hidden"
+      {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
+  {%- if exact and not page.keyset and page.limit %}
+    {% set last = [((page.total + page.limit - 1) // page.limit), 1]|max %}
+    {% for number in range(1, last + 1) if number == 1 or number == last or (number - page_number)|abs <= 1 %}
+      {% if not loop.first and number - loop.previtem > 1 %}
+        <span class="px-1" aria-hidden="true">…</span>
+      {% endif %}
+      {% set address = urls.here(page=number if number > 1 else None) %}
+      <a class="btn btn-sm min-w-8 px-2 tabular-nums {% if number == page_number %}btn-neutral{% else %}btn-plain{% endif %}"
+         aria-label="{{ _('Page {number}', number=number) }}" {% if number == page_number %}aria-current="page"{% endif %}
+         href="{{ address }}" hx-get="{{ address }}" hx-target="#records"
+         hx-swap="outerHTML" hx-push-url="true">{{ number }}</a>
+    {% endfor %}
+  {%- endif -%}
+</span>
