@@ -6,7 +6,8 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-from adminsite._orm.values import to_column_type
+from adminsite._orm.values import to_column_value
+from adminsite.schema import FieldSchema
 
 __all__ = [
     "decode_cursor",
@@ -20,8 +21,8 @@ def encode_cursor(values: Sequence[Any]) -> str:
     return base64.urlsafe_b64encode(data.encode()).decode().rstrip("=")
 
 
-def decode_cursor(token: str, types: Sequence[type[Any]]) -> list[Any] | None:
-    """Read a token back into values of the given types.
+def decode_cursor(token: str, fields: Sequence[FieldSchema]) -> list[Any] | None:
+    """Read a token back into values for the given columns.
 
     Anything that does not fit, such as a token edited by hand or one left
     over from a different sort, reads as no cursor at all.
@@ -31,10 +32,10 @@ def decode_cursor(token: str, types: Sequence[type[Any]]) -> list[Any] | None:
         raw = json.loads(base64.urlsafe_b64decode(padded.encode()))
     except (ValueError, binascii.Error):
         return None
-    if not isinstance(raw, list) or len(raw) != len(types):
+    if not isinstance(raw, list) or len(raw) != len(fields):
         return None
     try:
-        return [_typed(kind, value) for kind, value in zip(types, raw, strict=True)]
+        return [_typed(field, value) for field, value in zip(fields, raw, strict=True)]
     except ValueError:
         return None
 
@@ -49,7 +50,8 @@ def _plain(value: Any) -> Any:
     return str(value)
 
 
-def _typed(kind: type[Any], value: Any) -> Any:
+def _typed(field: FieldSchema, value: Any) -> Any:
+    kind = field.python_type
     if value is None:
         return None
     if kind is bool:
@@ -60,4 +62,4 @@ def _typed(kind: type[Any], value: Any) -> Any:
         if not isinstance(value, str):
             raise ValueError(f"{value!r} is not a {kind.__name__}.")
         return kind.fromisoformat(value)
-    return to_column_type(kind, value)
+    return to_column_value(field, value)

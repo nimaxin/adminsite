@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from sqlalchemy import (
@@ -20,7 +20,7 @@ from sqlalchemy.orm.strategy_options import _AbstractLoad
 
 from adminsite._orm.cursor import decode_cursor, encode_cursor
 from adminsite._orm.loader import build_defer_options, build_load_options
-from adminsite._orm.values import to_column_type
+from adminsite._orm.values import to_column_value
 from adminsite.database import SessionAdapter, database_refusals
 from adminsite.exceptions import InvalidPathError, RecordNotFoundError
 from adminsite.inspector import SQLAlchemyInspector
@@ -64,7 +64,7 @@ class KeysetKey:
     name: str
     column: Any
     descending: bool
-    python_type: type[Any]
+    field: FieldSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,7 +232,7 @@ class SQLAlchemyRepository(Generic[M]):
                     field.name,
                     getattr(self.model, field.name),
                     sort.descending,
-                    field.python_type,
+                    field,
                 )
             )
         named = {key.name for key in keys}
@@ -243,7 +243,7 @@ class SQLAlchemyRepository(Generic[M]):
                         name,
                         getattr(self.model, name),
                         False,
-                        self.schema.field_named(name).python_type,
+                        self.schema.field_named(name),
                     )
                 )
         return tuple(keys)
@@ -256,9 +256,7 @@ class SQLAlchemyRepository(Generic[M]):
         keys: Sequence[KeysetKey],
     ) -> Page:
         token = spec.before or spec.after
-        cursor = (
-            decode_cursor(token, [key.python_type for key in keys]) if token else None
-        )
+        cursor = decode_cursor(token, [key.field for key in keys]) if token else None
         backwards = cursor is not None and bool(spec.before)
 
         statement = self.narrow(self.base_statement(scope), spec)
@@ -595,14 +593,15 @@ class SQLAlchemyRepository(Generic[M]):
         """A key's parts as the types of their columns, or None if it names no record.
 
         A key with the wrong number of parts, such as /orders/1,2 for a single
-        key, names no record, and nor does one that cannot be the column's type.
+        key, names no record, and nor does one that cannot be the column's type
+        or is past what the column holds.
         """
         values = self.schema.key_parts(key)
         if len(values) != len(self.schema.primary_key):
             return None
         try:
             return [
-                to_column_type(self.schema.field_named(name).python_type, value)
+                to_column_value(self.schema.field_named(name), value)
                 for name, value in zip(self.schema.primary_key, values, strict=True)
             ]
         except ValueError:
@@ -644,7 +643,7 @@ class SQLAlchemyRepository(Generic[M]):
             raise RecordNotFoundError(target.model, key)
         try:
             converted = [
-                to_column_type(target.field_named(name).python_type, value)
+                to_column_value(target.field_named(name), value)
                 for name, value in zip(target.primary_key, values, strict=True)
             ]
         except ValueError:
@@ -706,15 +705,16 @@ class SQLAlchemyRepository(Generic[M]):
         if field.python_type is str:
             return column.ilike(f"%{term}%")
         if field.python_type in NUMBER_TYPES:
-            number = self._as_number(term, field.python_type)
+            number = self._as_number(term, field)
             return None if number is None else column == number
         # Dates and booleans need a filter, not a text search.
         return None
 
-    def _as_number(self, term: str, python_type: type[Any]) -> Any | None:
+    def _as_number(self, term: str, field: FieldSchema) -> Any | None:
+        """The term as the column's number, or None where no record could hold it."""
         try:
-            return python_type(term)
-        except (ValueError, ArithmeticError, InvalidOperation):
+            return to_column_value(field, term)
+        except ValueError:
             return None
 
     def _column_for_sort(

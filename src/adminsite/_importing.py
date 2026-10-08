@@ -15,7 +15,7 @@ from starlette.requests import Request
 
 from adminsite._http.export import as_cell
 from adminsite._orm.loader import build_load_options
-from adminsite._orm.values import to_column_type
+from adminsite._orm.values import to_column_value
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import EnumField, FileField, ListField, RelationField
 from adminsite.i18n import gettext as _
@@ -261,11 +261,11 @@ async def _existing(
     if not key_name:
         return {}
     column = getattr(view.model, key_name)
-    python_type = view._schema.field_named(key_name).python_type
+    key_field = view._schema.field_named(key_name)
     named: dict[Any, list[str]] = {}
     for key in {row.raw[key_name] for row in rows if row.raw.get(key_name)}:
         try:
-            named.setdefault(to_column_type(python_type, key), []).append(key)
+            named.setdefault(to_column_value(key_field, key), []).append(key)
         except ValueError:
             continue
     wanted = list(named)

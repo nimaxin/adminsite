@@ -615,3 +615,152 @@ class TestChips:
         chip = status.describe(picked("status", "PAID"), options)
 
         assert chip == "Status: Paid"
+
+
+# More than an Integer column holds, which asyncpg refuses to send.
+TOO_BIG = "99999999999"
+
+
+class OrdersByCustomer(ModelView[Order]):
+    name = "orders"
+    fields = ["id", "status", "customer"]
+    list_filters = ("status", "customer")
+
+
+class CustomerView(ModelView[Customer]):
+    name = "customers"
+
+
+class TestValuesEditedByHand:
+    """A filter's values come from the address, where anyone can change them."""
+
+    async def test_a_choice_that_is_not_offered_matches_nothing(
+        self, database: Database
+    ) -> None:
+        orders = orders_with(ChoiceFilter("status", choices=STATUSES))
+        async with database.session() as session:
+            page = await orders.list(
+                session, QuerySpec(filters=(picked("status", "REFUNDED"),))
+            )
+
+            assert len(page) == 0
+
+    async def test_the_choices_that_are_offered_still_match(
+        self, database: Database
+    ) -> None:
+        orders = orders_with(ChoiceFilter("status", choices=STATUSES))
+        async with database.session() as session:
+            page = await orders.list(
+                session, QuerySpec(filters=(picked("status", "PAID", "NOPE"),))
+            )
+
+            assert {row.status for row in page} == {OrderStatus.PAID}
+
+    async def test_an_enum_column_leaves_out_a_name_it_does_not_have(
+        self, database: Database
+    ) -> None:
+        orders = orders_with(ChoiceFilter("status"))
+        async with database.session() as session:
+            nothing = await orders.list(
+                session, QuerySpec(filters=(picked("status", "NOPE"),))
+            )
+            paid = await orders.list(
+                session, QuerySpec(filters=(picked("status", "NOPE", "PAID"),))
+            )
+
+            assert len(nothing) == 0
+            assert {row.status for row in paid} == {OrderStatus.PAID}
+
+    async def test_a_key_past_what_the_column_holds_names_no_record(
+        self, database: Database
+    ) -> None:
+        orders = orders_with(RelationFilter("customer"))
+        async with database.session() as session:
+            lena = await session.scalar(
+                select(Customer).where(Customer.email == "lena@fischer.de")
+            )
+            assert lena is not None
+            nothing = await orders.list(
+                session, QuerySpec(filters=(picked("customer", TOO_BIG),))
+            )
+            hers = await orders.list(
+                session,
+                QuerySpec(filters=(picked("customer", TOO_BIG, str(lena.id)),)),
+            )
+
+            assert len(nothing) == 0
+            assert len(hers) == 2
+
+    def test_the_condition_asks_only_for_what_the_column_holds(self) -> None:
+        orders = SQLAlchemyRepository(Order)
+        customer = RelationFilter("customer")
+        status = ChoiceFilter("status")
+
+        keys = customer.condition(picked("customer", TOO_BIG, "3"), orders)
+        names = status.condition(picked("status", "NOPE"), orders)
+
+        assert keys is not None
+        assert names is not None
+        assert list(keys.compile().params.values()) == [[3]]
+        assert names.compile().params == {}
+
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "/admin/orders?status=NOPE",
+            f"/admin/orders?customer={TOO_BIG}",
+            f"/admin/orders?customer=-{TOO_BIG}",
+            "/admin/orders?customer=abc",
+        ],
+    )
+    async def test_the_list_shows_no_rows_rather_than_failing(
+        self, database: Database, address: str
+    ) -> None:
+        async with listing(database) as client:
+            page = await client.get(address)
+
+        assert page.status_code == 200
+        assert "No orders to show." in page.text
+
+    async def test_the_offered_values_still_narrow_the_list(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            paid = await session.scalar(
+                select(func.count()).where(Order.status == OrderStatus.PAID)
+            )
+        async with listing(database) as client:
+            page = await counted(client, "/admin/orders?status=PAID&status=NOPE")
+
+        assert f"{paid} orders" in page
+
+    async def test_a_record_past_what_the_key_holds_is_not_found(
+        self, database: Database
+    ) -> None:
+        async with listing(database) as client:
+            page = await client.get(f"/admin/orders/{TOO_BIG}")
+
+        assert page.status_code == 404
+
+    async def test_a_search_for_a_number_past_what_the_key_holds_finds_nothing(
+        self, database: Database
+    ) -> None:
+        class SearchedOrders(OrdersByCustomer):
+            searchable_fields = ("id",)
+
+        async with listing(database, SearchedOrders) as client:
+            page = await client.get(f"/admin/orders?q={TOO_BIG}")
+
+        assert page.status_code == 200
+        assert "No orders to show." in page.text
+
+
+def listing(
+    database: Database, view: type[ModelView[Order]] = OrdersByCustomer
+) -> httpx.AsyncClient:
+    """A client for an admin of orders and their customers."""
+    app = Starlette()
+    app.mount("/admin", Admin(database, views=[view, CustomerView]))
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+    )
