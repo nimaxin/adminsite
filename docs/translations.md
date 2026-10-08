@@ -15,13 +15,14 @@ layout mirrors for languages written right to left.
 | Français, French | `fr` | `fr`, `fr-FR`, `fr-CA`, `fr-BE` |
 | Türkçe, Turkish | `tr` | `tr`, `tr-TR` |
 | العربية, Arabic | `ar` | `ar`, `ar-SA`, `ar-EG`, `ar-AE` and any other Arabic |
+| 简体中文, Simplified Chinese | `zh-Hans` | `zh-CN`, `zh-SG`, `zh` and `zh-Hans`; never `zh-TW`, `zh-HK` or `zh-MO` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
 German breaks a long compound word with a hyphen where it has to break, as on a phone. Japanese
-text starts from fonts made for Japanese, so kanji such as 直 and 骨 are drawn in their
-Japanese forms, wherever the page or a part of it, such as its name in the language menu, is in
-Japanese.
+and Simplified Chinese text start from fonts made for each, so characters such as 直 and 骨 are
+drawn in that language's own forms, wherever the page or a part of it, such as its name in the
+language menu, is in it.
 
 ```python
 admin = Admin(engine, views=[OrderView], language="fa")
