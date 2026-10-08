@@ -57,8 +57,8 @@ class TestTheMenu:
             r'<span class="min-w-0 flex-1 truncate font-medium">nima<', menu
         )
         assert 'role="switch"' in menu and "Dark mode" in menu
-        assert '<span class="flex-1">Language</span>' in menu
-        assert '<span class="flex-1">Time zone</span>' in menu
+        assert '<span class="whitespace-nowrap">Language</span>' in menu
+        assert '<span class="whitespace-nowrap">Time zone</span>' in menu
         assert 'form="sign-out-form"' in menu and "Sign out" in menu
 
     async def test_its_sign_out_signs_out(self, signed_in: httpx.AsyncClient) -> None:
