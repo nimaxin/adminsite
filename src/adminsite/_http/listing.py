@@ -19,6 +19,7 @@ from adminsite.filters.base import (
     FilterValue,
     parse_filters,
 )
+from adminsite.i18n import format_number
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
 from adminsite.query import CountMode, QuerySpec, Sort
@@ -382,7 +383,7 @@ def total_text(page: Any) -> str:
     """How many records match, as the list says it: exact, about, or more."""
     if page.total is None:
         return ""
-    number = f"{page.total:,}"
+    number = format_number(page.total)
     if page.at_least:
         return _("more than {count}", count=number)
     if page.estimated:

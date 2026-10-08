@@ -154,8 +154,10 @@ async def run(admin: "Admin", request: Request, view: ModelView[Any]) -> Respons
                     session, row.values, record=record, request=request
                 )
             except AdminSiteError as error:
+                # The sentence around the rows ends them, so a reason does not.
+                reason = str(error).rstrip(".。")
                 failed.append(
-                    _("row {number}: {reason}", number=row.number, reason=error)
+                    _("row {number}: {reason}", number=row.number, reason=reason)
                 )
                 continue
             if record is None:
@@ -190,7 +192,7 @@ def summary(
             )
         )
     if failed:
-        shown = "; ".join(failed[:3])
+        shown = _("; ").join(failed[:3])
         more = _(" and {count} more", count=len(failed) - 3) if len(failed) > 3 else ""
         parts.append(
             _(

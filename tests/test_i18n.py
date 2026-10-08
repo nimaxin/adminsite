@@ -11,12 +11,15 @@ from starlette.requests import Request
 from adminsite import Admin, ModelView, Permission
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
+from adminsite.exceptions import PermissionDeniedError
 from adminsite.i18n import (
     activate,
     canonical,
     direction,
+    format_number,
     gettext,
     in_sentence,
+    listed,
     lower,
     negotiate,
     ngettext,
@@ -264,6 +267,85 @@ class TestPlurals:
             "one": "{count} row",
             "other": "{count} rows",
         }
+
+
+class TestNumbers:
+    @pytest.mark.parametrize(
+        ("language", "written"),
+        [
+            ("en", "1,234,567"),
+            ("fa", "1,234,567"),
+            ("de", "1.234.567"),
+            ("pt-BR", "1.234.567"),
+            ("tr", "1.234.567"),
+            ("es", "1.234.567"),
+            ("fr", "1\u202f234\u202f567"),
+            ("ru", "1\u00a0234\u00a0567"),
+            ("ja", "1,234,567"),
+        ],
+    )
+    def test_a_language_sets_its_thousands_apart(
+        self, language: str, written: str
+    ) -> None:
+        activate(language)
+
+        assert format_number(1_234_567) == written
+
+    def test_spanish_leaves_four_digits_whole(self) -> None:
+        activate("es")
+
+        assert format_number(1234) == "1234"
+        assert format_number(12345) == "12.345"
+
+    def test_a_count_is_grouped_as_its_language_does(self) -> None:
+        activate("de")
+
+        assert ngettext("{count} row", "{count} rows", 1234) == "1.234 rows"
+
+    def test_a_count_may_read_as_a_phrase(self) -> None:
+        activate("en")
+
+        one = ngettext(
+            "{count} {thing}",
+            "{count} {things}",
+            1,
+            count="1",
+            thing="order",
+            things="orders",
+        )
+        many = ngettext(
+            "{count} {thing}",
+            "{count} {things}",
+            1200,
+            count="about 1,200",
+            thing="order",
+            things="orders",
+        )
+
+        assert one == "1 order"
+        assert many == "about 1,200 orders"
+
+
+class TestLists:
+    def test_english_sets_them_apart_with_a_comma(self) -> None:
+        activate("en")
+
+        assert listed(["Ann", "Bob", "Cy"]) == "Ann, Bob, Cy"
+
+    def test_another_language_writes_its_own(self) -> None:
+        activate("ja", {"ja": {", ": "、"}})
+
+        assert listed(["Ann", "Bob"]) == "Ann、Bob"
+
+
+class TestRefusals:
+    def test_a_record_page_refused_is_one_not_opened(self) -> None:
+        activate("en")
+
+        refused = PermissionDeniedError("detail", "Orders")
+
+        assert str(refused) == "You cannot open Orders."
+        assert refused.action == "detail"
 
 
 class TestMarkup:

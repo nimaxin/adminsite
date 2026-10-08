@@ -1,6 +1,6 @@
 import io
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import httpx
@@ -17,11 +17,14 @@ from adminsite._importing import (
     import_columns,
     load_plan,
     match_headers,
+    normalize,
     read_table,
     save_plan,
 )
 from adminsite.database import Database
-from adminsite.exceptions import RefusedError
+from adminsite.exceptions import FieldValidationError, RefusedError
+from adminsite.fields import BooleanField
+from adminsite.i18n import activate
 from adminsite.views.contexts import SaveContext
 from tests.models import Customer, Order
 from tests.support import request_from
@@ -530,3 +533,36 @@ class TestImportPages:
 
         assert "Imported 1 new" in done.text
         assert "Refused 1: row 3: No Toms." in done.text
+        assert "No Toms.." not in done.text
+
+
+class TestYesAndNo:
+    """A file says yes or no as the export writes it, in the page's language."""
+
+    @pytest.fixture(autouse=True)
+    def english_afterwards(self) -> Iterator[None]:
+        yield
+        activate("en")
+
+    @pytest.mark.parametrize(
+        ("language", "text", "read"),
+        [
+            ("en", "Yes", "true"),
+            ("en", "no", "false"),
+            ("fa", "بله", "true"),
+            ("fa", "خیر", "false"),
+            ("fa", "yes", "yes"),
+        ],
+    )
+    def test_the_words_of_the_language_count(
+        self, language: str, text: str, read: str
+    ) -> None:
+        activate(language)
+
+        assert normalize(BooleanField("is_active"), text) == read
+
+    def test_another_word_is_refused(self) -> None:
+        activate("fa")
+
+        with pytest.raises(FieldValidationError):
+            normalize(BooleanField("is_active"), "maybe")

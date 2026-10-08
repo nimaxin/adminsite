@@ -22,10 +22,13 @@ Before upgrading:
   "Skipped {count} rows with problems." "Skipped {count} row with problems.",
   "Enter at least {count} characters." "Enter at least {count} character.",
   "Keep this to {count} characters or fewer." "Keep this to {count} character or fewer.", and
-  "{count} {things} deleted." "{count} {thing} deleted.".
-- A project that overrides `base.html`, `form.html`, `import_preview.html`, `_table.html`,
-  `_bulk_summary.html`, `_records_count.html`, `_records_total.html` or `_document_json.html`
-  should start its copy again from the new one.
+  "{count} {things} deleted." "{count} {thing} deleted.", "{count} {things}" "{count} {thing}" and
+  "Show {count} {things}" "Show {count} {thing}". A line of the history is one sentence, keyed as
+  "{who} changed {record}", "{who} changed" and so on, where it was "changed".
+- A project that overrides `base.html`, `form.html`, `import.html`, `import_preview.html`,
+  `detail.html`, `_table.html`, `_bulk_summary.html`, `_records_count.html`, `_records_total.html`,
+  `_filters_footer.html`, `_history.html`, `_document_json.html` or `dashboard/counts.html` should
+  start its copy again from the new one.
 
 What changed:
 
@@ -72,6 +75,14 @@ What changed:
   another region, such as `pt-BR`.
 - A value marked as markup, such as a link, goes into a translated text as it is, and the rest of
   the text is escaped around it.
+- A count sets its thousands apart as the page's language does: 1,234 in English, 1.234 in German,
+  1 234 in French. A list inside a sentence, such as the records a filter is on, is set apart as the
+  language does too, and a total says "1 order" rather than "1 orders".
+- A line of the history is one sentence with the person and the record in it, so a language puts
+  them in its own order.
+- An import reads yes and no in the page's language as well, as the export writes them, so a
+  Persian export imports again. A refused row's reason no longer ends in two full stops, and a
+  record page someone may not open says "You cannot open Orders.", not "You cannot detail Orders.".
 
 ## 0.1.0a16
 

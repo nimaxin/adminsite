@@ -15,6 +15,7 @@ from adminsite._http.urls import Urls
 from adminsite.audit import AuditQuery
 from adminsite.exceptions import PermissionDeniedError
 from adminsite.fields import RelationField
+from adminsite.i18n import format_number, listed
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
@@ -171,9 +172,9 @@ class LinkedMany:
     @property
     def text(self) -> str:
         """The names as one line, saying how many more there are."""
-        text = ", ".join(name for name, _url in self.names)
+        text = listed(name for name, _url in self.names)
         if self.more > 0:
-            text += _(" and {count} more", count=f"{self.more:,}")
+            text += _(" and {count} more", count=format_number(self.more))
         return text
 
 

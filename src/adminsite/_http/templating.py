@@ -19,8 +19,10 @@ from adminsite._http.timezones import timezone_menu
 from adminsite._http.urls import Urls, sort_state
 from adminsite.i18n import (
     direction,
+    format_number,
     gettext,
     in_sentence,
+    listed,
     native_name,
     ngettext,
     plural_forms,
@@ -61,6 +63,8 @@ class Templates:
         self.environment.globals["plural_forms"] = plural_forms
         self.environment.filters["in_sentence"] = in_sentence
         self.environment.filters["initial"] = initial
+        self.environment.filters["number"] = format_number
+        self.environment.filters["listed"] = listed
 
     def add_directory(self, directory: str | Path) -> None:
         """Look for templates in one more folder, after the ones given first."""

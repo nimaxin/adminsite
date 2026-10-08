@@ -76,6 +76,9 @@ admin = Admin(
 )
 ```
 
+A count is written with its thousands set apart as the language does, 1.234 in German, and a list
+inside a sentence with the language's own separator, the translation of ", ".
+
 The categories are the ones the Unicode CLDR names for each language: one and other for English,
 German, Spanish, French, Portuguese, Turkish and Persian; one, few and many for Russian; zero, one,
 two, few, many and other for Arabic. Japanese and Chinese write every number the same way, so their

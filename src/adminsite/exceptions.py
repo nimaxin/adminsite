@@ -88,8 +88,9 @@ class PermissionDeniedError(AdminSiteError):
     def __init__(self, action: str, subject: str = "") -> None:
         from adminsite.i18n import gettext as _
 
-        # The action is one of the permission names, such as "edit".
-        doing = _(action)
+        # The action is one of the permission names, such as "edit". A
+        # record's own page is opened, whatever the permission is called.
+        doing = _("open" if action == "detail" else action)
         super().__init__(
             _("You cannot {action} {subject}.", action=doing, subject=subject)
             if subject
