@@ -14,6 +14,7 @@ layout mirrors for languages written right to left.
 | Deutsch, German | `de` | `de`, `de-DE`, `de-AT`, `de-CH` |
 | Français, French | `fr` | `fr`, `fr-FR`, `fr-CA`, `fr-BE` |
 | Türkçe, Turkish | `tr` | `tr`, `tr-TR` |
+| العربية, Arabic | `ar` | `ar`, `ar-SA`, `ar-EG`, `ar-AE` and any other Arabic |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.

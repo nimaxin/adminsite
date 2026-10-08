@@ -107,6 +107,9 @@ What changed:
   `fr-FR`, `fr-CA` or `fr-BE` (#54).
 - Turkish ships with adminsite: `language="tr"`, or `languages=["tr"]` for a browser set to `tr-TR`.
   A label lowered inside a sentence follows Turkish rules, so İndirimler reads indirimler (#55).
+- Arabic ships with adminsite, in Modern Standard Arabic, its pages read right to left:
+  `language="ar"`, or `languages=["ar"]` for a browser set to `ar-SA`, `ar-EG`, `ar-AE` or any other
+  Arabic. Texts with a count read right in all six of its forms (#56).
 
 ## 0.1.0a16
 
