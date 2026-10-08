@@ -26,6 +26,7 @@ from adminsite.fields.scalars import (
 )
 from adminsite.fields.temporal import DateField, DateTimeField, TimeField
 from adminsite.i18n import gettext as _
+from adminsite.i18n import ngettext
 
 __all__ = [
     "DocumentAddress",
@@ -147,7 +148,11 @@ class DocumentText(_Described, StringField):
         if self.min_length is not None and len(value) < self.min_length:
             raise FieldValidationError(
                 self.name,
-                _("Enter at least {count} characters.", count=self.min_length),
+                ngettext(
+                    "Enter at least {count} character.",
+                    "Enter at least {count} characters.",
+                    self.min_length,
+                ),
             )
         if self.pattern is not None and not re.search(self.pattern, value):
             raise FieldValidationError(

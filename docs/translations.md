@@ -56,6 +56,31 @@ Your translations win over the ones adminsite ships, and a text with no translat
 English rather than disappearing. Keep the `{placeholders}` as they are; only their place in the
 sentence may move.
 
+A text with a count has a translation for each form its language writes a number in. English has
+two, "1 row" and "2 rows", and Russian three, so the translation is keyed by the English for one,
+and holds a text for each plural category:
+
+```python
+admin = Admin(
+    engine,
+    language="ru",
+    translations={
+        "ru": {
+            "{count} row": {
+                "one": "{count} строка",
+                "few": "{count} строки",
+                "many": "{count} строк",
+            },
+        },
+    },
+)
+```
+
+The categories are the ones the Unicode CLDR names for each language: one and other for English,
+German, Spanish, French, Portuguese, Turkish and Persian; one, few and many for Russian; zero, one,
+two, few, many and other for Arabic. Japanese and Chinese write every number the same way, so their
+translation is plain text.
+
 English works the same way, so a word of the admin's own can change without copying the template
 it is in. A project that signs people in with their email address:
 
@@ -71,7 +96,16 @@ from adminsite.i18n import gettext as _
 raise RefusedError(_("Shipped orders cannot be changed."))
 ```
 
-and add the text to `translations`.
+and add the text to `translations`. For a text with a count, give the English for one and for any
+other number, and the count:
+
+```python
+from adminsite.i18n import ngettext
+
+
+def shipped(count: int) -> str:
+    return ngettext("{count} order shipped.", "{count} orders shipped.", count)
+```
 
 ## Time zones
 
@@ -137,5 +171,8 @@ catalog is missing:
 uv run python -m tests.messages de
 ```
 
-It prints a JSON object of the missing texts, ready to fill in. The test suite checks that the
-shipped catalogs translate every text and keep every placeholder.
+It prints a JSON object of the missing texts, ready to fill in, with a place for each plural form
+of a text with a count. The test suite checks that the shipped catalogs translate every text, in
+every form, and keep every placeholder. A translation may leave out `{thing}` or `{things}`, the
+name of the records, where its grammar has no room for a name it cannot change. A form that is for
+one number only, such as Arabic's two, may leave out the number, as "صفان" does.

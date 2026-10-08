@@ -8,7 +8,7 @@
       <p class="font-medium">{{ _('Correct these in the form first:') }}</p>
       <ul class="list-disc space-y-0.5 ps-4">
         {% for anchor, label, error in problems %}
-          <li>{{ label }}: {{ error }}</li>
+          <li>{{ _('{field}: {problem}', field=label, problem=error) }}</li>
         {% endfor %}
       </ul>
     </div>

@@ -248,7 +248,7 @@ class NumberRangeFilter(SQLFilter[Any]):
             shown = _("{low} or more", low=low)
         else:
             shown = _("{high} or less", high=high)
-        return f"{self.label}: {shown}"
+        return _("{filter}: {chosen}", filter=self.label, chosen=shown)
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]
@@ -332,7 +332,7 @@ class DateRangeFilter(SQLFilter[Any]):
             shown = _("{day} or later", day=start)
         else:
             shown = _("{day} or earlier", day=end)
-        return f"{self.label}: {shown}"
+        return _("{filter}: {chosen}", filter=self.label, chosen=shown)
 
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]

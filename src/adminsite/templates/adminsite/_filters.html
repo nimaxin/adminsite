@@ -49,7 +49,7 @@
                     <span class="text-muted">{{ icons.icon("search") }}</span>
                     <input type="search" class="grow" x-model="query" @keydown.enter.prevent
                            placeholder="{{ _('Search') }}"
-                           aria-label="{{ _('Search {things}', things=panel.filter.label|lower) }}">
+                           aria-label="{{ _('Search {things}', things=panel.filter.label|in_sentence) }}">
                   </label>
                 {% endif %}
                 <div class="relative -mx-2 flex max-h-64 flex-col gap-0.5 overflow-x-hidden overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
@@ -123,7 +123,7 @@
             {% else %}
               <input class="input input-sm w-full" type="text" name="{{ name }}"
                      value="{{ panel.chosen[0] if panel.chosen else '' }}"
-                     aria-label="{{ panel.filter.label }}" placeholder="{{ panel.filter.label|lower }}"
+                     aria-label="{{ panel.filter.label }}" placeholder="{{ panel.filter.label|in_sentence }}"
                      hx-get="{{ urls.list(view) }}" hx-trigger="input changed delay:400ms, search"
                      hx-include="closest form" hx-target="#records" hx-swap="outerHTML" hx-push-url="true">
             {% endif %}

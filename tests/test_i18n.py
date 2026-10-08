@@ -1,10 +1,10 @@
-import json
 import re
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import httpx
 import pytest
+from markupsafe import Markup
 from starlette.applications import Starlette
 from starlette.requests import Request
 
@@ -13,12 +13,20 @@ from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.i18n import (
     activate,
+    canonical,
     direction,
     gettext,
+    in_sentence,
+    lower,
     negotiate,
+    ngettext,
+    plural_categories,
+    plural_category,
+    plural_forms,
     shipped_languages,
+    upper,
 )
-from tests.messages import PACKAGE, missing
+from tests.messages import catalog, missing, plural_texts
 from tests.models import Customer, Order
 from tests.support import counted
 
@@ -86,24 +94,224 @@ class TestNegotiation:
             ("de", None),
             ("", None),
             ("fa;q=abc,en", "en"),
+            ("fa;q=0,en;q=0.1", "en"),
+            ("*", None),
         ],
     )
     def test_the_best_offered_language(self, header: str, expected: str | None) -> None:
         assert negotiate(header, ["en", "fa"]) == expected
 
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            ("pt-BR", "pt-BR"),
+            ("pt", "pt-BR"),
+            ("pt-PT", "pt-BR"),
+            ("es-419", "es"),
+            ("es-MX,es;q=0.9", "es"),
+            ("ES-es", "es"),
+        ],
+    )
+    def test_a_region_finds_its_language(self, header: str, expected: str) -> None:
+        assert negotiate(header, ["en", "es", "pt-BR"]) == expected
+
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            ("zh-CN", "zh-Hans"),
+            ("zh-SG", "zh-Hans"),
+            ("zh", "zh-Hans"),
+            ("zh-Hans-CN", "zh-Hans"),
+            ("zh-TW", "zh-Hant"),
+            ("zh-HK", "zh-Hant"),
+            ("zh-MO", "zh-Hant"),
+            ("zh-Hant-TW", "zh-Hant"),
+        ],
+    )
+    def test_chinese_is_matched_by_its_script(self, header: str, expected: str) -> None:
+        assert negotiate(header, ["en", "zh-Hans", "zh-Hant"]) == expected
+
+    def test_one_script_is_never_offered_for_the_other(self) -> None:
+        assert negotiate("zh-TW,zh;q=0.9", ["en", "zh-Hans"]) == "zh-Hans"
+        assert negotiate("zh-TW", ["en", "zh-Hans"]) is None
+        assert negotiate("zh-HK", ["en", "zh-Hans"]) is None
+        assert negotiate("zh-CN", ["en", "zh-Hant"]) is None
+
+    def test_tags_are_written_the_usual_way(self) -> None:
+        assert canonical("pt-br") == "pt-BR"
+        assert canonical("ZH_hant") == "zh-Hant"
+        assert canonical("es-419") == "es-419"
+        assert canonical("sr-latn-rs") == "sr-Latn-RS"
+
+
+# Every language adminsite ships, besides the English its texts are written in.
+TRANSLATED = [language for language in shipped_languages() if language != "en"]
+
+# The name of the records a text is about, which a language whose grammar
+# cannot fit it in may leave out.
+NAMES = {"thing", "things"}
+
+
+def single_numbers(language: str) -> set[str]:
+    """The plural categories that hold one number only, such as Arabic's two."""
+    found: dict[str, set[int]] = {}
+    for number in range(1000):
+        found.setdefault(plural_category(language, number), set()).add(number)
+    return {category for category, numbers in found.items() if len(numbers) == 1}
+
 
 class TestTheCatalog:
-    def test_persian_translates_everything(self) -> None:
-        assert missing("fa") == []
+    @pytest.mark.parametrize("language", TRANSLATED)
+    def test_it_translates_everything(self, language: str) -> None:
+        assert missing(language) == []
 
-    def test_placeholders_survive_translation(self) -> None:
-        catalog = json.loads(
-            (PACKAGE / "locales" / "fa.json").read_text(encoding="utf-8")
+    @pytest.mark.parametrize("language", TRANSLATED)
+    def test_placeholders_survive_translation(self, language: str) -> None:
+        plurals = plural_texts()
+        for english, translation in catalog(language).items():
+            wanted = set(PLACEHOLDER.findall(english + plurals.get(english, "")))
+            forms = translation if isinstance(translation, dict) else {"": translation}
+            for category, text in forms.items():
+                found = set(PLACEHOLDER.findall(text))
+                kept = wanted - NAMES
+                # "One row" needs no number where one is the only number it is for.
+                if category in single_numbers(language):
+                    kept -= {"count"}
+                assert found <= wanted, (english, category)
+                assert kept <= found, (english, category)
+
+
+class TestPlurals:
+    @pytest.mark.parametrize(
+        ("language", "numbers"),
+        [
+            ("en", {0: "other", 1: "one", 2: "other", 21: "other"}),
+            ("fr", {0: "one", 1: "one", 2: "other"}),
+            ("pt-BR", {0: "one", 1: "one", 2: "other"}),
+            ("ru", {1: "one", 2: "few", 5: "many", 11: "many", 21: "one", 22: "few"}),
+            ("ru", {12: "many", 111: "many", 104: "few"}),
+            ("ar", {0: "zero", 1: "one", 2: "two", 3: "few", 10: "few", 11: "many"}),
+            ("ar", {99: "many", 100: "other", 102: "other", 103: "few", 111: "many"}),
+            ("ja", {0: "other", 1: "other", 2: "other"}),
+            ("zh-Hant", {1: "other"}),
+        ],
+    )
+    def test_the_category_of_a_number(
+        self, language: str, numbers: dict[int, str]
+    ) -> None:
+        for number, category in numbers.items():
+            assert plural_category(language, number) == category, number
+
+    def test_the_categories_a_language_uses(self) -> None:
+        assert plural_categories("en") == ["one", "other"]
+        assert plural_categories("ru") == ["one", "few", "many"]
+        assert plural_categories("ar") == ["zero", "one", "two", "few", "many", "other"]
+        assert plural_categories("zh-Hans") == ["other"]
+
+    def test_english_has_one_and_many(self) -> None:
+        activate("en")
+
+        assert ngettext("{count} row", "{count} rows", 1) == "1 row"
+        assert ngettext("{count} row", "{count} rows", 0) == "0 rows"
+        assert ngettext("{count} row", "{count} rows", 1234) == "1,234 rows"
+
+    def test_each_form_comes_from_the_translation(self) -> None:
+        rows = {
+            "one": "{count} строка",
+            "few": "{count} строки",
+            "many": "{count} строк",
+        }
+        activate("ru", {"ru": {"{count} row": rows}})
+
+        shown = [ngettext("{count} row", "{count} rows", n) for n in (1, 2, 5, 21)]
+
+        assert shown == ["1 строка", "2 строки", "5 строк", "21 строка"]
+
+    def test_one_text_serves_every_number(self) -> None:
+        activate("ja", {"ja": {"{count} row": "{count} 行"}})
+
+        assert ngettext("{count} row", "{count} rows", 1) == "1 行"
+        assert ngettext("{count} row", "{count} rows", 7) == "7 行"
+
+    def test_a_count_without_a_translation_stays_english(self) -> None:
+        activate("ru")
+
+        assert ngettext("{count} cat", "{count} cats", 5) == "5 cats"
+
+    def test_other_values_go_in_too(self) -> None:
+        activate("en")
+
+        text = ngettext(
+            "Import {count} row, skip {skipped}",
+            "Import {count} rows, skip {skipped}",
+            3,
+            skipped=2,
         )
-        for english, persian in catalog.items():
-            assert set(PLACEHOLDER.findall(english)) == set(
-                PLACEHOLDER.findall(persian)
-            ), english
+
+        assert text == "Import 3 rows, skip 2"
+
+    def test_the_browser_gets_every_form(self) -> None:
+        activate("ru", {"ru": {"{count} row": {"one": "a", "few": "b", "many": "c"}}})
+
+        assert plural_forms("{count} row", "{count} rows") == {
+            "one": "a",
+            "few": "b",
+            "many": "c",
+            "other": "c",
+        }
+        activate("en")
+        assert plural_forms("{count} row", "{count} rows") == {
+            "one": "{count} row",
+            "other": "{count} rows",
+        }
+
+
+class TestMarkup:
+    def test_a_link_goes_in_as_it_is(self) -> None:
+        activate("en")
+        link = Markup('<a href="#name">Name</a>')
+
+        text = gettext("{field}: {problem}", field=link, problem="Use <b> less.")
+
+        assert isinstance(text, Markup)
+        assert text == '<a href="#name">Name</a>: Use &lt;b&gt; less.'
+
+    def test_plain_values_stay_plain_text(self) -> None:
+        activate("en")
+
+        text = gettext("{field}: {problem}", field="<i>Name</i>", problem="Too long.")
+
+        assert not isinstance(text, Markup)
+        assert text == "<i>Name</i>: Too long."
+
+
+class TestCase:
+    def test_a_label_goes_into_small_letters_inside_a_sentence(self) -> None:
+        activate("en")
+
+        assert in_sentence("Order items") == "order items"
+        assert in_sentence("API keys") == "API keys"
+        assert in_sentence("A") == "a"
+
+    def test_turkish_has_a_dotted_and_a_dotless_i(self) -> None:
+        activate("tr")
+
+        assert in_sentence("İndirimler") == "indirimler"
+        assert in_sentence("Iade Talepleri") == "ıade talepleri"
+        assert in_sentence("IBAN") == "IBAN"
+        assert lower("İSTANBUL") == "istanbul"
+        assert upper("istanbul ılık") == "İSTANBUL ILIK"
+
+    def test_german_keeps_the_capitals_of_its_nouns(self) -> None:
+        activate("de")
+
+        assert in_sentence("Bestellungen") == "Bestellungen"
+
+    def test_other_languages_follow_the_usual_rules(self) -> None:
+        activate("fr")
+
+        assert in_sentence("Commandes") == "commandes"
+        assert upper("istanbul") == "ISTANBUL"
 
 
 class OrderView(ModelView[Order]):

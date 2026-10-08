@@ -9,7 +9,7 @@
      aria-label="{{ _('Saved views') }}">
   <a href="{{ urls.list(view) }}" {% if on_all %}aria-current="page"{% endif %}
      class="flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
-    {{ _('All {things}', things=view.label_plural|lower) }}
+    {{ _('All {things}', things=view.label_plural|in_sentence) }}
   </a>
   {% for item in saved_views %}
     {% set on = active_view and active_view.id == item.id %}

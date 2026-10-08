@@ -277,6 +277,8 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.i18n.gettext
 
+::: adminsite.i18n.ngettext
+
 ## Signing in
 
 ::: adminsite.auth.AuthProvider

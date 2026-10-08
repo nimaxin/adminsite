@@ -21,6 +21,7 @@ from adminsite.exceptions import (
 from adminsite.fields import RelationField
 from adminsite.fields.files import FileField, NewFile
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence, ngettext
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import Permission, RequestAction
 from adminsite.views._audit import AuditRecorder
@@ -146,7 +147,7 @@ class Saver(Generic[M]):
             raise RefusedError(
                 _(
                     "This {thing} could not be saved. {reason}",
-                    thing=self._view.label.lower(),
+                    thing=in_sentence(self._view.label),
                     reason=str(error),
                 )
             ) from error
@@ -277,7 +278,7 @@ class Saver(Generic[M]):
                 _(
                     "This {thing} cannot be deleted, because other records "
                     "still refer to it.",
-                    thing=self._view.label.lower(),
+                    thing=in_sentence(self._view.label),
                 )
             ) from error
         except IntegrityError as error:
@@ -285,7 +286,7 @@ class Saver(Generic[M]):
             raise RefusedError(
                 _(
                     "This {thing} could not be deleted. {reason}",
-                    thing=self._view.label.lower(),
+                    thing=in_sentence(self._view.label),
                     reason=str(error),
                 )
             ) from error
@@ -381,8 +382,13 @@ class Saver(Generic[M]):
                         thing=title,
                     )
                 ) from error
-        things = self._view.label if len(records) == 1 else self._view.label_plural
-        return _("{count} {things} deleted.", count=len(records), things=things.lower())
+        return ngettext(
+            "{count} {thing} deleted.",
+            "{count} {things} deleted.",
+            len(records),
+            thing=in_sentence(self._view.label),
+            things=in_sentence(self._view.label_plural),
+        )
 
 
 def _deleting(item: FileField, key: str) -> Any:

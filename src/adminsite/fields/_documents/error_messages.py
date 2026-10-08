@@ -6,6 +6,7 @@ from typing import Any
 from pydantic_core import ErrorDetails
 
 from adminsite.i18n import gettext as _
+from adminsite.i18n import ngettext
 
 __all__ = [
     "message_for",
@@ -77,10 +78,16 @@ def message_for(error: ErrorDetails) -> str:
             "Enter a multiple of {step}.", step=_number_text(context["multiple_of"])
         )
     if kind == "string_too_short":
-        return _("Enter at least {count} characters.", count=context["min_length"])
+        return ngettext(
+            "Enter at least {count} character.",
+            "Enter at least {count} characters.",
+            context["min_length"],
+        )
     if kind == "string_too_long":
-        return _(
-            "Keep this to {count} characters or fewer.", count=context["max_length"]
+        return ngettext(
+            "Keep this to {count} character or fewer.",
+            "Keep this to {count} characters or fewer.",
+            context["max_length"],
         )
     if kind == "too_short":
         return _("Add at least {count}.", count=context["min_length"])

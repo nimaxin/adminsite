@@ -14,7 +14,7 @@
   {%- for item in table.rows -%}
     {%- set number = loop.index -%}
     {%- for cell in item.cells if cell.error -%}
-      {%- set ignored = problems.append(("field-" ~ cell.path, _("{thing}, row {number}, {field}", thing=table.label, number=number, field=cell.label|lower), cell.error)) -%}
+      {%- set ignored = problems.append(("field-" ~ cell.path, _("{thing}, row {number}, {field}", thing=table.label, number=number, field=cell.label|in_sentence), cell.error)) -%}
     {%- endfor -%}
   {%- endfor -%}
 {%- endfor -%}
@@ -61,9 +61,8 @@
           {% if problems %}
             <ul class="list-disc space-y-0.5 ps-4 text-[13.5px]">
               {% for anchor, label, error in problems %}
-                <li>
-                  <a class="text-error underline underline-offset-3" href="#{{ anchor }}">{{ label }}</a>: {{ error }}
-                </li>
+                {% set link %}<a class="text-error underline underline-offset-3" href="#{{ anchor }}">{{ label }}</a>{% endset %}
+                <li>{{ _('{field}: {problem}', field=link, problem=error) }}</li>
               {% endfor %}
             </ul>
           {% endif %}

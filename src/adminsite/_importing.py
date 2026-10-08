@@ -19,6 +19,7 @@ from adminsite._orm.values import to_column_value
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import EnumField, FileField, ListField, RelationField
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence
 from adminsite.markup import plain
 from adminsite.permissions import RequestAction
 from adminsite.views import ModelView
@@ -240,7 +241,7 @@ async def build_plan(
             row.errors[key_name] = _(
                 "Row {number} already adds a {thing} with the key {key}.",
                 number=first,
-                thing=view.label.lower(),
+                thing=in_sentence(view.label),
                 key=row.raw[key_name],
             )
     return ImportPlan(columns, ignored, rows)
@@ -312,7 +313,7 @@ def check_row(
     writable = set(view._pages.writable_paths(request, record))
     if key and record is None and key_name not in writable:
         row.errors[key_name] = _(
-            "No {thing} has the key {key}.", thing=view.label.lower(), key=key
+            "No {thing} has the key {key}.", thing=in_sentence(view.label), key=key
         )
         return
     if record is not None:

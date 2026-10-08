@@ -12,6 +12,7 @@ from adminsite.fields._documents.document import (
 from adminsite.fields._documents.shapes import DRAWN
 from adminsite.fields.base import Field
 from adminsite.i18n import gettext as _
+from adminsite.i18n import ngettext
 
 __all__ = [
     "CELL_LENGTH",
@@ -255,9 +256,5 @@ class JSONField(Field[Any]):
 
     def _count(self, kind: str, count: int) -> str:
         if kind == "object":
-            if count == 1:
-                return _("{count} key", count=count)
-            return _("{count} keys", count=count)
-        if count == 1:
-            return _("{count} item", count=count)
-        return _("{count} items", count=count)
+            return ngettext("{count} key", "{count} keys", count)
+        return ngettext("{count} item", "{count} items", count)

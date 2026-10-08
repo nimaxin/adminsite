@@ -4,7 +4,7 @@
     in. Taking it keeps what the menu and the dialogs then say about it. -#}
 <p id="bulk-actions-summary" class="px-2.5 pt-1.5 pb-2 text-xs text-muted"
    {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
-  <span x-show="!$store.selection.everything"><span x-text="$store.selection.picked"></span> {{ _('selected') }}</span>
+  <span x-show="!$store.selection.everything" x-text="plural(SELECTED, $store.selection.picked)"></span>
   {% if page.total is not none %}
     <span x-show="$store.selection.everything" x-cloak>{{ _("All {count} matching rows are selected.", count=total_text) }}</span>
     {#- Offered once the whole page is ticked, where more pages follow. -#}

@@ -17,6 +17,7 @@ from adminsite.fields import (
     RelationField,
 )
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.views._checks import (
@@ -159,7 +160,7 @@ class ViewFields(Generic[M]):
         if resolved.field is None:
             return label
         owner = resolved.relations[-1].label
-        return f"{owner} {label[:1].lower()}{label[1:]}"
+        return f"{owner} {in_sentence(label)}"
 
     def form_only(self, path: str) -> bool:
         """Whether a path is a form-only field of this view."""

@@ -85,7 +85,7 @@
   {% endif %}
   {% if can_create %}
     <a class="btn btn-primary btn-sm ps-2.5" href="{{ urls.create(view) }}">
-      {{ icons.icon("plus") }}<span class="sm:hidden">{{ _('New') }}</span><span class="hidden sm:inline">{{ _('New {thing}', thing=view.label|lower) }}</span>
+      {{ icons.icon("plus") }}<span class="sm:hidden">{{ _('New') }}</span><span class="hidden sm:inline">{{ _('New {thing}', thing=view.label|in_sentence) }}</span>
     </a>
   {% endif %}
 {% endblock %}

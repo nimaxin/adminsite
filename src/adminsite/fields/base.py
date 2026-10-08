@@ -9,6 +9,7 @@ from adminsite._text import humanize
 from adminsite.columns import Link, describe, written_path
 from adminsite.exceptions import FieldValidationError
 from adminsite.i18n import gettext as _
+from adminsite.i18n import ngettext
 from adminsite.markup import as_text
 from adminsite.schema import FieldSchema
 
@@ -224,9 +225,10 @@ class BaseField:
         if self.max_length is not None and len(text) > self.max_length:
             raise FieldValidationError(
                 self.name,
-                _(
+                ngettext(
+                    "Keep this to {count} character or fewer.",
                     "Keep this to {count} characters or fewer.",
-                    count=self.max_length,
+                    self.max_length,
                 ),
             )
         try:

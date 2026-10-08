@@ -24,6 +24,7 @@ from adminsite.database import SessionAdapter
 from adminsite.exceptions import AdminSiteError, RefusedError
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.messages import Message
 from adminsite.permissions import Permission
@@ -78,7 +79,7 @@ class ActionRunner(Generic[M]):
             method="_delete_selected",
             confirm=_(
                 "Delete the chosen {things}? This cannot be undone.",
-                things=self._view.label_plural.lower(),
+                things=in_sentence(self._view.label_plural),
             ),
             permission=Permission.DELETE,
             dangerous=True,

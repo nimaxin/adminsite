@@ -3,7 +3,7 @@
 <span id="records-count" class="tabular-nums"
       {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
   {% if page.keyset %}
-    {% if page.total is not none %}{{ total_text }} {{ view.label_plural|lower }}{% endif %}
+    {% if page.total is not none %}{{ _('{count} {things}', count=total_text, things=view.label_plural|in_sentence) }}{% endif %}
   {% elif page.total is not none %}
     {{ _("{first} to {last} of {total}", first=page.first_position, last=page.last_position, total=total_text) }}
   {% else %}

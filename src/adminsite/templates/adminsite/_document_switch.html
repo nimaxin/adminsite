@@ -4,7 +4,7 @@
     switch. Where `switch_json_url` is given, choosing JSON asks the server
     for it, into `switch_json_target`. -#}
 <span class="inline-flex gap-0.5 rounded-field bg-base-200 p-0.5 font-normal" role="group"
-      aria-label="{{ _('Show {thing} as', thing=switch_label|lower) }}">
+      aria-label="{{ _('Show {thing} as', thing=switch_label|in_sentence) }}">
   {%- for value, label in switch_views %}
     <button type="button" class="h-6 rounded-md px-2.5 text-[12.5px] font-medium text-muted"
             :class="view === '{{ value }}' ? 'bg-base-100 text-base-content shadow-quiet' : 'hover:text-base-content'"
