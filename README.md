@@ -43,40 +43,59 @@ class OrderView(ModelView[Order]):
 app.mount("/admin", Admin(engine, views=[OrderView]))
 ```
 
-The settings name your models' own attributes, so a type checker catches a misspelt one. The
-labels, filters, form controls and validation come from your models.
-[Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a complete app, signing in included, in a few
-minutes.
+The settings name your models' own attributes, so a type checker catches a misspelt one. The labels,
+filters, form controls and validation come from your models.
+[Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a complete app,
+signing in included, in a few minutes.
 
 ## Features
 
-- [Pages from your models](https://nimaxin.github.io/adminsite/views/): a searchable, sortable list with filters and saved
-  views, a page for each record, and forms with validation.
-- [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a related record from a
-  searchable list, and edit child rows, such as an order's lines, inside the parent's form.
-- [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number and date ranges, related
-  records and text.
-- [Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own) for anything the built-in ones do not
-  cover, such as "overdue" or "spent over €1,000".
-- [Actions](https://nimaxin.github.io/adminsite/actions/) that run your own code on the selected rows, on every row the
-  filters match, on one record or on the whole table, with a dialog for any values they need.
-- [Permissions](https://nimaxin.github.io/adminsite/permissions/) for each view, action, field and row.
-- [Hooks](https://nimaxin.github.io/adminsite/hooks/) that run your code before and after a save or delete, in the same
-  transaction, and can refuse it with a message.
-- [An audit log](https://nimaxin.github.io/adminsite/audit/): who changed what and when, including actions, exports and sign
-  ins, with a history on every record and an activity page you can filter.
-- [Import](https://nimaxin.github.io/adminsite/import/) from CSV or Excel with a preview of every row, and export to CSV.
-- [File and image uploads](https://nimaxin.github.io/adminsite/fields/#files-and-pictures), stored on disk or wherever you
-  choose.
-- [A dashboard](https://nimaxin.github.io/adminsite/dashboard/) of stats, charts and the latest records.
+- [Pages from your models](https://nimaxin.github.io/adminsite/views/): a searchable, sortable list
+  with filters and saved views, a page for each record, and forms with validation.
+- [Editing in the list](https://nimaxin.github.io/adminsite/views/#editing-in-the-list) for a value
+  that changes often, such as an order's status.
+- [Form layouts](https://nimaxin.github.io/adminsite/views/#arranging-the-fields) with panels, rows
+  and tabs, which the record page follows too.
+- [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a
+  related record from a searchable list, and edit child rows, such as an order's lines, inside the
+  parent's form.
+- [JSON columns](https://nimaxin.github.io/adminsite/fields/#a-form-built-from-a-schema) edited with
+  a form built from a Pydantic model or a TypedDict, instead of a code box.
+- [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number
+  and date ranges, related records and text.
+- [Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own) for anything the
+  built-in ones do not cover, such as "overdue" or "spent over €1,000".
+- [Actions](https://nimaxin.github.io/adminsite/actions/) that run your own code on the selected
+  rows, on every row the filters match, on one record or on the whole table, with a dialog for any
+  values they need.
+- [Permissions](https://nimaxin.github.io/adminsite/permissions/) for each view, action, field and
+  row.
+- [Hooks](https://nimaxin.github.io/adminsite/hooks/) that run your code before and after a save or
+  delete, in the same transaction, and can refuse it with a message.
+- [An audit log](https://nimaxin.github.io/adminsite/audit/): who changed what and when, including
+  actions, exports and sign ins, with a history on every record and an activity page you can filter.
+- [Import](https://nimaxin.github.io/adminsite/import/) from CSV or Excel with a preview of every
+  row, and export to CSV.
+- [File and image uploads](https://nimaxin.github.io/adminsite/fields/#files-and-pictures), stored
+  on disk or wherever you choose.
+- [A dashboard](https://nimaxin.github.io/adminsite/dashboard/) of stats, charts and the latest
+  records.
+- [A command palette](https://nimaxin.github.io/adminsite/views/#the-command-palette): Ctrl K jumps
+  to any page or record.
 - [A JSON API](https://nimaxin.github.io/adminsite/api/) that shares the same views and permissions.
-- [Signing in](https://nimaxin.github.io/adminsite/auth/) with a fixed list of users or your own user table.
-- [Pages and plugins](https://nimaxin.github.io/adminsite/pages/) of your own, such as reports or settings, in the same
-  layout.
-- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right to left layouts, and every time shown in the reader's time zone.
-- [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones, and
-  [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a screen reader.
-- [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL, with no N+1 queries.
+- [Signing in](https://nimaxin.github.io/adminsite/auth/) with a fixed list of users or your own
+  user table.
+- [Pages and plugins](https://nimaxin.github.io/adminsite/pages/) of your own, such as reports or
+  settings, in the same layout.
+- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right
+  to left layouts, and every time shown in the reader's time zone.
+- [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones,
+  and [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a
+  screen reader.
+- [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL,
+  with no N+1 queries.
+- [Large tables](https://nimaxin.github.io/adminsite/views/#large-tables): rows never wait for their
+  count, which can be estimated or skipped, and page 400 costs the same as page 1.
 - No Node and no CDN: everything ships inside the package.
 
 ## How it works
