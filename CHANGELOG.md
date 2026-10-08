@@ -57,6 +57,11 @@
   of its list keeps to a few buttons. A view with only one keeps its button. A phone's ⋯ menu
   lists them in the same order, after Import and Export CSV. A project that overrides
   `list.html` should start its copy again from the new one.
+- The sidebar is there as soon as a page starts to load. It came after the page, so while a long
+  list was still arriving the list took the whole width, and the page jumped sideways when the
+  sidebar appeared with the last row. Tab now reaches the sidebar's links before the page's, after
+  the "Skip to the content" link, which jumps over them. A project that overrides `base.html`
+  should start its copy again from the new one.
 
 ## 0.1.0a15
 

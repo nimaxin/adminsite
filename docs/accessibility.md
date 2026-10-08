@@ -7,9 +7,10 @@ you add templates of your own.
 ## What the pages do
 
 - **Keyboard.** Everything is a link, a button or a form control, reached with Tab in reading
-  order. The first Tab shows a "Skip to the content" link. <kbd>Ctrl</kbd>+<kbd>K</kbd> opens the
-  command palette; arrows move through it, Enter opens, Escape closes. Dialogs are native
-  `<dialog>` elements, so focus stays inside them and Escape closes them.
+  order. The first Tab shows a "Skip to the content" link, which jumps over the sidebar.
+  <kbd>Ctrl</kbd>+<kbd>K</kbd> opens the command palette; arrows move through it, Enter opens,
+  Escape closes. Dialogs are native `<dialog>` elements, so focus stays inside them and Escape
+  closes them.
 - **Landmarks.** The sidebar is a named navigation, the page content is `<main>`, and the pager is
   a navigation of its own. The open page is marked with `aria-current="page"`.
 - **Tables.** Every list has a caption naming what it lists. A sorted column says which way with

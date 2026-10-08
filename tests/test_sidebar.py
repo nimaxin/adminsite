@@ -32,6 +32,16 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
         yield client
 
 
+class TestTheSidebar:
+    async def test_it_comes_before_the_page(self, client: httpx.AsyncClient) -> None:
+        # A browser draws a page as it arrives. After a long list, the sidebar
+        # was missing until the last row came in, and then the page jumped
+        # sideways to make room for it.
+        page = await client.get("/admin/orders")
+
+        assert page.text.index("<aside") < page.text.index('<main id="content"')
+
+
 class TestAViewLeftOutOfTheSidebar:
     async def test_it_is_not_listed_in_the_sidebar(
         self, client: httpx.AsyncClient

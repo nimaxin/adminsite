@@ -833,52 +833,9 @@
 <div class="drawer lg:drawer-open">
   <input id="navigation" type="checkbox" class="drawer-toggle">
 
-  <div class="drawer-content flex h-dvh min-w-0 flex-col lg:py-2 lg:pe-2">
-    {% if admin.banner %}
-      <p role="note" class="tone-0 shrink-0 px-4 py-2 text-center text-[13px] font-medium [&_a]:underline [&_a]:underline-offset-2 lg:mb-2 lg:rounded-box">{{ admin.banner }}</p>
-    {% endif %}
-    {#- The messages left for this page, in the corner. An answer from HTMX can
-        add one, as a value saved from the list does. -#}
-    <div class="toast toast-end toast-bottom z-50 empty:hidden" id="toasts">
-      {%- for message in messages %}{% include "adminsite/_message.html" %}{% endfor -%}
-    </div>
-
-    {#- The page sits on a raised panel, so it reads apart from the sidebar. -#}
-    <main id="content" tabindex="-1" x-data="{ scrolled: false }"
-          class="flex min-h-0 flex-1 flex-col bg-base-100 focus:outline-none lg:overflow-hidden lg:rounded-box lg:border lg:border-base-300 lg:shadow-panel">
-      {% block breadcrumb %}{% endblock %}
-      {#- Once the page scrolls, a line under the header keeps what scrolls
-          beneath it apart from it: the same line the tabs below it draw. -#}
-      <header class="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-transparent px-4 py-4 data-scrolled:border-base-300 lg:px-7 {% block header_class %}lg:py-5{% endblock %}"
-              :data-scrolled="scrolled">
-        <label for="navigation" class="btn btn-square btn-ghost btn-sm -ms-1.5 lg:hidden" aria-label="{{ _('Open the menu') }}">
-          {{ icons.icon("menu", 18) }}
-        </label>
-        {#- From a tablet up the heading keeps its width, and the buttons move
-            under it where they do not fit beside it. Given only the room the
-            buttons left, it was cut short to a few letters. A phone folds the
-            buttons into one menu instead, and shortens a long heading. -#}
-        <div class="min-w-0 max-w-full flex-1 sm:flex-[1_0_auto]">
-          {% block header %}{% endblock %}
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button class="btn btn-square btn-ghost btn-sm lg:hidden" type="button"
-                  onclick="openPalette()" aria-label="{{ _('Search, or press Control K') }}">
-            {{ icons.icon("search", 18) }}
-          </button>
-          {% block header_actions %}{% endblock %}
-        </div>
-      </header>
-      {#- Relative, so text kept for screen readers ("sr-only") is placed inside
-          this scrolling area. Placed against the page instead, a label low in a
-          long form stretched the page and made the whole window scroll. -#}
-      <div class="relative flex min-h-0 flex-1 flex-col overflow-auto"
-           @scroll.passive="scrolled = $el.scrollTop > 0">
-        {% block content %}{% endblock %}
-      </div>
-    </main>
-  </div>
-
+  {#- Before the page, so the sidebar is drawn as soon as the page starts to
+      arrive. After a long list, it was missing until the last row came in,
+      and then the page jumped sideways to make room for it. -#}
   <div class="drawer-side z-40">
     <label for="navigation" class="drawer-overlay" aria-label="{{ _('Close the menu') }}"></label>
     {#- As tall as the window, so its links scroll under the account menu,
@@ -1054,6 +1011,52 @@
         </div>
       </div>
     </aside>
+  </div>
+
+  <div class="drawer-content flex h-dvh min-w-0 flex-col lg:py-2 lg:pe-2">
+    {% if admin.banner %}
+      <p role="note" class="tone-0 shrink-0 px-4 py-2 text-center text-[13px] font-medium [&_a]:underline [&_a]:underline-offset-2 lg:mb-2 lg:rounded-box">{{ admin.banner }}</p>
+    {% endif %}
+    {#- The messages left for this page, in the corner. An answer from HTMX can
+        add one, as a value saved from the list does. -#}
+    <div class="toast toast-end toast-bottom z-50 empty:hidden" id="toasts">
+      {%- for message in messages %}{% include "adminsite/_message.html" %}{% endfor -%}
+    </div>
+
+    {#- The page sits on a raised panel, so it reads apart from the sidebar. -#}
+    <main id="content" tabindex="-1" x-data="{ scrolled: false }"
+          class="flex min-h-0 flex-1 flex-col bg-base-100 focus:outline-none lg:overflow-hidden lg:rounded-box lg:border lg:border-base-300 lg:shadow-panel">
+      {% block breadcrumb %}{% endblock %}
+      {#- Once the page scrolls, a line under the header keeps what scrolls
+          beneath it apart from it: the same line the tabs below it draw. -#}
+      <header class="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-transparent px-4 py-4 data-scrolled:border-base-300 lg:px-7 {% block header_class %}lg:py-5{% endblock %}"
+              :data-scrolled="scrolled">
+        <label for="navigation" class="btn btn-square btn-ghost btn-sm -ms-1.5 lg:hidden" aria-label="{{ _('Open the menu') }}">
+          {{ icons.icon("menu", 18) }}
+        </label>
+        {#- From a tablet up the heading keeps its width, and the buttons move
+            under it where they do not fit beside it. Given only the room the
+            buttons left, it was cut short to a few letters. A phone folds the
+            buttons into one menu instead, and shortens a long heading. -#}
+        <div class="min-w-0 max-w-full flex-1 sm:flex-[1_0_auto]">
+          {% block header %}{% endblock %}
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button class="btn btn-square btn-ghost btn-sm lg:hidden" type="button"
+                  onclick="openPalette()" aria-label="{{ _('Search, or press Control K') }}">
+            {{ icons.icon("search", 18) }}
+          </button>
+          {% block header_actions %}{% endblock %}
+        </div>
+      </header>
+      {#- Relative, so text kept for screen readers ("sr-only") is placed inside
+          this scrolling area. Placed against the page instead, a label low in a
+          long form stretched the page and made the whole window scroll. -#}
+      <div class="relative flex min-h-0 flex-1 flex-col overflow-auto"
+           @scroll.passive="scrolled = $el.scrollTop > 0">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
   </div>
 </div>
 <dialog id="palette" class="modal modal-top" onkeydown="movePalette(event)">
