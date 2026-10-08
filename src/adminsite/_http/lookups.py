@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "action_lookup",
+    "filter_lookup",
     "looked_up",
     "lookup",
 ]
@@ -42,7 +43,8 @@ async def lookup(admin: "Admin", request: Request) -> Response:
         raise HTTPException(
             status_code=404, detail=_("{path} is not a link.", path=repr(path))
         )
-    return await looked_up(admin, request, view, item)
+    picker = Picker(admin.views, admin.inspector, item, request)
+    return await looked_up(admin, request, view, picker)
 
 
 async def action_lookup(admin: "Admin", request: Request) -> Response:
@@ -63,14 +65,34 @@ async def action_lookup(admin: "Admin", request: Request) -> Response:
         raise HTTPException(
             status_code=404, detail=_("{path} is not a link.", path=repr(name))
         )
-    return await looked_up(admin, request, view, item)
+    picker = Picker(admin.views, admin.inspector, item, request)
+    return await looked_up(admin, request, view, picker)
+
+
+async def filter_lookup(admin: "Admin", request: Request) -> Response:
+    """The records a relation filter offers, narrowed by what was typed.
+
+    A filter only narrows the list, so seeing the list is enough, where a
+    form's picker needs leave to create or edit. The records come through
+    the linked model's own view, so its scope and its permissions apply.
+    """
+    view = find_view(admin, request)
+    await view._ensure(Permission.VIEW, request=request)
+    name = request.path_params["name"]
+    for item in view._pages.list_filters(request):
+        if item.name != name:
+            continue
+        picker = Picker.for_filter(admin.views, admin.inspector, view, item, request)
+        if picker is not None:
+            return await looked_up(admin, request, view, picker)
+    raise HTTPException(status_code=404, detail=_("No such filter."))
 
 
 async def looked_up(
-    admin: "Admin", request: Request, view: ModelView[Any], item: RelationField
+    admin: "Admin", request: Request, view: ModelView[Any], picker: Picker
 ) -> Response:
-    """The records a link offers for what was typed, as a list to pick from."""
-    picker = Picker(admin.views, admin.inspector, item, request)
+    """The records a picker offers for what was typed, as a list to pick from."""
+    item = picker.item
     async with admin.database.session() as session:
         page = await picker.page(
             session,

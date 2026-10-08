@@ -41,7 +41,7 @@ from adminsite._http.importing import (
 from adminsite._http.languages import choose_language
 from adminsite._http.list_editing import edit_value, save_value
 from adminsite._http.listing import list_records
-from adminsite._http.lookups import action_lookup, lookup
+from adminsite._http.lookups import action_lookup, filter_lookup, lookup
 from adminsite._http.pages import custom_page
 from adminsite._http.palette import palette
 from adminsite._http.requests import own_cookie
@@ -634,6 +634,11 @@ class Admin:
                 "/{view}/lookup/{path}",
                 self._handler(lookup),
                 name="lookup",
+            ),
+            Route(
+                "/{view}/filter/{name}/lookup",
+                self._handler(filter_lookup),
+                name="filter_lookup",
             ),
             Route(
                 "/{view}/document/{path}",

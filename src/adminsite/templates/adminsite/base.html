@@ -167,6 +167,9 @@
   document.addEventListener("htmx:configRequest", (event) => {
     const keeper = event.detail.elt.closest("[data-keeps]");
     if (!keeper || event.detail.verb !== "get") return;
+    // Only a request for the list itself carries its address: a picker's
+    // search inside the filters asks somewhere else, with words of its own.
+    if (new URL(event.detail.path, location.href).pathname !== location.pathname) return;
     const own = ownKeys(keeper);
     const sent = event.detail.formData;
     const empty = (key) => keeper.hasAttribute("data-drops-empty")
@@ -228,7 +231,9 @@
   // A picker: one box to type in, and a list under it that opens as soon as
   // the box is clicked or typed in. It holds one record or option, or
   // several, as chips in the order they were chosen. Its list is in the
-  // page and narrows as you type, or it comes back from a search.
+  // page and narrows as you type, or it comes back from a search. Each time
+  // what it holds changes, it says so with a picker-change event, which the
+  // filters drawer applies itself on.
   function recordPicker(config) {
     return {
       open: false,
@@ -247,6 +252,19 @@
       kept: null,
       empty: false,
       more: false,
+      // The picker's own elements, found once its parts are on the page. A
+      // chip or an option clicked may be gone by the time the list is drawn
+      // again, and Alpine finds $refs from the element that was clicked.
+      root: null,
+      listbox: null,
+      searchbox: null,
+      init() {
+        this.root = this.$el;
+        this.$nextTick(() => {
+          this.listbox = this.$refs.list;
+          this.searchbox = this.$refs.search;
+        });
+      },
       get placeholder() {
         if (this.multiple && !this.ordered) return this.picked.length ? "" : this.hint;
         if (!this.multiple && this.open) return this.picked[0]?.label || this.searchHint;
@@ -263,19 +281,19 @@
         return !this.local || !wanted || label.toLowerCase().includes(wanted);
       },
       options() {
-        return [...this.$refs.list.querySelectorAll('[role="option"]')].filter(
+        return [...this.listbox.querySelectorAll('[role="option"]')].filter(
           (option) => option.style.display !== "none",
         );
       },
       // After the list changes: give each option an id for the box to point
       // at, keep the highlight on one that is there, and say what is not.
       refresh() {
-        this.$refs.list.querySelectorAll('[role="option"]').forEach((option, index) => {
+        this.listbox.querySelectorAll('[role="option"]').forEach((option, index) => {
           if (!option.id) option.id = this.list + "-" + index;
         });
         const options = this.options();
         this.empty = options.length === 0;
-        this.more = !this.local && this.$refs.list.querySelector("template[data-more]") !== null;
+        this.more = !this.local && this.listbox.querySelector("template[data-more]") !== null;
         const kept = options.findIndex((option) => option.dataset.value === this.kept);
         this.kept = null;
         if (kept !== -1) this.active = kept;
@@ -283,7 +301,7 @@
         this.mark(options, kept !== -1);
       },
       mark(options = this.options(), scroll = false) {
-        this.$refs.list.querySelectorAll('[role="option"]').forEach((option) => {
+        this.listbox.querySelectorAll('[role="option"]').forEach((option) => {
           option.dataset.active = "false";
         });
         const current = options[this.active];
@@ -296,7 +314,7 @@
       find() {
         this.$nextTick(() => {
           if (this.local) this.refresh();
-          else htmx.trigger(this.$refs.search, "picker-search");
+          else htmx.trigger(this.searchbox, "picker-search");
         });
       },
       enter() {
@@ -320,7 +338,7 @@
         if (this.local) this.$nextTick(() => this.refresh());
       },
       press(event) {
-        const search = this.$refs.search;
+        const search = this.searchbox;
         if (event.target === search) return;
         event.preventDefault();
         if (document.activeElement === search) this.enter();
@@ -353,24 +371,35 @@
           event.preventDefault();
           event.stopPropagation();
           this.close();
-          if (!this.multiple) this.$nextTick(() => this.$refs.search.select());
+          if (!this.multiple) this.$nextTick(() => this.searchbox.select());
         } else if (event.key === "Backspace" && this.multiple && !this.ordered) {
           if (!this.query && this.picked.length) {
             this.remove(this.picked[this.picked.length - 1].value);
           }
         }
       },
+      // Once the inputs holding the records have followed, so a form sent
+      // then sends what is held now.
+      changed() {
+        this.$nextTick(() => {
+          this.root.dispatchEvent(new CustomEvent("picker-change", { bubbles: true }));
+        });
+      },
       choose(value, label) {
         if (!this.multiple) {
           this.picked = [{ value, label }];
+          this.changed();
           this.close();
           // Typing next replaces the name rather than adding to it.
-          this.$nextTick(() => this.$refs.search.select());
+          this.$nextTick(() => this.searchbox.select());
           return;
         }
         // Choosing one that is held again lets it go.
         if (this.holds(value)) this.remove(value);
-        else this.picked = [...this.picked, { value, label }];
+        else {
+          this.picked = [...this.picked, { value, label }];
+          this.changed();
+        }
         // The list stays open for the next one, back to all of it.
         if (this.query) {
           this.query = "";
@@ -382,11 +411,13 @@
       },
       remove(value) {
         this.picked = this.picked.filter((item) => item.value !== value);
+        this.changed();
         if (this.open) this.$nextTick(() => this.refresh());
       },
       clear() {
         this.picked = [];
         this.query = "";
+        this.changed();
       },
       // For a link whose order means something: one place up or down, or
       // dragged onto another's place.
@@ -400,6 +431,7 @@
         const [item] = order.splice(from, 1);
         order.splice(to, 0, item);
         this.picked = order;
+        this.changed();
       },
     };
   }
@@ -429,7 +461,7 @@
       this.picked = [...this.picked, { value, label }];
       this.close();
       this.$nextTick(() => {
-        const part = this.$root.querySelector(`[data-settable="${CSS.escape(value)}"]`);
+        const part = this.root.querySelector(`[data-settable="${CSS.escape(value)}"]`);
         part?.querySelector("fieldset :is(input:not([type=hidden]), select, textarea)")?.focus();
       });
     };
@@ -437,8 +469,8 @@
       this.picked = this.picked.filter((item) => item.value !== value);
       this.$nextTick(() => {
         this.quiet = true;
-        this.$refs.search.focus();
-        if (document.activeElement !== this.$refs.search) this.quiet = false;
+        this.searchbox.focus();
+        if (document.activeElement !== this.searchbox) this.quiet = false;
       });
     };
     return adder;

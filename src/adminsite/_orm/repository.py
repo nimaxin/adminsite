@@ -349,6 +349,31 @@ class SQLAlchemyRepository(Generic[M]):
         statement = self.base_statement(scope).where(self.keys_clause(keys))
         return (await session.scalars(statement)).unique().all()
 
+    async def having(
+        self,
+        session: SessionAdapter,
+        name: str,
+        values: Iterable[str],
+        scope: Scope | None = None,
+    ) -> Sequence[Any]:
+        """Load the records whose own column holds one of these values, in one query.
+
+        A value that cannot be the column's type, or is past what it holds,
+        names no record.
+        """
+        field = self.schema.field_named(name)
+        wanted = []
+        for value in values:
+            try:
+                wanted.append(to_column_value(field, value))
+            except ValueError:
+                continue
+        if not wanted:
+            return []
+        column = getattr(self.model, name)
+        statement = self.base_statement(scope).where(column.in_(wanted))
+        return (await session.scalars(statement)).unique().all()
+
     async def visible_keys(
         self, session: SessionAdapter, records: Sequence[Any], scope: Scope
     ) -> set[str]:

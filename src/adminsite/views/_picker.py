@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
@@ -6,8 +7,10 @@ from starlette.requests import Request
 from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite._text import template_names
 from adminsite.database import SessionAdapter
-from adminsite.exceptions import PermissionDeniedError
+from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import RelationField
+from adminsite.filters.base import Filter
+from adminsite.filters.sql import RelationFilter
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import CountMode, Page, QuerySpec
 from adminsite.views.model_view import ModelView
@@ -43,6 +46,35 @@ class Picker:
     inspector: SQLAlchemyInspector
     item: RelationField
     request: Request
+    key: str = ""
+    """The column a record is picked by, as a relation filter names it.
+
+    Left empty, its primary key, as a form's link sends it.
+    """
+
+    @classmethod
+    def for_filter(
+        cls,
+        views: "ViewRegistry",
+        inspector: SQLAlchemyInspector,
+        view: ModelView[Any],
+        item: Filter,
+        request: Request,
+    ) -> "Picker | None":
+        """The picker a relation filter offers its records with, as a form's link does.
+
+        None for any other filter, and for one whose path names no link.
+        """
+        if not isinstance(item, RelationFilter):
+            return None
+        try:
+            link = view._fields.field_for(item.path)
+        except AdminSiteError:
+            return None
+        if not isinstance(link, RelationField):
+            return None
+        # A filter can always be left off, whatever the link needs on a form.
+        return cls(views, inspector, replace(link, required=False), request, item.key)
 
     @property
     def view(self) -> ModelView[Any] | None:
@@ -50,7 +82,9 @@ class Picker:
         return self.views.for_relation(self.item)
 
     def key_of(self, record: Any) -> str:
-        """A linked record's key, as a form sends it back."""
+        """A linked record's key, as a form or a filter sends it back."""
+        if self.key:
+            return str(getattr(record, self.key))
         return self.inspector.inspect(self.item.related_model).identity_of(record)
 
     def keys_of(self, current: Any) -> list[str]:
@@ -135,6 +169,28 @@ class Picker:
             return await self.page(session, search=search, limit=limit)
         except PermissionDeniedError:
             return None
+
+    async def chosen(self, session: SessionAdapter, keys: Sequence[str]) -> list[Any]:
+        """The records these keys name, in their order, as far as the user may see them.
+
+        Read in one query, through the target's own view, so a record its
+        scope keeps from the user, or one that is gone, is left out.
+        """
+        view = self.view
+        column = (
+            self.key or self.inspector.inspect(self.item.related_model).primary_key[0]
+        )
+        try:
+            if view is None:
+                found = await self._repository().having(session, column, keys)
+            else:
+                found = await view._reader.fetch_by(
+                    session, column, keys, request=self.request
+                )
+        except PermissionDeniedError:
+            return []
+        named = {self.key_of(record): record for record in found}
+        return [named[key] for key in dict.fromkeys(keys) if key in named]
 
     async def get(self, session: SessionAdapter, key: str) -> Any | None:
         """One record the link already holds, if the user may see it."""

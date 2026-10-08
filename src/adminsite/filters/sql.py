@@ -521,6 +521,9 @@ def filter_for(
     options.setdefault("label", resolved.label)
 
     if resolved.field is None:
+        target = repository.inspector.inspect(resolved.relations[-1].target)
+        if len(target.primary_key) == 1:
+            options.setdefault("key", target.primary_key[0])
         return RelationFilter(name, **options)
 
     field = resolved.field
