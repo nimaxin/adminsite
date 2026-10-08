@@ -9,6 +9,8 @@ Before upgrading:
   a key `BigInteger` (#66).
 - A project that overrides `base.html`, `_filters.html` or `widgets/_picker.html` should start its
   copy again from the new one (#67).
+- A project that overrides `base.html`, `_table.html` or `_row.html` should start its copy again
+  from the new one (#59).
 
 What changed:
 
@@ -27,6 +29,11 @@ What changed:
   asks for leave to create or edit (#67).
 - A relation filter built from a column matches the linked model's own primary key, whatever it is
   called. It always matched a column named `id` (#67).
+- Rows are easier to tick on the list. A click anywhere in a row's first cell ticks it. Once a row
+  is ticked, a click anywhere on another row ticks or unticks it, and the rows show a pointer;
+  shift and a click, or shift and Space, ticks every row from the last one clicked. Links, the
+  row's menu, values changed in place and a drag over text keep working as before, and with
+  nothing ticked a click on a row still ticks nothing (#59).
 
 ## 0.1.0a16
 

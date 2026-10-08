@@ -16,6 +16,14 @@ class OrderView(ModelView[Order]):
 Ticking rows turns on the Actions menu above the list, which says how many are ticked and lists the
 view's actions. What the method returns is shown to the user once it has run.
 
+A click anywhere in a row's first cell ticks it, not only on its box. Once one row is ticked, a
+click anywhere on another row ticks it, and a click on a ticked row unticks it, while the rows show
+a pointer. Shift and a click ticks every row from the last one clicked to this one, as shift and
+Space does from the keyboard. Links, the row's menu and values changed in place keep their own
+clicks, and so does a drag over text to copy it. While nothing is ticked, a click on a row ticks
+nothing, so reading the list never ticks a row by accident. A phone shows the list as cards, with
+no boxes to tick.
+
 ## Every row that matches
 
 Ticking every row on the page offers "Select all 12,408 matching" in the Actions menu, where more
