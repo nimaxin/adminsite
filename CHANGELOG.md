@@ -97,6 +97,9 @@ What changed:
   browser set to `pt-BR`, to `pt`, or to `pt-PT` until European Portuguese ships (#51).
 - The account menu's language and time zone rows cut a long name short, such as Português
   (Brasil), where it was wider than the menu and pushed the whole sidebar sideways (#51).
+- Japanese ships with adminsite, with messages in the polite form: `language="ja"`, or
+  `languages=["ja"]` for a browser set to `ja` or `ja-JP`. Kanji are drawn in their Japanese forms,
+  in a Japanese font, wherever the page or a part of it is in Japanese (#52).
 
 ## 0.1.0a16
 
