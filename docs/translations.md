@@ -11,10 +11,12 @@ layout mirrors for languages written right to left.
 | Español, Spanish | `es` | `es`, `es-ES`, `es-MX`, `es-419` and any other Spanish |
 | Português (Brasil), Brazilian Portuguese | `pt-BR` | `pt-BR`, `pt`, and `pt-PT` until European Portuguese ships |
 | 日本語, Japanese | `ja` | `ja`, `ja-JP` |
+| Deutsch, German | `de` | `de`, `de-DE`, `de-AT`, `de-CH` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
-Japanese text starts from fonts made for Japanese, so kanji such as 直 and 骨 are drawn in their
+German breaks a long compound word with a hyphen where it has to break, as on a phone. Japanese
+text starts from fonts made for Japanese, so kanji such as 直 and 骨 are drawn in their
 Japanese forms, wherever the page or a part of it, such as its name in the language menu, is in
 Japanese.
 
@@ -59,12 +61,12 @@ To change one of adminsite's own texts, or to add a language adminsite does not 
 ```python
 admin = Admin(
     engine,
-    language="de",
+    language="it",
     translations={
-        "de": {
-            "Save": "Speichern",
-            "Cancel": "Abbrechen",
-            "Search {things}": "{things} suchen",
+        "it": {
+            "Save": "Salva",
+            "Cancel": "Annulla",
+            "Search {things}": "Cerca {things}",
         },
         "fa": {"Save": "ثبت"},
     },

@@ -39,7 +39,7 @@
 {% block header_class %}border-b border-base-300 lg:pt-2 lg:pb-5{% endblock %}
 
 {% block header %}
-  <h1 class="text-[22px] font-semibold leading-tight tracking-tight sm:truncate sm:text-[26px]">
+  <h1 class="text-[22px] font-semibold leading-tight tracking-tight break-words sm:truncate sm:text-[26px]">
     {{ _('Edit {name}', name=heading) if record is not none else heading }}
   </h1>
 {% endblock %}
