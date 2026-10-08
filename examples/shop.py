@@ -353,6 +353,9 @@ admin = Admin(
     saved_views=True,
     # Times follow each browser's time zone; this menu shows them in another.
     timezones=["Europe/Paris", "Asia/Tehran", "America/New_York"],
+    # The first visit follows the browser's language; the account menu
+    # switches to another.
+    languages=["fa", "ru"],
 )
 app.mount("/admin", admin)
 
