@@ -121,6 +121,10 @@ class InputNobodyCanDraw(ModelView[Order]):
 
 # The words each refusal must contain, besides the view's name. Views of
 # different models share the dict, which is the boundary where Any belongs.
+class RefreshNever(ModelView[Order]):
+    list_refresh_seconds = 0
+
+
 EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     MisspeltString: ['"totl"', "total"],
     BareString: ["searchable_fields", "list"],
@@ -143,4 +147,5 @@ EXPECTED: dict[type[ModelView[Any]], list[str]] = {
     LengthOfARelation: ["RelationField(Order.customer)", "max_length=3"],
     RequiredComputed: ['ComputedField("lines")', "required=True"],
     InputNobodyCanDraw: ["carrier", "Carrier"],
+    RefreshNever: ["list_refresh_seconds is 0", "whole number of seconds"],
 }

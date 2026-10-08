@@ -217,12 +217,65 @@
   });
   // A new page or sort keeps the total the list shows, since it follows the
   // search and the filters alone. The table sends it back, and the answer
-  // shows it again where they are the same, rather than counting again.
+  // shows it again where they are the same, rather than counting again. A
+  // list that reads its rows again counts them again, as records may have
+  // come or gone.
   document.addEventListener("htmx:configRequest", (event) => {
-    if (event.detail.target?.id !== "records") return;
+    if (event.detail.target?.id !== "records" || refreshing(event)) return;
     const kept = document.getElementById("records-total")?.dataset.kept;
     if (kept) event.detail.headers["Adminsite-Total"] = kept;
   });
+  // A list that keeps itself up to date reads its rows again for the address
+  // it shows now, while nobody is at work on it: no row ticked, no menu,
+  // dialog or value's editor open, no focus in the table and no text of it
+  // selected, and its tab in view. A hidden tab asks nothing; shown again,
+  // it reads the rows at once if it is due. Anything else the table asks
+  // for wins over a read already on its way.
+  function refreshing(event) {
+    return (event.detail.requestConfig?.elt ?? event.detail.elt)?.id === "records-refresh";
+  }
+  function listIdle() {
+    const records = document.getElementById("records");
+    if (!records || document.visibilityState !== "visible") return false;
+    if (Alpine.store("selection").picked || Alpine.store("selection").everything) return false;
+    if (document.querySelector("dialog[open], [popover]:popover-open, tr[data-editing]")) return false;
+    if (records.contains(document.activeElement)) return false;
+    const selected = getSelection();
+    return selected.isCollapsed || !records.contains(selected.anchorNode);
+  }
+  let refreshedAt = Date.now();
+  let refreshScroll = null;
+  document.addEventListener("visibilitychange", () => {
+    const refresher = document.getElementById("records-refresh");
+    if (!refresher || !listIdle()) return;
+    if (Date.now() - refreshedAt >= Number(refresher.dataset.seconds) * 1000) {
+      htmx.trigger(refresher, "refresh-list");
+    }
+  });
+  document.addEventListener("htmx:configRequest", (event) => {
+    if (!refreshing(event)) return;
+    refreshedAt = Date.now();
+    new URLSearchParams(location.search).forEach((value, key) => event.detail.formData.append(key, value));
+  });
+  document.addEventListener("htmx:beforeRequest", (event) => {
+    const refresher = document.getElementById("records-refresh");
+    if (refresher && !refreshing(event) && event.detail.target?.id === "records") {
+      htmx.trigger(refresher, "htmx:abort");
+    }
+  });
+  // The rows read again keep the table where it was scrolled to.
+  document.addEventListener("htmx:beforeSwap", (event) => {
+    if (!refreshing(event)) return;
+    const scroll = document.getElementById("records-scroll");
+    refreshScroll = scroll ? [scroll.scrollTop, scroll.scrollLeft] : null;
+  });
+  document.addEventListener("htmx:afterSwap", (event) => {
+    if (!refreshing(event) || !refreshScroll) return;
+    const scroll = document.getElementById("records-scroll");
+    if (scroll) [scroll.scrollTop, scroll.scrollLeft] = refreshScroll;
+    refreshScroll = null;
+  });
+
   document.addEventListener("submit", (event) => {
     const form = event.target;
     if (!form.matches("form[data-keeps][method=get]")) return;
@@ -878,7 +931,8 @@
     if (status && count) status.textContent = count.textContent.trim();
   }
   document.addEventListener("htmx:afterSwap", (event) => {
-    if (event.target.id !== "records") return;
+    // Rows read again on their own are not news to a screen reader.
+    if (event.target.id !== "records" || refreshing(event)) return;
     const counter = document.getElementById("records-counter");
     if (counter) counter.dataset.announce = "";
     else announceCount();
