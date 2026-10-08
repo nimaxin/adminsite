@@ -32,6 +32,10 @@ The first visit follows the browser's `Accept-Language`, so someone whose browse
 gets Persian. A choice made in the menu is kept in a cookie for a year. `language` stays the
 default for anyone whose browser asks for neither.
 
+adminsite translates its own texts, not yours: your views' labels, groups and field labels stay as
+you wrote them, whichever language is chosen. Offer several languages where your team reads them
+all, and otherwise keep the admin in the one your labels are written in.
+
 ## Your own words
 
 Your views' labels, groups and field labels are yours, so write them in the language you want:
