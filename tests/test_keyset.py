@@ -13,6 +13,7 @@ from adminsite._orm.cursor import decode_cursor, encode_cursor
 from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.database import Database
 from adminsite.query import Page, QuerySpec, Sort
+from adminsite.schema import FieldSchema
 from tests.models import Order
 from tests.support import Backend, count_queries, counted
 
@@ -32,6 +33,11 @@ def ids(page: Page) -> list[int]:
     return [row.id for row in page]
 
 
+def column(kind: type[Any], integer_range: range | None = None) -> FieldSchema:
+    """A column a cursor reads a value for."""
+    return FieldSchema("x", "X", kind, integer_range=integer_range)
+
+
 class TestCursor:
     def test_values_come_back_as_their_types(self) -> None:
         from datetime import datetime
@@ -40,12 +46,20 @@ class TestCursor:
         values = [datetime(2026, 9, 1, 10, 30), Decimal("59.00"), 3, True, None]
         token = encode_cursor(values)
 
-        assert decode_cursor(token, [datetime, Decimal, int, bool, int]) == values
+        kinds = [datetime, Decimal, int, bool, int]
+
+        assert decode_cursor(token, [column(kind) for kind in kinds]) == values
 
     def test_a_token_edited_by_hand_reads_as_nothing(self) -> None:
-        assert decode_cursor("not-a-cursor", [int]) is None
-        assert decode_cursor(encode_cursor(["abc"]), [int]) is None
-        assert decode_cursor(encode_cursor([1, 2]), [int]) is None
+        assert decode_cursor("not-a-cursor", [column(int)]) is None
+        assert decode_cursor(encode_cursor(["abc"]), [column(int)]) is None
+        assert decode_cursor(encode_cursor([1, 2]), [column(int)]) is None
+
+    def test_a_number_past_what_the_column_holds_reads_as_nothing(self) -> None:
+        small = column(int, range(-(2**31), 2**31))
+
+        assert decode_cursor(encode_cursor([2**31 - 1]), [small]) == [2**31 - 1]
+        assert decode_cursor(encode_cursor([99999999999]), [small]) is None
 
 
 class TestKeysetPages:

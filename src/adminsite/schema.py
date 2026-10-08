@@ -44,6 +44,9 @@ class FieldSchema:
     # DateTime(timezone=True) does.
     with_timezone: bool = False
     enum_values: tuple[str, ...] | None = None
+    # The whole numbers an integer column holds, as its type declares them:
+    # -2**31 up to 2**31 - 1 for an Integer. None for any other column.
+    integer_range: range | None = None
     # For a column holding a list of values, such as a Postgres ARRAY, what
     # each value is. None for any other column.
     item: "FieldSchema | None" = None

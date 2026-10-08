@@ -1,7 +1,16 @@
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import ARRAY, JSON, Column, ColumnElement, Enum
+from sqlalchemy import (
+    ARRAY,
+    JSON,
+    BigInteger,
+    Column,
+    ColumnElement,
+    Enum,
+    Integer,
+    SmallInteger,
+)
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Mapper, RelationshipProperty
@@ -126,6 +135,7 @@ class SQLAlchemyInspector:
             # A TypeDecorator answers for the type it wraps.
             with_timezone=bool(getattr(column.type, "timezone", False)),
             enum_values=self._enum_values_of(column.type),
+            integer_range=self._integer_range_of(column.type),
             item=self._read_item(name, column.type),
         )
 
@@ -146,6 +156,38 @@ class SQLAlchemyInspector:
             max_length=getattr(item_type, "length", None),
             enum_values=self._enum_values_of(item_type),
         )
+
+    def _integer_range_of(self, column_type: TypeEngine[Any]) -> range | None:
+        """The whole numbers an integer column holds, by the size of its type.
+
+        A value past them is one no record can hold, and one some drivers,
+        such as asyncpg, refuse to send at all. A type with a variant for
+        another database, such as `BigInteger().with_variant(Integer,
+        "sqlite")`, holds what the widest of them holds.
+        """
+        # Where SQLAlchemy 2 keeps a type's variants, by the database's name.
+        variants = getattr(column_type, "_variant_mapping", {}).values()
+        found = [self._whole_numbers(kind) for kind in (column_type, *variants)]
+        spans = [span for span in found if span is not None]
+        if len(spans) < len(found):
+            return None
+        return range(
+            min(span.start for span in spans), max(span.stop for span in spans)
+        )
+
+    def _whole_numbers(self, column_type: TypeEngine[Any]) -> range | None:
+        """The whole numbers one integer type holds, or None for another type."""
+        if not isinstance(column_type, Integer):
+            return None
+        if isinstance(column_type, SmallInteger):
+            bits = 16
+        elif isinstance(column_type, BigInteger):
+            bits = 64
+        else:
+            bits = 32
+        if getattr(column_type, "unsigned", False):
+            return range(2**bits)
+        return range(-(2 ** (bits - 1)), 2 ** (bits - 1))
 
     def _enum_values_of(self, column_type: TypeEngine[Any]) -> tuple[str, ...] | None:
         return tuple(column_type.enums) if isinstance(column_type, Enum) else None

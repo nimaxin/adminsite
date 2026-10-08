@@ -38,6 +38,11 @@ A column of a related model, such as `Link(Order.customer, Customer.region)`, fi
 relation without adding a join, so rows are never duplicated. Its name in the URL is
 `customer__region`.
 
+Anyone can edit the URL, so a value a filter does not offer is left out, as if it was never
+picked: a status that is not among the choices, or a key past what the column holds, such as
+`?customer=99999999999` for an `Integer` key. With nothing left, the filter matches no records.
+The list never fails on such a value, and nor does a record's page or the search.
+
 A choice filter with more than 10 options, such as a list of countries, has a search box above
 them. Typing narrows the options to those whose label holds what was typed, and the ones already
 ticked stay in view, so they can be unticked.

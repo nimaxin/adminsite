@@ -2,6 +2,8 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import BigInteger, Integer, SmallInteger
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from adminsite._text import humanize, humanize_class, pluralize, snake_case
 from adminsite.exceptions import InvalidPathError, NotAModelError, UnknownFieldError
@@ -62,6 +64,38 @@ class TestModelSchema:
 
         assert status.enum_values == tuple(member.name for member in OrderStatus)
         assert status.python_type is OrderStatus
+
+    def test_reads_what_an_integer_column_holds(
+        self, inspector: SQLAlchemyInspector
+    ) -> None:
+        orders = inspector.inspect(Order)
+
+        assert orders.fields["id"].integer_range == range(-(2**31), 2**31)
+        assert orders.fields["note"].integer_range is None
+        assert orders.fields["total"].integer_range is None
+
+    def test_an_integer_with_variants_holds_what_the_widest_holds(
+        self, inspector: SQLAlchemyInspector
+    ) -> None:
+        class Sized(DeclarativeBase):
+            pass
+
+        class Counter(Sized):
+            __tablename__ = "counters"
+
+            id: Mapped[int] = mapped_column(
+                BigInteger().with_variant(Integer(), "sqlite"), primary_key=True
+            )
+            small: Mapped[int] = mapped_column(SmallInteger())
+            grown: Mapped[int] = mapped_column(
+                Integer().with_variant(BigInteger(), "postgresql")
+            )
+
+        counters = inspector.inspect(Counter)
+
+        assert counters.fields["id"].integer_range == range(-(2**63), 2**63)
+        assert counters.fields["small"].integer_range == range(-(2**15), 2**15)
+        assert counters.fields["grown"].integer_range == range(-(2**63), 2**63)
 
     def test_reads_string_length(self, inspector: SQLAlchemyInspector) -> None:
         assert inspector.inspect(Customer).field_named("email").max_length == 255

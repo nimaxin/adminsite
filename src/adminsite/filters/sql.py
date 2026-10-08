@@ -8,7 +8,7 @@ from typing import Any, Generic, TypeVar
 from sqlalchemy import ColumnElement, Select, false, func
 
 from adminsite._orm.repository import Scope, SQLAlchemyRepository
-from adminsite._orm.values import to_column_type
+from adminsite._orm.values import to_column_value
 from adminsite._text import humanize
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import InvalidPathError
@@ -137,10 +137,23 @@ class ChoiceFilter(SQLFilter[Any]):
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
-        """Match any of the chosen values."""
-        return repository.condition_at(
-            self.path, lambda column, field: column.in_(list(value.values))
-        )
+        """Match any of the chosen values that are among the choices.
+
+        A value that is not one of `choices`, such as one edited into the
+        address by hand, is left out, and so, on an enum column, is one that
+        names none of its members. With none left, nothing matches.
+        """
+        offered = {option for option, _label in self.choices}
+        chosen = [item for item in value.values if not offered or item in offered]
+
+        def build(
+            column: ColumnElement[Any], field: FieldSchema
+        ) -> ColumnElement[bool] | None:
+            members = field.enum_values
+            known = [item for item in chosen if members is None or item in members]
+            return column.in_(known) if known else false()
+
+        return repository.condition_at(self.path, build)
 
 
 class BooleanFilter(SQLFilter[Any]):
@@ -393,7 +406,11 @@ class RelationFilter(SQLFilter[Any]):
     def condition(
         self, value: FilterValue, repository: SQLAlchemyRepository[Any]
     ) -> ColumnElement[bool] | None:
-        """Match records linked to any of the chosen keys."""
+        """Match records linked to any of the chosen keys.
+
+        A key that cannot be the column's type, or is past what the column
+        holds, names no record and is left out.
+        """
 
         def build(
             column: ColumnElement[Any], field: FieldSchema
@@ -401,7 +418,7 @@ class RelationFilter(SQLFilter[Any]):
             keys = []
             for raw in value.values:
                 try:
-                    keys.append(to_column_type(field.python_type, raw))
+                    keys.append(to_column_value(field, raw))
                 except ValueError:
                     continue
             return column.in_(keys) if keys else false()

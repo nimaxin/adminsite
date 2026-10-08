@@ -8,7 +8,7 @@ from sqlalchemy.sql import Executable
 from starlette.requests import Request
 
 from adminsite._orm.loader import build_load_options
-from adminsite._orm.values import to_column_type
+from adminsite._orm.values import to_column_value
 from adminsite.audit.entry import Change, diff
 from adminsite.columns import ColumnReference, path_of
 from adminsite.database import SessionAdapter
@@ -234,7 +234,7 @@ class Selection(Generic[M]):
             try:
                 wanted.append(
                     tuple(
-                        to_column_type(field.python_type, part)
+                        to_column_value(field, part)
                         for field, part in zip(fields, parts, strict=True)
                     )
                 )

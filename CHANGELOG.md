@@ -2,11 +2,22 @@
 
 ## Unreleased
 
+Before upgrading:
+
+- On SQLite, a record keyed past 2,147,483,647 in a column declared `Integer` can no longer be
+  found by its key, since that is past what an `Integer` holds on Postgres and MySQL. Declare such
+  a key `BigInteger` (#66).
+
 What changed:
 
 - Choosing a language or a time zone works when another app on the same host, served at /, once
   set a cookie by the same name. The browser sent both, and the other app's won, so the choice
   changed nothing. The admin now reads the cookie set for its own path.
+- A filter value edited into the URL by hand can no longer fail the list. A choice filter leaves
+  out a value that is not one of its choices, or not a member of the column's enum, and a relation
+  filter a key past what its column holds, such as 99999999999 for an `Integer` key, which asyncpg
+  refused to send. A record's page answers such a key with Not found, and a search for such a
+  number, a keyset page's cursor and a selection's keys leave it out too (#66).
 
 ## 0.1.0a16
 
