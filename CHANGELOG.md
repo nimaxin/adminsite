@@ -48,6 +48,10 @@
   window and scrolled. The sidebar now keeps to the window's height: its links scroll under the
   account menu, which stays at the foot. A project that overrides `base.html` should start its
   copy again from the new one.
+- A page's heading keeps its whole width from a tablet up, and the buttons beside it move under
+  it where they do not fit. Given only the room the buttons left, a list's name could be cut to a
+  few letters and its count split over three lines. A project that overrides `base.html` should
+  start its copy again from the new one.
 
 ## 0.1.0a15
 

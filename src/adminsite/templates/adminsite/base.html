@@ -854,7 +854,11 @@
         <label for="navigation" class="btn btn-square btn-ghost btn-sm -ms-1.5 lg:hidden" aria-label="{{ _('Open the menu') }}">
           {{ icons.icon("menu", 18) }}
         </label>
-        <div class="min-w-0 flex-1">
+        {#- From a tablet up the heading keeps its width, and the buttons move
+            under it where they do not fit beside it. Given only the room the
+            buttons left, it was cut short to a few letters. A phone folds the
+            buttons into one menu instead, and shortens a long heading. -#}
+        <div class="min-w-0 max-w-full flex-1 sm:flex-[1_0_auto]">
           {% block header %}{% endblock %}
         </div>
         <div class="flex flex-wrap items-center gap-2">
