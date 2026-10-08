@@ -3,7 +3,7 @@
 {% if row.field.multiple|default(false) %}
   {%- set picker_multiple = true -%}
   {%- set picker_options = row.choices -%}
-  {%- set picker_hint = _("Search {things}", things=row.label|lower) -%}
+  {%- set picker_hint = _("Search {things}", things=row.label|in_sentence) -%}
   {% include "adminsite/widgets/_picker.html" %}
 {% else %}
   <select class="select w-full {% if row.error %}select-error{% endif %}"

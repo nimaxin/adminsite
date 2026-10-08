@@ -17,7 +17,15 @@ from starlette.responses import HTMLResponse
 from adminsite._http.csrf import hidden_input
 from adminsite._http.timezones import timezone_menu
 from adminsite._http.urls import Urls, sort_state
-from adminsite.i18n import direction, gettext, native_name
+from adminsite.i18n import (
+    direction,
+    gettext,
+    in_sentence,
+    native_name,
+    ngettext,
+    plural_forms,
+    upper,
+)
 from adminsite.messages import read_messages
 
 if TYPE_CHECKING:
@@ -28,6 +36,7 @@ __all__ = [
     "NavItem",
     "Templates",
     "current_key",
+    "initial",
     "navigation",
 ]
 
@@ -48,6 +57,10 @@ class Templates:
         )
         self.environment.globals["sort_state"] = sort_state
         self.environment.globals["_"] = gettext
+        self.environment.globals["ngettext"] = ngettext
+        self.environment.globals["plural_forms"] = plural_forms
+        self.environment.filters["in_sentence"] = in_sentence
+        self.environment.filters["initial"] = initial
 
     def add_directory(self, directory: str | Path) -> None:
         """Look for templates in one more folder, after the ones given first."""
@@ -134,6 +147,11 @@ async def navigation(
             NavItem(f"page:{page.name}", page.label, urls.page(page.name), page.icon)
         )
     return list(groups.items())
+
+
+def initial(name: Any) -> str:
+    """The first letter of a name, as a capital in the language of the page."""
+    return upper(str(name)[:1])
 
 
 def current_key(context: dict[str, Any]) -> str:

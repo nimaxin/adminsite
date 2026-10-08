@@ -5,8 +5,8 @@
   {#- The box's placeholder names what it holds, as the other model's view
       calls it, or as the field does where that model has no view. -#}
   {%- set target = admin.views.for_relation(row.field) -%}
-  {%- set thing = (target.label if target else row.label)|lower -%}
-  {%- set things = (target.label_plural if target else row.label)|lower -%}
+  {%- set thing = (target.label if target else row.label)|in_sentence -%}
+  {%- set things = (target.label_plural if target else row.label)|in_sentence -%}
   {%- set picker_multiple = row.field.collection -%}
   {%- set picker_ordered = row.field.ordered -%}
   {%- set picker_options = none if row.searchable else row.choices -%}

@@ -27,6 +27,7 @@ from adminsite.exceptions import (
 from adminsite.fields import JSONField
 from adminsite.fields._documents.document import DocumentError
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence
 from adminsite.messages import add_message
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
@@ -204,10 +205,10 @@ def form_context(
         "key": key,
         "heading": view.get_record_title(record)
         if editing
-        else _("New {thing}", thing=view.label.lower()),
+        else _("New {thing}", thing=in_sentence(view.label)),
         "submit_label": _("Save changes")
         if editing
-        else _("Create {thing}", thing=view.label.lower()),
+        else _("Create {thing}", thing=in_sentence(view.label)),
         "action": urls.edit(view, key) if editing else urls.create(view),
         "cancel_url": urls.detail(view, key) if editing else urls.list(view),
         "can_delete": view.can_delete,

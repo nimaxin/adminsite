@@ -424,7 +424,7 @@ class TestImportPages:
         )
 
         assert "Imported 1 new and changed 1 customers." in done.text
-        assert "Skipped 1 rows with problems." in done.text
+        assert "Skipped 1 row with problems." in done.text
         assert await customers(database) == 5
         async with database.session() as session:
             lena = await session.get(Customer, 1)
@@ -459,7 +459,7 @@ class TestImportPages:
 
         assert "This field cannot be changed." in page.text
         assert "Imported 1 new and changed 0 customers." in done.text
-        assert "Skipped 1 rows with problems." in done.text
+        assert "Skipped 1 row with problems." in done.text
         async with database.session() as session:
             lena = await session.get(Customer, 1)
             assert lena is not None
@@ -496,7 +496,7 @@ class TestImportPages:
         monkeypatch.setattr(CustomerView, "import_limit", 1)
         page = await preview(client, "name,email\nMia,mia@x.nl\nTom,tom@x.nl\n")
 
-        assert "Import at most 1 rows at a time." in page.text
+        assert "Import at most 1 row at a time." in page.text
 
     async def test_a_hook_that_refuses_a_row_is_reported(
         self, database: Database

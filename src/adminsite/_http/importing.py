@@ -19,6 +19,7 @@ from adminsite._importing import (
 )
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence, ngettext
 from adminsite.messages import add_message
 from adminsite.permissions import Permission
 from adminsite.views import ModelView
@@ -92,9 +93,10 @@ async def preview(
         table = read_table(upload.filename, await upload.read())
         if len(table) - 1 > view.import_limit:
             raise ImportProblem(
-                _(
+                ngettext(
+                    "Import at most {count} row at a time.",
                     "Import at most {count} rows at a time.",
-                    count=f"{view.import_limit:,}",
+                    view.import_limit,
                 )
             )
         async with admin.database.session() as session:
@@ -170,7 +172,7 @@ def summary(
     view: ModelView[Any], created: int, changed: int, skipped: int, failed: list[str]
 ) -> str:
     """One line saying what the import did."""
-    things = view.label_plural.lower()
+    things = in_sentence(view.label_plural)
     parts = [
         _(
             "Imported {created} new and changed {changed} {things}.",
@@ -180,7 +182,13 @@ def summary(
         )
     ]
     if skipped:
-        parts.append(_("Skipped {count} rows with problems.", count=skipped))
+        parts.append(
+            ngettext(
+                "Skipped {count} row with problems.",
+                "Skipped {count} rows with problems.",
+                skipped,
+            )
+        )
     if failed:
         shown = "; ".join(failed[:3])
         more = _(" and {count} more", count=len(failed) - 3) if len(failed) > 3 else ""

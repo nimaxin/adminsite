@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 from adminsite._text import humanize
+from adminsite.i18n import gettext as _
 
 __all__ = [
     "Filter",
@@ -124,7 +125,7 @@ class Filter:
         """Write the chip shown while the filter is on."""
         labels = {option.value: option.label for option in options}
         shown = ", ".join(labels.get(item, item) for item in value.values)
-        return f"{self.label}: {shown}"
+        return _("{filter}: {chosen}", filter=self.label, chosen=shown)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.name!r})"

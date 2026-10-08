@@ -40,7 +40,12 @@ MONTHS = (
 
 def format_date(value: date) -> str:
     """Write a date the way a person reads it, such as Sep 8, 2026."""
-    return f"{MONTHS[value.month - 1]} {value.day}, {value.year}"
+    return _(
+        "{month} {day}, {year}",
+        month=_(MONTHS[value.month - 1]),
+        day=value.day,
+        year=value.year,
+    )
 
 
 def format_time(value: time) -> str:

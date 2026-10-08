@@ -13,6 +13,19 @@ Before upgrading:
   from the new one (#59).
 - A project that overrides `base.html`, `list.html` or `_table.html` should start its copy again
   from the new one (#48).
+- A project whose `translations` hold one of the texts below should key it by the new text. Each
+  text with a count is keyed by its English for one, and may hold a form for each plural category:
+  "{count} rows" is now "{count} row", "{count} items" "{count} item", "{count} keys"
+  "{count} key", "selected" "{count} selected", "Import {count} rows" "Import {count} row",
+  "Import {count} rows, skip {skipped}" "Import {count} row, skip {skipped}",
+  "Import at most {count} rows at a time." "Import at most {count} row at a time.",
+  "Skipped {count} rows with problems." "Skipped {count} row with problems.",
+  "Enter at least {count} characters." "Enter at least {count} character.",
+  "Keep this to {count} characters or fewer." "Keep this to {count} character or fewer.", and
+  "{count} {things} deleted." "{count} {thing} deleted.".
+- A project that overrides `base.html`, `form.html`, `import_preview.html`, `_table.html`,
+  `_bulk_summary.html`, `_records_count.html`, `_records_total.html` or `_document_json.html`
+  should start its copy again from the new one.
 
 What changed:
 
@@ -41,6 +54,24 @@ What changed:
   without a reload. The list waits while rows are ticked, a menu, dialog or value's editor is open,
   or the focus or a text selection is in the table, and a hidden tab asks nothing until it is shown
   again (#48).
+- A text with a count reads right for any number, in English too: "1 row", not "1 rows". A
+  translation holds a form for each plural category its language uses, such as one, few and many
+  for Russian, and `ngettext` translates one in your own code.
+- Dates are written the way the language of the page writes them, month names included, on every
+  page, in the export and on the overview's charts. They were in English whatever the language.
+- A label inside a sentence, such as "Search order items", keeps a word written in capitals, such
+  as API, and follows the rules of the page's language: German keeps the capitals of its nouns, and
+  Turkish lowers İ to i and I to ı. Searching a filter's or a picker's options follows the same
+  rules.
+- A filter's chip, a form's list of problems and an import's problems put the label and its value
+  together the way the language does, so French can write "Statut : payé".
+- The language codes `language` and `languages` take are written the usual way whatever their case,
+  so `pt-br` finds the catalog for `pt-BR`. A browser that asks for Chinese is matched by script:
+  zh-TW, zh-HK and zh-MO read Traditional Chinese, and zh-CN, zh-SG and zh Simplified Chinese. One
+  that asks for a language in a region it is not offered in, such as `pt-PT`, gets the language in
+  another region, such as `pt-BR`.
+- A value marked as markup, such as a link, goes into a translated text as it is, and the rest of
+  the text is escaped around it.
 
 ## 0.1.0a16
 

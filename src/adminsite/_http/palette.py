@@ -6,6 +6,7 @@ from starlette.responses import Response
 
 from adminsite._http.urls import Urls
 from adminsite.i18n import gettext as _
+from adminsite.i18n import in_sentence, lower
 from adminsite.permissions import Permission
 from adminsite.query import CountMode
 
@@ -67,7 +68,7 @@ async def pages_matching(admin: "Admin", request: Request, term: str) -> Palette
         if await view.allows(Permission.CREATE, request=request, record=None):
             found.append(
                 PaletteItem(
-                    _("New {thing}", thing=view.label.lower()), urls.create(view)
+                    _("New {thing}", thing=in_sentence(view.label)), urls.create(view)
                 )
             )
     for page in await admin.pages_allowing(request):
@@ -75,9 +76,9 @@ async def pages_matching(admin: "Admin", request: Request, term: str) -> Palette
     if await admin.history_views(request):
         found.append(PaletteItem(_("Activity"), urls.activity()))
 
-    wanted = term.lower()
+    wanted = lower(term)
     return PaletteSection(
-        _("Pages"), [item for item in found if wanted in item.label.lower()]
+        _("Pages"), [item for item in found if wanted in lower(item.label)]
     )
 
 

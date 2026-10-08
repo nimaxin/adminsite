@@ -1,7 +1,7 @@
 {% extends "adminsite/base.html" %}
 {% import "adminsite/_icons.html" as icons %}
 
-{% block page_title %}{{ _('Import {things}', things=view.label_plural|lower) }} · {{ title }}{% endblock %}
+{% block page_title %}{{ _('Import {things}', things=view.label_plural|in_sentence) }} · {{ title }}{% endblock %}
 
 {% block breadcrumb %}
   <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
@@ -25,7 +25,7 @@
     {{ csrf_input | safe if csrf_input }}
     <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">{{ _('Choose another file') }}</a>
     <button class="btn btn-primary btn-sm" type="submit" {% if not plan.ready %}disabled{% endif %}>
-      {% if problems %}{{ _('Import {count} rows, skip {skipped}', count=plan.ready|length, skipped=problems) }}{% else %}{{ _('Import {count} rows', count=plan.ready|length) }}{% endif %}
+      {% if problems %}{{ ngettext('Import {count} row, skip {skipped}', 'Import {count} rows, skip {skipped}', plan.ready|length, skipped=problems) }}{% else %}{{ ngettext('Import {count} row', 'Import {count} rows', plan.ready|length) }}{% endif %}
     </button>
   </form>
 {% endblock %}
@@ -78,7 +78,7 @@
             <tr class="bg-error/5">
               <td class="border-b border-line"></td>
               <td colspan="{{ plan.columns|length + 1 }}" class="border-b border-line px-3 py-2 text-xs text-error">
-                {% for path in missing %}{{ view._fields.label_for(path) }}: {{ row.errors[path] }}{% if not loop.last %} · {% endif %}{% endfor %}
+                {% for path in missing %}{{ _('{field}: {problem}', field=view._fields.label_for(path), problem=row.errors[path]) }}{% if not loop.last %} · {% endif %}{% endfor %}
               </td>
             </tr>
           {% endif %}

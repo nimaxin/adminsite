@@ -11,6 +11,8 @@ from starlette.requests import Request
 
 from adminsite._http.urls import Urls
 from adminsite.database import SessionAdapter
+from adminsite.fields.temporal import MONTHS
+from adminsite.i18n import gettext as _
 from adminsite.permissions import Permission, RequestAction
 from adminsite.query import CountMode, Sort
 
@@ -323,9 +325,9 @@ def round_axis(highest: float) -> tuple[float, float]:
 def label_text(label: Any) -> str:
     """Write a chart label short: dates as "Sep 14", the rest as text."""
     if isinstance(label, datetime.datetime):
-        return label.strftime("%b %d %H:%M")
+        return f"{label_text(label.date())} {label:%H:%M}"
     if isinstance(label, datetime.date):
-        return label.strftime("%b %d")
+        return _("{month} {day}", month=_(MONTHS[label.month - 1]), day=label.day)
     if isinstance(label, Decimal | float):
         return f"{label:,}"
     if isinstance(label, str) and len(label) == 10:

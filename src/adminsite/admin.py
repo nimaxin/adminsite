@@ -1,4 +1,4 @@
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +59,7 @@ from adminsite.dashboard import ModelCounts, Widget
 from adminsite.database import Database, SessionSource
 from adminsite.exceptions import AdminSiteError, PermissionDeniedError
 from adminsite.fields import FieldRegistry, default_registry
-from adminsite.i18n import activate, negotiate
+from adminsite.i18n import Translations, activate, canonical, negotiate
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.pages import AdminPage
@@ -191,7 +191,7 @@ class Admin:
         session_max_age: int | None = 14 * 24 * 3600,
         language: str = "en",
         languages: Sequence[str] = (),
-        translations: Mapping[str, Mapping[str, str]] | None = None,
+        translations: Translations | None = None,
         timezone: str = "UTC",
         timezones: Sequence[str] = (),
         database_timezone: str = "UTC",
@@ -235,10 +235,15 @@ class Admin:
         self._extra_routes: list[Route | Mount] = []
         # The JSON API at /-/api, off unless asked for.
         self.api = api
-        # The language the admin speaks, and the ones people may switch to.
-        self.language = language
-        self.languages = list(dict.fromkeys([language, *languages]))
-        self.translations = dict(translations or {})
+        # The language the admin speaks, and the ones people may switch to,
+        # each written the usual way, so pt-br finds the catalog for pt-BR.
+        self.language = canonical(language)
+        self.languages = list(
+            dict.fromkeys(canonical(code) for code in [language, *languages])
+        )
+        self.translations = {
+            canonical(code): texts for code, texts in (translations or {}).items()
+        }
         # The time zone times are shown in until the browser says its own,
         # the ones people may switch to, and the one the database keeps.
         self.timezone = timezone

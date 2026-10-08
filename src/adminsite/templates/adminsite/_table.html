@@ -86,7 +86,7 @@
           {% else %}
             <tr>
               <td class="py-20 text-center text-muted" colspan="{{ columns|length + (2 if actions else 1) }}">
-                {{ _("No {things} to show.", things=view.label_plural|lower) }}
+                {{ _("No {things} to show.", things=view.label_plural|in_sentence) }}
               </td>
             </tr>
           {% endfor %}
@@ -131,7 +131,7 @@
             </{{ "a" if opens else "div" }}>
           </li>
         {% else %}
-          <li class="py-16 text-center text-muted">{{ _("No {things} to show.", things=view.label_plural|lower) }}</li>
+          <li class="py-16 text-center text-muted">{{ _("No {things} to show.", things=view.label_plural|in_sentence) }}</li>
         {% endfor %}
       </ul>
     </div>
@@ -164,7 +164,7 @@
           <p class="pt-2 text-base-content/80">{{ item.confirm }}</p>
         {% endif %}
         <p class="pt-1 text-muted">
-          <span x-show="!$store.selection.everything"><span x-text="$store.selection.picked"></span> {{ _('selected') }}</span>
+          <span x-show="!$store.selection.everything" x-text="plural(SELECTED, $store.selection.picked)"></span>
           <span x-show="$store.selection.everything" x-text="$store.selection.allMatching"></span>
         </p>
         {% include "adminsite/_action_inputs.html" %}
@@ -191,7 +191,7 @@
               class="select select-sm w-auto text-base-content" aria-label="{{ _('Rows per page') }}">
         {% for size in page_sizes %}
           <option value="{{ size }}" {% if size == page_size %}selected{% endif %}>
-            {{ _('{count} rows', count=size) }}
+            {{ ngettext('{count} row', '{count} rows', size) }}
           </option>
         {% endfor %}
       </select>
