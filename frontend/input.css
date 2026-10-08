@@ -363,4 +363,11 @@
   [lang] {
     font-family: var(--font-sans);
   }
+
+  /* German writes long compound words. Where one has to break, as on a
+     phone, it breaks with a hyphen where one belongs, rather than running
+     out of its box. */
+  :lang(de) {
+    hyphens: auto;
+  }
 }

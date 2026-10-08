@@ -100,6 +100,8 @@ What changed:
 - Japanese ships with adminsite, with messages in the polite form: `language="ja"`, or
   `languages=["ja"]` for a browser set to `ja` or `ja-JP`. Kanji are drawn in their Japanese forms,
   in a Japanese font, wherever the page or a part of it is in Japanese (#52).
+- German ships with adminsite, addressing people as Sie: `language="de"`, or `languages=["de"]` for
+  a browser set to `de-DE`, `de-AT` or `de-CH` (#53).
 
 ## 0.1.0a16
 

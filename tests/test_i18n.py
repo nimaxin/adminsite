@@ -302,7 +302,7 @@ class TestNumbers:
     def test_a_count_is_grouped_as_its_language_does(self) -> None:
         activate("de")
 
-        assert ngettext("{count} row", "{count} rows", 1234) == "1.234 rows"
+        assert ngettext("{count} cat", "{count} cats", 1234) == "1.234 cats"
 
     def test_a_count_may_read_as_a_phrase(self) -> None:
         activate("en")
@@ -599,6 +599,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         "Pesquisar orders",
     ),
     "ja": ("日本語", ["ja", "ja-JP"], ["zh-CN", "ko-KR"], "ordersを検索"),
+    "de": (
+        "Deutsch",
+        ["de", "de-DE", "de-AT", "de-CH"],
+        ["nl-NL", "da-DK"],
+        "Orders durchsuchen",
+    ),
 }
 
 
@@ -660,3 +666,23 @@ class TestJapanese:
         assert '"Yu Gothic UI"' in rule
         assert rule.index("Geist") < rule.index("Hiragino")
         assert "[lang]{font-family:var(--font-sans)}" in css
+
+
+class TestGerman:
+    def test_the_shortcut_names_the_key_german_keyboards_print(self) -> None:
+        activate("de")
+
+        assert gettext("Ctrl K") == "Strg K"
+
+    def test_a_long_word_breaks_with_a_hyphen(self) -> None:
+        css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
+
+        rule = css[css.index(":lang(de){") :]
+        assert "hyphens:auto" in rule[: rule.index("}")]
+
+    def test_a_label_keeps_the_capitals_of_its_nouns(self) -> None:
+        activate("de")
+
+        assert gettext("Search {things}", things=in_sentence("Bestellungen")) == (
+            "Bestellungen durchsuchen"
+        )
