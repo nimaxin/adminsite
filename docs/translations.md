@@ -9,6 +9,7 @@ layout mirrors for languages written right to left.
 | فارسی, Persian | `fa` | `fa`, `fa-IR` |
 | Русский, Russian | `ru` | `ru`, `ru-RU` |
 | Español, Spanish | `es` | `es`, `es-ES`, `es-MX`, `es-419` and any other Spanish |
+| Português (Brasil), Brazilian Portuguese | `pt-BR` | `pt-BR`, `pt`, and `pt-PT` until European Portuguese ships |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
