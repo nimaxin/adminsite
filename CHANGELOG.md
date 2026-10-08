@@ -93,6 +93,8 @@ What changed:
 - Spanish ships with adminsite, in wording readers in Spain and Latin America both understand:
   `language="es"`, or `languages=["es"]` for a browser set to any Spanish, such as `es-ES`, `es-MX`
   or `es-419` (#50).
+- Brazilian Portuguese ships with adminsite: `language="pt-BR"`, or `languages=["pt-BR"]` for a
+  browser set to `pt-BR`, to `pt`, or to `pt-PT` until European Portuguese ships (#51).
 
 ## 0.1.0a16
 

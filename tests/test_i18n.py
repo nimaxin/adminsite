@@ -592,6 +592,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["pt-BR", "ca-ES"],
         "Buscar orders",
     ),
+    "pt-BR": (
+        "Português (Brasil)",
+        ["pt-BR", "pt", "pt-PT"],
+        ["es-ES", "gl-ES"],
+        "Pesquisar orders",
+    ),
 }
 
 
