@@ -57,6 +57,8 @@ INDIRECT = [
     "import",
     "history",
     "open",
+    # What sets items of a list apart inside a sentence: Ann, Bob.
+    ", ",
     # The months, as a date is written: Sep 8, 2026.
     "Jan",
     "Feb",

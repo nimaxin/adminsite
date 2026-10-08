@@ -12,7 +12,7 @@
        data-keeps="{{ names|join(' ') }}">{{ _('Clear all') }}</a>
   {% endif %}
   <button class="btn btn-primary ms-auto" type="button" popovertarget="filters" popovertargetaction="hide">
-    {%- if total_text %}{{ _('Show {count} {things}', count=total_text, things=view.label_plural|in_sentence) }}
+    {%- if total_text %}{{ ngettext('Show {count} {thing}', 'Show {count} {things}', page.total, count=total_text, thing=view.label|in_sentence, things=view.label_plural|in_sentence) }}
     {%- else %}{{ _('Show {things}', things=view.label_plural|in_sentence) }}{% endif -%}
   </button>
 </div>

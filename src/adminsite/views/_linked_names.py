@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from adminsite._text import names_itself
 from adminsite.fields import RelationField
 from adminsite.i18n import gettext as _
+from adminsite.i18n import listed
 from adminsite.inspector import SQLAlchemyInspector
 
 if TYPE_CHECKING:
@@ -97,7 +98,7 @@ def name_all_linked(
     if value is None:
         return ""
     if isinstance(value, list | tuple | set):
-        return ", ".join(
+        return listed(
             name_linked(item, one, views=views, inspector=inspector, as_seen=as_seen)
             for one in value
             if not (as_seen and is_unseen(one))

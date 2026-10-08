@@ -30,8 +30,10 @@ __all__ = [
     "canonical",
     "current_language",
     "direction",
+    "format_number",
     "gettext",
     "in_sentence",
+    "listed",
     "lower",
     "native_name",
     "negotiate",
@@ -147,7 +149,7 @@ def gettext(text: str, **values: Any) -> str:
     return _filled(translated, values) if values else translated
 
 
-def ngettext(singular: str, plural: str, count: int, **values: Any) -> str:
+def ngettext(singular: str, plural: str, number: int, **values: Any) -> str:
     """Translate a text with a count into the form its language writes for it.
 
     English has two forms, "1 row" and "2 rows". Russian has three, and
@@ -159,19 +161,53 @@ def ngettext(singular: str, plural: str, count: int, **values: Any) -> str:
         singular: The English text for one, such as "{count} row".
         plural: The English text for any other number, such as
             "{count} rows".
-        count: The number that picks the form. It also fills `{count}`,
-            with its thousands apart: 1,234.
+        number: The number that picks the form. It also fills `{count}`,
+            its thousands grouped as the language groups them, unless
+            `count` is given, as for a total that reads "about 1,200".
         **values: The other placeholders.
 
     Returns:
         The text in the language of the current request.
     """
     found = _translation(singular)
-    english = singular if count == 1 else plural
+    english = singular if number == 1 else plural
     if isinstance(found, Mapping):
-        category = plural_category(current_language.get(), count)
+        category = plural_category(current_language.get(), number)
         found = found.get(category) or found.get("other")
-    return _filled(found or english, {"count": f"{count:,}", **values})
+    return _filled(found or english, {"count": format_number(number), **values})
+
+
+# How a language sets the thousands of a number apart: 1,234 in English,
+# 1.234 in German and 1 234 in French and Russian, with spaces that never
+# break. Any other language writes a comma.
+THOUSANDS = {
+    "de": ".",
+    "es": ".",
+    "fr": "\u202f",
+    "pt": ".",
+    "ru": "\u00a0",
+    "tr": ".",
+    "uk": "\u00a0",
+}
+
+# Spanish leaves a number of four digits whole: 1234, but 12.345.
+FOUR_DIGITS_WHOLE = frozenset({"es"})
+
+
+def format_number(number: int) -> str:
+    """A whole number, its thousands set apart as the current language does."""
+    language = _language(current_language.get())
+    if language in FOUR_DIGITS_WHOLE and abs(number) < 10_000:
+        return str(number)
+    return f"{number:,}".replace(",", THOUSANDS.get(language, ","))
+
+
+def listed(items: Iterable[str]) -> str:
+    """Items one after another, as the current language lists them in a sentence.
+
+    "Ann, Bob" in English, "Ann、Bob" in Japanese.
+    """
+    return gettext(", ").join(items)
 
 
 def _filled(text: str, values: Mapping[str, Any]) -> str:

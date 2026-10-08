@@ -19,7 +19,7 @@ from adminsite._orm.values import to_column_value
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import EnumField, FileField, ListField, RelationField
 from adminsite.i18n import gettext as _
-from adminsite.i18n import in_sentence
+from adminsite.i18n import in_sentence, lower
 from adminsite.markup import plain
 from adminsite.permissions import RequestAction
 from adminsite.views import ModelView
@@ -371,10 +371,17 @@ def normalize(item: Any, text: str) -> str:
     """Accept what an export or a spreadsheet writes: labels, grouped numbers.
 
     A form's checkbox reads anything but a yes as no, but a file that says
-    "maybe" is a mistake worth pointing out.
+    "maybe" is a mistake worth pointing out. Yes and no in the page's own
+    language count, as the export writes them so.
     """
-    if item.widget == "checkbox" and text.lower() not in YES_OR_NO:
-        raise FieldValidationError(item.name, _("Write yes or no."))
+    if item.widget == "checkbox":
+        said = lower(text)
+        if said == lower(_("Yes")):
+            return "true"
+        if said == lower(_("No")):
+            return "false"
+        if said not in YES_OR_NO:
+            raise FieldValidationError(item.name, _("Write yes or no."))
     if isinstance(item, EnumField):
         for value, label in item.choices:
             if text.lower() == label.lower():

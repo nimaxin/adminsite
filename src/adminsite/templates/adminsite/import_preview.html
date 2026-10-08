@@ -40,7 +40,7 @@
     <span class="pill tone-1">{{ _('{count} changed', count=updating) }}</span>
     {% if problems %}<span class="pill tone-5">{{ _('{count} with problems', count=problems) }}</span>{% endif %}
     {% if plan.ignored %}
-      <span class="text-[13px] text-muted">{{ _('Not used: {names}', names=plan.ignored|join(', ')) }}</span>
+      <span class="text-[13px] text-muted">{{ _('Not used: {names}', names=plan.ignored|listed) }}</span>
     {% endif %}
   </div>
 

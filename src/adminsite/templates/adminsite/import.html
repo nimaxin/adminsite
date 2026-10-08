@@ -46,7 +46,8 @@
         </div>
         <p class="mt-3 text-[13px] text-muted">
           {{ _('A header may be the name or the label, in any case. A row with a {key} that exists changes that {thing}; a row without one adds a new one.', key=columns[0][0], thing=view.label|in_sentence) }}
-          <a class="font-medium text-link hover:underline" href="{{ urls.list(view) }}/import/template">{{ _('Download an empty file') }}</a>.
+          {% set link %}<a class="font-medium text-link hover:underline" href="{{ urls.list(view) }}/import/template">{{ _('Download an empty file') }}</a>{% endset %}
+          {{ _('{link}.', link=link) }}
         </p>
       </div>
     </section>

@@ -172,7 +172,7 @@
                         {%- endif -%}
                         {%- if not loop.last %}, {% endif -%}
                       {%- endfor -%}
-                      {%- if many[path].more > 0 %}{{ _(" and {count} more", count="{:,}".format(many[path].more)) }}{% endif -%}
+                      {%- if many[path].more > 0 %}{{ _(" and {count} more", count=many[path].more|number) }}{% endif -%}
                     {% elif item.widget in ("select", "checkbox") and value %}
                       {{ values.badge_or_text(item, view._fields.value_at(record, path), value) }}
                     {% elif item.widget == "number" and value %}

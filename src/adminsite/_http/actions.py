@@ -41,8 +41,12 @@ async def run_action(admin: "Admin", request: Request) -> Response:
     submitted = await read_form(request)
     inputs = view._forms.parse_action_inputs(found, submitted)
     if not inputs.ok:
-        problems = "; ".join(
-            f"{found.input_label(item)}: {inputs.errors[item.name]}"
+        problems = _("; ").join(
+            _(
+                "{field}: {problem}",
+                field=found.input_label(item),
+                problem=inputs.errors[item.name],
+            )
             for item in found.inputs
             if item.name in inputs.errors
         )

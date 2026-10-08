@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from markupsafe import Markup
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
@@ -14,6 +15,7 @@ from adminsite.audit import AuditEntry, AuditEvent, AuditLog
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from adminsite.fields import Field
+from adminsite.i18n import activate
 from tests.models import Order, Product
 from tests.support import request_from
 
@@ -46,6 +48,27 @@ def test_a_change_is_named_by_the_fields_label(database: Database) -> None:
     (item,) = describe(site, [entry], request=request_from())
 
     assert [line.label for line in item.lines] == ["Price in euros"]
+
+
+def test_a_line_is_one_sentence_a_language_may_turn_around(
+    database: Database,
+) -> None:
+    site = Admin(database, title="Shop", views=[OrderView])
+    entry = AuditEntry(
+        view="orders", record_key="1", event=AuditEvent.UPDATED, user="nima"
+    )
+    (item,) = describe(site, [entry], request=request_from())
+    who, record = Markup("<b>nima</b>"), Markup('<a href="/o/1">Order 1</a>')
+
+    try:
+        activate("de", {"de": {"{who} changed {record}": "{record}: von {who}"}})
+        turned = item.said(who, record)
+    finally:
+        activate("en")
+
+    assert turned == '<a href="/o/1">Order 1</a>: von <b>nima</b>'
+    assert item.said(who, record) == '<b>nima</b> changed <a href="/o/1">Order 1</a>'
+    assert item.said("nima") == "nima changed"
 
 
 @pytest.fixture

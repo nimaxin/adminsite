@@ -50,10 +50,64 @@ class HistoryItem:
     entry: AuditEntry
     when: str
     who: str
-    what: str
     lines: Sequence[ChangeLine]
     view_label: str
     given: Sequence[GivenLine] = ()
+    # What an entry for no record in particular is about, such as Orders.
+    things: str = ""
+
+    def said(self, who: str, record: str = "") -> str:
+        """The line saying who did what, naming the record where one is given.
+
+        One sentence, so a language puts the person, the deed and the record
+        in its own order. `who` and `record` may be markup, as a link is.
+        """
+        entry = self.entry
+        action = entry.action or ""
+        if entry.event is AuditEvent.EXPORTED:
+            return _("{who} exported {things}", who=who, things=self.things)
+        if entry.event is AuditEvent.ACTION and entry.view and not entry.record_key:
+            return _(
+                "{who} ran {action} on {things}",
+                who=who,
+                action=action,
+                things=self.things,
+            )
+        if entry.event is AuditEvent.SIGNED_IN:
+            return _("{who} signed in", who=who)
+        if entry.event is AuditEvent.SIGN_IN_FAILED:
+            return _("{who} could not sign in", who=who)
+        if entry.event is AuditEvent.SIGNED_OUT:
+            return _("{who} signed out", who=who)
+        if record:
+            return self._said_of(who, record)
+        if entry.event is AuditEvent.CREATED:
+            return _("{who} created", who=who)
+        if entry.event is AuditEvent.DELETED:
+            return _("{who} deleted", who=who)
+        if entry.event is AuditEvent.ACTION:
+            if action:
+                return _("{who} ran {action}", who=who, action=action)
+            return _("{who} ran an action", who=who)
+        return _("{who} changed", who=who)
+
+    def _said_of(self, who: str, record: str) -> str:
+        """The line for a change to a record the line names."""
+        entry = self.entry
+        if entry.event is AuditEvent.CREATED:
+            return _("{who} created {record}", who=who, record=record)
+        if entry.event is AuditEvent.DELETED:
+            return _("{who} deleted {record}", who=who, record=record)
+        if entry.event is AuditEvent.ACTION:
+            if entry.action:
+                return _(
+                    "{who} ran {action} on {record}",
+                    who=who,
+                    action=entry.action,
+                    record=record,
+                )
+            return _("{who} ran an action on {record}", who=who, record=record)
+        return _("{who} changed {record}", who=who, record=record)
 
 
 def describe(
@@ -80,7 +134,6 @@ def describe(
                 entry=entry,
                 when=_WHEN.display(_in_utc(entry.occurred_at)),
                 who=entry.user or _("Someone"),
-                what=_verb(entry, view),
                 lines=[
                     ChangeLine(
                         label=_label(view, name),
@@ -91,6 +144,8 @@ def describe(
                     if _readable(view, request, name)
                 ],
                 view_label=view.label if view is not None else humanize(entry.view),
+                # An entry for no record in particular names the model instead.
+                things=str(getattr(view, "label_plural", "") or humanize(entry.view)),
                 given=[
                     GivenLine(label=_given_label(view, name), value=_given_text(value))
                     for name, value in entry.inputs.items()
@@ -99,30 +154,6 @@ def describe(
             )
         )
     return items
-
-
-def _verb(entry: AuditEntry, view: object) -> str:
-    # An entry for no record in particular names the model instead.
-    things = str(getattr(view, "label_plural", "") or humanize(entry.view))
-    if entry.event is AuditEvent.EXPORTED:
-        return _("exported {things}", things=things)
-    if entry.event is AuditEvent.ACTION and entry.view and not entry.record_key:
-        return _("ran {action} on {things}", action=entry.action or "", things=things)
-    if entry.event is AuditEvent.SIGNED_IN:
-        return _("signed in")
-    if entry.event is AuditEvent.SIGN_IN_FAILED:
-        return _("could not sign in")
-    if entry.event is AuditEvent.SIGNED_OUT:
-        return _("signed out")
-    if entry.event is AuditEvent.CREATED:
-        return _("created")
-    if entry.event is AuditEvent.DELETED:
-        return _("deleted")
-    if entry.event is AuditEvent.ACTION:
-        if entry.action:
-            return _("ran {action}", action=entry.action)
-        return _("ran an action")
-    return _("changed")
 
 
 def _readable(view: "ModelView[Any] | None", request: Request, name: str) -> bool:

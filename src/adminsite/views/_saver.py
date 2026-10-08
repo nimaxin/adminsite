@@ -20,8 +20,8 @@ from adminsite.exceptions import (
 )
 from adminsite.fields import RelationField
 from adminsite.fields.files import FileField, NewFile
+from adminsite.i18n import format_number, in_sentence, ngettext
 from adminsite.i18n import gettext as _
-from adminsite.i18n import in_sentence, ngettext
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import Permission, RequestAction
 from adminsite.views._audit import AuditRecorder
@@ -356,7 +356,7 @@ class Saver(Generic[M]):
             raise RefusedError(
                 _(
                     "Delete at most {count} at a time. Narrow the list first.",
-                    count=f"{BULK_DELETE_LIMIT:,}",
+                    count=format_number(BULK_DELETE_LIMIT),
                 )
             )
         for record in records:

@@ -49,7 +49,8 @@
   // other, and the browser knows which category a number falls in.
   function plural(forms, count) {
     const category = new Intl.PluralRules(document.documentElement.lang).select(count);
-    return (forms[category] ?? forms.other).replace("{count}", count.toLocaleString("en"));
+    const number = count.toLocaleString(document.documentElement.lang, { numberingSystem: "latn" });
+    return (forms[category] ?? forms.other).replace("{count}", number);
   }
   // Text in small letters by the rules of the page's language, for matching
   // what is typed: in Turkish, İ is the capital of i.
