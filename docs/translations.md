@@ -12,6 +12,7 @@ layout mirrors for languages written right to left.
 | Português (Brasil), Brazilian Portuguese | `pt-BR` | `pt-BR`, `pt`, and `pt-PT` until European Portuguese ships |
 | 日本語, Japanese | `ja` | `ja`, `ja-JP` |
 | Deutsch, German | `de` | `de`, `de-DE`, `de-AT`, `de-CH` |
+| Français, French | `fr` | `fr`, `fr-FR`, `fr-CA`, `fr-BE` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
