@@ -1075,22 +1075,24 @@
                 </span>
               </button>
             </li>
+            {#- A row keeps to the menu's width: a long name, such as Português
+                (Brasil), is cut short rather than pushing the sidebar sideways. -#}
             {% if languages|length > 1 %}
               <li>
-                <button type="button" id="language-row" popovertarget="language-menu">
+                <button type="button" id="language-row" popovertarget="language-menu" class="flex">
                   <span class="text-muted">{{ icons.icon("globe") }}</span>
-                  <span class="flex-1">{{ _('Language') }}</span>
-                  <span class="text-muted">{{ chosen.language }}</span>
+                  <span class="whitespace-nowrap">{{ _('Language') }}</span>
+                  <span class="w-0 min-w-0 flex-1 truncate text-end text-muted">{{ chosen.language }}</span>
                   <span class="text-muted rtl:rotate-180">{{ icons.icon("chevron-right", 14) }}</span>
                 </button>
               </li>
             {% endif %}
             {% if timezones %}
               <li>
-                <button type="button" id="timezone-row" popovertarget="timezone-menu">
+                <button type="button" id="timezone-row" popovertarget="timezone-menu" class="flex">
                   <span class="text-muted">{{ icons.icon("clock") }}</span>
-                  <span class="flex-1">{{ _('Time zone') }}</span>
-                  <span class="text-muted">{{ chosen.city }}</span>
+                  <span class="whitespace-nowrap">{{ _('Time zone') }}</span>
+                  <span class="w-0 min-w-0 flex-1 truncate text-end text-muted">{{ chosen.city }}</span>
                   <span class="text-muted rtl:rotate-180">{{ icons.icon("chevron-right", 14) }}</span>
                 </button>
               </li>

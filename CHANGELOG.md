@@ -95,6 +95,8 @@ What changed:
   or `es-419` (#50).
 - Brazilian Portuguese ships with adminsite: `language="pt-BR"`, or `languages=["pt-BR"]` for a
   browser set to `pt-BR`, to `pt`, or to `pt-PT` until European Portuguese ships (#51).
+- The account menu's language and time zone rows cut a long name short, such as Português
+  (Brasil), where it was wider than the menu and pushed the whole sidebar sideways (#51).
 
 ## 0.1.0a16
 
