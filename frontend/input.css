@@ -212,7 +212,27 @@
   --color-code-word: var(--tone-4-fg);
 }
 
-/* Geist ships inside the package, so nothing is fetched from anywhere else. */
+/* Geist ships inside the package, so nothing is fetched from anywhere else.
+   Each subset is fetched only by a page that draws one of its letters. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/geist-cyrillic-ext.woff2") format("woff2");
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F,
+    U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/geist-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
 @font-face {
   font-family: "Geist";
   font-style: normal;

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Russian ships with adminsite, translated in full, and the plumbing every language needs came with
+it: texts with a count in each form a language writes a number in, dates, counts, lists and the
+history in each language's own way, and browsers matched to a language by region and script.
+
 Before upgrading:
 
 - On SQLite, a record keyed past 2,147,483,647 in a column declared `Integer` can no longer be
@@ -83,6 +87,9 @@ What changed:
 - An import reads yes and no in the page's language as well, as the export writes them, so a
   Persian export imports again. A refused row's reason no longer ends in two full stops, and a
   record page someone may not open says "You cannot open Orders.", not "You cannot detail Orders.".
+- Russian ships with adminsite: `language="ru"`, or `languages=["ru"]` for a browser set to `ru` or
+  `ru-RU`. Texts with a count read right for 1, 2, 5 and 21, and Geist, the admin's typeface, now
+  ships its Cyrillic letters, so Russian is drawn in it too (#49).
 
 ## 0.1.0a16
 

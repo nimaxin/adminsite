@@ -1,5 +1,6 @@
 import re
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -21,6 +22,7 @@ from adminsite.i18n import (
     in_sentence,
     listed,
     lower,
+    native_name,
     negotiate,
     ngettext,
     plural_categories,
@@ -575,3 +577,61 @@ class TestCookiesOfTheSameName:
         page = await both.get("/admin/", headers={"Cookie": "adminsite_language=fa"})
 
         assert '<html lang="fa" dir="rtl">' in page.text
+
+
+STYLESHEET = Path(__file__).parent.parent / "src" / "adminsite" / "static"
+
+
+# Each language adminsite ships: what the menu calls it, browsers that get
+# it, browsers that never do, and a text its list of orders shows.
+SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
+    "ru": ("Русский", ["ru", "ru-RU"], ["uk-UA", "be"], "Поиск: orders"),
+}
+
+
+class TestShippedLanguages:
+    @pytest.mark.parametrize("code", SHIPPED)
+    def test_the_menu_names_it(self, code: str) -> None:
+        assert code in shipped_languages()
+        assert native_name(code) == SHIPPED[code][0]
+
+    @pytest.mark.parametrize(
+        ("code", "header"),
+        [(code, header) for code, row in SHIPPED.items() for header in row[1]],
+    )
+    def test_a_browser_set_to_it_gets_it(self, code: str, header: str) -> None:
+        assert negotiate(f"{header},en;q=0.5", ["en", code]) == code
+
+    @pytest.mark.parametrize(
+        ("code", "header"),
+        [(code, header) for code, row in SHIPPED.items() for header in row[2]],
+    )
+    def test_a_browser_set_to_another_never_does(self, code: str, header: str) -> None:
+        assert negotiate(header, ["en", code]) is None
+
+    @pytest.mark.parametrize("code", SHIPPED)
+    async def test_a_page_speaks_it(self, database: Database, code: str) -> None:
+        admin = Admin(database, views=[OrderView], language=code)
+        async with serve(admin) as client:
+            page = await client.get("/admin/orders")
+
+        assert f'<html lang="{code}" dir="{direction(code)}">' in page.text
+        assert SHIPPED[code][3] in page.text
+
+
+class TestRussian:
+    @pytest.mark.parametrize(
+        ("number", "rows"),
+        [(1, "1 строка"), (2, "2 строки"), (5, "5 строк"), (21, "21 строка")],
+    )
+    def test_a_count_reads_right_for_any_number(self, number: int, rows: str) -> None:
+        activate("ru")
+
+        assert ngettext("{count} row", "{count} rows", number) == rows
+
+    def test_its_letters_are_drawn_in_geist(self) -> None:
+        css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
+
+        assert "fonts/geist-cyrillic.woff2" in css
+        assert "U+400-45F" in css
+        assert (STYLESHEET / "fonts" / "geist-cyrillic.woff2").exists()
