@@ -11,6 +11,8 @@ Before upgrading:
   copy again from the new one (#67).
 - A project that overrides `base.html`, `_table.html` or `_row.html` should start its copy again
   from the new one (#59).
+- A project that overrides `base.html`, `list.html` or `_table.html` should start its copy again
+  from the new one (#48).
 
 What changed:
 
@@ -34,6 +36,11 @@ What changed:
   shift and a click, or shift and Space, ticks every row from the last one clicked. Links, the
   row's menu, values changed in place and a drag over text keep working as before, and with
   nothing ticked a click on a row still ticks nothing (#59).
+- A view can keep its open list up to date: `list_refresh_seconds = 30` reads the rows again every
+  30 seconds, under the search, filters, sort and page in use, so new and changed records show up
+  without a reload. The list waits while rows are ticked, a menu, dialog or value's editor is open,
+  or the focus or a text selection is in the table, and a hidden tab asks nothing until it is shown
+  again (#48).
 
 ## 0.1.0a16
 

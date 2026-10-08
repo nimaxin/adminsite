@@ -24,6 +24,7 @@ from adminsite.views._checks import (
     check_excluded,
     check_path,
     check_placed,
+    check_refresh,
     check_title,
 )
 from adminsite.views.layout import Placed, read_layout
@@ -108,6 +109,7 @@ class SettingsReader:
             if name in schema.fields and schema.fields[name].has_default
         )
         self.list_filters = self.filters("list_filters", view.list_filters)
+        check_refresh(self._name, view.list_refresh_seconds)
         # The fields whose cells in the list change their value in place,
         # checked against the list and the edit form once both are known.
         self.inline_editable_fields = self.paths(

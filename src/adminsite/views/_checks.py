@@ -30,6 +30,7 @@ __all__ = [
     "check_options_used",
     "check_path",
     "check_placed",
+    "check_refresh",
     "check_title",
 ]
 
@@ -279,6 +280,17 @@ def check_list_flags(
         f"{both} hidden_in_list offers it among the columns people can add to "
         "the list; excluding it keeps it off the list altogether. Keep one."
     )
+
+
+def check_refresh(view: str, seconds: object) -> None:
+    """Refuse a list_refresh_seconds that is not a whole number of seconds."""
+    if seconds is None:
+        return
+    if isinstance(seconds, bool) or not isinstance(seconds, int) or seconds < 1:
+        raise AdminSiteError(
+            f"{view}.list_refresh_seconds is {seconds!r}. Give it a whole number of "
+            "seconds, such as 30, or None to read the list only when asked."
+        )
 
 
 def check_inline_editable(

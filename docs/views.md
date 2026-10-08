@@ -153,7 +153,7 @@ The record is passed by position, so the parameter can be named after the model.
 
 The list is shaped by `searchable_fields`, `sortable_fields`, `fields_default_sort`,
 `list_filters` (see [Filters](filters.md)), `page_size`, `page_size_options`, `count_mode`,
-`pagination`, `deferred_fields` and `global_search`. [`ModelView`][adminsite.ModelView] says what each
+`pagination`, `list_refresh_seconds`, `deferred_fields` and `global_search`. [`ModelView`][adminsite.ModelView] says what each
 one takes and what it does left out; the sections below show them at work.
 
 Anything the list shows is loaded with the page. `customer.name` joins the customer into the same
@@ -257,6 +257,24 @@ The choice goes in the URL as `?size=100`, stays while paging, sorting, searchin
 and is remembered in the session. Only a size on offer counts, so nobody can ask for a million
 rows by editing the URL. "Select all matching" still means every matching row, whatever the page
 shows.
+
+### Keeping the list up to date
+
+A list shows its records as they were when it was read. A view whose records come in while people
+watch, such as new orders, can read its rows again every so often:
+
+```python
+class OrderView(ModelView[Order]):
+    list_refresh_seconds = 30
+```
+
+New and changed records then show up without a reload, under the search, filters, sort and page in
+use, and the total is counted again. The list waits while someone is at work on it: while a row is
+ticked, a menu, the filters, a dialog or a value's editor is open, the focus is in the table or
+some of its text is selected. It reads its rows again once they are done, and keeps the table where
+it was scrolled to. A list in a tab nobody is looking at asks the database nothing, and reads its
+rows at once when the tab is shown again, if it is due. A list left without the setting changes
+only when someone asks it to.
 
 ### Saved views
 

@@ -97,5 +97,14 @@
   {% include "adminsite/_toolbar.html" %}
   {% include "adminsite/_table.html" %}
   {% if view._settings.inline_editable_fields %}{% include "adminsite/_value_editing.html" %}{% endif %}
+  {% if view.list_refresh_seconds %}
+    {#- Reads the rows again every so often, for the address the list shows
+        then, while nobody is at work on it and its tab is in view. Outside
+        the table, so drawing the table again keeps its clock going. -#}
+    <div id="records-refresh" hidden hx-get="{{ urls.list(view) }}"
+         hx-trigger="every {{ view.list_refresh_seconds }}s [listIdle()], refresh-list"
+         hx-target="#records" hx-swap="outerHTML"
+         data-seconds="{{ view.list_refresh_seconds }}"></div>
+  {% endif %}
 </div>
 {% endblock %}

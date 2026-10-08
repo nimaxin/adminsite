@@ -210,6 +210,16 @@ class ModelView(Generic[M]):
     """Whether the command palette looks through this view's records."""
     pagination: Pagination = Pagination.OFFSET
     """How the list moves between pages: page numbers, or a keyset for big tables."""
+    list_refresh_seconds: int | None = None
+    """How often an open list reads its rows again, in seconds, such as 30.
+
+    New and changed records then show up without a reload, under the search,
+    the filters, the sort and the page in use. The list waits while someone
+    is at work on it, with a row ticked, a menu, a dialog or a value's editor
+    open, the focus in the table or its text selected, and while its tab is
+    hidden, which asks the database nothing; shown again, it reads them at
+    once. Left None, a list changes only when someone asks it to.
+    """
 
     deferred_fields: Sequence[ColumnReference] = ()
     """Columns the list leaves out of its query, such as a large JSON payload.
