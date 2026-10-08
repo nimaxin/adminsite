@@ -368,6 +368,13 @@
       system-ui, sans-serif;
   }
 
+  /* And Traditional Chinese, in the forms Taiwan's standard writes. */
+  :lang(zh-Hant) {
+    --font-sans: Geist, "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei",
+      "Noto Sans TC", "Noto Sans CJK TC", "Source Han Sans TC", ui-sans-serif,
+      system-ui, sans-serif;
+  }
+
   [lang] {
     font-family: var(--font-sans);
   }

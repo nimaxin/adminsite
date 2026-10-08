@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-Russian ships with adminsite, translated in full, and the plumbing every language needs came with
-it: texts with a count in each form a language writes a number in, dates, counts, lists and the
-history in each language's own way, and browsers matched to a language by region and script.
+Ten languages ship with adminsite, each translated in full: Russian, Spanish, Brazilian Portuguese,
+Japanese, German, French, Turkish, Arabic, and Simplified and Traditional Chinese. What each needs
+came with them: texts with a count in every form a language writes a number in, dates, counts, lists
+and the history in each language's own way, fonts that draw each script in its own forms, and
+browsers matched to a language by region and script.
 
 Before upgrading:
 
@@ -113,6 +115,10 @@ What changed:
 - Simplified Chinese ships with adminsite: `language="zh-Hans"`, or `languages=["zh-Hans"]` for a
   browser set to Chinese for mainland China or Singapore, or to Chinese with no region; never one
   set to Taiwan, Hong Kong or Macau. Characters are drawn in their Simplified forms (#57).
+- Traditional Chinese ships with adminsite, in Taiwan's wording, for Taiwan, Hong Kong and Macau:
+  `language="zh-Hant"`, or `languages=["zh-Hant"]` for a browser set to Chinese for one of them;
+  never one set to mainland China or Singapore. Characters are drawn in their Traditional forms
+  (#58).
 
 ## 0.1.0a16
 
