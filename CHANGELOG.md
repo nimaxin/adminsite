@@ -102,6 +102,9 @@ What changed:
   in a Japanese font, wherever the page or a part of it is in Japanese (#52).
 - German ships with adminsite, addressing people as Sie: `language="de"`, or `languages=["de"]` for
   a browser set to `de-DE`, `de-AT` or `de-CH` (#53).
+- French ships with adminsite, addressing people as vous and setting `:`, `;`, `?` and `!` apart
+  with a space that never breaks: `language="fr"`, or `languages=["fr"]` for a browser set to
+  `fr-FR`, `fr-CA` or `fr-BE` (#54).
 
 ## 0.1.0a16
 

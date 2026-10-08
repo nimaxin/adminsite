@@ -605,6 +605,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["nl-NL", "da-DK"],
         "Orders durchsuchen",
     ),
+    "fr": (
+        "Français",
+        ["fr", "fr-FR", "fr-CA", "fr-BE"],
+        ["it-IT", "ca-ES"],
+        "Rechercher\xa0: orders",
+    ),
 }
 
 
@@ -686,3 +692,29 @@ class TestGerman:
         assert gettext("Search {things}", things=in_sentence("Bestellungen")) == (
             "Bestellungen durchsuchen"
         )
+
+
+class TestFrench:
+    def test_a_label_and_its_value_are_set_apart_as_french_does(self) -> None:
+        activate("fr")
+
+        said = gettext("{field}: {problem}", field="Nom", problem="Saisissez du texte.")
+
+        assert said == "Nom\N{NO-BREAK SPACE}: Saisissez du texte."
+
+    def test_no_mark_can_start_a_line(self) -> None:
+        for english, translation in catalog("fr").items():
+            forms = (
+                translation.values() if isinstance(translation, dict) else [translation]
+            )
+            for text in forms:
+                for found in re.finditer(r"[:;?!]", text):
+                    before = text[found.start() - 1] if found.start() else ""
+                    after = text[found.end() : found.end() + 1]
+                    # A time such as 14:30 or an address such as https://.
+                    if found.group() == ":" and (after.isdigit() or after == "/"):
+                        continue
+                    assert before in (
+                        "\N{NO-BREAK SPACE}",
+                        "\N{NARROW NO-BREAK SPACE}",
+                    ), (english, text)
