@@ -67,6 +67,42 @@
     Alpine.store("selection", { picked: 0, everything: false, matching: "", allMatching: "" });
   });
 
+  // Ticking rows in the list. The box's cell ticks its row. Once a row is
+  // ticked, a click anywhere else on a row ticks or unticks it too, and
+  // shift and a click ticks every row from the last one clicked to this one.
+  // While nothing is ticked a click on a row does nothing, so reading or
+  // copying from the list never ticks one. Links, buttons, menus and values
+  // changed in place keep their own clicks, and so does a drag over text.
+  let lastPicked = null;
+  function pickRows(event) {
+    const row = event.target.closest("tbody tr");
+    const box = row?.querySelector("input[name=keys]");
+    if (!box) return;
+    const store = Alpine.store("selection");
+    if (event.target !== box) {
+      if (!box.closest("td").contains(event.target)) {
+        if (!store.picked || !getSelection().isCollapsed) return;
+        const control = event.target.closest("a, button, input, select, textarea, label, [tabindex], .dropdown");
+        if (control && row.contains(control)) return;
+      }
+      box.checked = !box.checked;
+    }
+    const boxes = [...box.form.querySelectorAll("input[name=keys]")];
+    if (event.shiftKey && boxes.includes(lastPicked) && lastPicked !== box) {
+      const ends = [boxes.indexOf(lastPicked), boxes.indexOf(box)].sort((a, b) => a - b);
+      boxes.slice(ends[0], ends[1] + 1).forEach((one) => { one.checked = box.checked; });
+    }
+    lastPicked = box;
+    store.picked = boxes.filter((one) => one.checked).length;
+    store.everything = false;
+  }
+  // Shift and a press would select the text between two rows; while rows
+  // are being ticked it ticks them instead.
+  function keepRowText(event) {
+    const ticking = Alpine.store("selection").picked || event.target.closest("td:has(input[name=keys])");
+    if (event.shiftKey && ticking && event.target.closest("tbody tr")) event.preventDefault();
+  }
+
   // A menu that drops below the button that opened it, inside the window:
   // above it where there is no room below. It lines up with the start of the
   // button, or with the end for a menu marked `data-align="end"`, such as the

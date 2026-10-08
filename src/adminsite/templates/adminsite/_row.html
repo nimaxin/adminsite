@@ -8,7 +8,8 @@
 {% set changes = (editable|default({})).get(key, ()) %}
 <tr class="hover:bg-subtle has-[input[name=keys]:checked]:bg-selected">
   {% if actions %}
-    <td class="h-12 border-b border-line ps-4 pe-1 lg:ps-7">
+    {#- The whole cell ticks the row, not only the box in it. -#}
+    <td class="h-12 cursor-pointer border-b border-line ps-4 pe-1 lg:ps-7">
       <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
              aria-label="{{ _('Select {name}', name=view.get_record_title(row)) }}"
              @change="

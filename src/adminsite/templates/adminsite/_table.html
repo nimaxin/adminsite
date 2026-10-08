@@ -33,7 +33,11 @@
         list instead, it stretched the page around the table to the
         table's full size, and the page scrolled as well as the table. -#}
     <div class="relative min-h-0 flex-1 overflow-auto">
-      <table class="w-full border-separate border-spacing-0 max-md:hidden">
+      {#- Clicks on the rows tick them, once one is ticked, and the rows
+          show they can be clicked. -#}
+      <table class="w-full border-separate border-spacing-0 max-md:hidden"
+             {% if actions %}@click="pickRows($event)" @mousedown="keepRowText($event)"
+             :class="$store.selection.picked && '[&_tbody_tr]:cursor-pointer'"{% endif %}>
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
           <tr>
