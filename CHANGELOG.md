@@ -1,29 +1,45 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a16
+
+A list shows its rows as soon as it has read them, and its total and its filters' counts follow,
+so a big table keeps nobody waiting. A list scrolls in one place, its table, the buttons in a
+page's header wrap instead of running off the panel, and a list's own actions share one More
+actions menu. The sidebar is there as soon as a page starts to load.
+
+Before upgrading:
+
+- A view whose `count_mode` is `CountMode.ESTIMATED` or `CountMode.NONE` no longer counts its
+  filters' options. Give a filter `show_counts=True` to keep its counts (#60).
+- A project that overrides `base.html`, `list.html`, `detail.html`, `activity.html`,
+  `import_preview.html`, `_table.html`, `_row.html`, `_records_total.html`, `_bulk_actions.html`,
+  `_filters.html`, `_saved_tabs.html`, `_form_layout.html`, `_inlines.html`, `_json.html`,
+  `_document_form.html`, `_document_view.html`, `widgets/_picker.html` or `widgets/json.html`
+  should start its copy again from the new one. The count at the foot of the list, the page
+  numbers and the first line of the Actions menu are drawn by `_records_count.html`,
+  `_page_numbers.html` and `_bulk_summary.html`, which the total is sent back with, and the count
+  beside each filter option by `_option_count.html`.
+- A project that builds its own stylesheet should build it again from the new
+  `frontend/input.css`, which also keeps closed menus from taking room.
+
+What changed:
 
 - A list scrolls in one place, its table. Text kept for screen readers in a cell, such as "Not set"
   in an empty one, stretched the page around the table to the table's full size, so the page grew
   scrollbars of its own and scrolling them slid the toolbar and the pager away. The same text made
   the whole page scroll sideways around a record page's related records on a phone and a form's
-  inline rows on a tablet. Every box that scrolls now keeps what is placed inside it. A project
-  that overrides a template with a box that scrolls, such as `_table.html`, `detail.html`,
-  `_inlines.html` or `base.html`, should start its copy again from the new one (#61).
+  inline rows on a tablet. Every box that scrolls now keeps what is placed inside it (#61).
 - The tabs above a list, on the Activity page and in a form no longer show a small scrollbar
-  beside them, and the current tab's underline covers the line under them, as on a record page. A
-  project that overrides `_saved_tabs.html`, `activity.html` or `_form_layout.html` should start
-  its copy again from the new one (#61).
+  beside them, and the current tab's underline covers the line under them, as on a record page
+  (#61).
 - The buttons in a page's header wrap where they do not all fit. A list's own actions, and a
   record's, sat in a row that never wrapped, so several of them ran past the edge of the panel and
-  could not be clicked, and below 1024 pixels wide the whole window scrolled sideways. A project
-  that overrides `list.html`, `detail.html` or `import_preview.html` should start its copy again
-  from the new one (#61).
+  could not be clicked, and below 1024 pixels wide the whole window scrolled sideways (#61).
 - A long value in a list ends in an ellipsis, whatever its kind, so no value makes its column
   wider than a long text does. Only text, long text and JSON were cut short before; a record's
   name, a list of values, the names of linked records, an email, a file and a value read through a
   link to many now are too, as is each value in the import preview. The record's page shows the
-  whole value. A project that overrides `_row.html` or `import_preview.html` should start its copy
-  again from the new one (#61).
+  whole value (#61).
 - A list over a big table no longer waits for its filters to count every row. A view whose
   `count_mode` is `CountMode.ESTIMATED` or `CountMode.NONE` counts no filter's options, those built
   from a column included, unless a filter is given `show_counts=True`. `BooleanFilter` takes
@@ -38,30 +54,21 @@
   for them, and a list nobody filters never counts them. It asks again after a new search, so the
   counts always match the search the list shows; they kept those of the search the page was first
   drawn with (#64).
-- A project that overrides `_table.html`, `_records_total.html`, `_bulk_actions.html`,
-  `_filters.html` or `base.html` should start its copy again from the new one. The count at the
-  foot of the list, the page numbers and the first line of the Actions menu are drawn by
-  `_records_count.html`, `_page_numbers.html` and `_bulk_summary.html`, which the total is sent
-  back with (#64).
 - Nothing is left empty under the account menu at the foot of the sidebar. The closed language
   and time zone menus were still laid out there, unseen, so the sidebar grew taller than the
   window and scrolled. The sidebar now keeps to the window's height: its links scroll under the
-  account menu, which stays at the foot. A project that overrides `base.html` should start its
-  copy again from the new one.
+  account menu, which stays at the foot.
 - A page's heading keeps its whole width from a tablet up, and the buttons beside it move under
   it where they do not fit. Given only the room the buttons left, a list's name could be cut to a
-  few letters and its count split over three lines. A project that overrides `base.html` should
-  start its copy again from the new one.
+  few letters and its count split over three lines.
 - A list's own actions, those that run with nothing ticked, share one More actions menu beside
   Import and Export CSV, the dangerous ones last under a line, so however many a view has, the top
   of its list keeps to a few buttons. A view with only one keeps its button. A phone's ⋯ menu
-  lists them in the same order, after Import and Export CSV. A project that overrides
-  `list.html` should start its copy again from the new one.
+  lists them in the same order, after Import and Export CSV.
 - The sidebar is there as soon as a page starts to load. It came after the page, so while a long
   list was still arriving the list took the whole width, and the page jumped sideways when the
   sidebar appeared with the last row. Tab now reaches the sidebar's links before the page's, after
-  the "Skip to the content" link, which jumps over them. A project that overrides `base.html`
-  should start its copy again from the new one.
+  the "Skip to the content" link, which jumps over them.
 
 ## 0.1.0a15
 
