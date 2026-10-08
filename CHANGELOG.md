@@ -7,6 +7,8 @@ Before upgrading:
 - On SQLite, a record keyed past 2,147,483,647 in a column declared `Integer` can no longer be
   found by its key, since that is past what an `Integer` holds on Postgres and MySQL. Declare such
   a key `BigInteger` (#66).
+- A project that overrides `base.html`, `_filters.html` or `widgets/_picker.html` should start its
+  copy again from the new one (#67).
 
 What changed:
 
@@ -18,6 +20,13 @@ What changed:
   filter a key past what its column holds, such as 99999999999 for an `Integer` key, which asyncpg
   refused to send. A record's page answers such a key with Not found, and a search for such a
   number, a keyset page's cursor and a selection's keys leave it out too (#66).
+- A relation filter, such as `list_filters = [Order.customer]`, is a picker of the linked records
+  by name, as a link on a form is, where it was a box for the record's key. Several can be picked,
+  and the chip above the list names them. The records come through the linked model's own view, so
+  its scope and permissions apply, and seeing the list is enough to use it, where a form's picker
+  asks for leave to create or edit (#67).
+- A relation filter built from a column matches the linked model's own primary key, whatever it is
+  called. It always matched a column named `id` (#67).
 
 ## 0.1.0a16
 

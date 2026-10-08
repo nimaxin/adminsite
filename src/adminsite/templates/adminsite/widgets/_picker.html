@@ -63,10 +63,15 @@
            :aria-expanded="open.toString()" :aria-activedescendant="activeId || null"
            x-model="query" :placeholder="placeholder"
            @focus="enter()" @click="enter()" @blur="close()" @input="typed()" @keydown="key($event)"
+           {#- The search says how it swaps and keeps to itself, so a form it
+               sits in, as the filters drawer's, lends it nothing: not its
+               swap, its address or the queue of its own requests. The
+               newest search wins. -#}
            {% if not local %}
              name="q"
              hx-get="{{ row.lookup_url or urls.lookup(view, row.lookup_path or row.path) }}"
-             hx-target="#{{ list_id }}"
+             hx-target="#{{ list_id }}" hx-swap="innerHTML" hx-push-url="false"
+             hx-sync="this:replace"
              hx-trigger="input changed delay:250ms, picker-search"
            {% endif %}
            {{ field_attrs|default('') }}>
@@ -80,11 +85,11 @@
     {% endif %}
   </div>
 
-  {#- Inside a dialog, or an inline table that scrolls sideways, the list
-      takes its place and the dialog or row grows, since either would cut
-      off anything floating past its edge. A press on it keeps the typing
-      in the box. -#}
-  <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg in-[.modal-box]:static in-[table]:static"
+  {#- Inside a dialog, an inline table that scrolls sideways or the filters
+      drawer, the list takes its place and the dialog, row or drawer grows,
+      since each would cut off anything floating past its edge. A press on
+      it keeps the typing in the box. -#}
+  <div class="absolute z-30 mt-1 w-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg in-[.modal-box]:static in-[table]:static in-[#filters]:static"
        x-show="open" x-cloak @mousedown.prevent>
     <ul id="{{ list_id }}" x-ref="list" role="listbox" aria-label="{{ row.label }}"
         {% if picker_multiple %}aria-multiselectable="true"{% endif %}

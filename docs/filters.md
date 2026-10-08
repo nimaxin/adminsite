@@ -31,8 +31,15 @@ class OrderView(ModelView[Order]):
 | `bool` | `BooleanFilter` | `?is_active=true` |
 | number | `NumberRangeFilter`, either end optional | `?total=10,50` or `?total=100,` |
 | date or datetime | `DateRangeFilter`, a shortcut or two dates | `?created_at=week` or `?created_at=2026-09-01,2026-09-30` |
-| relationship | `RelationFilter`, by the linked record's key | `?customer=3` |
+| relationship | `RelationFilter`, picking linked records by name | `?customer=3&customer=5` |
 | text | `TextFilter`, matching part of the value | `?email=fischer` |
+
+A relation filter is a picker, as a link on a form is: a box that searches the linked records as
+you type, named as their own view names them, with the ones picked as chips in it. Picking one, or
+letting one go, applies the filter, and its chip above the list names the records. They come
+through the linked model's own view, so its scope and its permissions apply, and seeing the list is
+enough to use it. The URL carries each record's key; the filter matches the linked model's primary
+key unless it is given another column, as `RelationFilter("customer", key="code")`.
 
 A column of a related model, such as `Link(Order.customer, Customer.region)`, filters through the
 relation without adding a join, so rows are never duplicated. Its name in the URL is

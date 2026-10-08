@@ -139,6 +139,24 @@ class Reader(Generic[M]):
             await self._hide_unseen(session, [record], paths, request)
         return record
 
+    async def fetch_by(
+        self,
+        session: SessionAdapter,
+        name: str,
+        values: Collection[str],
+        *,
+        request: Request,
+    ) -> Sequence[M]:
+        """The records whose column holds one of these values, within the scope.
+
+        Read in one query, after a permission check, as a relation filter
+        names the records it holds by their keys.
+        """
+        await self._view._ensure(Permission.VIEW, request=request)
+        return await self._repository.having(
+            session, name, values, self._view._scope_for(request)
+        )
+
     def narrows(self, request: Request) -> bool:
         """Whether scope_query leaves out any record for this user.
 

@@ -93,6 +93,10 @@ class Urls:
         """Where a relation field searches for records."""
         return f"{self.base}/{view.name}/lookup/{path}"
 
+    def filter_lookup(self, view: ModelView[Any], name: str) -> str:
+        """Where a relation filter searches for records."""
+        return f"{self.base}/{view.name}/filter/{name}/lookup"
+
     def document(self, view: ModelView[Any], path: str, key: str = "") -> str:
         """Where a JSON column's form is read into the document it stands for."""
         if key:

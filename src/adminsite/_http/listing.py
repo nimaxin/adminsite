@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING, Any
 from starlette.requests import Request
 from starlette.responses import Response
 
-from adminsite._http.forms import rows_for_actions
+from adminsite._http.form_rows import Choice, FormRow
+from adminsite._http.forms import rows_for_actions, title_for
 from adminsite._http.requests import find_view
 from adminsite._http.saved_views import owner_of, saved_for
-from adminsite._http.urls import PAGING_KEYS
+from adminsite._http.urls import PAGING_KEYS, Urls
 from adminsite.actions.base import Action
 from adminsite.filters.base import (
     Filter,
@@ -23,10 +24,7 @@ from adminsite.permissions import Permission
 from adminsite.query import CountMode, QuerySpec, Sort
 from adminsite.saved_views import SavedView, clean_query
 from adminsite.views import ModelView
-
-if TYPE_CHECKING:
-    from adminsite.database import SessionAdapter
-
+from adminsite.views._picker import Picker
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -45,6 +43,7 @@ __all__ = [
     "ListRequest",
     "active_chips",
     "active_view",
+    "add_pickers",
     "as_context",
     "asks_for_filter_counts",
     "asks_for_total",
@@ -93,6 +92,9 @@ class FilterPanel:
     value: FilterValue | None = None
     # Whether its options are counted on this view, when the drawer asks.
     counted: bool = False
+    # A relation filter's picker, drawn as a form's link is, holding the
+    # records the filter is on.
+    picker: FormRow | None = None
 
     @property
     def active(self) -> bool:
@@ -257,6 +259,41 @@ async def build_panels(
         )
         for item, options in offered
     ]
+
+
+async def add_pickers(
+    admin: "Admin",
+    view: ModelView[Any],
+    session: "SessionAdapter",
+    panels: Sequence[FilterPanel],
+    request: Request,
+) -> None:
+    """Give each relation filter a picker, holding the records it is on, named.
+
+    They are read in one query for each filter in use, through the linked
+    model's own view, so the chip names them as the picker does, and a
+    record that view keeps from this user is named by neither.
+    """
+    urls = Urls(request)
+    for panel in panels:
+        picker = Picker.for_filter(
+            admin.views, admin.inspector, view, panel.filter, request
+        )
+        if picker is None:
+            continue
+        records = await picker.chosen(session, panel.chosen) if panel.chosen else []
+        picked = [
+            Choice(picker.key_of(record), title_for(admin, picker.item, record))
+            for record in records
+        ]
+        panel.options = [FilterOption(choice.value, choice.label) for choice in picked]
+        panel.picker = FormRow(
+            path=panel.filter.name,
+            field=picker.item,
+            picked=picked,
+            lookup_url=urls.filter_lookup(view, panel.filter.name),
+            id_prefix="filter-",
+        )
 
 
 def wants_partial(request: Request) -> bool:
@@ -528,6 +565,7 @@ async def list_records(admin: "Admin", request: Request) -> Response:
             request=request,
         )
         panels = await build_panels(view, session, spec, request, counts=False)
+        await add_pickers(admin, view, session, panels, request)
 
     context = as_context(view, request, spec, page, panels, read)
     # The table asks for the total once the rows are on screen, unless the

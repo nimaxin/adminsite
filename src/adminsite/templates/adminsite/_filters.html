@@ -18,10 +18,11 @@
   {#- A box ticked, a shortcut picked or an end of a range typed applies the
       form; each of those is marked `data-applies`. The box that narrows a
       long list is not, nor is picking "between", which waits for its ends.
-      A text filter applies itself once the typing stops. -#}
+      A record picked or let go applies it too, and a text filter applies
+      itself once the typing stops. -#}
   <form class="flex h-full flex-col" method="get" action="{{ urls.list(view) }}"
         data-keeps="{{ names|join(' ') }}" data-drops-empty
-        hx-get="{{ urls.list(view) }}" hx-trigger="change[target.hasAttribute('data-applies')] delay:250ms, submit"
+        hx-get="{{ urls.list(view) }}" hx-trigger="change[target.hasAttribute('data-applies')] delay:250ms, picker-change delay:250ms, submit"
         hx-target="#records" hx-swap="outerHTML" hx-push-url="true">
     {% for key, value in kept if key not in names and key not in ("page", "after", "before") %}
       <input type="hidden" name="{{ key }}" value="{{ value }}">
@@ -105,6 +106,20 @@
                   </label>
                 </div>
               </div>
+            {% elif panel.picker %}
+              {#- The records a relation filter matches, picked by name as on a
+                  form: a box that searches them as you type, holding the ones
+                  picked as chips. -#}
+              {%- set row = panel.picker -%}
+              {%- set target = admin.views.for_relation(row.field) -%}
+              {%- set things = (target.label_plural if target else row.label)|lower -%}
+              {%- set picker_multiple = panel.filter.multiple -%}
+              {%- set picker_ordered = false -%}
+              {%- set picker_options = none -%}
+              {%- set picker_hint = _("Search {things}", things=things) -%}
+              {%- set picker_search = picker_hint -%}
+              {%- set field_attrs %}aria-label="{{ panel.filter.label }}"{% endset -%}
+              {% include "adminsite/widgets/_picker.html" %}
             {% else %}
               <input class="input input-sm w-full" type="text" name="{{ name }}"
                      value="{{ panel.chosen[0] if panel.chosen else '' }}"
