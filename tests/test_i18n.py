@@ -624,6 +624,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["zh-TW", "zh-HK", "zh-MO", "zh-Hant-TW", "ja-JP"],
         "搜索orders",
     ),
+    "zh-Hant": (
+        "繁體中文",
+        ["zh-TW", "zh-HK", "zh-MO", "zh-Hant-TW"],
+        ["zh-CN", "zh-SG", "zh", "ja-JP"],
+        "搜尋orders",
+    ),
 }
 
 
@@ -792,3 +798,28 @@ class TestSimplifiedChinese:
         assert '"PingFang SC"' in rule
         assert '"Microsoft YaHei UI"' in rule
         assert rule.index("Geist") < rule.index("PingFang")
+
+
+class TestTraditionalChinese:
+    def test_its_characters_start_from_fonts_made_for_it(self) -> None:
+        css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
+
+        rule = css[css.index(":lang(zh-Hant){") :]
+        rule = rule[: rule.index("}")]
+        assert '"PingFang TC"' in rule
+        assert '"Microsoft JhengHei UI"' in rule
+        assert rule.index("Geist") < rule.index("PingFang")
+
+    def test_taiwan_hong_kong_and_macau_read_it_and_the_mainland_never(self) -> None:
+        offered = ["en", "zh-Hans", "zh-Hant"]
+
+        assert [negotiate(h, offered) for h in ("zh-TW", "zh-HK", "zh-MO")] == [
+            "zh-Hant",
+            "zh-Hant",
+            "zh-Hant",
+        ]
+        assert [negotiate(h, offered) for h in ("zh-CN", "zh-SG", "zh")] == [
+            "zh-Hans",
+            "zh-Hans",
+            "zh-Hans",
+        ]

@@ -16,11 +16,12 @@ layout mirrors for languages written right to left.
 | Türkçe, Turkish | `tr` | `tr`, `tr-TR` |
 | العربية, Arabic | `ar` | `ar`, `ar-SA`, `ar-EG`, `ar-AE` and any other Arabic |
 | 简体中文, Simplified Chinese | `zh-Hans` | `zh-CN`, `zh-SG`, `zh` and `zh-Hans`; never `zh-TW`, `zh-HK` or `zh-MO` |
+| 繁體中文, Traditional Chinese | `zh-Hant` | `zh-TW`, `zh-HK`, `zh-MO` and `zh-Hant`; never `zh-CN`, `zh-SG` or `zh` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
-German breaks a long compound word with a hyphen where it has to break, as on a phone. Japanese
-and Simplified Chinese text start from fonts made for each, so characters such as 直 and 骨 are
+German breaks a long compound word with a hyphen where it has to break, as on a phone. Japanese,
+Simplified Chinese and Traditional Chinese text start from fonts made for each, so characters such as 直 and 骨 are
 drawn in that language's own forms, wherever the page or a part of it, such as its name in the
 language menu, is in it.
 
