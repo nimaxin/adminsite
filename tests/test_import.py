@@ -552,6 +552,8 @@ class TestYesAndNo:
             ("fa", "بله", "true"),
             ("fa", "خیر", "false"),
             ("fa", "yes", "yes"),
+            ("tr", "Evet", "true"),
+            ("tr", "HAYIR", "false"),
         ],
     )
     def test_the_words_of_the_language_count(
