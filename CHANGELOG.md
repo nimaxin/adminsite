@@ -90,6 +90,9 @@ What changed:
 - Russian ships with adminsite: `language="ru"`, or `languages=["ru"]` for a browser set to `ru` or
   `ru-RU`. Texts with a count read right for 1, 2, 5 and 21, and Geist, the admin's typeface, now
   ships its Cyrillic letters, so Russian is drawn in it too (#49).
+- Spanish ships with adminsite, in wording readers in Spain and Latin America both understand:
+  `language="es"`, or `languages=["es"]` for a browser set to any Spanish, such as `es-ES`, `es-MX`
+  or `es-419` (#50).
 
 ## 0.1.0a16
 

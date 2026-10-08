@@ -586,6 +586,12 @@ STYLESHEET = Path(__file__).parent.parent / "src" / "adminsite" / "static"
 # it, browsers that never do, and a text its list of orders shows.
 SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
     "ru": ("Русский", ["ru", "ru-RU"], ["uk-UA", "be"], "Поиск: orders"),
+    "es": (
+        "Español",
+        ["es", "es-ES", "es-MX", "es-419"],
+        ["pt-BR", "ca-ES"],
+        "Buscar orders",
+    ),
 }
 
 
