@@ -612,6 +612,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         "Rechercher\xa0: orders",
     ),
     "tr": ("Türkçe", ["tr", "tr-TR"], ["az-AZ"], "Ara: orders"),
+    "ar": (
+        "العربية",
+        ["ar", "ar-SA", "ar-EG", "ar-AE"],
+        ["fa-IR", "he-IL"],
+        "البحث في orders",
+    ),
 }
 
 
@@ -748,3 +754,24 @@ class TestTurkish:
         assert lower("HAYIR") == "hayır"
         assert upper("evet") == "EVET"
         assert upper("istanbul") == "İSTANBUL"
+
+
+class TestArabic:
+    @pytest.mark.parametrize(
+        ("number", "rows"),
+        [
+            (0, "0 صف"),
+            (1, "صف واحد"),
+            (2, "صفان"),
+            (3, "3 صفوف"),
+            (11, "11 صفًا"),
+            (100, "100 صف"),
+        ],
+    )
+    def test_a_count_reads_right_for_any_number(self, number: int, rows: str) -> None:
+        activate("ar")
+
+        assert ngettext("{count} row", "{count} rows", number) == rows
+
+    def test_its_pages_read_right_to_left(self) -> None:
+        assert direction("ar") == "rtl"
