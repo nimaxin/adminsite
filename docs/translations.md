@@ -13,6 +13,7 @@ layout mirrors for languages written right to left.
 | 日本語, Japanese | `ja` | `ja`, `ja-JP` |
 | Deutsch, German | `de` | `de`, `de-DE`, `de-AT`, `de-CH` |
 | Français, French | `fr` | `fr`, `fr-FR`, `fr-CA`, `fr-BE` |
+| Türkçe, Turkish | `tr` | `tr`, `tr-TR` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.

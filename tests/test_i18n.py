@@ -611,6 +611,7 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["it-IT", "ca-ES"],
         "Rechercher\xa0: orders",
     ),
+    "tr": ("Türkçe", ["tr", "tr-TR"], ["az-AZ"], "Ara: orders"),
 }
 
 
@@ -718,3 +719,32 @@ class TestFrench:
                         "\N{NO-BREAK SPACE}",
                         "\N{NARROW NO-BREAK SPACE}",
                     ), (english, text)
+
+
+class Discounts(ModelView[Order]):
+    """A view named in Turkish, with the capital dotted İ."""
+
+    name = "discounts"
+    label = "İndirim"
+    label_plural = "İndirimler"
+    fields = ["id", "total"]
+    searchable_fields = ("id",)
+
+
+class TestTurkish:
+    async def test_a_view_called_indirimler_reads_indirimler_in_a_sentence(
+        self, database: Database
+    ) -> None:
+        admin = Admin(database, views=[Discounts], language="tr")
+        async with serve(admin) as client:
+            page = await client.get("/admin/discounts")
+
+        assert "Ara: indirimler" in page.text
+        assert "i̇ndirimler" not in page.text
+
+    def test_its_capitals_follow_its_dotted_and_dotless_i(self) -> None:
+        activate("tr")
+
+        assert lower("HAYIR") == "hayır"
+        assert upper("evet") == "EVET"
+        assert upper("istanbul") == "İSTANBUL"

@@ -105,6 +105,8 @@ What changed:
 - French ships with adminsite, addressing people as vous and setting `:`, `;`, `?` and `!` apart
   with a space that never breaks: `language="fr"`, or `languages=["fr"]` for a browser set to
   `fr-FR`, `fr-CA` or `fr-BE` (#54).
+- Turkish ships with adminsite: `language="tr"`, or `languages=["tr"]` for a browser set to `tr-TR`.
+  A label lowered inside a sentence follows Turkish rules, so İndirimler reads indirimler (#55).
 
 ## 0.1.0a16
 
