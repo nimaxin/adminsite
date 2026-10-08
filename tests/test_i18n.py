@@ -598,6 +598,7 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["es-ES", "gl-ES"],
         "Pesquisar orders",
     ),
+    "ja": ("日本語", ["ja", "ja-JP"], ["zh-CN", "ko-KR"], "ordersを検索"),
 }
 
 
@@ -647,3 +648,15 @@ class TestRussian:
         assert "fonts/geist-cyrillic.woff2" in css
         assert "U+400-45F" in css
         assert (STYLESHEET / "fonts" / "geist-cyrillic.woff2").exists()
+
+
+class TestJapanese:
+    def test_its_kanji_start_from_fonts_made_for_it(self) -> None:
+        css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
+
+        rule = css[css.index(":lang(ja){") :]
+        rule = rule[: rule.index("}")]
+        assert '"Hiragino Sans"' in rule
+        assert '"Yu Gothic UI"' in rule
+        assert rule.index("Geist") < rule.index("Hiragino")
+        assert "[lang]{font-family:var(--font-sans)}" in css

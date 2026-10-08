@@ -348,4 +348,19 @@
   [x-cloak] {
     display: none !important;
   }
+
+  /* Kanji are drawn in the forms the page's language writes them: a font
+     made for Chinese draws some Japanese ones, such as 直 and 骨,
+     differently. Text in Japanese starts from fonts made for it, wherever
+     the page or a part of it, such as its name in the language menu, is in
+     Japanese. Geist draws the Latin letters and figures first. */
+  :lang(ja) {
+    --font-sans: Geist, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
+      "Yu Gothic", Meiryo, "Noto Sans JP", "Noto Sans CJK JP", ui-sans-serif,
+      system-ui, sans-serif;
+  }
+
+  [lang] {
+    font-family: var(--font-sans);
+  }
 }

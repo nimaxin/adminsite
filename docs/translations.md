@@ -10,9 +10,13 @@ layout mirrors for languages written right to left.
 | Русский, Russian | `ru` | `ru`, `ru-RU` |
 | Español, Spanish | `es` | `es`, `es-ES`, `es-MX`, `es-419` and any other Spanish |
 | Português (Brasil), Brazilian Portuguese | `pt-BR` | `pt-BR`, `pt`, and `pt-PT` until European Portuguese ships |
+| 日本語, Japanese | `ja` | `ja`, `ja-JP` |
 
 Each one is translated in full, texts with a count in every form the language writes a number in,
 dates with its own month names, and lists, counts and the history in its own order and punctuation.
+Japanese text starts from fonts made for Japanese, so kanji such as 直 and 骨 are drawn in their
+Japanese forms, wherever the page or a part of it, such as its name in the language menu, is in
+Japanese.
 
 ```python
 admin = Admin(engine, views=[OrderView], language="fa")
