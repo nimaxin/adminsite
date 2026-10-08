@@ -44,6 +44,7 @@ from adminsite._http.listing import list_records
 from adminsite._http.lookups import action_lookup, lookup
 from adminsite._http.pages import custom_page
 from adminsite._http.palette import palette
+from adminsite._http.requests import own_cookie
 from adminsite._http.saved_views import delete_list_view, save_list_view
 from adminsite._http.signing_in import login, login_form, logout
 from adminsite._http.templating import Templates
@@ -429,7 +430,7 @@ class Admin:
 
     def language_for(self, request: Request) -> str:
         """The language to answer in: the one chosen, else the browser's."""
-        chosen = request.cookies.get(LANGUAGE_COOKIE, "")
+        chosen = own_cookie(request, LANGUAGE_COOKIE)
         if chosen in self.languages:
             return chosen
         if len(self.languages) > 1:
@@ -441,11 +442,11 @@ class Admin:
 
     def timezone_for(self, request: Request) -> str:
         """The time zone to show times in: the one chosen, else the browser's."""
-        chosen = request.cookies.get(TIMEZONE_COOKIE, "")
+        chosen = own_cookie(request, TIMEZONE_COOKIE)
         # A choice counts while the menu that undoes it is there.
         if len(self.timezones) > 1 and chosen in self.timezones:
             return chosen
-        browser = request.cookies.get(BROWSER_TIMEZONE_COOKIE, "")
+        browser = own_cookie(request, BROWSER_TIMEZONE_COOKIE)
         if find_timezone(browser) is not None:
             return browser
         return self.timezone

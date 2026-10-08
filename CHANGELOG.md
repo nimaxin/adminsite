@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- Choosing a language or a time zone works when another app on the same host, served at /, once
+  set a cookie by the same name. The browser sent both, and the other app's won, so the choice
+  changed nothing. The admin now reads the cookie set for its own path.
+
 ## 0.1.0a16
 
 A list shows its rows as soon as it has read them, and its total and its filters' counts follow,

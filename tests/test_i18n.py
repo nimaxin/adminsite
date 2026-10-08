@@ -266,3 +266,22 @@ class TestSwitchingLanguages:
         )
 
         assert "adminsite_language" not in answer.headers.get("set-cookie", "")
+
+
+class TestCookiesOfTheSameName:
+    """Another app on the same host may have set a cookie by the same name."""
+
+    async def test_the_admins_own_language_wins(self, both: httpx.AsyncClient) -> None:
+        # A browser sends the cookie set for the longer path, /admin/, first.
+        cookies = "adminsite_language=fa; adminsite_language=en"
+
+        page = await both.get("/admin/", headers={"Cookie": cookies})
+
+        assert '<html lang="fa" dir="rtl">' in page.text
+
+    async def test_a_cookie_set_elsewhere_alone_still_counts(
+        self, both: httpx.AsyncClient
+    ) -> None:
+        page = await both.get("/admin/", headers={"Cookie": "adminsite_language=fa"})
+
+        assert '<html lang="fa" dir="rtl">' in page.text

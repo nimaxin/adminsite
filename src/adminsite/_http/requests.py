@@ -19,6 +19,7 @@ __all__ = [
     "find_view",
     "key_of",
     "load_or_404",
+    "own_cookie",
     "read_form",
     "read_key",
 ]
@@ -89,3 +90,18 @@ async def read_form(request: Request) -> dict[str, Any]:
     if not is_valid(request, token):
         raise HTTPException(status_code=403, detail=_("This form has expired."))
     return data
+
+
+def own_cookie(request: Request, name: str) -> str:
+    """The admin's own cookie by this name, where the browser sends several.
+
+    Another app on the same host, served at /, may have set a cookie by the
+    same name, and the browser sends both. It sends the one set for the
+    longer path, the admin's own, first, where reading them into a dict
+    keeps the last.
+    """
+    for part in request.headers.get("cookie", "").split(";"):
+        key, _, value = part.strip().partition("=")
+        if key == name:
+            return value.strip('"')
+    return ""

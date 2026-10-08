@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from adminsite._http.requests import read_form
+from adminsite._http.requests import own_cookie, read_form
 from adminsite._http.urls import Urls
 from adminsite.timezones import (
     BROWSER_TIMEZONE_COOKIE,
@@ -70,7 +70,7 @@ def timezone_menu(admin: "Admin", request: Request) -> list[TimezoneChoice]:
         return []
     shown = request.scope.get("adminsite_timezone", admin.timezone)
     choices = [_choice(name, name, shown) for name in admin.timezones]
-    browser = request.cookies.get(BROWSER_TIMEZONE_COOKIE, "")
+    browser = own_cookie(request, BROWSER_TIMEZONE_COOKIE)
     if find_timezone(browser) is not None and browser not in admin.timezones:
         choices.insert(0, _choice("", browser, shown))
     return choices
