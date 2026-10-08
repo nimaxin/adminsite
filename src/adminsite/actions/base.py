@@ -168,7 +168,7 @@ def action(
         confirm: A question asked in a dialog before it runs.
         permission: What the user needs to run it, as `allows` decides:
             `Permission.EDIT` unless you say, or a name of your own.
-        dangerous: Whether the button is drawn in red. The Actions menu lists
+        dangerous: Whether the button is drawn in red. A menu of actions lists
             these last, under a line.
         icon: An icon drawn before the label wherever the action is
             offered: inline SVG markup, or a picture's address, as a view's

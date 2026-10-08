@@ -52,6 +52,11 @@
   it where they do not fit. Given only the room the buttons left, a list's name could be cut to a
   few letters and its count split over three lines. A project that overrides `base.html` should
   start its copy again from the new one.
+- A list's own actions, those that run with nothing ticked, share one More actions menu beside
+  Import and Export CSV, the dangerous ones last under a line, so however many a view has, the top
+  of its list keeps to a few buttons. A view with only one keeps its button. A phone's ⋯ menu
+  lists them in the same order, after Import and Export CSV. A project that overrides
+  `list.html` should start its copy again from the new one.
 
 ## 0.1.0a15
 

@@ -79,6 +79,30 @@ class CustomerView(ModelView[Customer]):
     pass
 
 
+class ReportView(ModelView[Order]):
+    """Orders with one action of their own."""
+
+    name = "reports"
+
+    @action("Sync from the provider", on="view", permission=Permission.VIEW)
+    async def sync(self) -> str:
+        return "Synced 3 orders."
+
+
+class CleanupView(ModelView[Order]):
+    """Orders with a dangerous action among their own, declared first."""
+
+    name = "cleanup"
+
+    @action("Purge the drafts", on="view", dangerous=True)
+    async def purge(self) -> str:
+        return "Purged."
+
+    @action("Sync from the provider", on="view", permission=Permission.VIEW)
+    async def sync(self) -> str:
+        return "Synced 3 orders."
+
+
 def serve(admin: Admin) -> httpx.AsyncClient:
     app = Starlette()
     app.mount("/admin", admin)
@@ -91,11 +115,19 @@ def serve(admin: Admin) -> httpx.AsyncClient:
 async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
     admin = Admin(
         database,
-        views=[OrderView, CustomerView],
+        views=[OrderView, CustomerView, ReportView, CleanupView],
         secret_key="for-the-session",
     )
     async with serve(admin) as client:
         yield client
+
+
+def header_menus(page: httpx.Response) -> tuple[str, str]:
+    """The list header's buttons from a tablet up, and the menu a phone shows."""
+    header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
+    rest = header.split('<div class="hidden sm:contents">', 1)[1]
+    wide, phone = rest.split('<div class="dropdown dropdown-end sm:hidden">', 1)
+    return wide, phone
 
 
 def token_in(page: httpx.Response) -> str:
@@ -251,7 +283,7 @@ class TestOnTheView:
 
         assert "Synced 3 orders." in answer.text
 
-    async def test_its_button_sits_above_the_list(
+    async def test_it_is_offered_above_the_list(
         self, client: httpx.AsyncClient
     ) -> None:
         listed = await client.get("/admin/orders")
@@ -259,14 +291,32 @@ class TestOnTheView:
         assert "Sync from the provider" in listed.text
         assert 'runRecordAction("sync", "")' in listed.text
 
-    async def test_its_button_wraps_with_the_others(
+    async def test_several_share_a_more_actions_menu(
         self, client: httpx.AsyncClient
     ) -> None:
-        listed = await client.get("/admin/orders")
-        header = listed.text.split("<header", 1)[1].split("</header>", 1)[0]
+        wide, _ = header_menus(await client.get("/admin/orders"))
+        menu = wide.split('id="view-actions-menu"', 1)[1]
 
-        group = header.index('<div class="hidden sm:contents">')
-        assert group < header.index('runRecordAction("sync", "")')
+        assert 'popovertarget="view-actions-menu"' in wide
+        assert 'runRecordAction("summary", "")' in menu
+        assert 'runRecordAction("sync", "")' in menu
+
+    async def test_one_alone_keeps_its_button(self, client: httpx.AsyncClient) -> None:
+        wide, _ = header_menus(await client.get("/admin/reports"))
+
+        assert 'runRecordAction("sync", "")' in wide
+        assert "view-actions-menu" not in wide
+
+    async def test_the_dangerous_ones_come_last(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        wide, phone = header_menus(await client.get("/admin/cleanup"))
+        menu = wide.split('id="view-actions-menu"', 1)[1]
+
+        for listed in (menu, phone):
+            purge = listed.index('runRecordAction("purge", "")')
+            assert listed.index('runRecordAction("sync", "")') < purge
+        assert 'class="text-error"' in menu
 
 
 class TestAnswersThatAreNotMessages:

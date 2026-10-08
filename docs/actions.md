@@ -303,7 +303,7 @@ to fit in memory.
 |---|---|---|
 | `"selection"`, the default | in the Actions menu, once rows are ticked | a `Selection[Order]` |
 | `"record"` | in each row's menu, and on the record's page | the record, to a parameter typed `Order` |
-| `"view"` | above the list, with nothing ticked | nothing in particular |
+| `"view"` | above the list, with nothing ticked; several share a More actions menu | nothing in particular |
 
 Each can also ask for the request or a session, as [above](#what-the-method-is-handed).
 
@@ -338,6 +338,11 @@ class OrderView(ModelView[Order]):
     async def sync(self, session: SessionAdapter) -> str:
         return f"{await fetch_new_orders(session)} orders fetched."
 ```
+
+Its button sits at the top of the list, beside Import and Export CSV. A view with several such
+actions gathers them in one More actions menu there, the dangerous ones last under a line, so
+however many it has, the top of the list keeps to a few buttons. On a phone they all sit in the
+menu behind the ⋯ button.
 
 ## Answering with more than a line
 

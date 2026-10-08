@@ -12,17 +12,16 @@
 
 {% block header_actions %}
   {#- On a phone the page's other actions fold into one menu, so the header
-      keeps to a single line. Wider, each is a button of the header's own
-      row, which wraps where they do not all fit; kept apart in a row of
-      their own, they ran past the edge of the panel. -#}
+      keeps to a single line. Wider, Import and Export CSV are buttons, and so
+      is the view's own action when it has only one. Several share a More
+      actions menu, so however many there are, the header keeps to a few
+      buttons. Kept as buttons of the header's own row, they wrap where they
+      do not all fit; kept apart in a row of their own, they ran past the edge
+      of the panel. In either menu whatever cannot be undone comes last, under
+      a line of its own. -#}
+  {%- set safe = view_actions|rejectattr("dangerous")|list -%}
+  {%- set dangerous = view_actions|selectattr("dangerous")|list -%}
   <div class="hidden sm:contents">
-    {% for item in view_actions %}
-      <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
-              type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
-        {% if item.icon %}{{ icons.custom(item.icon, urls, "size-4" if item.dangerous else "size-4 text-muted") }}{% endif %}
-        {{ item.label }}
-      </button>
-    {% endfor %}
     {% if can_import %}
       <a class="btn btn-plain btn-sm" href="{{ urls.list(view) }}/import">
         <span class="text-muted">{{ icons.icon("upload") }}</span>{{ _('Import') }}
@@ -33,24 +32,54 @@
         <span class="text-muted">{{ icons.icon("download") }}</span>{{ _('Export CSV') }}
       </a>
     {% endif %}
+    {% if view_actions|length == 1 %}
+      {% set item = view_actions[0] %}
+      <button class="btn btn-sm {% if item.dangerous %}btn-error btn-soft{% else %}btn-plain{% endif %}"
+              type="button" onclick='runRecordAction({{ item.name|tojson }}, "")'>
+        {% if item.icon %}{{ icons.custom(item.icon, urls, "size-4" if item.dangerous else "size-4 text-muted") }}{% endif %}
+        {{ item.label }}
+      </button>
+    {% elif view_actions %}
+      <button id="view-actions-button" class="btn btn-plain btn-sm" type="button" popovertarget="view-actions-menu">
+        {{ _('More actions') }}<span class="text-muted">{{ icons.icon("chevron-down", 14) }}</span>
+      </button>
+      {#- In the top layer, lined up with the button's end, as the Actions menu
+          is. -#}
+      <div id="view-actions-menu" popover data-below="view-actions-button" data-align="end"
+           ontoggle="dropBelow(event)" aria-label="{{ _('More actions') }}"
+           class="invisible inset-auto m-0 w-72 rounded-box border border-base-300 bg-base-100 p-1.5 text-base-content shadow-float">
+        <ul class="menu w-full p-0">
+          {% for item in safe + dangerous %}
+            <li {% if safe and loop.index0 == safe|length %}class="mt-1 border-t border-base-300 pt-1"{% endif %}>
+              <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
+                      onclick='this.closest("[popover]").hidePopover(); runRecordAction({{ item.name|tojson }}, "")'>
+                {% if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif %}
+                {{ item.label }}
+              </button>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
   </div>
   {% if view_actions or can_import or can_export %}
     <div class="dropdown dropdown-end sm:hidden">
       <div tabindex="0" role="button" aria-haspopup="true" class="btn btn-plain btn-sm btn-square"
            aria-label="{{ _('More actions') }}">{{ icons.icon("more") }}</div>
       <ul tabindex="0" class="dropdown-content menu menu-sm z-30 mt-1 w-56 rounded-box border border-base-300 bg-base-100 p-1 shadow-float">
-        {% for item in view_actions %}
-          <li><button type="button" class="{% if item.dangerous %}text-error{% endif %}"
-                      onclick='runRecordAction({{ item.name|tojson }}, "")'>
-            {%- if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif -%}
-            {{ item.label }}</button></li>
-        {% endfor %}
         {% if can_import %}
           <li><a href="{{ urls.list(view) }}/import"><span class="text-muted">{{ icons.icon("upload", 14) }}</span>{{ _('Import') }}</a></li>
         {% endif %}
         {% if can_export %}
           <li><a href="{{ urls.export(view, **export_params) }}" data-keeps=""><span class="text-muted">{{ icons.icon("download", 14) }}</span>{{ _('Export CSV') }}</a></li>
         {% endif %}
+        {% for item in safe + dangerous %}
+          <li {% if loop.index0 == safe|length and (safe or can_import or can_export) %}class="mt-1 border-t border-base-300 pt-1"{% endif %}>
+            <button type="button" class="{% if item.dangerous %}text-error{% endif %}"
+                    onclick='runRecordAction({{ item.name|tojson }}, "")'>
+              {%- if item.icon %}{{ icons.custom(item.icon, urls, "size-3.5" if item.dangerous else "size-3.5 text-muted") }}{% endif -%}
+              {{ item.label }}</button></li>
+        {% endfor %}
       </ul>
     </div>
   {% endif %}
