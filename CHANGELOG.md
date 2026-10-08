@@ -110,6 +110,9 @@ What changed:
 - Arabic ships with adminsite, in Modern Standard Arabic, its pages read right to left:
   `language="ar"`, or `languages=["ar"]` for a browser set to `ar-SA`, `ar-EG`, `ar-AE` or any other
   Arabic. Texts with a count read right in all six of its forms (#56).
+- Simplified Chinese ships with adminsite: `language="zh-Hans"`, or `languages=["zh-Hans"]` for a
+  browser set to Chinese for mainland China or Singapore, or to Chinese with no region; never one
+  set to Taiwan, Hong Kong or Macau. Characters are drawn in their Simplified forms (#57).
 
 ## 0.1.0a16
 

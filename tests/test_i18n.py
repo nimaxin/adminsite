@@ -618,6 +618,12 @@ SHIPPED: dict[str, tuple[str, list[str], list[str], str]] = {
         ["fa-IR", "he-IL"],
         "البحث في orders",
     ),
+    "zh-Hans": (
+        "简体中文",
+        ["zh", "zh-CN", "zh-SG", "zh-Hans-CN"],
+        ["zh-TW", "zh-HK", "zh-MO", "zh-Hant-TW", "ja-JP"],
+        "搜索orders",
+    ),
 }
 
 
@@ -775,3 +781,14 @@ class TestArabic:
 
     def test_its_pages_read_right_to_left(self) -> None:
         assert direction("ar") == "rtl"
+
+
+class TestSimplifiedChinese:
+    def test_its_characters_start_from_fonts_made_for_it(self) -> None:
+        css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
+
+        rule = css[css.index(":lang(zh-Hans){") :]
+        rule = rule[: rule.index("}")]
+        assert '"PingFang SC"' in rule
+        assert '"Microsoft YaHei UI"' in rule
+        assert rule.index("Geist") < rule.index("PingFang")

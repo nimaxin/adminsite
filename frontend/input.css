@@ -360,6 +360,14 @@
       system-ui, sans-serif;
   }
 
+  /* So does Simplified Chinese, whose characters a font made for Japanese or
+     for Traditional Chinese draws in other forms. */
+  :lang(zh-Hans) {
+    --font-sans: Geist, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+      "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", ui-sans-serif,
+      system-ui, sans-serif;
+  }
+
   [lang] {
     font-family: var(--font-sans);
   }
