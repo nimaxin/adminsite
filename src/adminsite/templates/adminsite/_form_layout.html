@@ -17,15 +17,15 @@
     </div>
   {%- elif piece.kind == "fieldset" -%}
     <fieldset class="flex min-w-0 flex-col gap-5 rounded-box border border-line px-4 pt-2 pb-4">
-      <legend class="px-1.5 text-[13px] font-semibold">{{ piece.title }}</legend>
+      <legend class="px-1.5 text-label font-semibold">{{ piece.title }}</legend>
       {%- for child in piece.children %}{{ part(child, rows, wrong) }}{% endfor -%}
     </fieldset>
   {%- elif piece.kind == "panel" -%}
     {#- A panel inside another part reads as a titled stretch of it. -#}
     <section class="flex min-w-0 flex-col gap-5">
       <div>
-        <h3 class="text-[13px] font-semibold">{{ piece.title }}</h3>
-        {%- if piece.description %}<p class="pt-0.5 text-[13px] text-muted">{{ piece.description }}</p>{% endif -%}
+        <h3 class="text-label font-semibold">{{ piece.title }}</h3>
+        {%- if piece.description %}<p class="pt-0.5 text-label text-muted">{{ piece.description }}</p>{% endif -%}
       </div>
       {%- for child in piece.children %}{{ part(child, rows, wrong) }}{% endfor -%}
     </section>
@@ -52,7 +52,7 @@
                   @click="tab = {{ index }}"
                   @keydown.arrow-right.prevent="tab = (tab + 1) % {{ count }}; $nextTick(() => document.getElementById('{{ tabs_id }}-' + tab).focus())"
                   @keydown.arrow-left.prevent="tab = (tab + {{ count - 1 }}) % {{ count }}; $nextTick(() => document.getElementById('{{ tabs_id }}-' + tab).focus())"
-                  class="flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-[13.5px] font-medium"
+                  class="flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-label font-medium"
                   :class="tab === {{ index }} ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
             {{- tab.title -}}
             {%- if tab.paths()|select("in", wrong)|list -%}

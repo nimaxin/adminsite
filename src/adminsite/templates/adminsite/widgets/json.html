@@ -14,14 +14,14 @@
   <div class="overflow-hidden rounded-field border border-line-strong bg-base-100 focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15"
        :class="problem && 'border-error! focus-within:ring-error/15'">
     <div class="flex items-center gap-1 border-b border-line bg-subtle py-1 ps-3 pe-1.5">
-      <span class="text-xs font-medium text-muted">JSON</span>
+      <span class="text-note font-medium text-muted">JSON</span>
       <span class="grow"></span>
       <button type="button" class="btn btn-ghost btn-xs text-link" x-show="ready" x-cloak @click="format()">
         {{ icons.icon("indent", 14) }}{{ _('Format') }}
       </button>
     </div>
     {#- Code reads left to right in any language. -#}
-    <div dir="ltr" class="relative flex max-h-128 overflow-auto font-mono text-[13px] leading-5">
+    <div dir="ltr" class="relative flex max-h-128 overflow-auto font-mono text-label leading-5">
       <div aria-hidden="true" x-show="ready" x-cloak x-html="numbers"
            class="sticky start-0 z-10 min-w-11 shrink-0 select-none border-e border-line bg-subtle py-2.5 ps-3 pe-2.5 text-end text-muted"></div>
       <div class="relative grow">
@@ -37,7 +37,7 @@
       </div>
     </div>
   </div>
-  <div class="flex min-h-5 items-center gap-2 text-[12.5px]" aria-live="polite" x-show="ready" x-cloak>
+  <div class="flex min-h-5 items-center gap-2 text-note" aria-live="polite" x-show="ready" x-cloak>
     <button type="button" class="inline-flex items-center gap-1.5 text-start text-error underline underline-offset-2"
             x-show="problem" @click="jump()">{{ icons.icon("alert", 14) }}<span x-text="problem && problem.text"></span></button>
     <span class="inline-flex items-center gap-1.5 text-success" x-show="!problem && !empty">{{ icons.icon("check", 14) }}<span x-text="summary"></span></span>

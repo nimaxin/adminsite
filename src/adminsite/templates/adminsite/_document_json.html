@@ -2,7 +2,7 @@
     JSON view: laid out and folding, or what needs another look first. -#}
 {% import "adminsite/_icons.html" as icons %}
 {% if problems %}
-  <div role="alert" class="flex gap-2.5 rounded-field border border-error/30 bg-error/5 px-3.5 py-3 text-[13px]">
+  <div role="alert" class="flex gap-2.5 rounded-field border border-error/30 bg-error/5 px-3.5 py-3 text-label">
     <span class="mt-px text-error">{{ icons.icon("alert", 16) }}</span>
     <div class="flex min-w-0 flex-col gap-1">
       <p class="font-medium">{{ _('Correct these in the form first:') }}</p>

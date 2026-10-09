@@ -29,7 +29,7 @@
         {%- set field_attrs -%}aria-label="{{ cell.label }}"{% if cell.error %} aria-invalid="true" aria-describedby="{{ note_id }}"{% endif %}{%- endset -%}
         {% include ["adminsite/widgets/" ~ cell.widget ~ ".html", "adminsite/widgets/input.html"] %}
         {% if cell.error %}
-          <p class="flex items-start gap-1.5 pt-1.5 text-[12.5px] leading-snug text-error" id="{{ note_id }}">
+          <p class="flex items-start gap-1.5 pt-1.5 text-note leading-snug text-error" id="{{ note_id }}">
             <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ cell.error }}
           </p>
         {% endif %}
@@ -51,18 +51,18 @@
        {% if entry.error or entry.note %}aria-describedby="{{ entry.anchor }}-note"{% endif %}
        x-data="{ next: {{ entry.next_number }}, count: {{ entry.rows|length }} }">
     {% if entry.label %}
-      <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
+      <span id="{{ entry.anchor }}-label" class="text-label font-medium">{{ entry.label }}</span>
     {% endif %}
     <div class="relative overflow-x-auto overflow-y-hidden rounded-field border border-base-300 bg-base-100">
       <table class="w-full">
         <thead class="bg-subtle">
           <tr>
             {% if pairs %}
-              <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">{{ _('Key') }}</th>
-              <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">{{ _('Value') }}</th>
+              <th class="h-8 px-2.5 text-start text-note font-medium text-muted">{{ _('Key') }}</th>
+              <th class="h-8 px-2.5 text-start text-note font-medium text-muted">{{ _('Value') }}</th>
             {% else %}
               {% for column in entry.columns %}
-                <th class="h-8 px-2.5 text-start text-xs font-medium text-muted">
+                <th class="h-8 px-2.5 text-start text-note font-medium text-muted">
                   {{ column.label }}{% if not column.field.required and column.widget != "checkbox" %} <span class="font-normal">{{ _('(optional)') }}</span>{% endif %}
                 </th>
               {% endfor %}
@@ -88,18 +88,18 @@
           {{ icons.icon("plus", 14) }}{{ _('Add a row') }}
         </button>
         {% if pairs and entry.key_count %}
-          <span class="text-[12.5px] text-muted" x-show="count >= {{ entry.key_count }}" x-cloak>{{ _('Each key has a row.') }}</span>
+          <span class="text-note text-muted" x-show="count >= {{ entry.key_count }}" x-cloak>{{ _('Each key has a row.') }}</span>
         {% endif %}
       </div>
     </div>
     {#- The row "add" copies. Inside a template its inputs are never sent. -#}
     <template x-ref="blank">{{ table_row(entry.blank, pairs) }}</template>
     {% if entry.error %}
-      <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ entry.anchor }}-note">
+      <p class="flex items-start gap-1.5 text-note leading-snug text-error" id="{{ entry.anchor }}-note">
         <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ entry.error }}
       </p>
     {% elif entry.note %}
-      <p class="text-[12.5px] leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
+      <p class="text-note leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
     {% endif %}
   </div>
 {%- endmacro -%}
@@ -110,13 +110,13 @@
        aria-labelledby="{{ entry.anchor }}-label"
        {% if entry.error or entry.note %}aria-describedby="{{ entry.anchor }}-note"{% endif %}>
     <div class="flex flex-col gap-0.5">
-      <span id="{{ entry.anchor }}-label" class="text-[13px] font-medium">{{ entry.label }}</span>
+      <span id="{{ entry.anchor }}-label" class="text-label font-medium">{{ entry.label }}</span>
       {% if entry.error %}
-        <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ entry.anchor }}-note">
+        <p class="flex items-start gap-1.5 text-note leading-snug text-error" id="{{ entry.anchor }}-note">
           <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ entry.error }}
         </p>
       {% elif entry.note %}
-        <p class="text-[12.5px] leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
+        <p class="text-note leading-snug text-muted" id="{{ entry.anchor }}-note">{{ entry.note }}</p>
       {% endif %}
     </div>
     {{ parts(entry.entries) }}
@@ -196,7 +196,7 @@
                 @mousedown.prevent @mouseenter="hover($el)"
                 @click='choose({{ entry.name|tojson }}, {{ entry.label|tojson }})'>
               <span class="min-w-0 break-words">{{ entry.label }}</span>
-              {% if entry.note %}<span class="text-[12.5px] leading-snug text-muted">{{ entry.note }}</span>{% endif %}
+              {% if entry.note %}<span class="text-note leading-snug text-muted">{{ entry.note }}</span>{% endif %}
             </li>
           {% endfor %}
         </ul>
@@ -221,5 +221,5 @@
   <div id="{{ json_id }}" aria-live="polite">
     <p class="flex h-10 items-center text-muted">{{ _('Reading the form…') }}</p>
   </div>
-  <p class="text-[12.5px] text-muted">{{ _('What Save writes. Switch back to Form to change it.') }}</p>
+  <p class="text-note text-muted">{{ _('What Save writes. Switch back to Form to change it.') }}</p>
 </div>

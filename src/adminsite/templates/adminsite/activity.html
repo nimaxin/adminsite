@@ -13,7 +13,7 @@
   {% for label, url, name in tabs %}
     {% set current = filters.view == name %}
     <a href="{{ url }}" {% if current %}aria-current="page"{% endif %}
-       class="flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if current %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+       class="flex h-10 shrink-0 items-center border-b-2 text-label font-medium {% if current %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
       {{ label }}
     </a>
   {% endfor %}
@@ -24,7 +24,7 @@
         class="mb-4 flex max-w-4xl flex-wrap items-end gap-x-3 gap-y-2.5">
     {% if filters.view %}<input type="hidden" name="view" value="{{ filters.view }}">{% endif %}
     <div class="flex flex-col gap-1">
-      <label for="activity-event" class="text-[12.5px] font-medium text-muted">{{ _('Kind') }}</label>
+      <label for="activity-event" class="text-note font-medium text-muted">{{ _('Kind') }}</label>
       <select id="activity-event" name="event" class="select select-sm w-38">
         <option value="">{{ _('Every kind') }}</option>
         {% for event, label in event_choices %}
@@ -33,22 +33,22 @@
       </select>
     </div>
     <div class="flex flex-col gap-1">
-      <label for="activity-user" class="text-[12.5px] font-medium text-muted">{{ _('Person') }}</label>
+      <label for="activity-user" class="text-note font-medium text-muted">{{ _('Person') }}</label>
       <input id="activity-user" name="user" value="{{ filters.user or '' }}" class="input input-sm w-38"
              autocomplete="off">
     </div>
     <div class="flex flex-col gap-1">
-      <label for="activity-since" class="text-[12.5px] font-medium text-muted">{{ _('From') }}</label>
+      <label for="activity-since" class="text-note font-medium text-muted">{{ _('From') }}</label>
       <input id="activity-since" name="since" type="date" value="{{ filters.since.isoformat() if filters.since else '' }}"
              class="input input-sm w-36">
     </div>
     <div class="flex flex-col gap-1">
-      <label for="activity-until" class="text-[12.5px] font-medium text-muted">{{ _('To') }}</label>
+      <label for="activity-until" class="text-note font-medium text-muted">{{ _('To') }}</label>
       <input id="activity-until" name="until" type="date" value="{{ filters.until.isoformat() if filters.until else '' }}"
              class="input input-sm w-36">
     </div>
     <div class="flex flex-col gap-1">
-      <label for="activity-record" class="text-[12.5px] font-medium text-muted">{{ _('Record') }}</label>
+      <label for="activity-record" class="text-note font-medium text-muted">{{ _('Record') }}</label>
       <input id="activity-record" name="record" value="{{ filters.record or '' }}" class="input input-sm w-24"
              autocomplete="off">
     </div>

@@ -6,7 +6,7 @@
     {% for row in action_rows[item.name] %}
       {% if row.group and (loop.first or loop.previtem.group != row.group) %}
         <fieldset class="flex flex-col gap-y-5">
-          <legend class="mb-3 text-sm font-semibold">{{ row.group }}</legend>
+          <legend class="mb-3 text-body font-semibold">{{ row.group }}</legend>
       {% endif %}
       {% include "adminsite/_field.html" %}
       {% if row.group and (loop.last or loop.nextitem.group != row.group) %}

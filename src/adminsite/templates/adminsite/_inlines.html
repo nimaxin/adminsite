@@ -3,8 +3,8 @@
   <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" x-data="{ count: {{ table.rows|length }} }"
            aria-labelledby="inline-{{ table.name }}">
     <div class="flex items-center gap-2 border-b border-line px-5 py-3.5">
-      <h2 id="inline-{{ table.name }}" class="text-sm font-semibold">{{ table.label }}</h2>
-      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-xs font-medium text-muted">{{ table.rows|length }}</span>
+      <h2 id="inline-{{ table.name }}" class="text-body font-semibold">{{ table.label }}</h2>
+      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-note font-medium text-muted">{{ table.rows|length }}</span>
     </div>
     <input type="hidden" name="{{ table.name }}-count" :value="count" value="{{ table.rows|length }}">
 
@@ -15,7 +15,7 @@
         <thead class="max-sm:hidden">
           <tr>
             {% for header in table.headers %}
-              <th class="h-9 pe-3 text-start text-[12.5px] font-medium text-muted">{{ header }}</th>
+              <th class="h-9 pe-3 text-start text-note font-medium text-muted">{{ header }}</th>
             {% endfor %}
             {% if table.inline.can_delete %}<th class="w-10"><span class="sr-only">{{ _('Remove') }}</span></th>{% endif %}
           </tr>
@@ -26,7 +26,7 @@
             <tr class="has-[input[name$=-delete]:checked]:opacity-50 max-sm:flex max-sm:flex-col max-sm:gap-3 max-sm:rounded-box max-sm:border max-sm:border-line max-sm:p-3">
               {% for row in item.cells %}
                 <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} pe-3 pb-2 align-top max-sm:min-w-0 max-sm:pe-0 max-sm:pb-0">
-                  <span class="mb-1.5 block text-[12.5px] font-medium sm:hidden" aria-hidden="true">{{ row.label }}</span>
+                  <span class="mb-1.5 block text-note font-medium sm:hidden" aria-hidden="true">{{ row.label }}</span>
                   {% if loop.first %}
                     <input type="hidden" name="{{ table.name }}-{{ index }}-key" value="{{ item.key }}">
                   {% endif %}
@@ -38,7 +38,7 @@
                     {% include ["adminsite/widgets/" ~ row.widget ~ ".html", "adminsite/widgets/input.html"] %}
                   {% endif %}
                   {% if row.error %}
-                    <p class="flex items-start gap-1.5 pt-1.5 text-[12.5px] leading-snug text-error" id="{{ note_id }}">
+                    <p class="flex items-start gap-1.5 pt-1.5 text-note leading-snug text-error" id="{{ note_id }}">
                       <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ row.error }}
                     </p>
                   {% endif %}
@@ -83,7 +83,7 @@
       <tr class="max-sm:flex max-sm:flex-col max-sm:gap-3 max-sm:rounded-box max-sm:border max-sm:border-line max-sm:p-3">
         {% for row in table.blank.cells %}
           <td class="{{ 'min-w-52' if row.widget in ('relation', 'select') else 'min-w-28' }} pe-3 pb-2 align-top max-sm:min-w-0 max-sm:pe-0 max-sm:pb-0">
-                  <span class="mb-1.5 block text-[12.5px] font-medium sm:hidden" aria-hidden="true">{{ row.label }}</span>
+                  <span class="mb-1.5 block text-note font-medium sm:hidden" aria-hidden="true">{{ row.label }}</span>
             {% if loop.first %}
               <input type="hidden" name="{{ table.name }}-__index__-key" value="">
             {% endif %}

@@ -22,12 +22,12 @@
             hx-trigger="change[!target.closest('#{{ field_id }}-part')] from:closest form"{% endif %}>
   {#- A panel whose one field this is names it already, so the label is kept
       for screen readers only. -#}
-  <legend class="mb-1.5 flex items-center gap-2 text-[13px] font-medium {% if document is not none %}w-full{% endif %} {% if hide_label|default(false) %}sr-only{% endif %}" id="{{ field_id }}-label">
+  <legend class="mb-1.5 flex items-center gap-2 text-label font-medium {% if document is not none %}w-full{% endif %} {% if hide_label|default(false) %}sr-only{% endif %}" id="{{ field_id }}-label">
     {{ row.label }}
     {% if row.readonly %}
-      <span class="inline-flex items-center gap-1 text-xs font-normal text-muted">{{ icons.icon("lock", 12) }}{{ _('read only') }}</span>
+      <span class="inline-flex items-center gap-1 text-note font-normal text-muted">{{ icons.icon("lock", 12) }}{{ _('read only') }}</span>
     {% elif row.required %}
-      <span class="text-xs font-normal text-muted">{{ _('required') }}</span>
+      <span class="text-note font-normal text-muted">{{ _('required') }}</span>
     {% endif %}
     {% if document is not none %}
       <span class="ms-auto">
@@ -46,10 +46,10 @@
   {% endif %}
 
   {% if row.error %}
-    <p class="flex items-start gap-1.5 text-[12.5px] leading-snug text-error" id="{{ field_id }}-note">
+    <p class="flex items-start gap-1.5 text-note leading-snug text-error" id="{{ field_id }}-note">
       <span class="mt-px">{{ icons.icon("alert", 14) }}</span>{{ row.error }}
     </p>
   {% elif row.note %}
-    <p class="text-[12.5px] leading-snug text-muted" id="{{ field_id }}-note">{{ row.note }}</p>
+    <p class="text-note leading-snug text-muted" id="{{ field_id }}-note">{{ row.note }}</p>
   {% endif %}
 </fieldset>

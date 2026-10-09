@@ -62,7 +62,7 @@
               {#- An amount lines up on the right; a key is a name for its
                   record, not an amount, so it reads from the start like text. -#}
               {% set numeric = view._fields.field_for(path).widget == 'number' and path not in view._schema.primary_key %}
-              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-[12.5px] font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
+              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-note font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 {% if view._pages.sortable(path) %}
                   <a class="inline-flex items-center gap-1 hover:text-base-content"
@@ -117,13 +117,13 @@
           <li class="border-b border-line">
             <{{ "a" if opens else "div" }} {% if opens %}href="{{ opens }}"{% endif %} class="flex flex-col gap-1 px-4 py-3 active:bg-subtle">
               <span class="flex items-center justify-between gap-3">
-                <span class="min-w-0 truncate font-medium {% if opens %}text-link{% endif %} {% if is_key %}font-mono text-[13.5px]{% endif %}">{{ shown }}</span>
+                <span class="min-w-0 truncate font-medium {% if opens %}text-link{% endif %} {% if is_key %}font-mono text-label{% endif %}">{{ shown }}</span>
                 {% if layout.badge and view._fields.display(row, layout.badge) and not view._fields.hides(row, layout.badge) %}
                   {{ values.badge(view._fields.field_for(layout.badge), view._fields.value_at(row, layout.badge), view._fields.display(row, layout.badge)) }}
                 {% endif %}
               </span>
               <span class="flex items-baseline justify-between gap-3">
-                <span class="min-w-0 truncate text-[13px] text-muted">{{ rest|join(" · ") }}</span>
+                <span class="min-w-0 truncate text-label text-muted">{{ rest|join(" · ") }}</span>
                 {% if layout.amount %}
                   <span class="shrink-0 font-semibold tabular-nums">{{ view._fields.display(row, layout.amount) }}</span>
                 {% endif %}
@@ -183,7 +183,7 @@
 
   {% include "adminsite/_action_forms.html" %}
 
-  <div class="flex flex-wrap items-center gap-3 border-t border-base-300 px-4 py-3 text-[13px] text-muted lg:px-7">
+  <div class="flex flex-wrap items-center gap-3 border-t border-base-300 px-4 py-3 text-label text-muted lg:px-7">
     {% include "adminsite/_records_count.html" %}
     <span class="flex-1"></span>
     {% if page_sizes %}

@@ -15,7 +15,7 @@
                  {% if card.widget.title %}aria-label="{{ card.widget.title }}"{% endif %}>
           {% if card.failed %}
             <div class="h-full rounded-box border border-base-300 bg-base-100 px-5 py-4 shadow-quiet">
-              <h2 class="text-[13px] text-muted">{{ card.widget.title }}</h2>
+              <h2 class="text-label text-muted">{{ card.widget.title }}</h2>
               <p class="mt-2 text-muted">{{ _('This card could not be loaded.') }}</p>
             </div>
           {% else %}

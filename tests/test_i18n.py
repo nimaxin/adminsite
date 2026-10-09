@@ -673,12 +673,13 @@ class TestRussian:
 
         assert ngettext("{count} row", "{count} rows", number) == rows
 
-    def test_its_letters_are_drawn_in_geist(self) -> None:
+    def test_its_letters_are_drawn_in_the_systems_own_typeface(self) -> None:
         css = (STYLESHEET / "adminsite.css").read_text(encoding="utf-8")
 
-        assert "fonts/geist-cyrillic.woff2" in css
-        assert "U+400-45F" in css
-        assert (STYLESHEET / "fonts" / "geist-cyrillic.woff2").exists()
+        stack = css[css.index("--font-sans:") :]
+        stack = stack[: stack.index(";")]
+        assert "system-ui" in stack
+        assert "@font-face" not in css
 
 
 class TestJapanese:
@@ -689,7 +690,7 @@ class TestJapanese:
         rule = rule[: rule.index("}")]
         assert '"Hiragino Sans"' in rule
         assert '"Yu Gothic UI"' in rule
-        assert rule.index("Geist") < rule.index("Hiragino")
+        assert rule.index('"Segoe UI"') < rule.index("Hiragino")
         assert "[lang]{font-family:var(--font-sans)}" in css
 
 
@@ -797,7 +798,7 @@ class TestSimplifiedChinese:
         rule = rule[: rule.index("}")]
         assert '"PingFang SC"' in rule
         assert '"Microsoft YaHei UI"' in rule
-        assert rule.index("Geist") < rule.index("PingFang")
+        assert rule.index('"Segoe UI"') < rule.index("PingFang")
 
 
 class TestTraditionalChinese:
@@ -808,7 +809,7 @@ class TestTraditionalChinese:
         rule = rule[: rule.index("}")]
         assert '"PingFang TC"' in rule
         assert '"Microsoft JhengHei UI"' in rule
-        assert rule.index("Geist") < rule.index("PingFang")
+        assert rule.index('"Segoe UI"') < rule.index("PingFang")
 
     def test_taiwan_hong_kong_and_macau_read_it_and_the_mainland_never(self) -> None:
         offered = ["en", "zh-Hans", "zh-Hant"]

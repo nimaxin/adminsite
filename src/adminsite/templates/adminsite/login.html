@@ -13,10 +13,10 @@
   } catch (error) {}
 </script>
 </head>
-<body class="flex min-h-dvh items-center justify-center bg-base-200 p-4 font-sans text-sm text-base-content antialiased">
+<body class="flex min-h-dvh items-center justify-center bg-base-200 p-4 font-sans text-body text-base-content antialiased">
   <main class="w-full max-w-sm">
     {% if admin.banner %}
-      <p role="note" class="tone-0 mb-6 rounded-box px-4 py-2.5 text-center text-[13px] font-medium [&_a]:underline [&_a]:underline-offset-2">{{ admin.banner }}</p>
+      <p role="note" class="tone-0 mb-6 rounded-box px-4 py-2.5 text-center text-label font-medium [&_a]:underline [&_a]:underline-offset-2">{{ admin.banner }}</p>
     {% endif %}
     <div class="mb-6 flex items-center justify-center gap-2.5">
       <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" class="shrink-0">
@@ -43,14 +43,14 @@
           failed attempt. The cursor starts at the first box left empty. -#}
       {%- set filled = values|default({}) -%}
       <div class="flex flex-col gap-1.5">
-        <label class="text-[13px] font-medium" for="username">{{ _('Username') }}</label>
+        <label class="text-label font-medium" for="username">{{ _('Username') }}</label>
         <input class="input w-full" id="username" name="username" autocomplete="username"
                value="{{ filled.get('username', '') }}"
                {% if not filled.get('username') %}autofocus{% endif %}
                {% if error %}aria-describedby="login-error"{% endif %}>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-[13px] font-medium" for="password">{{ _('Password') }}</label>
+        <label class="text-label font-medium" for="password">{{ _('Password') }}</label>
         <input class="input w-full" id="password" name="password" type="password"
                autocomplete="current-password" value="{{ filled.get('password', '') }}"
                {% if filled.get('username') and not filled.get('password') %}autofocus{% endif %}>

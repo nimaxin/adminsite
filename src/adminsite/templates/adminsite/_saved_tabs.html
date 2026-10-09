@@ -8,17 +8,17 @@
 <nav class="relative flex shrink-0 items-stretch gap-5 overflow-x-auto overflow-y-hidden px-4 shadow-[inset_0_-1px_var(--color-base-300)] lg:px-7"
      aria-label="{{ _('Saved views') }}">
   <a href="{{ urls.list(view) }}" {% if on_all %}aria-current="page"{% endif %}
-     class="flex h-10 shrink-0 items-center border-b-2 text-[13.5px] font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
+     class="flex h-10 shrink-0 items-center border-b-2 text-label font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
     {{ _('All {things}', things=view.label_plural|in_sentence) }}
   </a>
   {% for item in saved_views %}
     {% set on = active_view and active_view.id == item.id %}
     <span class="group flex h-10 shrink-0 items-center gap-1.5 border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
       <a href="{{ urls.list(view) }}{{ '?' ~ item.query if item.query }}" {% if on %}aria-current="page"{% endif %}
-         class="text-[13.5px] font-medium {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
+         class="text-label font-medium {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
         {{ item.name }}
       </a>
-      {% if item.shared %}<span class="text-[11px] text-muted">{{ _('shared') }}</span>{% endif %}
+      {% if item.shared %}<span class="text-caption text-muted">{{ _('shared') }}</span>{% endif %}
       {% if item.owner == view_owner %}
         <button class="btn btn-ghost btn-xs btn-square text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"
                 type="submit" form="delete-view-{{ item.id }}"
@@ -26,7 +26,7 @@
       {% endif %}
     </span>
   {% endfor %}
-  <button class="flex shrink-0 items-center gap-1 text-[13.5px] font-medium text-link hover:underline" type="button"
+  <button class="flex shrink-0 items-center gap-1 text-label font-medium text-link hover:underline" type="button"
           onclick="document.getElementById('save-view-{{ view.name }}').showModal()">
     {{ icons.icon("plus", 14) }}{{ _('Save this view') }}
   </button>

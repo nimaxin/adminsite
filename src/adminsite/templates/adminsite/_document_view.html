@@ -11,7 +11,7 @@
 {%- macro value_text(part) -%}
   {%- if part.kind == "code" -%}
     {%- if part.empty -%}<span class="text-muted">{{ _('Not set') }}</span>
-    {%- else -%}<code dir="ltr" class="break-all font-mono text-[13px]">{{ part.code }}</code>{%- endif -%}
+    {%- else -%}<code dir="ltr" class="break-all font-mono text-label">{{ part.code }}</code>{%- endif -%}
   {%- elif part.kind == "key" -%}
     {{ part.text }}
   {%- elif part.empty -%}
@@ -30,11 +30,11 @@
     <span class="text-muted">{{ _('Not set') }}</span>
   {%- elif part.rows -%}
     <div class="relative overflow-x-auto overflow-y-hidden rounded-field border border-base-300 bg-base-100">
-      <table class="w-full text-[13.5px]">
+      <table class="w-full text-label">
         <thead class="bg-subtle">
           <tr>
             {% for header in headers %}
-              <th scope="col" class="h-8 px-3 text-start text-xs font-medium text-muted">{{ header }}</th>
+              <th scope="col" class="h-8 px-3 text-start text-note font-medium text-muted">{{ header }}</th>
             {% endfor %}
           </tr>
         </thead>
@@ -56,7 +56,7 @@
   <dl class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
     {% for entry in part.entries if not entry.unset %}
       <div class="flex min-w-0 flex-col gap-1 {% if entry.kind in ('group', 'rows', 'pairs', 'code') %}sm:col-span-2{% endif %}">
-        <dt class="text-[12.5px] text-muted">{{ entry.label }}</dt>
+        <dt class="text-note text-muted">{{ entry.label }}</dt>
         <dd class="break-words">
           {%- if entry.kind == "group" -%}
             <div class="rounded-field border border-line p-3.5">{{ entries(entry) }}</div>
@@ -93,7 +93,7 @@
         </button>
         <ul class="flex flex-wrap gap-1.5" x-show="open" x-cloak>
           {% for entry in unset %}
-            <li class="rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-[12.5px] text-muted">{{ entry.label }}</li>
+            <li class="rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-note text-muted">{{ entry.label }}</li>
           {% endfor %}
         </ul>
       </div>

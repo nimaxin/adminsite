@@ -4,11 +4,11 @@
     {% for item in data %}
       <a href="{{ item.url }}"
          class="flex flex-col gap-2.5 rounded-box border border-base-300 bg-base-100 px-5 py-4 shadow-quiet transition-colors hover:border-base-content/25">
-        <span class="flex items-center justify-between gap-2 text-[13px] text-muted">
+        <span class="flex items-center justify-between gap-2 text-label text-muted">
           <span class="truncate">{{ item.label }}</span>{{ icons.icon("arrow-up-right") }}
         </span>
         <span class="truncate text-2xl font-semibold leading-none tracking-tight tabular-nums sm:text-[30px]">{{ item.count|number }}</span>
-        {% if item.group %}<span class="text-xs text-muted">{{ item.group }}</span>{% endif %}
+        {% if item.group %}<span class="text-note text-muted">{{ item.group }}</span>{% endif %}
       </a>
     {% endfor %}
   </div>

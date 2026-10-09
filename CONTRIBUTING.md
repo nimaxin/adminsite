@@ -55,7 +55,7 @@ CI runs all of this on every push and pull request.
 
 ## The stylesheet
 
-The stylesheet, HTMX, Alpine and the Geist typeface are built or copied from `frontend/`, and the
+The stylesheet, HTMX and Alpine are built or copied from `frontend/`, and the
 results are committed, so nobody installing adminsite needs Node. After changing the classes in a
 template, rebuild the stylesheet, or the new classes will not exist:
 
@@ -65,7 +65,7 @@ npm install
 npm run build
 ```
 
-`npm run vendor` copies fresh HTMX, Alpine and Geist from `node_modules`.
+`npm run vendor` copies fresh HTMX and Alpine from `node_modules`.
 
 ## Rules the code keeps
 

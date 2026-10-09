@@ -1,13 +1,13 @@
 {% set found = admin.views.find(widget.view) %}
 <div class="h-full overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet">
   <div class="flex items-baseline justify-between gap-2 px-5 pt-4 pb-3">
-    <h2 class="text-sm font-semibold">{{ widget.title }}</h2>
-    {% if found %}<a class="text-[13px] font-medium text-link hover:underline" href="{{ urls.list(found) }}">{{ _('View all') }}</a>{% endif %}
+    <h2 class="text-body font-semibold">{{ widget.title }}</h2>
+    {% if found %}<a class="text-label font-medium text-link hover:underline" href="{{ urls.list(found) }}">{{ _('View all') }}</a>{% endif %}
   </div>
   {% for item in data %}
     <a href="{{ item.url }}" class="flex h-11 items-center gap-3 border-t border-line px-5 hover:bg-subtle">
       <span class="min-w-0 flex-1 truncate font-medium">{{ item.title }}</span>
-      {% if item.value %}<span class="text-[13px] tabular-nums text-muted">{{ item.value }}</span>{% endif %}
+      {% if item.value %}<span class="text-label tabular-nums text-muted">{{ item.value }}</span>{% endif %}
     </a>
   {% else %}
     <p class="border-t border-line px-5 py-8 text-center text-muted">{{ _('Nothing yet.') }}</p>

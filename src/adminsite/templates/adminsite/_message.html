@@ -13,7 +13,7 @@
     </span>
     {% if message.to_copy %}
       <div class="flex items-center gap-2">
-        <code x-ref="value" class="min-w-0 break-all rounded-field bg-base-100 px-2 py-1 font-mono text-[13px] text-base-content">{{ message.to_copy }}</code>
+        <code x-ref="value" class="min-w-0 break-all rounded-field bg-base-100 px-2 py-1 font-mono text-label text-base-content">{{ message.to_copy }}</code>
         <button type="button" class="btn btn-plain btn-xs shrink-0"
                 @click="navigator.clipboard.writeText($refs.value.textContent); copied = true">
           <span x-show="!copied">{{ _('Copy') }}</span>

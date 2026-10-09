@@ -39,9 +39,9 @@
         {% set is_key = widget == "number" and path in view._schema.primary_key %}
         {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
         {% if opens %}
-          <a class="block w-fit max-w-md truncate font-medium text-link hover:underline {% if is_key %}font-mono text-[13px]{% endif %}" href="{{ opens }}">{{ shown }}</a>
+          <a class="block w-fit max-w-md truncate font-medium text-link hover:underline {% if is_key %}font-mono text-label{% endif %}" href="{{ opens }}">{{ shown }}</a>
         {% else %}
-          <span class="block max-w-md truncate font-medium {% if is_key %}font-mono text-[13px]{% endif %}">{{ shown }}</span>
+          <span class="block max-w-md truncate font-medium {% if is_key %}font-mono text-label{% endif %}">{{ shown }}</span>
         {% endif %}
       {% else %}
         {%- set shown -%}

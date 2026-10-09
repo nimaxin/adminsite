@@ -4,7 +4,7 @@
 {% block page_title %}{{ _('Import {things}', things=view.label_plural|in_sentence) }} · {{ title }}{% endblock %}
 
 {% block breadcrumb %}
-  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-[13px] text-muted lg:px-7">
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-label text-muted lg:px-7">
     <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
     {{ icons.icon("chevron-right", 14) }}
     <a class="hover:text-base-content" href="{{ urls.list(view) }}/import">{{ _('Import') }}</a>
@@ -40,7 +40,7 @@
     <span class="pill tone-1">{{ _('{count} changed', count=updating) }}</span>
     {% if problems %}<span class="pill tone-5">{{ _('{count} with problems', count=problems) }}</span>{% endif %}
     {% if plan.ignored %}
-      <span class="text-[13px] text-muted">{{ _('Not used: {names}', names=plan.ignored|listed) }}</span>
+      <span class="text-label text-muted">{{ _('Not used: {names}', names=plan.ignored|listed) }}</span>
     {% endif %}
   </div>
 
@@ -48,10 +48,10 @@
     <table class="w-full border-separate border-spacing-0">
       <thead>
         <tr>
-          <th class="sticky top-0 z-10 h-10 w-16 border-b border-base-300 bg-subtle ps-4 pe-3 text-start text-[12.5px] font-medium text-muted lg:ps-7">{{ _('Row') }}</th>
-          <th class="sticky top-0 z-10 h-10 w-24 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium text-muted">{{ _('Does') }}</th>
+          <th class="sticky top-0 z-10 h-10 w-16 border-b border-base-300 bg-subtle ps-4 pe-3 text-start text-note font-medium text-muted lg:ps-7">{{ _('Row') }}</th>
+          <th class="sticky top-0 z-10 h-10 w-24 border-b border-base-300 bg-subtle px-3 text-start text-note font-medium text-muted">{{ _('Does') }}</th>
           {% for path in plan.columns %}
-            <th class="sticky top-0 z-10 h-10 border-b border-base-300 bg-subtle px-3 text-start text-[12.5px] font-medium whitespace-nowrap text-muted">{{ view._fields.label_for(path) }}</th>
+            <th class="sticky top-0 z-10 h-10 border-b border-base-300 bg-subtle px-3 text-start text-note font-medium whitespace-nowrap text-muted">{{ view._fields.label_for(path) }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -68,7 +68,7 @@
               <td class="border-b border-line px-3 py-2.5 align-top">
                 <span class="block max-w-md truncate">{{ row.raw.get(path, "") }}</span>
                 {% if row.errors.get(path) %}
-                  <p class="mt-1 text-xs text-error">{{ row.errors[path] }}</p>
+                  <p class="mt-1 text-note text-error">{{ row.errors[path] }}</p>
                 {% endif %}
               </td>
             {% endfor %}
@@ -77,7 +77,7 @@
           {% if missing %}
             <tr class="bg-error/5">
               <td class="border-b border-line"></td>
-              <td colspan="{{ plan.columns|length + 1 }}" class="border-b border-line px-3 py-2 text-xs text-error">
+              <td colspan="{{ plan.columns|length + 1 }}" class="border-b border-line px-3 py-2 text-note text-error">
                 {% for path in missing %}{{ _('{field}: {problem}', field=view._fields.label_for(path), problem=row.errors[path]) }}{% if not loop.last %} · {% endif %}{% endfor %}
               </td>
             </tr>
@@ -86,7 +86,7 @@
       </tbody>
     </table>
     {% if shown|length < plan.rows|length %}
-      <p class="px-4 py-3 text-[13px] text-muted lg:px-7">
+      <p class="px-4 py-3 text-label text-muted lg:px-7">
         {{ _('Showing {shown} of {total} rows: the first 50 and the ones with problems.', shown=shown|length, total=plan.rows|length) }}
       </p>
     {% endif %}

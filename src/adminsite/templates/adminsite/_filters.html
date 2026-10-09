@@ -38,7 +38,7 @@
         {% set name = panel.filter.name %}
         <div class="border-b border-line py-4 last:border-b-0">
           <fieldset id="filter-{{ name|replace('.', '-') }}">
-            <legend class="mb-2 text-[13px] font-semibold">{{ panel.filter.label }}</legend>
+            <legend class="mb-2 text-label font-semibold">{{ panel.filter.label }}</legend>
             {% if panel.filter.template == "choice" %}
               {% set kind = "checkbox" if panel.filter.multiple else "radio" %}
               {#- A long list gets a box above it that narrows it as you type.
@@ -82,26 +82,26 @@
                 {% if panel.options %}
                   <div class="mb-3 grid grid-cols-2 gap-1.5">
                     {% for option in panel.options %}
-                      <label class="flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
+                      <label class="flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-label has-checked:border-primary has-checked:bg-selected">
                         <input type="radio" class="radio radio-xs radio-primary" value="{{ option.value }}" x-model="preset" data-applies>
                         {{ option.label }}
                       </label>
                     {% endfor %}
-                    <label class="col-span-2 flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-[13px] has-checked:border-primary has-checked:bg-selected">
+                    <label class="col-span-2 flex h-8 cursor-pointer items-center gap-2 rounded-field border border-base-300 px-2.5 text-label has-checked:border-primary has-checked:bg-selected">
                       <input type="radio" class="radio radio-xs radio-primary" value="custom" x-model="preset">
                       {{ _('Between two dates') if kind == "date" else _('Between two values') }}
                     </label>
                   </div>
                 {% endif %}
                 <div class="grid grid-cols-2 gap-2.5" {% if panel.options %}x-show="preset === 'custom'"{% endif %}>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted">
+                  <label class="flex flex-col gap-1 text-note font-medium text-muted">
                     {{ _('From') }}
-                    <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}" data-applies
+                    <input class="input input-sm w-full text-body text-base-content" type="{{ kind }}" data-applies
                            {% if kind == "number" %}step="any"{% endif %} x-model="low" value="{{ ends[0] }}">
                   </label>
-                  <label class="flex flex-col gap-1 text-xs font-medium text-muted">
+                  <label class="flex flex-col gap-1 text-note font-medium text-muted">
                     {{ _('To') }}
-                    <input class="input input-sm w-full text-sm text-base-content" type="{{ kind }}" data-applies
+                    <input class="input input-sm w-full text-body text-base-content" type="{{ kind }}" data-applies
                            {% if kind == "number" %}step="any"{% endif %} x-model="high" value="{{ ends[1] }}">
                   </label>
                 </div>

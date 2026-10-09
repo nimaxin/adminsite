@@ -9,7 +9,7 @@
       {% set name = panel.filter.name %}
       {% set panel_id = "filter-" ~ name|replace(".", "-") %}
       <span class="inline-flex h-7.5 items-center rounded-full border border-primary/25 bg-primary/10 text-primary">
-        <button class="h-full ps-3 pe-1 text-[13px] font-medium" type="button"
+        <button class="h-full ps-3 pe-1 text-label font-medium" type="button"
                 aria-expanded="false" aria-controls="filters"
                 onclick="openFilters('{{ panel_id }}')">{{ panel.chip }}</button>
         <a class="me-0.5 inline-flex size-6.5 items-center justify-center rounded-full hover:bg-primary/15"
@@ -20,7 +20,7 @@
     {#- Every filter off, the search, the sort and the columns kept. -#}
     {% set cleared = {"page": None, "after": None, "before": None} %}
     {% for panel in panels %}{% set ignored = cleared.update({panel.filter.name: None}) %}{% endfor %}
-    <a class="px-1 text-[13px] font-medium text-muted underline underline-offset-3 hover:text-base-content"
+    <a class="px-1 text-label font-medium text-muted underline underline-offset-3 hover:text-base-content"
        href="{{ urls.here(**cleared) }}">{{ _('Clear all') }}</a>
   {% endif -%}
 </div>

@@ -49,7 +49,7 @@
       <span class="text-muted">{{ icons.icon("plus", 16) }}</span>
     {% elif picker_multiple %}
       <template x-for="item in picked" :key="item.value">
-        <span class="badge badge-soft badge-primary h-7 gap-0.5 ps-2 pe-0.5 text-[13px] font-medium">
+        <span class="badge badge-soft badge-primary h-7 gap-0.5 ps-2 pe-0.5 text-label font-medium">
           <span x-text="item.label"></span>
           <button type="button" class="inline-flex size-6 items-center justify-center rounded hover:bg-primary/15"
                   @mousedown.prevent.stop @click="remove(item.value)"
@@ -102,7 +102,7 @@
     </ul>
     <p class="px-3.5 py-2.5 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
     {% if not local %}
-      <p class="border-t border-base-300 px-3.5 py-2 text-[12.5px] text-muted" x-show="more" x-cloak>{{ _('More records match. Type to narrow.') }}</p>
+      <p class="border-t border-base-300 px-3.5 py-2 text-note text-muted" x-show="more" x-cloak>{{ _('More records match. Type to narrow.') }}</p>
     {% endif %}
   </div>
 </div>

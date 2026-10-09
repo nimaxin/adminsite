@@ -2,13 +2,13 @@
     chart is drawn in SVG. The lines across fall on round numbers. -#}
 <div class="h-full rounded-box border border-base-300 bg-base-100 shadow-quiet">
   <div class="flex items-baseline justify-between gap-2 px-5 pt-4">
-    <h2 class="text-sm font-semibold">{{ widget.title }}</h2>
-    {% if data.points %}<span class="text-[13px] text-muted">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
+    <h2 class="text-body font-semibold">{{ widget.title }}</h2>
+    {% if data.points %}<span class="text-label text-muted">{{ _('Highest {value}', value=data.highest) }}</span>{% endif %}
   </div>
   {% if data.points %}
     {% set top = (data.points|max(attribute="height")).height %}
     <div class="flex gap-2.5 px-5 pt-5" aria-hidden="true">
-      <div class="relative w-11 shrink-0 text-end text-[11px] tabular-nums text-muted">
+      <div class="relative w-11 shrink-0 text-end text-caption tabular-nums text-muted">
         {% for tick in data.ticks %}
           <span class="absolute inset-e-0 translate-y-1/2" style="bottom: {{ tick.position }}%">{{ tick.label }}</span>
         {% endfor %}
@@ -28,7 +28,7 @@
               <div class="group relative h-full flex-1">
                 <div class="absolute inset-x-0 bottom-0 rounded-t-[3px] {% if point.height == top %}bg-chart-strong{% else %}bg-chart group-hover:bg-chart-strong{% endif %}"
                      style="height: {{ point.height }}%"></div>
-                <div class="pointer-events-none absolute start-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral px-2 py-1 text-xs text-neutral-content opacity-0 shadow-float transition-opacity group-hover:opacity-100 rtl:translate-x-1/2"
+                <div class="pointer-events-none absolute start-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral px-2 py-1 text-note text-neutral-content opacity-0 shadow-float transition-opacity group-hover:opacity-100 rtl:translate-x-1/2"
                      style="bottom: {{ point.height }}%">
                   <span class="opacity-75">{{ point.label }}</span> · <span class="font-semibold">{{ point.value }}</span>
                 </div>
@@ -38,7 +38,7 @@
         {% endif %}
       </div>
     </div>
-    <div class="flex justify-between ps-17 pe-5 pt-2 pb-4 text-[11px] text-muted" aria-hidden="true">
+    <div class="flex justify-between ps-17 pe-5 pt-2 pb-4 text-caption text-muted" aria-hidden="true">
       {% for label in data.axis %}<span>{{ label }}</span>{% endfor %}
     </div>
     {#- The same numbers for screen readers, which cannot read the drawing.

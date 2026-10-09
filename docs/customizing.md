@@ -88,8 +88,11 @@ A choice such as a status is drawn as a badge in one of six tones, `tone-0` to `
 blue, green, grey, violet and rose. A field's `tones` say which value gets which, by name; without
 them the choice's place in the list decides. See [Badge colours](fields.md#badge-colours).
 
-The typeface is Geist, which ships inside the package in the two subsets European languages need.
-Any other script, Persian among them, is drawn in the system's own font.
+The typeface is the system's own: Segoe UI on Windows, San Francisco on a Mac. Nothing is fetched
+to draw it, and Japanese and Chinese start from fonts made for them, so each draws its characters in
+its own forms. Text under the headings comes in four sizes, set as CSS variables a project's own
+stylesheet can change: `--text-caption` (12px), `--text-note` (13px), `--text-label` (14px) and
+`--text-body` (15px).
 
 The build writes `src/adminsite/static/adminsite.css`. If your own templates use Tailwind or
 daisyUI classes the shipped stylesheet does not have, build your own stylesheet from the same input

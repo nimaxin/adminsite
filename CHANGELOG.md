@@ -35,9 +35,14 @@ Before upgrading:
   `detail.html`, `_table.html`, `_bulk_summary.html`, `_records_count.html`, `_records_total.html`,
   `_filters_footer.html`, `_history.html`, `_document_json.html` or `dashboard/counts.html` should
   start its copy again from the new one.
+- A project that overrides any template should start its copy again from the new one, since the
+  text sizes changed in almost all of them.
 
 What changed:
 
+- Text is easier to read. It is a step larger throughout, with nothing under 12px, and grey text is
+  darker. Pages are set in the system's own typeface, Segoe UI on Windows and San Francisco on a
+  Mac, which each system draws sharply; Geist no longer ships.
 - Choosing a language or a time zone works when another app on the same host, served at /, once
   set a cookie by the same name. The browser sent both, and the other app's won, so the choice
   changed nothing. The admin now reads the cookie set for its own path.
@@ -90,8 +95,7 @@ What changed:
   Persian export imports again. A refused row's reason no longer ends in two full stops, and a
   record page someone may not open says "You cannot open Orders.", not "You cannot detail Orders.".
 - Russian ships with adminsite: `language="ru"`, or `languages=["ru"]` for a browser set to `ru` or
-  `ru-RU`. Texts with a count read right for 1, 2, 5 and 21, and Geist, the admin's typeface, now
-  ships its Cyrillic letters, so Russian is drawn in it too (#49).
+  `ru-RU`. Texts with a count read right for 1, 2, 5 and 21 (#49).
 - Spanish ships with adminsite, in wording readers in Spain and Latin America both understand:
   `language="es"`, or `languages=["es"]` for a browser set to any Spanish, such as `es-ES`, `es-MX`
   or `es-419` (#50).

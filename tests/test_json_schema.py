@@ -756,8 +756,8 @@ class TestAPartialDocument:
             "Zones",
             "Fees",
         ]
-        assert '<dt class="text-[12.5px] text-muted">Carriers</dt>' in page.text
-        assert '<dt class="text-[12.5px] text-muted">Express</dt>' not in page.text
+        assert '<dt class="text-note text-muted">Carriers</dt>' in page.text
+        assert '<dt class="text-note text-muted">Express</dt>' not in page.text
 
     async def test_the_record_page_says_when_nothing_is_set(
         self, overrides: httpx.AsyncClient
