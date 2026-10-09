@@ -112,7 +112,7 @@
                   picked as chips. -#}
               {%- set row = panel.picker -%}
               {%- set target = admin.views.for_relation(row.field) -%}
-              {%- set things = (target.label_plural if target else row.label)|lower -%}
+              {%- set things = (target.label_plural if target else row.label)|in_sentence -%}
               {%- set picker_multiple = panel.filter.multiple -%}
               {%- set picker_ordered = false -%}
               {%- set picker_options = none -%}
