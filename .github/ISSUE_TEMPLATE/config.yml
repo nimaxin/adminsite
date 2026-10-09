@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Ask a question
+    url: https://github.com/nimaxin/adminsite/discussions/categories/q-a
+    about: How to do something with adminsite, or whether it can. Ask in Discussions.
   - name: Documentation
     url: https://nimaxin.github.io/adminsite/
     about: How to install adminsite, and every option it has.

@@ -10,6 +10,7 @@ An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and
 **[Live demo](https://adminsite.duckdns.org)** ·
 [Documentation](https://nimaxin.github.io/adminsite/) ·
 [Changelog](https://nimaxin.github.io/adminsite/changelog/) ·
+[Discussions](https://github.com/nimaxin/adminsite/discussions) ·
 [For AI assistants](https://nimaxin.github.io/adminsite/llms.txt)
 
 [![The orders list of the demo shop](https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/orders.png)](https://adminsite.duckdns.org)
@@ -119,9 +120,10 @@ adminsite is one ASGI app, mounted inside yours. Every page and the JSON API go 
 
 ## Contributing
 
-Issues and pull requests are welcome.
-[CONTRIBUTING.md](https://github.com/nimaxin/adminsite/blob/main/CONTRIBUTING.md) says how to run
-the tests and rebuild the stylesheet.
+Ask a question or share an idea in
+[Discussions](https://github.com/nimaxin/adminsite/discussions). Issues and pull requests are
+welcome. [CONTRIBUTING.md](https://github.com/nimaxin/adminsite/blob/main/CONTRIBUTING.md) says
+how to run the tests and rebuild the stylesheet.
 
 ## License
 

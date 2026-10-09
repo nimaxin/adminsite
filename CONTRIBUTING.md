@@ -4,6 +4,9 @@ Issues and pull requests are both welcome. For anything bigger than a fix, open 
 we can agree on the shape of it before you write it. Everyone who takes part keeps to the
 [code of conduct](CODE_OF_CONDUCT.md).
 
+Questions and ideas that are not yet a plan go to
+[Discussions](https://github.com/nimaxin/adminsite/discussions).
+
 ## Setting up
 
 adminsite needs Python 3.11 or newer and is managed with [uv](https://docs.astral.sh/uv/):
