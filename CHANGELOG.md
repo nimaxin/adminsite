@@ -1,24 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a17
 
 Ten languages ship with adminsite, each translated in full: Russian, Spanish, Brazilian Portuguese,
 Japanese, German, French, Turkish, Arabic, and Simplified and Traditional Chinese. What each needs
 came with them: texts with a count in every form a language writes a number in, dates, counts, lists
 and the history in each language's own way, fonts that draw each script in its own forms, and
-browsers matched to a language by region and script.
+browsers matched to a language by region and script. Text is a step larger and darker, in the
+system's own typeface. A relation filter picks its records by name, a click anywhere on a row ticks
+it once one is ticked, and a list can keep itself up to date.
 
 Before upgrading:
 
 - On SQLite, a record keyed past 2,147,483,647 in a column declared `Integer` can no longer be
   found by its key, since that is past what an `Integer` holds on Postgres and MySQL. Declare such
   a key `BigInteger` (#66).
-- A project that overrides `base.html`, `_filters.html` or `widgets/_picker.html` should start its
-  copy again from the new one (#67).
-- A project that overrides `base.html`, `_table.html` or `_row.html` should start its copy again
-  from the new one (#59).
-- A project that overrides `base.html`, `list.html` or `_table.html` should start its copy again
-  from the new one (#48).
 - A project whose `translations` hold one of the texts below should key it by the new text. Each
   text with a count is keyed by its English for one, and may hold a form for each plural category:
   "{count} rows" is now "{count} row", "{count} items" "{count} item", "{count} keys"
@@ -31,12 +27,20 @@ Before upgrading:
   "{count} {things} deleted." "{count} {thing} deleted.", "{count} {things}" "{count} {thing}" and
   "Show {count} {things}" "Show {count} {thing}". A line of the history is one sentence, keyed as
   "{who} changed {record}", "{who} changed" and so on, where it was "changed".
-- A project that overrides `base.html`, `form.html`, `import.html`, `import_preview.html`,
-  `detail.html`, `_table.html`, `_bulk_summary.html`, `_records_count.html`, `_records_total.html`,
-  `_filters_footer.html`, `_history.html`, `_document_json.html` or `dashboard/counts.html` should
-  start its copy again from the new one.
-- A project that overrides any template should start its copy again from the new one, since the
-  text sizes changed in almost all of them.
+- A project that overrides `base.html`, `index.html`, `list.html`, `detail.html`, `form.html`,
+  `activity.html`, `import.html`, `import_preview.html`, `login.html`, `error.html`,
+  `_action_inputs.html`, `_bulk_summary.html`, `_document_form.html`, `_document_json.html`,
+  `_document_switch.html`, `_document_view.html`, `_field.html`, `_filter_chips.html`,
+  `_filters.html`, `_filters_footer.html`, `_form_layout.html`, `_history.html`, `_inlines.html`,
+  `_json.html`, `_message.html`, `_option_count.html`, `_palette.html`, `_records_count.html`,
+  `_records_total.html`, `_row.html`, `_saved_tabs.html`, `_table.html`, `_toolbar.html`,
+  `_value_editing.html`, `dashboard/chart.html`, `dashboard/counts.html`, `dashboard/recent.html`,
+  `dashboard/stat.html`, `widgets/_picker.html`, `widgets/json.html`, `widgets/relation.html` or
+  `widgets/select.html` should start its copy again from the new one. The text sizes changed in
+  most of them.
+- A project that builds its own stylesheet should build it again from the new
+  `frontend/input.css`, which sets the new text sizes and the system's typeface, and no longer
+  loads Geist.
 
 What changed:
 
