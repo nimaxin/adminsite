@@ -54,6 +54,8 @@ signing in included, in a few minutes.
   with filters and saved views, a page for each record, and forms with validation.
 - [Editing in the list](https://nimaxin.github.io/adminsite/views/#editing-in-the-list) for a value
   that changes often, such as an order's status.
+- [Lists that keep up to date](https://nimaxin.github.io/adminsite/views/#keeping-the-list-up-to-date)
+  on their own, for records that come in while people watch, such as new orders.
 - [Form layouts](https://nimaxin.github.io/adminsite/views/#arranging-the-fields) with panels, rows
   and tabs, which the record page follows too.
 - [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a
@@ -62,7 +64,7 @@ signing in included, in a few minutes.
 - [JSON columns](https://nimaxin.github.io/adminsite/fields/#a-form-built-from-a-schema) edited with
   a form built from a Pydantic model or a TypedDict, instead of a code box.
 - [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number
-  and date ranges, related records and text.
+  and date ranges, related records picked by name, and text.
 - [Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own) for anything the
   built-in ones do not cover, such as "overdue" or "spent over €1,000".
 - [Actions](https://nimaxin.github.io/adminsite/actions/) that run your own code on the selected
@@ -87,8 +89,8 @@ signing in included, in a few minutes.
   user table.
 - [Pages and plugins](https://nimaxin.github.io/adminsite/pages/) of your own, such as reports or
   settings, in the same layout.
-- [Translations](https://nimaxin.github.io/adminsite/translations/), with Persian built in and right
-  to left layouts, and every time shown in the reader's time zone.
+- [Translations](https://nimaxin.github.io/adminsite/translations/) into eleven languages, among
+  them Persian and Arabic laid out right to left, and every time shown in the reader's time zone.
 - [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones,
   and [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a
   screen reader.
