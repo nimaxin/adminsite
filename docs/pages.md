@@ -1,7 +1,7 @@
 # Pages and plugins
 
 Not everything in an admin is a table. A sales report, a settings form or a button that clears a
-cache are pages of your own. They live next to the model views, in the same layout, behind the same
+cache are pages of your own. They sit next to the model views, in the same layout, behind the same
 sign in.
 
 ## A page of your own
@@ -31,8 +31,8 @@ admin = Admin(
 )
 ```
 
-The page is served at `/admin/-/sales_report`, named after the class, and shows up in the sidebar
-under its group and in the [command palette](views.md#the-command-palette). The template sits in
+The page is served at `/admin/-/sales_report`, named after the class, and shows in the sidebar
+under its group and in the [command palette](views.md#the-command-palette). Its template sits in
 one of your `template_dirs` and extends the admin's layout:
 
 ```jinja
@@ -50,12 +50,9 @@ one of your `template_dirs` and extends the admin's layout:
 {% endblock %}
 ```
 
-The admin's styles are [daisyUI](https://daisyui.com) components, so a page can use the same cards,
-stats and tables as the rest of the admin. `page` is the page object; `urls`, `user` and
-`csrf_input` are there as on every page.
-
-A page's `name` is its URL, `label` its text in the sidebar, `group` the sidebar section it
-shares with views, and `template` what it renders; see [`AdminPage`][adminsite.AdminPage].
+The admin's styles are [daisyUI](https://daisyui.com) components, so a page can use the same
+cards, stats and tables as the rest of the admin. The template gets `page`, and `urls`, `user` and
+`csrf_input` as every page does. [`AdminPage`][adminsite.AdminPage] lists the page's settings.
 
 ### Who may open it
 
@@ -67,9 +64,9 @@ class SalesReport(AdminPage):
 
 A refused page is left out of the sidebar and answers with a 403.
 
-### Forms
+### A form on the page
 
-A page that takes a form overrides `post`. The form's token is already checked, so a form from
+A page that takes a form overrides `post`. The form's token is checked first, so a form from
 another site never reaches it:
 
 ```python
@@ -87,14 +84,13 @@ class Settings(AdminPage):
         return RedirectResponse(request.url, status_code=303)
 ```
 
-Put `{{ csrf_input | safe }}` inside the `<form method="post">` in the template.
-
-To answer with something other than a template, such as a file or JSON, override `get` and return
-any Starlette response.
+Put `{{ csrf_input | safe }}` inside the `<form method="post">` in the template. To answer with
+something other than a template, such as a file or JSON, override `get` and return any Starlette
+response.
 
 ## Plugins
 
-A plugin packages views, pages, routes, templates and static files so several projects can share
+A plugin packages views, pages, routes, templates and static files, so several projects can share
 them. It gets the admin once and adds what it brings:
 
 ```python
@@ -120,11 +116,13 @@ class Reports(Plugin):
 admin = Admin(engine, plugins=[Reports()])
 ```
 
-A plugin adds views with `add_view`, pages with `add_page`, any endpoint under `/-/` with
-`add_route`, templates with `add_template_dir`, which a plugin can also use to replace one of the
-admin's, a folder of files with `add_static`, and a stylesheet or script on every page with
-`add_stylesheet` and `add_script`. `add_route(..., guarded=False)` leaves a route outside the sign
-in, for a health check or a webhook. [`Admin`][adminsite.Admin] says what each takes.
+- `add_view` and `add_page` add views and pages.
+- `add_route` adds an endpoint under `/-/`. With `guarded=False` it stays outside the sign in, for
+  a health check or a webhook.
+- `add_template_dir` adds templates, and can replace one of the admin's.
+- `add_static` serves a folder of files, and `add_stylesheet` and `add_script` add a file to every
+  page.
 
-The same methods work on the admin directly, without a plugin. Routes and static files have to be
-added before the admin answers its first request, since the routes are fixed from then on.
+[`Admin`][adminsite.Admin] says what each one takes. The same methods work on the admin directly,
+without a plugin. Add routes and static files before the admin answers its first request, since
+its routes are fixed from then on.
