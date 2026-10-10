@@ -1,8 +1,8 @@
 # JSON API
 
-The admin can answer in JSON as well, for scripts, other services or a front end of your own. It
-reads and writes through the same views, so permissions, `scope_query`, hooks and the audit log all
-apply, exactly as they do on the pages.
+The admin can answer in JSON too, for scripts, other services or a front end of your own. It reads
+and writes through the same views, so permissions, `scope_query`, hooks and the audit log all apply
+as they do on the pages.
 
 ```python
 admin = Admin(engine, views=[OrderView, CustomerView], api=True)
@@ -40,37 +40,39 @@ filters by name such as `status=SHIPPED`, `page`, and `limit` up to 500.
 }
 ```
 
-A record carries the fields the list shows, then those of the record page and the edit form, each
-under its name. `GET /-/api` lists those, then any more the create form takes. A
-relationship comes as the key of the linked record, links to many as a list of keys, a list column as a list, decimals as strings so no
-cents are lost, dates and times of day in ISO format, datetimes in UTC with their offset, such as
-`2026-09-01T10:30:00Z`, and files as their name and address. A column read
-through a link to many, such as `orders.total`, comes as a list with a value for each record. With
-[keyset pagination](views.md#large-tables), `page` is null and `next` and `previous` are cursors to
-pass back as `after` and `before`.
+A record carries the fields the list, the record page and the edit form show this user, each under
+its name:
+
+- A relationship comes as the key of the linked record, and a link to many as a list of keys.
+- A decimal comes as a string, so no cents are lost.
+- Dates and times come in ISO format, and datetimes in UTC with their offset, such as
+  `2026-09-01T10:30:00Z`.
+- A file comes as its name and its address.
+
+With [keyset pagination](views.md#large-tables), `page` is null, and `next` and `previous` are
+cursors to pass back as `after` and `before`.
 
 ## Writing
 
-`POST` and `PATCH` take a JSON object of paths and values, checked by the form's fields. A `PATCH`
-touches only the fields it sends; a `POST` needs every required field. Problems come back per
-field, with status 422:
+`POST` and `PATCH` take a JSON object of paths and values, checked by the form's fields. A `POST`
+writes what the create form does and needs every required field. A `PATCH` writes what the edit
+form does, and only the fields it sends. Problems come back per field, with status 422:
 
 ```json
 {"error": "Some fields need another look.",
  "errors": {"total": "Enter an amount, for example 12.50.", "colour": "This field cannot be written."}}
 ```
 
-Only the form's fields can be written, read only fields never: the create form's for a `POST`, the
-edit form's for a `PATCH`. A key people type is sent with the `POST` and is read only after, so a
-`PATCH` that sets it answers 422. Files are uploaded through the form. A datetime keeps the
-offset it is sent with; one sent without is read in the sender's time zone, which for an API token
-is the admin's [`timezone`](translations.md#time-zones).
-A [form-only field](fields.md#form-only-inputs), such as a password, can be written and
-is never sent back; a password sent empty in a `PATCH` keeps the one there.
-A hook that refuses, or a delete other records depend on, answers 409 with the reason.
-A `POST` or `PATCH` answers with the record as this user now reads it. A change that takes the
-record out of what `scope_query` lets them read, such as a customer moved to a region they do not
-look after, is still saved, and answers 201 or 200 with only its key: `{"key": "12"}`.
+- A read-only field is never written, so a `PATCH` that sets one answers 422.
+- A [form-only field](fields.md#form-only-inputs), such as a password, can be written and is never
+  sent back.
+- A datetime sent without an offset is read in the sender's time zone, which for a token is the
+  admin's [`timezone`](translations.md#time-zones).
+- Files are uploaded through the pages, not the API.
+- A hook that refuses, or a delete other records depend on, answers 409 with the reason.
+
+The answer is the record as this user now reads it. A change that takes the record out of their
+`scope_query` is still saved, and answers with its key alone: `{"key": "12"}`.
 
 ## Actions
 
@@ -81,28 +83,22 @@ Content-Type: application/json
 {"keys": ["12", "13"], "inputs": {"carrier": "DHL"}}
 ```
 
-Send `"everything": true` instead of keys to run the action over every record the query matches,
-as the "select all matching" link does on the list page. The answer is the action's message:
-`{"message": "2 orders marked as shipped."}`, or the file or other response the action answers
-with, as it is. An input that asks for [another record](actions.md#another-record) takes its key,
-or a list of keys for several, and a key the user may not pick answers 422 with the reason under
-the input's name. The fields of a [group](actions.md#a-group-of-values) go by their full name,
-`{"change.percent": "5"}`. An input left out counts as empty. A file cannot be sent as JSON, so an
-action that asks for one runs from the admin's pages.
+Send `"everything": true` instead of keys to run the action over every record the query matches.
+The answer is the action's message, `{"message": "2 orders marked as shipped."}`, or the file or
+other response the action answers with.
 
-The index says what each action runs on, as `"on"`. An
-[action on one record](actions.md#on-one-record) takes its one key, `{"keys": ["12"]}`, and the
-record's own permission decides, as on its page. An action on the view takes no keys. Each is
-written to the [audit log](audit.md#actions) as it is from the pages.
+An input that asks for [another record](actions.md#another-record) takes its key, and the fields of
+a [group](actions.md#a-group-of-values) go by their full name, `{"change.percent": "5"}`. An
+[action on one record](actions.md#on-one-record) takes its one key, and an action on the view
+takes no keys. An action that asks for a file runs from the pages only.
 
 ## Signing in
 
 Without `auth` the API is as open as the admin. With `auth`, a request needs one of two things:
 
-- **The session** of someone signed in to the admin, as a front end running in the same browser
-  has. A request that changes something then has to send the form token in an `X-CSRF-Token`
-  header, so another site cannot make the browser do it. The token is in the `_csrf` field of any
-  admin form.
+- **The session** of someone signed in to the admin, as a front end in the same browser has. A
+  request that changes something then sends the form token in an `X-CSRF-Token` header. The token
+  is in the `_csrf` field of any admin form.
 - **A token** in `Authorization: Bearer <token>`, for scripts and services. Nobody gets in this way
   until your auth provider says who a token belongs to:
 
@@ -120,5 +116,4 @@ class StaffAuth(AuthProvider):
             )
 ```
 
-A request without either gets a 401. Anything refused by a permission gets a 403 in JSON, never a
-page.
+A request with neither gets a 401, and anything a permission refuses gets a 403, always in JSON.
