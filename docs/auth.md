@@ -25,12 +25,12 @@ python -c "from adminsite.auth import hash_password; print(hash_password('your p
 
 Hashes use PBKDF2 with SHA-256 and 600,000 rounds, from the standard library.
 
-`secret_key` signs the session cookie. Keep it secret, make it long and random, and read it from
-your settings. Passing `auth` without one is refused at startup.
+`secret_key` signs the session cookie. Make it long and random, keep it secret, and read it from
+your settings.
 
 ## Your own user table
 
-For anything more than a handful of people, subclass `AuthProvider` and check your own users:
+For more than a handful of people, subclass `AuthProvider` and check your own users:
 
 ```python
 from sqlalchemy import select
@@ -56,26 +56,18 @@ class StaffAuth(AuthProvider):
             return await session.get(User, int(key))
 ```
 
-`verify` returns the user, `None`, or raises `SignInRefusedError`. `identity` turns the user into
-the short string kept in the session cookie, and `load_user` turns it back on each request.
-`sign_in_failed`, `sign_in_values` and `may_read_sign_ins` decide what a failed sign in says, what
-the form starts with, and who sees sign ins on the Activity page. See
-[`AuthProvider`][adminsite.auth.AuthProvider].
+`verify` returns the user or `None`, or raises `SignInRefusedError`, whose reason goes to the
+[audit log](audit.md) while the person signing in sees only that it failed. `identity` turns the
+user into the short string kept in the session cookie, and `load_user` turns it back on each
+request. [`AuthProvider`][adminsite.auth.AuthProvider] lists the other methods.
 
-`SignInRefusedError(reason, user=...)` refuses a sign in and says why. The reason goes to the
-[audit log](audit.md), filed under that user, and the person signing in is told only what
-`sign_in_failed` returns. `PasswordAuth` gives "There is no such username." or "The password was
-wrong."
-
-The loaded user is on `request.state.user`, for your [permission](permissions.md) checks.
-Its `str()` is what the sidebar and the audit log show, and `identity(user)` is the key the audit
-log files it under.
+The loaded user is on `request.state.user`, for your [permission](permissions.md) checks. Its
+`str()` is what the sidebar and the audit log show.
 
 ## When a sign in fails
 
 The login page says "That username and password do not match." Override `sign_in_failed` to say
-something else, and to do something about it. With the [audit log](audit.md) on, every attempt is
-already written down; `sign_in_failed` is where an alert or a wait belongs:
+something else, or to do something about it, such as slowing down an address that keeps guessing:
 
 ```python
 from starlette.requests import Request
@@ -92,9 +84,6 @@ class StaffAuth(AuthProvider):
 
 Keep the message vague. One that says the username exists tells whoever is guessing the same
 thing.
-
-After a failed attempt the form keeps the username that was typed, so only the password has to be
-typed again.
 
 ## A public demo
 
@@ -122,21 +111,9 @@ admin = Admin(
 ## CSRF
 
 Every form the admin draws carries a token tied to the session, and every post is checked against
-it, including deletes and actions. A post without the right token is refused with a 403. Scripts
-that post to the admin can send the token in an `X-CSRF-Token` header instead of a form field.
-
-The [JSON API](api.md) also takes a bearer token, once your provider's `authenticate_token`
-says who it belongs to.
-
-Signing in starts a fresh session, so a token taken from the login page stops working once the
-person is signed in. A script that drives the admin through a session takes its token from a page
-drawn after signing in.
-
-Without a `secret_key` there is no session, and so no token. That does not leave the admin open to
-a form posted from another site: browsers say where a post came from, in the `Sec-Fetch-Site` and
-`Origin` headers, and a post from elsewhere is refused. A request that carries neither, from a
-script or `curl`, goes through, as it did before. This matters for an admin left open on a private
-network, where the browser of anyone on that network could otherwise be made to post to it.
+it. A script that posts to the admin can send the token in an `X-CSRF-Token` header, taken from a
+page drawn after signing in. Without a `secret_key` there is no session and no token, and a post
+from another site is refused by the `Sec-Fetch-Site` and `Origin` headers browsers send.
 
 ## The session cookie
 
