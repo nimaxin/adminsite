@@ -1,20 +1,19 @@
 # Customizing the look
 
-The interface is built on [daisyUI](https://daisyui.com) and Tailwind, rendered on the server with
-Jinja, with HTMX for partial updates and Alpine for the few pieces that keep state. The built CSS
-and JavaScript ship inside the package, so nothing needs Node to install or run.
+The interface is built on [daisyUI](https://daisyui.com) and Tailwind, drawn on the server with
+Jinja, with HTMX for partial updates and Alpine for the few pieces that keep state. The CSS and
+JavaScript ship inside the package, so nothing needs Node to install or run.
 
-## Overriding a template
+## Override a template
 
-Point the admin at a folder of your own. Any template found there is used instead of the one that
+Point the admin at a folder of your own. A template found there is used instead of the one that
 ships:
 
 ```python
 admin = Admin(engine, views=[OrderView], template_dirs=["templates/admin"])
 ```
 
-Keep the same relative path. To replace the sign in page, create
-`templates/admin/adminsite/login.html`.
+Keep the same relative path, so `templates/admin/adminsite/login.html` replaces the sign in page.
 
 | Template | What it draws |
 |---|---|
@@ -28,15 +27,15 @@ Keep the same relative path. To replace the sign in page, create
 | `adminsite/form.html`, `_field.html`, `_inlines.html` | The create and edit form, and its child rows |
 | `adminsite/dashboard/*.html` | The overview's cards |
 | `adminsite/_icons.html`, `_values.html` | The icons, and how a status or a yes and no is drawn |
-| `adminsite/_empty.html` | An empty value: a grey hyphen, and "Not set" for screen readers |
+| `adminsite/_empty.html` | An empty value |
 | `adminsite/widgets/*.html` | One form control each |
 | `adminsite/activity.html` | The activity page |
 | `adminsite/login.html` | Signing in |
 
-## A line above every page
+## A banner on every page
 
-`banner` puts one line of text above every page, the sign in page included. Use it to say which
-copy of the admin people are looking at:
+`banner` puts a line of text above every page, the sign in page included, such as which copy of
+the admin people are looking at:
 
 ```python
 admin = Admin(engine, banner="Staging: changes here are not real.")
@@ -44,14 +43,12 @@ admin = Admin(engine, banner="Staging: changes here are not real.")
 
 The text is escaped. Give it as `Html(...)` to include a link.
 
-## One widget
+## Draw a widget your way
 
-Each form control is its own small template under `adminsite/widgets/`, named after the field's
-`widget`: `input.html`, `textarea.html`, `checkbox.html`, `select.html`, `relation.html` and
-`readonly.html`. A field whose widget has no template of its own uses `input.html`.
-
-To draw a widget your way, add a file with that name. To add a new one, give your field a new
-widget name and add the template:
+Each form control is a small template under `adminsite/widgets/`, named after the field's `widget`:
+`input.html`, `textarea.html`, `checkbox.html`, `select.html`, `relation.html` and `readonly.html`.
+To draw one your way, add a file with that name. To add a new one, give your field a new widget
+name and add its template:
 
 ```python
 class ColourField(StringField):
@@ -64,14 +61,13 @@ class ColourField(StringField):
        name="{{ row.path }}" value="{{ row.value or '#3ecf8e' }}">
 ```
 
-A widget template receives `row`, which has `path`, `value`, `field`, `choices`, `error` and
-`required`.
+A widget template gets `row`, which has `path`, `value`, `field`, `choices`, `error` and
+`required`. A widget with no template of its own uses `input.html`.
 
 ## Colours and theme
 
-The stylesheet has two themes, a light one and a dark one, and follows the browser unless the user
-picks one with the button in the sidebar. To change the colours, edit the theme in
-`frontend/input.css` and rebuild:
+There is a light theme and a dark one, and the admin follows the browser unless the user picks one.
+To change the colours, edit the theme in `frontend/input.css` and rebuild:
 
 ```
 cd frontend
@@ -79,21 +75,12 @@ npm install
 npm run build
 ```
 
-Beside daisyUI's own colours the themes set a few more, as CSS variables on the page:
-`--subtle` for the surface behind cards, `--line` and `--line-strong` for the lines between rows,
-`--muted` for text that steps back, `--link`, `--selected` for ticked rows, and `--chart` and
-`--chart-strong` for bars. A project's own stylesheet can set any of them.
-
-A choice such as a status is drawn as a badge in one of six tones, `tone-0` to `tone-5`: amber,
-blue, green, grey, violet and rose. A field's `tones` say which value gets which, by name; without
-them the choice's place in the list decides. See [Badge colours](fields.md#badge-colours).
-
-The typeface is the system's own: Segoe UI on Windows, San Francisco on a Mac. Nothing is fetched
-to draw it, and Japanese and Chinese start from fonts made for them, so each draws its characters in
-its own forms. Text under the headings comes in four sizes, set as CSS variables a project's own
-stylesheet can change: `--text-caption` (12px), `--text-note` (13px), `--text-label` (14px) and
-`--text-body` (15px).
+Beside daisyUI's own colours, the themes set CSS variables a stylesheet of yours can change:
+`--subtle` behind cards, `--line` and `--line-strong` between rows, `--muted` for text that steps
+back, `--link`, `--selected` for ticked rows, and `--chart` and `--chart-strong` for bars. Text
+comes in four sizes, `--text-caption`, `--text-note`, `--text-label` and `--text-body`, in the
+system's own typeface. Badges use six tones, as [Badge colours](fields.md#badge-colours) shows.
 
 The build writes `src/adminsite/static/adminsite.css`. If your own templates use Tailwind or
-daisyUI classes the shipped stylesheet does not have, build your own stylesheet from the same input
-with your template folder added as a `@source`, and serve it in your overridden `base.html`.
+daisyUI classes the shipped stylesheet does not have, build a stylesheet of your own from the same
+input, with your template folder added as a `@source`, and serve it from your own `base.html`.

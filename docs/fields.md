@@ -529,5 +529,5 @@ from adminsite.fields import default_registry
 default_registry.register(Percentage, PercentField)
 ```
 
-The input is drawn by its `widget`. [Customizing the look](customizing.md#one-widget) shows how to
+The input is drawn by its `widget`. [Customizing the look](customizing.md#draw-a-widget-your-way) shows how to
 draw your own.
