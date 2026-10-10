@@ -1,0 +1,119 @@
+<!doctype html>
+<!--
+  The repository's social preview, docs/assets/social-preview.png: the card that
+  shows when someone shares a link to the repo. GitHub takes it from
+  Settings > General > Social preview, not from the repo itself.
+
+  To change it, edit this page, open it in a browser, and capture the #card
+  element at its own size, 1280 by 640, for example with Playwright:
+  locator("#card").screenshot() on a page with device_scale_factor=1. GitHub
+  refuses an image of 1 MB or more.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>adminsite social preview</title>
+<style>
+  :root {
+    --ground: #f3f3f0;
+    --panel: #ffffff;
+    --line: #e3e3de;
+    --ink: #1a1a18;
+    --muted: #63635e;
+    --green: #0b7a53;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  body {
+    background: var(--ground);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #card {
+    position: relative;
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    background: var(--ground);
+  }
+
+  /* Everything that reads stays 72px inside the edges, since some sites crop
+     the card a little. */
+  .words {
+    position: absolute;
+    inset: 72px auto 72px 72px;
+    width: 500px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .brand {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--green);
+  }
+
+  h1 {
+    margin-top: auto;
+    font-size: 56px;
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  .frameworks {
+    margin-top: 20px;
+    font-size: 25px;
+    line-height: 1.35;
+    color: var(--muted);
+  }
+
+  .install {
+    align-self: flex-start;
+    margin-top: auto;
+    padding: 11px 18px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 21px;
+    box-shadow: 0 1px 2px rgb(26 26 24 / 0.05);
+  }
+
+  .install span { color: var(--green); }
+
+  /* The demo's orders list, running off the right and bottom edges. */
+  .shot {
+    position: absolute;
+    left: 640px;
+    top: 92px;
+    width: 1000px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--panel);
+    box-shadow: 0 24px 60px rgb(26 26 24 / 0.14), 0 2px 6px rgb(26 26 24 / 0.06);
+  }
+
+  .shot img { display: block; width: 100%; }
+</style>
+</head>
+<body>
+<div id="card">
+  <div class="words">
+    <div class="brand">adminsite</div>
+    <h1>An admin panel for SQLAlchemy&nbsp;2.0</h1>
+    <p class="frameworks">For FastAPI, Starlette and Litestar.</p>
+    <code class="install"><span>$</span> pip install adminsite</code>
+  </div>
+  <div class="shot">
+    <img src="../docs/assets/orders.png" alt="The orders list of the demo shop">
+  </div>
+</div>
+</body>
+</html>
