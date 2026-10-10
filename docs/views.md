@@ -56,11 +56,6 @@ OrderItem.quantity))`, a column holds the value of every record it reaches, show
 A sort takes the same, and `Descending(Order.created_at)`, or the string `"-created_at"`, sorts from
 the highest value down, so newest first.
 
-A type checker takes a SQLModel model's attribute, `Book.pages`, for the value it holds, an `int`,
-and so refuses it in a setting. Write it as SQLModel's own queries do, `col(Book.pages)`, with `col`
-from `sqlmodel`: `Link(col(Book.author), col(Author.name))`, `Descending(col(Book.published))`,
-`Field(col(Book.pages), label="Pages")`. A string works too, `"pages"`.
-
 A type checker checks an attribute; the admin checks a string when it starts. A name the model
 does not have stops it with a message that names the view and the setting, and lists what the
 model has:

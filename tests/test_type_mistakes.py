@@ -43,13 +43,6 @@ EXPECTED = {
     "fields = Order.id": (
         'Incompatible types in assignment (expression has type "int"'
     ),
-    # A SQLModel attribute is typed as the value it holds; col() names the column.
-    "[Book.pages]": 'List item 0 has incompatible type "int | None"',
-    "col(Book.pages).desc()": 'List item 0 has incompatible type "UnaryExpression',
-    # mypy reads col() by what TextAreaField wants, so it refuses col's argument.
-    "TextAreaField(col(Book.price))": (
-        'Argument 1 to "col" has incompatible type "Decimal"; expected "str | None"'
-    ),
     # mistakes.py
     "record: Customer": (
         'Argument 1 of "get_record_title" is incompatible with supertype'

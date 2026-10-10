@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, overload
 
 from sqlalchemy import inspect as sqlalchemy_inspect
-from sqlalchemy.orm import Mapped, QueryableAttribute
+from sqlalchemy.orm import QueryableAttribute
 from starlette.requests import Request
 
 from adminsite.columns import describe
@@ -50,12 +50,12 @@ class SaveValues:
         self._form_only = form_only
 
     @overload
-    def __getitem__(self, column: Mapped[T]) -> "SaveValue[T]": ...
+    def __getitem__(self, column: QueryableAttribute[T]) -> "SaveValue[T]": ...
 
     @overload
     def __getitem__(self, column: str) -> "SaveValue[Any]": ...
 
-    def __getitem__(self, column: Mapped[Any] | str) -> "SaveValue[Any]":
+    def __getitem__(self, column: QueryableAttribute[Any] | str) -> "SaveValue[Any]":
         return SaveValue(self, self._path(column))
 
     def __contains__(self, column: object) -> bool:
@@ -66,14 +66,9 @@ class SaveValues:
     def __repr__(self) -> str:
         return f"SaveValues({self._stored!r})"
 
-    def _path(self, column: Mapped[Any] | str) -> str:
+    def _path(self, column: QueryableAttribute[Any] | str) -> str:
         if isinstance(column, str):
             return column
-        if not isinstance(column, QueryableAttribute):
-            raise AdminSiteError(
-                f"{column!r} is not a column. Name one by its attribute, such as "
-                f"{type(self._record).__name__}.id, or by its name as a string."
-            )
         model = type(self._record)
         owner = column.class_
         if not (isinstance(owner, type) and issubclass(model, owner)):

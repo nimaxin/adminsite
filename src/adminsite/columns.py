@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Generic, TypeAlias, TypeGuard, TypeVar
 
-from sqlalchemy.orm import Mapped, QueryableAttribute, RelationshipProperty
+from sqlalchemy.orm import QueryableAttribute, RelationshipProperty
 
 from adminsite.exceptions import AdminSiteError
 from adminsite.query import Sort
@@ -35,21 +35,17 @@ class Link(Generic[V_co]):
         column: The column on that model, or another `Link` to go further.
     """
 
-    # Mapped rather than the attribute class SQLAlchemy hands out, so that
-    # SQLModel's col(Book.pages), which a type checker reads as Mapped, fits.
-    relation: Mapped[Any]
-    column: "Mapped[V_co] | Link[V_co]"
+    relation: QueryableAttribute[Any]
+    column: "QueryableAttribute[V_co] | Link[V_co]"
 
     def __repr__(self) -> str:
         return f"Link({describe(self.relation)}, {describe(self.column)})"
 
 
-ColumnReference: TypeAlias = str | Mapped[Any] | Link[Any]
+ColumnReference: TypeAlias = str | QueryableAttribute[Any] | Link[Any]
 """A column named by its attribute, by a `Link`, or by its name as a string.
 
 Such as `Order.total`, `Link(Order.customer, Customer.email)` or `"total"`.
-A SQLModel model's attribute is written `col(Book.pages)`, with SQLModel's
-`col`, since a type checker takes `Book.pages` for the value it holds.
 """
 
 
@@ -91,9 +87,8 @@ def written_path(reference: ColumnReference) -> str:
     if isinstance(reference, str):
         return reference
     if isinstance(reference, Link):
-        relation = _attribute(reference.relation)
-        return f"{relation.key}.{written_path(reference.column)}"
-    return _attribute(reference).key
+        return f"{reference.relation.key}.{written_path(reference.column)}"
+    return reference.key
 
 
 def path_of(reference: ColumnReference, model: type[Any]) -> str:
@@ -124,19 +119,8 @@ def sort_of(entry: "ColumnReference | Descending", model: type[Any]) -> Sort:
     return Sort(path_of(entry, model))
 
 
-def _attribute(reference: Mapped[Any]) -> QueryableAttribute[Any]:
-    """A model's attribute, refusing another thing a type checker calls Mapped."""
-    if isinstance(reference, QueryableAttribute):
-        return reference
-    raise AdminSiteError(
-        f"{reference!r} is not a column. Name one by its attribute, such as "
-        "Order.id, or by its name as a string."
-    )
-
-
-def _key_of(reference: Mapped[Any], model: type[Any]) -> str:
+def _key_of(attribute: QueryableAttribute[Any], model: type[Any]) -> str:
     """An attribute's name, once it is known to belong to the model."""
-    attribute = _attribute(reference)
     owner = _owner_of(attribute)
     if not issubclass(model, owner):
         raise AdminSiteError(
@@ -149,7 +133,7 @@ def _key_of(reference: Mapped[Any], model: type[Any]) -> str:
 
 def _target_of(link: Link[Any]) -> type[Any]:
     """The model a link's relation leads to, which must own its column."""
-    prop = _attribute(link.relation).property
+    prop = link.relation.property
     if not isinstance(prop, RelationshipProperty):
         raise AdminSiteError(
             f"{link!r} starts from {describe(link.relation)}, which is a column. "

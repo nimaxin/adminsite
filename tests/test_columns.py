@@ -3,8 +3,7 @@ from typing import Any, Generic, TypeVar
 
 import httpx
 import pytest
-from sqlalchemy import Integer
-from sqlalchemy.orm import aliased, mapped_column
+from sqlalchemy.orm import aliased
 from starlette.applications import Starlette
 from starlette.requests import Request
 
@@ -241,17 +240,6 @@ class TestMistakesStopTheView:
 
         with pytest.raises(AdminSiteError, match="42 is not a column"):
             OrderView()
-
-    def test_a_declaration_a_type_checker_takes_for_a_column(self) -> None:
-        # The settings take what SQLAlchemy types as Mapped, so that SQLModel's
-        # col() fits, and a column's declaration is Mapped too.
-        class OrderView(ModelView[Order]):
-            searchable_fields = [mapped_column(Integer)]
-
-        with pytest.raises(AdminSiteError, match="is not a column"):
-            OrderView()
-        with pytest.raises(AdminSiteError, match="is not a column"):
-            Field(mapped_column(Integer))
 
     def test_a_column_of_an_alias(self) -> None:
         other = aliased(Order)
