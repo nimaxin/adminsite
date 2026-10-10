@@ -4,10 +4,6 @@
 
 What changed:
 
-- A view of a SQLModel model type-checks with its columns written as SQLModel's own queries write
-  them, `col(Book.pages)`, since a type checker takes `Book.pages` itself for the `int` it holds.
-  The settings, `Link`, `Field`, `Inline` and `context.values[...]` take what SQLAlchemy types as
-  `Mapped`, which a model's attribute is too.
 - A column of a type of your own, a `TypeDecorator`, that names no Python type gets the field of
   the type it wraps, on SQLAlchemy 2.0 and 2.1 alike. On 2.1 such a column over `String`, as every
   `str` of a SQLModel model is, was not text to the admin: the search box and a link's picker found

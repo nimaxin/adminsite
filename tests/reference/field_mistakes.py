@@ -7,11 +7,8 @@ again without its ignore and checks mypy's message, so a line refused for
 another reason fails too.
 """
 
-from sqlmodel import col
-
 from adminsite import Descending, Field, ModelView
 from adminsite.fields import ComputedField, EnumField, TextAreaField
-from tests.reference.library import Book
 from tests.reference.models import Customer, Order, OrderStatus
 
 
@@ -39,9 +36,3 @@ class WrongSettings(ModelView[Order]):
 
 class NotAList(ModelView[Order]):
     fields = Order.id  # type: ignore[assignment]  # one column where a list belongs
-
-
-class WrongSQLModelSettings(ModelView[Book]):
-    searchable_fields = [Book.pages]  # type: ignore[list-item]  # SQLModel's int, not col()
-    fields_default_sort = [col(Book.pages).desc()]  # type: ignore[list-item]  # SQL
-    fields = [TextAreaField(col(Book.price))]  # type: ignore[arg-type]  # text on a Decimal

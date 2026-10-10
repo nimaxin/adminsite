@@ -4,9 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.orm import Mapped
-
-from adminsite.columns import written_path
+from sqlalchemy.orm import QueryableAttribute
 
 if TYPE_CHECKING:
     from adminsite.columns import ColumnReference
@@ -50,7 +48,7 @@ class Inline:
         record_title: How a child is named, as a view's `record_title`.
     """
 
-    relation: str | Mapped[Any]
+    relation: str | QueryableAttribute[Any]
     fields: Sequence["ColumnReference | Field[Any]"] = ()
     label: str = ""
     blank_rows: int = 1
@@ -60,7 +58,9 @@ class Inline:
     @property
     def name(self) -> str:
         """The relationship's name, which the inline's inputs start with."""
-        return written_path(self.relation)
+        if isinstance(self.relation, str):
+            return self.relation
+        return self.relation.key
 
     def input_name(self, index: int | str, path: str) -> str:
         """The name a child's input carries in the submitted form."""

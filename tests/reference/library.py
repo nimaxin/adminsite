@@ -1,28 +1,18 @@
-"""Views of SQLModel models, each column named through SQLModel's `col()`.
+"""SQLModel models, and views that name their columns as strings.
 
 A type checker takes a SQLModel attribute, `Book.pages`, for the value it
-holds. `col(Book.pages)` is how SQLModel's own queries say it is a column, and
-the settings take it as they take a SQLAlchemy model's attribute.
+holds, an int, so a setting names the column by its name instead.
 """
 
 import enum
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import assert_type
 
 import sqlmodel
-from sqlmodel import Relationship, SQLModel, col
+from sqlmodel import Relationship, SQLModel
 
-from adminsite import (
-    Descending,
-    Field,
-    Inline,
-    Link,
-    ModelView,
-    RefusedError,
-    SaveContext,
-)
+from adminsite import Field, Inline, ModelView, RefusedError, SaveContext
 from adminsite.fields import DecimalField, EnumField
 
 EUROS = "€{:,.2f}"
@@ -57,37 +47,31 @@ class Book(SQLModel, table=True):
 
 
 class AuthorView(ModelView[Author]):
-    fields = [col(Author.name), col(Author.born)]
-    searchable_fields = [col(Author.name)]
-    inlines = [
-        Inline(
-            col(Author.books),
-            fields=[col(Book.title), col(Book.genre), col(Book.pages)],
-        )
-    ]
+    fields = ["name", "born"]
+    searchable_fields = ["name"]
+    inlines = [Inline("books", fields=["title", "genre", "pages"])]
     record_title = "{name}"
 
 
 class BookView(ModelView[Book]):
     fields = [
-        col(Book.id),
-        col(Book.title),
-        col(Book.author),
-        Link(col(Book.author), col(Author.born)),
-        EnumField(col(Book.genre), tones={Genre.POETRY: "violet"}),
-        DecimalField(col(Book.price), format=EUROS),
-        Field(col(Book.pages), label="Pages"),
-        col(Book.in_print),
-        col(Book.published),
+        "id",
+        "title",
+        "author",
+        "author.born",
+        EnumField("genre", tones={Genre.POETRY: "violet"}),
+        DecimalField("price", format=EUROS),
+        Field("pages", label="Pages"),
+        "in_print",
+        "published",
     ]
-    searchable_fields = [col(Book.title), Link(col(Book.author), col(Author.name))]
-    sortable_fields = [col(Book.title), col(Book.price), col(Book.published)]
-    fields_default_sort = [Descending(col(Book.published))]
-    list_filters = [col(Book.genre), col(Book.in_print), col(Book.published)]
+    searchable_fields = ["title", "author.name"]
+    sortable_fields = ["title", "price", "published"]
+    fields_default_sort = ["-published"]
+    list_filters = ["genre", "in_print", "published"]
     record_title = "{title}"
 
     async def before_save(self, context: SaveContext[Book]) -> None:
-        pages = context.values[col(Book.pages)].get()
-        assert_type(pages, int | None)
+        pages = context.values["pages"].get()
         if pages is not None and pages < 1:
-            raise RefusedError("A book has at least one page.", field=col(Book.pages))
+            raise RefusedError("A book has at least one page.", field="pages")
