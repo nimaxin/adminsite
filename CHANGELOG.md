@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+Before upgrading:
+
+- adminsite needs Pydantic 2.10 or later. An earlier Pydantic leaves out of its JSON schema which
+  keys a dict may hold, so in a form built from a schema, a dict keyed by a `Literal` or an enum took
+  any text as a key instead of offering its keys, and the record page did not name them.
+
 What changed:
 
 - A column of a type of your own, a `TypeDecorator`, that names no Python type gets the field of

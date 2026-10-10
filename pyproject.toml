@@ -39,7 +39,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.30",
     "jinja2>=3.1.4",
     "markupsafe>=2.1",
-    "pydantic>=2.7",
+    "pydantic>=2.10",
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2",
     # Windows has no time zone database of its own.
