@@ -3,7 +3,7 @@ from typing import Any, ClassVar, Generic, Self, TypeVar
 
 from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy.orm import QueryableAttribute
+from sqlalchemy.orm import Mapped
 
 from adminsite._text import humanize
 from adminsite.columns import Link, describe, written_path
@@ -281,7 +281,7 @@ class Field(BaseField, Generic[V]):
             of value.
     """
 
-    column: QueryableAttribute[V] | Link[V] | str
+    column: Mapped[V] | Link[V] | str
     _: KW_ONLY
     default: V | None = None
 
