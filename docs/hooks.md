@@ -121,7 +121,7 @@ server's log, under `adminsite`, and the save or delete still succeeds. The tran
 too: read from `context.record`, and write through a session of your own. The record holds what
 was saved, values the database set in its own columns such as an `onupdate` time included, even
 when `after_save` changed the record again. A relation the view does not load stays unloaded, and
-the values the database set on the rows of an [inline](views.md#related-records-in-the-same-form)
+the values the database set on the rows of an [inline](views.md#edit-related-records-in-the-same-form)
 are not read back, so read those through a session of your own too.
 
 When a bulk action deletes the chosen rows, each record's `after_delete_committed` runs once all of

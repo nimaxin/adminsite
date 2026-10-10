@@ -18,7 +18,7 @@ you add templates of your own.
   rather than "Select this row" fifty times.
 - **Forms.** Every input is named by its field's label, and an error or a help text is tied to it
   with `aria-describedby`; an input with an error carries `aria-invalid`. Inputs inside
-  [inlines](views.md#related-records-in-the-same-form) are named by their column.
+  [inlines](views.md#edit-related-records-in-the-same-form) are named by their column.
 - **Messages.** "Saved" and similar news is announced politely and fades after six seconds. A
   problem is announced at once and stays until it is closed, so nobody misses it for reading
   slowly. After a search or a filter updates the list, the new count is announced.

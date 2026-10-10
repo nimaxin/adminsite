@@ -266,7 +266,7 @@ ask for as they are, `dangerous` for a red button listed last, the `permission` 
 [audit log](audit.md#actions).
 [`@action`][adminsite.actions.action] says what each one does.
 
-An `icon` takes what a view's [`icon`](views.md#an-icon-in-the-sidebar) takes, inline SVG markup
+An `icon` takes what a view's [`icon`](views.md#the-sidebar) takes, inline SVG markup
 or a picture's address, and is drawn wherever the action is offered: in the Actions menu, above
 the list, in a row's menu and on the record page.
 

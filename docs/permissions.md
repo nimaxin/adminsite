@@ -174,7 +174,7 @@ browser's developer tools changes nothing.
 
 ### Inline fields
 
-The fields of an [inline](views.md#related-records-in-the-same-form) are decided by the view it
+The fields of an [inline](views.md#edit-related-records-in-the-same-form) are decided by the view it
 belongs to. `can_access_field` is asked about each one by its path from that view, so an order
 line's price is `items.unit_price`, and `get_readonly_fields` locks one with a `Link` from that
 view to the child's column:

@@ -52,11 +52,11 @@ signing in included, in a few minutes.
 
 - [Pages from your models](https://nimaxin.github.io/adminsite/views/): a searchable, sortable list
   with filters and saved views, a page for each record, and forms with validation.
-- [Editing in the list](https://nimaxin.github.io/adminsite/views/#editing-in-the-list) for a value
+- [Editing in the list](https://nimaxin.github.io/adminsite/views/#edit-values-in-the-list) for a value
   that changes often, such as an order's status.
-- [Lists that keep up to date](https://nimaxin.github.io/adminsite/views/#keeping-the-list-up-to-date)
+- [Lists that keep up to date](https://nimaxin.github.io/adminsite/views/#refresh-the-list-on-its-own)
   on their own, for records that come in while people watch, such as new orders.
-- [Form layouts](https://nimaxin.github.io/adminsite/views/#arranging-the-fields) with panels, rows
+- [Form layouts](https://nimaxin.github.io/adminsite/views/#arrange-the-fields) with panels, rows
   and tabs, which the record page follows too.
 - [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a
   related record from a searchable list, and edit child rows, such as an order's lines, inside the

@@ -94,7 +94,7 @@ your hooks the member. A choice names a member by its name or by its value, in a
 `("PAID", "Paid up")` and `("paid", "Paid up")` both stand for `OrderStatus.PAID`. A choice that
 names no member stops the admin when it starts.
 
-The column is named by its attribute, by a [`Link`](views.md#naming-columns) for a column of a
+The column is named by its attribute, by a [`Link`](views.md#name-a-column) for a column of a
 related model, or by its name as a string. Options are keywords, each with its type, so a type
 checker refuses `Field(Order.note, lable="Note")`, `Field(Order.note, "Note")` and
 `TextAreaField(Order.total)` on a `Decimal` column, and Python refuses a misspelt option when the
@@ -666,7 +666,7 @@ keeps its files, so nothing is lost by accident.
 upload and returns its key, `delete` removes one, and `url` or `response` say how it is fetched,
 for example with a redirect to a signed URL.
 
-File fields are not available inside [inlines](views.md#related-records-in-the-same-form) yet.
+File fields are not available inside [inlines](views.md#edit-related-records-in-the-same-form) yet.
 
 ## Your own field type
 
