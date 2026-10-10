@@ -73,6 +73,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=5",
     "ruff>=0.6",
+    "sqlmodel>=0.0.48",
     "types-openpyxl>=3.1.5.20260827",
     "typing-extensions>=4.12",
     "uvicorn>=0.30",
