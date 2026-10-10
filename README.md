@@ -15,6 +15,8 @@ An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and
 
 [![The orders list of the demo shop](https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/orders.png)](https://adminsite.duckdns.org)
 
+adminsite is not a side project. Our own business runs its back office on it every day.
+
 adminsite is in alpha. It is tested and it works, but names may still change before 0.1.0, so pin
 the version you install.
 
