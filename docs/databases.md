@@ -37,6 +37,32 @@ async session cannot load it again there.
 
 The whole test suite runs against each of these in CI.
 
+## SQLModel
+
+A SQLModel class with `table=True` is a SQLAlchemy model, so the admin works with it as it is: give
+it your engine and a view for each model.
+
+A type checker takes a SQLModel attribute for the value it holds, so it reads `Book.pages` as an
+`int`, not as a column, and refuses it in a setting. Name the columns as strings instead. The admin
+checks each name when it starts.
+
+```python
+from sqlmodel import Field, SQLModel
+
+from adminsite import ModelView
+
+
+class Book(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    title: str = Field(max_length=200)
+    pages: int = 0
+
+
+class BookView(ModelView[Book]):
+    fields = ["title", "pages"]
+    searchable_fields = ["title"]
+```
+
 ## MySQL
 
 Two things behave differently on MySQL, and adminsite accounts for both:
