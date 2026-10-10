@@ -8,18 +8,15 @@ admin = Admin(engine, views=[OrderView, CustomerView], audit=True)
 ```
 
 Every record's page gets a **History** tab, and the sidebar gets an **Activity** page listing
-everything across the admin.
-
-Values are written the way the admin shows them, so a change reads
-"Customer: Lena Fischer → Marco Rossi" rather than "customer_id: 1 → 2".
+everything across the admin. Values are written the way the admin shows them, so a change reads
+"Customer: Lena Fischer → Marco Rossi" rather than "customer_id: 1 → 2". A save that changed
+nothing, or was rolled back, writes no entry.
 
 ## Secrets
 
-A field that holds a secret is kept as `***`, before and after, so the log shows that it changed and
-never what it holds. The name decides: one made of a word such as `password`, `secret`, `token` or
-`pin`, as in `password_hash`, or a key named for what it opens, as in `api_key` or `private_key`. A
-`sort_key` is not a secret. Give a field `secret=True` to hide a value whose name does not say so,
-or `secret=False` to keep one whose name only looks secret:
+A field whose name says it holds a secret, such as `password_hash` or `api_key`, is kept as `***`,
+so the log shows that it changed and never what it holds. Give a field `secret=True` to hide a
+value whose name does not say so, or `secret=False` to keep one whose name only looks secret:
 
 ```python
 from adminsite import Field
@@ -29,26 +26,22 @@ class WalletView(ModelView[Wallet]):
     fields = [Wallet.name, Field(Wallet.seed_ciphertext, secret=True)]
 ```
 
-The same goes for the values an [action](#actions) is run with.
+The values an [action](#actions) is run with follow the same rule. A field kept from someone by
+[`can_access_field`](permissions.md#fields) is still written down, but that person does not see
+its values.
 
-A field kept from someone with [`can_access_field`](permissions.md#fields) is written down in full,
-and left out of what that person reads: on the History tab and the Activity page they see the
-changes to the other fields, and not its old and new values, nor what an export filtered it by.
-
-## Where the entries go
+## Where the log is kept
 
 `audit=True` keeps the log in a SQLite file of its own, `adminsite_audit.db` in the working
 directory. It needs no setup and no migration.
 
-!!! warning "The default audit log can miss a change"
+!!! warning "The default log can miss a change"
 
-    The default log is a separate SQLite file. Your data and the log are in two separate
-    databases, so they can't be saved in one transaction, and each entry is saved after its
-    change. If saving the entry fails, the change stays but isn't logged. To save every change
-    together with its entry, keep the log in your own database with `AuditLog(engine)`.
+    Your data and the default log are in two databases, so they cannot be saved in one transaction.
+    Each entry is saved after its change, and if that fails, the change stays but is not logged.
 
-That suits a single server. Each worker process or container gets its own file, though, so with
-several of them, or with containers that are rebuilt, keep the log in your own database instead:
+With several worker processes or containers, each gets a file of its own. In both cases, keep the
+log in your own database, where each change and its entries are saved together:
 
 ```python
 from adminsite.audit import AuditLog
@@ -66,41 +59,21 @@ from adminsite.audit import audit_metadata
 target_metadata = [Base.metadata, audit_metadata]
 ```
 
-Or let adminsite create it, for a quick start:
-
-```python
-audit = AuditLog(engine, create_table=True)
-```
-
-A file of its own at another path works too: `AuditLog("sqlite:////var/lib/shop/audit.db")`.
-
-New versions of adminsite add columns to this table. Every one of them may be empty, so a table
-adminsite created itself gets them added the first time the log is used. For a table in your own
-migrations, generate a migration after upgrading.
+Or let adminsite create it, for a quick start, with `AuditLog(engine, create_table=True)`. New
+versions of adminsite may add columns: a table adminsite created gets them by itself, and for one
+in your migrations, generate a migration after upgrading.
 
 ## Actions
 
-Every action run is written down, whatever it acts on and whatever it answers with, a file
-included:
+Every action run is written down:
 
-- An action on one record writes an entry for it, with the fields it changed, the way a save does.
-- A bulk action writes one entry for each record it touched, and the entries share a batch id.
-  Every record's history shows the action, and the batch can still be read as one event. This is
-  how Laravel Nova and Django's bulk delete record them.
-- An action on the whole model writes one entry for the model, with no record.
+- An action on one record writes an entry for it, with the fields it changed.
+- A bulk action writes an entry for each record it touched, and the entries share a batch id.
+- An action on the whole view writes one entry, with no record.
 
-The records a bulk action covers are read before it runs. "Mark every pending order as shipped"
-would find no pending orders afterwards, so reading them first is the only way to know which ones
-it changed. For `selection.update`, the old values are read in the same single query. A download
-over three chosen orders says who took which three.
-
-Each entry keeps the values the action was run with, in `entry.inputs`. A
-[secret](#secrets) is kept as `***`, decided by its name or by `secret=` as for a field. An
-uploaded file is kept by its name, type and size, never by what is in it.
-
-The entry also keeps what the action answered, such as "3 orders shipped". An action whose answer
-holds a secret shown once, such as a new API key, says so with `audit_answer=False`: its entry
-records who ran it, on what and when, and keeps nothing of the answer.
+Each entry keeps the values the action was run with, in `entry.inputs`, with [secrets](#secrets)
+as `***` and a file by its name, type and size only. It keeps what the action answered too, unless
+the answer holds a secret shown once, such as a new API key:
 
 ```python
 class AccountView(ModelView[Account]):
@@ -110,67 +83,30 @@ class AccountView(ModelView[Account]):
         return f"The new key is {key}. Copy it now: it is not shown again."
 ```
 
-An action that is refused, that the person may not run, or that fails is written down too, as
-failed, with the reason in `entry.error`. Its work is rolled back first, and the entry is written
-after, outside that transaction. A refusal keeps its message; any other error keeps only its kind,
-such as `ZeroDivisionError`, since its text may hold the data itself.
+An action that is refused or fails is written down as failed, with the reason in `entry.error`.
 
-## Exports
-
-Downloading a list as CSV writes an entry for the model with the list's search, filters, sort and
-columns in `entry.inputs`. An export can hold thousands of rows, so the entry names the list rather
-than each record in it.
-
-## What is never recorded
-
-- A save that was rolled back. Entries are written only after the commit succeeds, so a hook that
-  refuses a save leaves no trace. Actions are different: a refused or failed one is written down as
-  failed, as above.
-- A save that changed nothing. Saving a form without edits writes no entry.
+A CSV export writes one entry, with the list's search, filters, sort and columns in
+`entry.inputs`.
 
 ## Who did it, and from where
 
-Each entry names the person twice. `entry.user` is the name the admin shows for them, and
-`entry.user_key` is what your [auth provider](auth.md)'s `identity(user)` returns. The name reads
-well; the key still finds the same person after their name changes. For `PasswordAuth` both are the
-username. Without signing in, entries show "Someone".
+`entry.user` is the name the admin shows for the person, and `entry.user_key` is what your
+[auth provider](auth.md)'s `identity(user)` returns, which still finds them after their name
+changes. Each entry keeps the IP address and the browser too, as `entry.ip` and
+`entry.user_agent`. Behind a proxy, the address is the visitor's only when your server trusts that
+proxy, as with uvicorn's `--forwarded-allow-ips`.
 
-Each entry also keeps the IP address and the browser's own description of itself, as `entry.ip`
-and `entry.user_agent`. The History tab shows the address, and the browser when you point at it.
-The address is the one your ASGI server worked out, so behind a proxy it is the visitor's only when
-the server trusts that proxy, for example with uvicorn's `--forwarded-allow-ips`.
-
-## Signing in
-
-With a [sign in](auth.md) set up, the log also keeps every sign in, every failed attempt and every
-sign out, each with its address and browser. A failed attempt is filed under the account when there
-is one, and otherwise under the name that was typed. `PasswordAuth` says whether the username was
-unknown or the password wrong, and your own provider gives its reason by raising
-`SignInRefusedError` from `verify`. The reason stays in the log; the person signing in is never
-told it.
-
-Signing in happens to no model, so these entries have an empty `view` and no view's permissions
-decide who reads them. By default the Activity page shows them to someone who may read the history
-of every model, with no `scope_query` leaving out any of its records. Override
-`AuthProvider.may_read_sign_ins` to let others see them too.
+With a [sign in](auth.md) set up, the log keeps every sign in, failed attempt and sign out. By
+default the Activity page shows them to whoever may read the history of every view, and
+`AuthProvider.may_read_sign_ins` changes who.
 
 ## The Activity page
 
-The Activity page lists the log newest first, fifty entries at a time, with a link to the older
-ones. Each person sees what their [permissions](permissions.md#history) let them read: an entry
-about a record shows where the record's History tab would. Its tabs narrow it to one model, and its
-filters to:
+The Activity page lists the log newest first. Each person sees what their
+[permissions](permissions.md#history) let them read. Its tabs narrow it to one view, and its filters
+to a kind of entry, a person, a range of days or one record.
 
-- one kind of entry, such as changes, actions, exports or failed sign ins;
-- one person, by the key their provider gives them or by the name shown;
-- a range of days, the last one included;
-- one record, by its key.
-
-The filters are part of the address, so a result can be bookmarked or sent to someone who may read
-it too. A record's History tab shows its latest twenty entries, and a link to the rest on the
-Activity page, filtered to that record.
-
-## Reading it yourself
+## Read the log yourself
 
 Keep the log you give the admin, and read from it:
 
@@ -189,16 +125,14 @@ for entry in entries:
     print(entry.occurred_at, entry.user, entry.event, entry.changes)
 ```
 
-`entry.changes` maps each field name to a pair of values, before and after. Times are stored in
-UTC. Every field of `AuditQuery` narrows the result, and `older_than`, the time and id of the last
-entry you have, gives the page after it.
+`entry.changes` maps each field name to its value before and after. Times are in UTC. Every field
+of `AuditQuery` narrows the result, and `older_than`, the time and id of the last entry you have,
+gives the page after it.
 
-## Keeping the log somewhere else
+## Keep the log somewhere else
 
 The admin writes and reads the log through two methods, `record` and `find`, and anything that has
-them can take `AuditLog`'s place: a table your application already has, or a service you send logs
-to. The History tab and the Activity page read through `find`, so they show whatever your store
-returns, including rows written before the admin existed.
+them can take `AuditLog`'s place, such as a table your application already has:
 
 ```python
 from collections.abc import Sequence
@@ -268,10 +202,9 @@ class ChangeLogStore:
 admin = Admin(engine, views=[OrderView], audit=ChangeLogStore(session_factory))
 ```
 
-A store like this one writes after the change has committed, so a failure leaves the change saved
-but not logged, and the server log names the entries that were lost. A store that keeps its
-entries in the admin's own database can join the transaction instead, so each change and its
-entries are saved together. It needs two more methods:
+This store writes after the change has committed, so a failure leaves the change saved but not
+logged. A store that keeps its entries in the admin's own database can join the transaction
+instead, with two more methods:
 
 ```python
 from adminsite.database import Database, SessionAdapter
@@ -292,13 +225,8 @@ class SharedChangeLogStore(ChangeLogStore):
             await session.add(change_log_row(entry))
 ```
 
-A store that wraps another passes both on, or its entries are written after the commit.
-
-A row whose kind has no `AuditEvent` of its own can come back as `AuditEvent.ACTION`, with its name
-in `action`. `diff` and `as_json`, which the admin uses to describe a change, are in
-`adminsite.audit` too, for code that writes entries of its own.
-
-A store can also wrap another. This one keeps the log as usual, without the addresses:
+A store can also wrap another. This one keeps the log as usual, without the addresses. A wrapper
+that should write in the transaction passes `lives_in` and `record_within` on as well.
 
 ```python
 from dataclasses import replace
