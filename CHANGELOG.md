@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- A column of a type of your own, a `TypeDecorator`, that names no Python type gets the field of
+  the type it wraps, on SQLAlchemy 2.0 and 2.1 alike. On 2.1 such a column over `String`, as every
+  `str` of a SQLModel model is, was not text to the admin: the search box and a link's picker found
+  nothing in it, and a long one got a one-line input. One over `DateTime` now gets a date and time
+  picker, where it got a text input on either version.
+
 ## 0.1.0a17
 
 Ten languages ship with adminsite, each translated in full: Russian, Spanish, Brazilian Portuguese,

@@ -198,11 +198,19 @@ class SQLAlchemyInspector:
             # and 2.1 says object, since JSON can hold any value.
             return dict
         try:
-            return column_type.python_type
+            python_type = column_type.python_type
         except NotImplementedError:
-            # Custom types may not name a python type. Treat them as text so
-            # the field still renders, and let a field override fix it.
-            return str
+            # What SQLAlchemy 2.0 does for a type naming nothing; 2.1 says object.
+            python_type = object
+        if python_type is not object:
+            return python_type
+        if isinstance(column_type, TypeDecorator):
+            # It holds what the type it wraps holds, as SQLModel's AutoString,
+            # behind every str of a SQLModel model, holds a String's text.
+            return self._python_type_of(column_type.impl_instance)
+        # Custom types may not name a python type. Treat them as text so
+        # the field still renders, and let a field override fix it.
+        return str
 
     def _names_python_type(self, column_type: TypeEngine[Any]) -> bool:
         """Whether the column's type says which python type it holds.

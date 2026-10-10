@@ -101,9 +101,13 @@ checker refuses `Field(Order.note, lable="Note")`, `Field(Order.note, "Note")` a
 module is imported. A column named by a string gets past the type checker, so the admin checks the
 kind against the column when it starts: `TextAreaField("total")` stops it, and so does
 `RelationField(Order.customer_id)`, which names the key instead of the relationship,
-`Order.customer`. A column of a type of your own, such as a `TypeDecorator`, names no Python type to
-check against, so any kind may show it: `DateTimeField("starts_at")` on a `TZDateTime` column gives
-it a date and time picker.
+`Order.customer`.
+
+A column of a type of your own, such as a `TypeDecorator`, gets the field of the type it wraps,
+unless your type names a Python type of its own. So a `TypeDecorator` over `String`, such as the one
+SQLModel keeps every `str` in, is text the search box looks in. That is a guess, since your type
+may hold something else, so the admin checks no kind against such a column and any kind may show
+it: `UUIDField("token")` on a `GUID` column kept as `CHAR(32)` gives it a UUID input.
 
 Every field takes the options [`BaseField`][adminsite.BaseField] lists, such as `label`,
 `help_text`, `read_only`, `default`, `format`, `secret` and the flags that leave it off a page. A
