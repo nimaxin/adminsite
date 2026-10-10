@@ -1,0 +1,26 @@
+/* adminsite's own greens, as the admin's buttons and links have them. */
+:root > * {
+  --md-primary-fg-color: #0b7a53;
+  --md-primary-fg-color--light: #3ecf8e;
+  --md-primary-fg-color--dark: #085c3f;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+  --md-accent-fg-color: #0b7a53;
+  --md-accent-fg-color--transparent: #0b7a531a;
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+  --md-typeset-a-color: #0b7a53;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #3ecf8e;
+  --md-primary-fg-color--light: #5ad9a0;
+  --md-primary-fg-color--dark: #2fa872;
+  --md-primary-bg-color: #052417;
+  --md-primary-bg-color--light: #052417b3;
+  --md-accent-fg-color: #5ad9a0;
+  --md-accent-fg-color--transparent: #5ad9a01a;
+  --md-accent-bg-color: #052417;
+  --md-accent-bg-color--light: #052417b3;
+  --md-typeset-a-color: #5ad9a0;
+}
