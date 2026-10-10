@@ -1,8 +1,12 @@
 name: Docs
 
+# The docs match the release on PyPI: they are built from the commit the Release workflow
+# published, once it passes. A workflow_run runs on main, the only branch the github-pages
+# environment deploys from, which a tag push is not. Run it by hand to publish a fix sooner.
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,9 +20,14 @@ concurrency:
 
 jobs:
   build:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true

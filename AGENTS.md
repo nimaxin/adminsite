@@ -150,10 +150,28 @@ run `uv run uvicorn examples.fields:app --reload` instead; it needs no sign in.
 - ruff at 88 columns and mypy strict are the rules; do not silence them without a reason in a
   comment.
 
+## Writing the docs
+
+The docs are for the developer setting up the admin. They should reach a working admin quickly,
+then find what they need without reading everything.
+
+- **A quick first success.** Getting started runs as written: one file, one command, and the admin
+  is on screen.
+- **The common case first.** A page opens with what it is for and a short example. Rare cases come
+  later, briefly, or not at all.
+- **Say each thing once.** An option is explained in its docstring, which the Reference page shows.
+  A guide page shows it in use and links there, as in `` [`ModelView`][adminsite.ModelView] ``.
+- **Leave out what the reader does not need**: mistakes the admin already refuses with a clear
+  message, click-by-click tours of the interface, and internals that do not change what they write.
+- **Headings people can find.** A heading names the task or the setting, such as "Make a field
+  read-only" or `ComputedField`, so the sidebar and the search lead to it.
+- **Examples you can copy**, imports included, with the models they use a click away on the page.
+- **Short and plain**: "you", short sentences, short paragraphs, one topic per page.
+
 ## Workflow
 
 - Plan first when asked to plan, and wait for approval before building.
 - Commit after each finished step, with a message such as `feat: ...`, `fix: ...` or `docs: ...`.
 - Add a line to `CHANGELOG.md` under Unreleased for anything a user would notice, and update the
   docs page the change belongs to.
-- Never push, tag or publish unless asked. A tag `v*` publishes to PyPI.
+- Never push, tag or publish unless asked. A tag `v*` publishes to PyPI, and then the docs.
