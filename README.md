@@ -97,6 +97,7 @@ signing in included, in a few minutes.
   screen reader.
 - [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL,
   with no N+1 queries.
+- [SQLModel](https://nimaxin.github.io/adminsite/databases/#sqlmodel) models as they are.
 - [Large tables](https://nimaxin.github.io/adminsite/views/#large-tables): rows never wait for their
   count, which can be estimated or skipped, and page 400 costs the same as page 1.
 - No Node and no CDN: everything ships inside the package.
