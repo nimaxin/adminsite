@@ -154,3 +154,30 @@ admin = Admin(
 ```
 
 `session_max_age=None` keeps the cookie for the browser session only.
+
+## Several admins in one app
+
+Mount as many as you like, each with its own views, users and settings:
+
+```python
+staff = Admin(
+    engine,
+    title="Staff",
+    views=[OrderView, CustomerView, ProductView],
+    auth=staff_auth,
+    secret_key=settings.staff_secret,
+)
+support = Admin(
+    engine,
+    title="Support",
+    views=[OrderView, CustomerView],
+    auth=support_auth,
+    secret_key=settings.support_secret,
+)
+
+app.mount("/staff", staff)
+app.mount("/support", support)
+```
+
+Each admin has its own session cookie, named after its title, so signing in to one does not sign
+you in to the other. Two admins with the same title need `session_cookie=` to tell them apart.

@@ -1,21 +1,31 @@
 # Getting started
 
+This page builds a working admin in one file, then shows how to add it to your own app.
+
 ## Install
 
 ```
-pip install adminsite
+pip install adminsite fastapi uvicorn aiosqlite
 ```
 
-adminsite does not pull in a database driver. Add the one you use, for example `asyncpg` or
-`psycopg` for Postgres, or `aiosqlite` for SQLite with an async engine.
+The example runs on SQLite through `aiosqlite`. For your own database, install its driver instead,
+such as `asyncpg` or `psycopg` for Postgres.
 
-## Your first admin
+## A first admin
 
-Say you have these models:
+Save this as `main.py`:
 
 ```python
-from sqlalchemy import ForeignKey, String
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from decimal import Decimal
+
+from fastapi import FastAPI
+from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from adminsite import Admin, Link, ModelView
 
 
 class Base(DeclarativeBase):
@@ -38,20 +48,9 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"))
-    note: Mapped[str | None] = mapped_column(String(500), default=None)
+    total: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     customer: Mapped[Customer] = relationship()
-```
-
-Describe how each one should appear, and mount the admin:
-
-```python
-from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import create_async_engine
-
-from adminsite import Admin, Link, ModelView
-
-engine = create_async_engine("postgresql+asyncpg://localhost/shop")
 
 
 class CustomerView(ModelView[Customer]):
@@ -60,27 +59,79 @@ class CustomerView(ModelView[Customer]):
 
 
 class OrderView(ModelView[Order]):
-    fields = [Order.id, Order.customer, Order.note]
+    fields = [Order.id, Order.customer, Order.total]
     searchable_fields = [Order.id, Link(Order.customer, Customer.name)]
 
 
-app = FastAPI()
+engine = create_async_engine("sqlite+aiosqlite:///shop.db")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Create the tables, and a few rows to look at the first time.
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    async with AsyncSession(engine) as session:
+        if await session.get(Customer, 1) is None:
+            lena = Customer(name="Lena Fischer", email="lena@example.com")
+            omar = Customer(name="Omar Haddad", email="omar@example.com")
+            session.add_all(
+                [
+                    Order(customer=lena, total=Decimal("120.00")),
+                    Order(customer=omar, total=Decimal("35.50")),
+                    Order(customer=lena, total=Decimal("12.90")),
+                ]
+            )
+            await session.commit()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 admin = Admin(engine, title="Shop", views=[CustomerView, OrderView])
 app.mount("/admin", admin)
 ```
 
-Run the app and open `/admin`. You get a list for each model, with search, sorting and paging, and
-pages to add, change and delete records. `fields` lists what each page shows, in order.
-`Order.customer` is a relationship, so the list names the customer and the form offers a picker
-for one. `Link(Order.customer, Customer.name)` is a column of the related model, here to search
-orders by their customer's name.
+Run it:
 
-A view with no settings at all still works: it shows every column. See [Views](views.md) for what
-else a view can say.
+```
+uvicorn main:app --reload
+```
 
-## Mounting elsewhere
+Open http://127.0.0.1:8000/admin. Customers and Orders are in the sidebar. Each list can be
+searched, sorted and paged, and each record has a page to read, change or delete it.
 
-The admin is an ASGI app, so it mounts wherever ASGI apps do.
+![The orders list of the first admin](assets/getting-started.png)
+
+What the code does:
+
+- `fields` lists what each page shows, in order.
+- `Order.customer` is a relationship, so the list shows the customer's name and the form picks a
+  customer from a list.
+- `Link(Order.customer, Customer.name)` is a column of the related model. Here it lets the search
+  box find orders by the customer's name.
+- `lifespan` creates the tables and adds a few rows, so there is something to see.
+
+## Use your own models
+
+Pass your app's engine and a view for each model. A view with no settings shows every column, so
+this is enough to start:
+
+```python
+admin = Admin(engine, views=[ModelView[Customer], ModelView[Order]])
+app.mount("/admin", admin)
+```
+
+[Views](views.md) shows what else a view can say.
+
+## Mount it in Starlette or Litestar
+
+The admin is an ASGI app, so it mounts wherever ASGI apps do, at any path:
+
+=== "FastAPI"
+
+    ```python
+    app.mount("/admin", admin)
+    ```
 
 === "Starlette"
 
@@ -89,12 +140,6 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do.
     from starlette.routing import Mount
 
     app = Starlette(routes=[Mount("/admin", app=admin)])
-    ```
-
-=== "FastAPI"
-
-    ```python
-    app.mount("/admin", admin)
     ```
 
 === "Litestar"
@@ -112,71 +157,13 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do.
     app = Litestar(route_handlers=[admin_app])
     ```
 
-Links inside the admin follow the path it is mounted on, so `/admin`, `/backoffice` or
-`/tools/admin` all work without configuration.
+## Add a sign in
 
-## Several admins in one app
+Anyone who can open the admin can change your data, so add a sign in before it goes online.
+[Signing in](auth.md) shows how. Read [Permissions](permissions.md) before other people use it.
 
-Mount as many as you like, each with its own views, users and settings:
+## A bigger example
 
-```python
-staff = Admin(
-    engine,
-    title="Staff",
-    views=[OrderView, CustomerView, ProductView],
-    auth=staff_auth,
-    secret_key=settings.staff_secret,
-)
-support = Admin(
-    engine,
-    title="Support",
-    views=[OrderView, CustomerView],
-    auth=support_auth,
-    secret_key=settings.support_secret,
-)
-
-app.mount("/staff", staff)
-app.mount("/support", support)
-```
-
-Each admin keeps its own session, in a cookie named after its title (`adminsite_staff`,
-`adminsite_support`), so signing in to one never signs you in to the other. Give two admins with the
-same title different names with `session_cookie=`. The same view class can be used in both; each
-admin gets its own instance.
-
-## Signing in
-
-An admin reachable from the internet needs a login. The quickest one:
-
-```python
-from adminsite.auth import PasswordAuth, hash_password
-
-admin = Admin(
-    engine,
-    views=[CustomerView, OrderView],
-    auth=PasswordAuth({"nima": "pbkdf2_sha256$600000$..."}),
-    secret_key=settings.admin_secret_key,
-)
-```
-
-Make the hash once with `hash_password("your password")` and keep the result in your settings.
-See [Signing in](auth.md) for checking your own user table instead.
-
-## Trying the example
-
-The repository has a small shop with an admin already set up:
-
-```
-git clone https://github.com/nimaxin/adminsite
-cd adminsite
-uv run uvicorn examples.shop:app --reload
-```
-
-Open http://127.0.0.1:8000/admin and sign in as `nima` / `letmein`.
-
-A second example puts every kind of field on one model, each labelled with its class. It needs
-no sign in:
-
-```
-uv run uvicorn examples.fields:app --reload
-```
+[The live demo](https://adminsite.duckdns.org) runs a shop with every feature switched on. Sign in
+as admin with the password admin. Its code is
+[examples/shop.py](https://github.com/nimaxin/adminsite/blob/main/examples/shop.py).

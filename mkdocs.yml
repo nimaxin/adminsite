@@ -131,7 +131,7 @@ plugins:
       sections:
         Start here:
           - index.md: What adminsite is and what it does
-          - getting-started.md: Install, mount, sign in, and a first view
+          - getting-started.md: Install, a first admin in one file, your own models, other frameworks
         Guide:
           - views.md: Every ModelView setting, per request answers, inlines, big tables, saved views, the command palette
           - fields.md: Field types, choosing a field and its options, badge colours, JSON columns, computed values, form-only inputs, files and pictures, writing a field
@@ -144,7 +144,7 @@ plugins:
           - dashboard.md: Stat, chart and recent records cards, and cards of your own
           - pages.md: Pages of your own and the plugin API
           - api.md: The JSON API and token sign in
-          - auth.md: Signing in and auth providers
+          - auth.md: Signing in, auth providers, and several admins in one app
           - databases.md: Async and sync engines, SQLModel, SQLite, Postgres and MySQL
           - translations.md: Languages, Persian, right to left layouts, time zones
           - accessibility.md: What the pages do for accessibility
