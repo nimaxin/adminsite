@@ -15,19 +15,6 @@ An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and
 
 [![The orders list of the demo shop](https://raw.githubusercontent.com/nimaxin/adminsite/main/docs/assets/orders.png)](https://adminsite.duckdns.org)
 
-## Motivation
-
-Our business ran its back office on sqladmin, and then on starlette-admin. We needed features
-neither had, and in the end I had changed starlette-admin so much that turning it into pull requests
-would have taken more time than I had. So I built adminsite on what we learned from both, with
-everything our team needs.
-
-It is not a side project. Our back office runs on it every day, and I keep developing it. An admin
-panel is not what sets our business apart, so it is open source, for anyone to use and improve.
-
-adminsite is for SQLAlchemy only, and will stay that way. SQLModel models work too, since they are
-SQLAlchemy models, but I do not use SQLModel myself. If you do, reports and fixes are welcome.
-
 ## Installation
 
 ```
@@ -111,6 +98,19 @@ one file.
 - [Large tables](https://nimaxin.github.io/adminsite/views/#large-tables): rows never wait for their
   count, which can be estimated or skipped, and page 400 costs the same as page 1.
 - No Node and no CDN: everything ships inside the package.
+
+## Motivation
+
+Our business ran its back office on sqladmin, and then on starlette-admin. We needed features
+neither had, and in the end I had changed starlette-admin so much that turning it into pull requests
+would have taken more time than I had. So I built adminsite on what we learned from both, with
+everything our team needs.
+
+It is not a side project. Our back office runs on it every day, and I keep developing it. An admin
+panel is not what sets our business apart, so it is open source, for anyone to use and improve.
+
+adminsite is for SQLAlchemy only, and will stay that way. SQLModel models work too, since they are
+SQLAlchemy models, but I do not use SQLModel myself. If you do, reports and fixes are welcome.
 
 ## How it works
 
