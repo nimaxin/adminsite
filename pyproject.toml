@@ -84,10 +84,8 @@ demo = [
     "uvicorn>=0.30",
 ]
 docs = [
-    "mkdocs<2",
-    "mkdocs-llmstxt>=0.5.0",
-    "mkdocs-material>=9.7.7",
     "mkdocstrings[python]>=1.0.6",
+    "zensical>=0.0.69",
 ]
 
 [build-system]

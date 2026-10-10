@@ -36,7 +36,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run mypy src tests
 uv run python -m tests.doc_examples
 uv run pytest -q
-uv run --group docs mkdocs build --strict
+uv run --group docs zensical build --strict
 ```
 
 `tests.doc_examples` type-checks every python example in `docs/`, the README and the docstrings.
