@@ -124,6 +124,9 @@ known-first-party = ["demo", "examples"]
 
 [tool.ruff.format]
 docstring-code-format = true
+# The page includes its code from tests/doc_examples/context.py, which is
+# formatted where it lives; formatting the include line would break it.
+exclude = ["docs/models.md"]
 
 [tool.mypy]
 python_version = "3.11"
