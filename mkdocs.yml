@@ -37,7 +37,6 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
-  - Live demo: https://adminsite.duckdns.org
   - Guide:
       - Views: views.md
       - Fields: fields.md
@@ -58,6 +57,11 @@ nav:
   - Reference: reference.md
   - Example models: models.md
   - Changelog: changelog.md
+  # Last, so no page's Next button leads out of the docs; see docs/changelog.md.
+  - Live demo: https://adminsite.duckdns.org
+
+extra_javascript:
+  - javascripts/live-demo.js
 
 markdown_extensions:
   - admonition
