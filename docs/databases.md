@@ -26,7 +26,7 @@ at once.
 
 The sessions the admin opens keep their records loaded after a commit, as if made with
 `expire_on_commit=False`, whatever the factory you give says. The pages and the
-[committed hooks](hooks.md#once-the-change-is-committed) read a record once it is saved, and an
+[committed hooks](hooks.md#after-the-commit) read a record once it is saved, and an
 async session cannot load it again there.
 
 ## Tested on
