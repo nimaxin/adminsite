@@ -101,10 +101,11 @@ one file.
 
 ## Motivation
 
-Our business ran its back office on sqladmin, and then on starlette-admin. We needed features
-neither had, and in the end I had changed starlette-admin so much that turning it into pull requests
-would have taken more time than I had. So I built adminsite on what we learned from both, with
-everything our team needs.
+Our business ran its back office on [sqladmin](https://github.com/smithyhq/sqladmin), and then on
+[starlette-admin](https://github.com/jowilf/starlette-admin). We needed features neither had, and in
+the end I had changed starlette-admin so much that turning it into pull requests would have taken
+more time than I had. So I built adminsite on what we learned from both, with everything our team
+needs.
 
 It is not a side project. Our back office runs on it every day, and I keep developing it. An admin
 panel is not what sets our business apart, so it is open source, for anyone to use and improve.
