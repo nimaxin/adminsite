@@ -65,7 +65,7 @@ signing in included, in a few minutes.
   a form built from a Pydantic model or a TypedDict, instead of a code box.
 - [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number
   and date ranges, related records picked by name, and text.
-- [Custom filters](https://nimaxin.github.io/adminsite/filters/#writing-your-own) for anything the
+- [Custom filters](https://nimaxin.github.io/adminsite/filters/#write-your-own) for anything the
   built-in ones do not cover, such as "overdue" or "spent over €1,000".
 - [Actions](https://nimaxin.github.io/adminsite/actions/) that run your own code on the selected
   rows, on every row the filters match, on one record or on the whole table, with a dialog for any
