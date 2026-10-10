@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+The docs are rewritten to be shorter and easier to follow. Getting started builds an admin in one
+file that runs as written, each page starts with the common case, and the examples link to the
+models they use. The docs are built with Zensical and published with each release, so they match
+the version on PyPI.
+
 ## 0.1.0
 
 adminsite leaves alpha: installing it no longer needs an exact version, and the package is marked

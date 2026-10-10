@@ -45,8 +45,8 @@ app.mount("/admin", Admin(engine, views=[OrderView]))
 
 The settings name your models' own attributes, so a type checker catches a misspelt one. The labels,
 filters, form controls and validation come from your models.
-[Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a complete app,
-signing in included, in a few minutes.
+[Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a working admin in
+one file.
 
 ## Features
 
@@ -110,8 +110,8 @@ adminsite is one ASGI app, mounted inside yours. Every page and the JSON API go 
 
 ## Documentation
 
-- [Getting started](https://nimaxin.github.io/adminsite/getting-started/) sets up a working admin
-  in a few minutes.
+- [Getting started](https://nimaxin.github.io/adminsite/getting-started/) builds a working admin
+  in one file.
 - [Views](https://nimaxin.github.io/adminsite/views/) covers everything a view can say about a
   model.
 - [Permissions](https://nimaxin.github.io/adminsite/permissions/) is worth reading before you put

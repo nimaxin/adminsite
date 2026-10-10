@@ -3,6 +3,8 @@
 An admin panel for SQLAlchemy models. Mount it into Starlette, FastAPI or Litestar, and your team
 gets pages to search, filter, read and change your data.
 
+[![The orders list of the demo shop](assets/orders.png)](https://adminsite.duckdns.org)
+
 ```python
 from adminsite import Admin, Descending, Link, ModelView
 
@@ -50,7 +52,7 @@ all come from your models.
 
 ## Where to go next
 
-- [Getting started](getting-started.md) sets up a working admin in a few minutes.
+- [Getting started](getting-started.md) builds a working admin in one file.
 - [Views](views.md) covers everything a `ModelView` can say about a model.
 - [Permissions](permissions.md) is worth reading before you put the admin in front of anyone.
 
