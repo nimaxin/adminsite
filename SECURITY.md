@@ -5,7 +5,7 @@ Please report one privately, never in a public issue.
 
 ## Supported versions
 
-While adminsite is in alpha, only the latest release gets fixes. Upgrade to it to get them.
+Only the latest release gets fixes. Upgrade to it to get them.
 
 ## Reporting a problem
 

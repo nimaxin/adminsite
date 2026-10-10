@@ -31,10 +31,6 @@ all come from your models.
     every kind of field. Sign in as admin with the password admin and change anything you like.
     It goes back as it started every hour.
 
-!!! note "Alpha"
-    adminsite is in alpha. It is tested and works, but names may still change before 0.1.0.
-    Install it with the exact version: `pip install adminsite==0.1.0a17`.
-
 ## What you get
 
 - **Pages worked out from your models.** Column types pick the right controls, `created_at` reads

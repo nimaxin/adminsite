@@ -1,6 +1,6 @@
 [project]
 name = "adminsite"
-version = "0.1.0a17"
+version = "0.1.0"
 description = "An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and Litestar."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,7 @@ keywords = [
     "htmx",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Framework :: AsyncIO",
     "Framework :: FastAPI",

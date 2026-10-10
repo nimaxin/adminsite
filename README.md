@@ -17,13 +17,10 @@ An admin panel for the SQLAlchemy 2.0 ORM that works with FastAPI, Starlette and
 
 adminsite is not a side project. Our own business runs its back office on it every day.
 
-adminsite is in alpha. It is tested and it works, but names may still change before 0.1.0, so pin
-the version you install.
-
 ## Installation
 
 ```
-pip install adminsite==0.1.0a17
+pip install adminsite
 ```
 
 Add the driver your database needs, such as `asyncpg` or `aiosqlite`.

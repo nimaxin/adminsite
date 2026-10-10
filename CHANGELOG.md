@@ -1,20 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
+
+adminsite leaves alpha: installing it no longer needs an exact version, and the package is marked
+Beta. A SQLModel model works as it is. On SQLAlchemy 2.1 the search box and a link's picker now find
+its text, and the Databases page says how a view names its columns.
 
 Before upgrading:
 
 - adminsite needs Pydantic 2.10 or later. An earlier Pydantic leaves out of its JSON schema which
   keys a dict may hold, so in a form built from a schema, a dict keyed by a `Literal` or an enum took
   any text as a key instead of offering its keys, and the record page did not name them.
+- A column of a `TypeDecorator` that names no Python type now gets the field of the type it wraps,
+  so one over `DateTime` gets a date and time picker where it had a text input. If your type holds
+  something other than what it wraps, give its column the field you want, or name its
+  `python_type`.
 
 What changed:
 
 - A column of a type of your own, a `TypeDecorator`, that names no Python type gets the field of
   the type it wraps, on SQLAlchemy 2.0 and 2.1 alike. On 2.1 such a column over `String`, as every
   `str` of a SQLModel model is, was not text to the admin: the search box and a link's picker found
-  nothing in it, and a long one got a one-line input. One over `DateTime` now gets a date and time
-  picker, where it got a text input on either version.
+  nothing in it, and a long one got a one-line input.
 
 ## 0.1.0a17
 

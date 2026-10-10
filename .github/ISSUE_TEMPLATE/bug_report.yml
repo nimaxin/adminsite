@@ -13,7 +13,7 @@ body:
     id: version
     attributes:
       label: adminsite version
-      placeholder: 0.1.0a17
+      placeholder: 0.1.0
     validations:
       required: true
   - type: textarea
