@@ -2,6 +2,8 @@
 
 adminsite works with the engine you already have, async or sync, on SQLite, Postgres and MySQL.
 
+The examples on this page use the [example models](models.md).
+
 ## Async or sync
 
 Give the admin an engine or a session factory, whichever you have:

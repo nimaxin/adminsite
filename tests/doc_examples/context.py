@@ -194,6 +194,7 @@ __all__ = [
 ]
 
 
+# --8<-- [start:shop]
 class Base(DeclarativeBase):
     """The application's models."""
 
@@ -340,8 +341,10 @@ class Notification(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
+    # --8<-- [end:shop]
 
 
+# --8<-- [start:others]
 class User(Base):
     """Someone who signs in."""
 
@@ -562,6 +565,7 @@ class ReportSchedule(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255))
+    # --8<-- [end:others]
 
 
 class Delivery(BaseModel):

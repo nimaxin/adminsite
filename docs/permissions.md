@@ -4,6 +4,8 @@ Permissions work at four levels: the view, the action, the field and the row. Ea
 the view, so the answer can depend on who is asking and on the record. The user is on
 `request.state.user`, as your [auth provider](auth.md) loaded it.
 
+The examples on this page use the [example models](models.md).
+
 ## Views and actions
 
 The simplest switches are attributes:

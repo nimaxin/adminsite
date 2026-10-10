@@ -64,11 +64,16 @@ def blocks(text: str, first_line: int) -> Iterator[tuple[int, str]]:
             if fence is not None:
                 opening, start, body = fence, number + 1, []
         elif fence is not None and not fence["language"]:
-            if opening["language"] == "python":
+            if opening["language"] == "python" and not includes_only(body):
                 yield start, "\n".join(body)
             opening = None
         else:
             body.append(line[len(opening["indent"]) :])
+
+
+def includes_only(body: list[str]) -> bool:
+    """Whether a block only pulls in a file, which is checked where it lives."""
+    return all(line.lstrip().startswith("--8<--") for line in body if line.strip())
 
 
 def examples() -> Iterator[Example]:

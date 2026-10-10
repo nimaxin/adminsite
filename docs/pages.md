@@ -4,6 +4,8 @@ Not everything in an admin is a table. A sales report, a settings form or a butt
 cache are pages of your own. They sit next to the model views, in the same layout, behind the same
 sign in.
 
+The examples on this page use the [example models](models.md).
+
 ## A page of your own
 
 ```python

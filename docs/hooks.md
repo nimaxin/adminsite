@@ -4,6 +4,8 @@ Hooks run your code around a save or a delete. Most run inside the same transact
 rule can read and write other tables, and refuse the change. Two run once the change is committed,
 for work such as an email that must only go out for a change that was kept.
 
+The examples on this page use the [example models](models.md).
+
 ```python
 from adminsite import DeleteContext, ModelView, RefusedError, SaveContext
 

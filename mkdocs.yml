@@ -56,6 +56,7 @@ nav:
       - Accessibility: accessibility.md
       - Customizing the look: customizing.md
   - Reference: reference.md
+  - Example models: models.md
   - Changelog: changelog.md
 
 markdown_extensions:
@@ -151,6 +152,7 @@ plugins:
           - customizing.md: Templates, widgets and the look
         Reference:
           - reference.md: The public API
+          - models.md: The models the examples use
           - changelog.md: What changed in each release
   - mkdocstrings:
       handlers:

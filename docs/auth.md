@@ -3,6 +3,8 @@
 Without an auth provider the admin is open to anyone who can reach it. That is fine behind a VPN or
 on your own machine, and nowhere else.
 
+The examples on this page use the [example models](models.md).
+
 ## A fixed list of users
 
 ```python

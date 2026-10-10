@@ -3,6 +3,8 @@
 A `ModelView` says how one model appears in the admin. The model is its type argument, class
 attributes describe its pages, and methods whose names start with `get_` answer per request.
 
+The examples on this page use the [example models](models.md).
+
 ```python
 from adminsite import Descending, Field, Link, ModelView
 from adminsite.fields import TextAreaField

@@ -35,6 +35,8 @@ admin = Admin(
 Cards sit four to a row on a wide screen and one to a row on a phone. Each has a `width` from 1 to
 4. Stats take one column, and charts and lists two.
 
+The examples on this page use the [example models](models.md).
+
 ## Where the numbers come from
 
 A card reads a SQLAlchemy `select`, or an async function that gets the session and returns the

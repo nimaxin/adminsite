@@ -3,6 +3,8 @@
 Switch it on and adminsite writes down every create, change and delete: who did it, when, and what
 each field was before and after.
 
+The examples on this page use the [example models](models.md).
+
 ```python
 admin = Admin(engine, views=[OrderView, CustomerView], audit=True)
 ```

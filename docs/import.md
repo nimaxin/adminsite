@@ -3,6 +3,8 @@
 People can add and change records from a CSV or Excel file. Nothing is written until they have seen
 a preview of every row: what will be added, what will change, and what is wrong.
 
+The examples on this page use the [example models](models.md).
+
 Importing is off until you switch it on for a view, since it writes many records at once:
 
 ```python

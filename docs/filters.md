@@ -4,6 +4,8 @@
 column, and the filters open in a drawer above the list. A filtered list keeps its filters in the
 URL, so it can be bookmarked or shared, and the CSV export and bulk actions cover the same rows.
 
+The examples on this page use the [example models](models.md).
+
 ## Built-in filters
 
 ```python

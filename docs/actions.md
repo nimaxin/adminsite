@@ -16,6 +16,8 @@ class OrderView(ModelView[Order]):
 Ticking rows turns on the Actions menu above the list. What the method returns is shown once it
 has run.
 
+The examples on this page use the [example models](models.md).
+
 ## Every row that matches
 
 Ticking every row on the page offers to select every row the search and filters match, on all

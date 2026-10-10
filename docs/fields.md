@@ -3,6 +3,8 @@
 A field shows a value, puts it into a form input, and reads it back when the form is saved.
 adminsite picks one for every column from its type, so you rarely write one yourself.
 
+The examples on this page use the [example models](models.md).
+
 The Field gallery on [the live demo](https://adminsite.duckdns.org) shows every field on this
 page, each labelled with its class.
 

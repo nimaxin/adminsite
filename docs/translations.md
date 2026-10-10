@@ -24,6 +24,8 @@ admin = Admin(engine, views=[OrderView], language="fa")
 
 In Persian or Arabic, every page reads from right to left, with the sidebar on the right.
 
+The examples on this page use the [example models](models.md).
+
 ## Let people choose
 
 Offer more than one language, and the account menu at the foot of the sidebar lets people choose:

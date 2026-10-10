@@ -4,6 +4,8 @@ The admin can answer in JSON too, for scripts, other services or a front end of 
 and writes through the same views, so permissions, `scope_query`, hooks and the audit log all apply
 as they do on the pages.
 
+The examples on this page use the [example models](models.md).
+
 ```python
 admin = Admin(engine, views=[OrderView, CustomerView], api=True)
 ```
