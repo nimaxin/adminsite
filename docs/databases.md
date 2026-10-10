@@ -1,8 +1,10 @@
 # Databases
 
+adminsite works with the engine you already have, async or sync, on SQLite, Postgres and MySQL.
+
 ## Async or sync
 
-Give the admin whichever you already have:
+Give the admin an engine or a session factory, whichever you have:
 
 ```python
 from sqlalchemy import create_engine
@@ -20,14 +22,7 @@ Admin(async_sessionmaker(async_engine))
 Admin(sessionmaker(sync_engine))
 ```
 
-Everything above the session is written once, so both behave the same. A sync session runs on a
-single worker thread for its whole life, which keeps SQLAlchemy from ever being used by two threads
-at once.
-
-The sessions the admin opens keep their records loaded after a commit, as if made with
-`expire_on_commit=False`, whatever the factory you give says. The pages and the
-[committed hooks](hooks.md#after-the-commit) read a record once it is saved, and an
-async session cannot load it again there.
+Both behave the same, and the hooks and actions you write work with either.
 
 ## Tested on
 
@@ -39,12 +34,9 @@ The whole test suite runs against each of these in CI.
 
 ## SQLModel
 
-A SQLModel class with `table=True` is a SQLAlchemy model, so the admin works with it as it is: give
-it your engine and a view for each model.
-
-A type checker takes a SQLModel attribute for the value it holds, so it reads `Book.pages` as an
-`int`, not as a column, and refuses it in a setting. Name the columns as strings instead. The admin
-checks each name when it starts.
+A SQLModel class with `table=True` is a SQLAlchemy model, so the admin works with it as it is.
+A type checker reads a SQLModel attribute such as `Book.pages` as the `int` it holds, not as a
+column, so name the columns as strings instead. The admin checks each name when it starts.
 
 ```python
 from sqlmodel import Field, SQLModel
@@ -63,24 +55,10 @@ class BookView(ModelView[Book]):
     searchable_fields = ["title"]
 ```
 
-## MySQL
-
-Two things behave differently on MySQL, and adminsite accounts for both:
-
-- A native `ENUM` column sorts in the order its values were declared but compares as text. Keyset
-  pagination would skip rows on such a column, so a list sorted by an enum uses page numbers
-  instead.
-- `CountMode.ESTIMATED` reads `information_schema.tables`, whose row count for InnoDB is itself an
-  estimate and can be off by a lot on a table that changes often. Below 10,000 rows the count is
-  exact anyway.
-
-If you write a [filter](filters.md) of your own, note that MySQL refuses a `LIMIT` straight inside
-`IN (...)`; wrap the limited select in a subquery first.
-
 ## SQLite with a sync engine
 
 A sync session runs on a worker thread, and SQLite refuses a connection that moves between threads
-unless told otherwise:
+unless told otherwise. Only one thread uses the connection at a time, so this is safe:
 
 ```python
 from sqlalchemy import create_engine
@@ -88,11 +66,9 @@ from sqlalchemy import create_engine
 engine = create_engine("sqlite:///shop.db", connect_args={"check_same_thread": False})
 ```
 
-Only one thread uses the connection at a time, so this is safe.
+## Foreign keys on SQLite
 
-## Foreign keys
-
-Postgres always enforces foreign keys. SQLite does not, unless you switch it on for each
+Postgres and MySQL enforce foreign keys. SQLite does only when you switch it on for each
 connection:
 
 ```python
@@ -110,33 +86,34 @@ def enforce_foreign_keys(
     cursor.close()
 ```
 
-With an async engine, listen on `engine.sync_engine`: SQLAlchemy takes no listener on the async
-engine itself.
+With an async engine, listen on `engine.sync_engine`, since SQLAlchemy takes no listener on the
+async engine itself. Deleting a record that others still point at is then refused with a message.
 
-With them on, deleting a record that others still point at is refused, and the admin shows "This
-customer cannot be deleted, because other records still refer to it."
-
-Bulk deletes from an [action](actions.md) are single statements and never load the records, so
-they rely on the database for cascades. Give child tables `ondelete="CASCADE"` where children should
-go with their parent:
+Bulk deletes from an [action](actions.md) never load the records, so they rely on the database for
+cascades. Give a child table's foreign key `ondelete="CASCADE"` where children should go with their
+parent:
 
 ```python
 order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
 ```
 
+## MySQL
+
+adminsite handles two of MySQL's differences for you. A list sorted by a native `ENUM` column uses
+page numbers, since keyset paging would skip rows there, and `CountMode.ESTIMATED` reads InnoDB's
+own row count, which can be far off on a table that changes often.
+
+In a [filter](filters.md) of your own, keep in mind that MySQL refuses a `LIMIT` straight inside
+`IN (...)`. Wrap the limited select in a subquery first.
+
 ## When the database refuses a change
 
-A save the database refuses, because a value that must be unique is already taken or a required
-value is missing, is shown on the form, and nothing is saved. A refused delete is shown above the
-list. It says other records still refer to the record only when the database refused the delete
-itself. When it refused something else in the same transaction, such as a row a [hook](hooks.md)
-wrote, it says "This customer could not be deleted." and names the likely causes, as a save does.
-The database's own message is never shown or written to the audit log, since it can hold the values
-it refused.
+A save the database refuses, such as a unique value that is already taken, shows on the form, and
+nothing is saved. A refused delete shows above the list.
 
 In code of your own, such as a [page](pages.md) or an [action](actions.md), `commit()` and
 `transaction()` on adminsite's session raise `adminsite.exceptions.IntegrityError` for such a
-change, with SQLAlchemy's error as its cause:
+change:
 
 ```python
 from adminsite.exceptions import IntegrityError
@@ -152,13 +129,11 @@ async def add_customer(name: str, email: str) -> str:
     return "Customer added."
 ```
 
-Inside the block, `flush()` and `execute()` raise SQLAlchemy's own error; the transaction turns it
-into adminsite's as it leaves the block. An action that lets the error through is not done, and the
-list says why.
+Inside the block, `flush()` and `execute()` raise SQLAlchemy's own error, which the transaction
+turns into adminsite's as it leaves the block.
 
 ## After a rollback
 
-When a save is refused or fails, SQLAlchemy expires the objects in the session, so reading an
-attribute afterwards goes back to the database. With an async session, that raises
-`MissingGreenlet`. In your own code around a failed save, read what you need first, or load the
-record again.
+When a save fails, SQLAlchemy expires the objects in the session, so reading an attribute
+afterwards goes back to the database. With an async session that raises `MissingGreenlet`. In
+your own code around a failed save, read what you need first, or load the record again.
