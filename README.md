@@ -58,10 +58,10 @@ signing in included, in a few minutes.
   on their own, for records that come in while people watch, such as new orders.
 - [Form layouts](https://nimaxin.github.io/adminsite/views/#arrange-the-fields) with panels, rows
   and tabs, which the record page follows too.
-- [Related records](https://nimaxin.github.io/adminsite/fields/#links-to-many-records): pick a
+- [Related records](https://nimaxin.github.io/adminsite/fields/#relationships): pick a
   related record from a searchable list, and edit child rows, such as an order's lines, inside the
   parent's form.
-- [JSON columns](https://nimaxin.github.io/adminsite/fields/#a-form-built-from-a-schema) edited with
+- [JSON columns](https://nimaxin.github.io/adminsite/fields/#a-form-from-a-schema) edited with
   a form built from a Pydantic model or a TypedDict, instead of a code box.
 - [Built-in filters](https://nimaxin.github.io/adminsite/filters/) for choices, yes or no, number
   and date ranges, related records picked by name, and text.

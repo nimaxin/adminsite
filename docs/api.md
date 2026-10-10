@@ -65,7 +65,7 @@ edit form's for a `PATCH`. A key people type is sent with the `POST` and is read
 `PATCH` that sets it answers 422. Files are uploaded through the form. A datetime keeps the
 offset it is sent with; one sent without is read in the sender's time zone, which for an API token
 is the admin's [`timezone`](translations.md#time-zones).
-A [form-only field](fields.md#inputs-that-are-not-columns), such as a password, can be written and
+A [form-only field](fields.md#form-only-inputs), such as a password, can be written and
 is never sent back; a password sent empty in a `PATCH` keeps the one there.
 A hook that refuses, or a delete other records depend on, answers 409 with the reason.
 A `POST` or `PATCH` answers with the record as this user now reads it. A change that takes the

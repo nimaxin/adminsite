@@ -93,7 +93,7 @@ check.
 
 That includes a picker on someone else's form. When an order links to a customer, the picker reads
 through `CustomerView`, so it offers only the customers this user may see, and offers none at all
-where they may not open the view. See [Fields](fields.md#links-to-many-records).
+where they may not open the view. See [Fields](fields.md#relationships).
 
 The record page reads a link to many records through the linked views too. A customer's page names
 their orders through `OrderView`, so an order its scope hides is neither named nor counted in "and

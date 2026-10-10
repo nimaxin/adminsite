@@ -76,7 +76,7 @@ untransformed value and a unique check fires against the value you meant. Settin
 attribute in `after_save` only for things the form does not send.
 
 A string names a column too, `context.values["slug"]`, and so do the values of
-[inputs that are not columns](fields.md#inputs-that-are-not-columns), such as a password to hash:
+[inputs that are not columns](fields.md#form-only-inputs), such as a password to hash:
 `context.values["password"].get()`. They are never stored on the record: the hooks store them where
 they belong. A name that is neither a column nor such an input is refused by `get()` and `set()`
 alike, so a typo neither reads as an empty value nor is silently left unsaved. `set()` takes the
