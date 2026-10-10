@@ -33,12 +33,12 @@ admin = Admin(
 ```
 
 Cards sit four to a row on a wide screen and one to a row on a phone. Each has a `width` from 1 to
-4; stats take one column, charts and lists two.
+4. Stats take one column, and charts and lists two.
 
 ## Where the numbers come from
 
-A card reads either a SQLAlchemy `select`, or an async function that receives the session and
-returns the value:
+A card reads a SQLAlchemy `select`, or an async function that gets the session and returns the
+value:
 
 ```python
 from adminsite.database import SessionAdapter
@@ -51,39 +51,33 @@ async def active_customers(session: SessionAdapter) -> int:
 Stat("Active customers", active_customers)
 ```
 
-The function is the way to reach anything else: another database, an API, a cache.
+A function can reach anything else too, such as another database, an API or a cache.
 
 ## The cards
 
 ### Stat
 
 A single number, written in its `format`, such as `"€{:,.2f}"`. Give it `previous`, a second
-source for the period before, and it shows the change, such as "+12% on the period before", in
-green or red. `link` makes the card open a page: `"orders?status=PAID"` opens the filtered list.
-See [`Stat`][adminsite.Stat].
+source for the period before, and it shows the change, such as "+12% on the period before". `link`
+makes the card open a page, so `"orders?status=PAID"` opens the filtered list. See
+[`Stat`][adminsite.Stat].
 
 ### Chart
 
-Bars or a line over rows of a label and a value. `kind` is `"bar"` or `"line"`. The chart is drawn
-as plain SVG on the server, so no chart library is loaded. Hovering a bar shows its value, and
-screen readers get the same numbers as a table.
-
-Dates as labels are written short, such as "Sep 14".
+Bars or a line over rows of a label and a value, with `kind` set to `"bar"` or `"line"`. The chart
+is drawn on the server, so no chart library is loaded.
 
 ### RecentRecords
 
 The latest records of a view, each linking to its page. It reads through the view, so the view's
-`scope_query` applies and the card is hidden from users who may not open the view. A field the
-view's `can_access_field` keeps from the user on the list is not shown as `value`, and not used as
-`sort`: the view's own ordering applies instead.
-
-`sort` sets the order, `value` a path shown beside each record, such as `"total"`, and `limit` how
-many records; see [`RecentRecords`][adminsite.RecentRecords].
+`scope_query` applies, and the card is hidden from users who may not open the view. `sort` sets the
+order, `value` a path shown beside each record, such as `"total"`, and `limit` how many records
+show. See [`RecentRecords`][adminsite.RecentRecords].
 
 ### ModelCounts
 
-The record counts of every view the user may open, within its scope. It is the whole overview when
-you set no dashboard, and you can put it among your own cards.
+The record counts of every view the user may open. It is the whole overview when you set no
+dashboard, and you can put it among your own cards.
 
 ## Cards of your own
 
@@ -114,7 +108,7 @@ class Weather(Widget):
 </div>
 ```
 
-## Who sees what
+## Show a card to some users
 
 Every card has `allows(admin, request)`. Override it to show a card only to some users:
 
@@ -124,5 +118,5 @@ class Margin(Stat):
         return request.state.user.is_manager
 ```
 
-A card whose query fails shows "This card could not be loaded" and the error goes to the
-`adminsite` logger. The rest of the overview still loads.
+A card that fails to load says so, and the error goes to the `adminsite` logger. The rest of the
+overview still loads.
