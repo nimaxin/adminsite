@@ -15,7 +15,8 @@ What changed:
   refused the whole save. It is now stored as `""`, as is the key of a file removed from such a
   column. Any other field whose column cannot be null, such as a number or a choice, left empty on
   a record that exists is refused under its input, since a default only fills in a new record,
-  unless the field is given `required=False` (#84).
+  unless the field is given `required=False`. The edit form marks such a field required, so a
+  choice there no longer offers Not set (#84).
 
 ## 0.1.0
 

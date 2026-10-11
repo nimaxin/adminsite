@@ -90,6 +90,7 @@ async def build_rows(
             error=errors.get(path, ""),
             readonly=path in readonly,
             keeps_when_blank=item.keeps_value_when_blank and record is not None,
+            refuses_empty=view._fields.refuses_empty(record, path),
         )
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]

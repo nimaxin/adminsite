@@ -11,9 +11,12 @@ from adminsite.columns import path_of
 from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import (
     BaseField,
+    BooleanField,
     ComputedField,
+    EnumField,
     Field,
     FieldRegistry,
+    ListField,
     RelationField,
 )
 from adminsite.i18n import gettext as _
@@ -229,23 +232,43 @@ class ViewFields(Generic[M]):
         An input left empty reads as None, which a new record leaves to the
         column's default. A record that exists has no default to fall back
         on, so where the column cannot be null, a field that stores empty
-        text stores "", and any other is refused as required, unless the
-        view gave it `required` itself, as for a value a hook fills in.
+        text stores "", and any other is refused as `refuses_empty` says.
         """
         if value is not None or record is None:
             return value
-        item = self.field_for(path)
-        if not item.stored:
-            return value
-        column = self._inspector.resolve(self._model, path).field
-        if column is None or column.nullable:
-            return value
-        if item.stores_empty_text:
+        if self.refuses_empty(record, path):
+            raise FieldValidationError(path, _("This field is required."))
+        if self.field_for(path).stores_empty_text and self._cannot_be_null(path):
             return ""
+        return value
+
+    def refuses_empty(self, record: M | None, path: str) -> bool:
+        """Whether a record refuses the field left empty, which its form shows.
+
+        Only a record that exists, where the column cannot be null: a new
+        one gets the column's default. Text stores "" there instead, and a
+        checkbox, a list and a multi-select read nothing as a value of their
+        own. A field the view gave `required` keeps what it says, as for a
+        value a hook fills in.
+        """
+        if record is None or not self._cannot_be_null(path):
+            return False
+        item = self.field_for(path)
+        if (
+            item.stores_empty_text
+            or isinstance(item, BooleanField | ListField)
+            or (isinstance(item, EnumField) and item.multiple)
+        ):
+            return False
         given = self._settings.overrides.get(path)
-        if given is not None and given.required is not None:
-            return value
-        raise FieldValidationError(path, _("This field is required."))
+        return given is None or given.required is None
+
+    def _cannot_be_null(self, path: str) -> bool:
+        """Whether the record stores the path in a column that cannot be null."""
+        if not self.field_for(path).stored:
+            return False
+        column = self._inspector.resolve(self._model, path).field
+        return column is not None and not column.nullable
 
     def hides(self, record: M, path: str) -> bool:
         """Whether a path reads through a linked record kept from this user.

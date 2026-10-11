@@ -49,6 +49,10 @@ class FormRow:
     # True where leaving it empty keeps what the record has, as for a
     # password: then it is never required, and the form says so.
     keeps_when_blank: bool = False
+    # True where the record refuses it left empty though the field is not
+    # required, as a number on a record that exists, whose column cannot be
+    # null and whose default only filled in the new record.
+    refuses_empty: bool = False
     # Put before the path in the input's id, so two dialogs on one page that
     # both ask for a "product" do not share one.
     id_prefix: str = ""
@@ -100,7 +104,8 @@ class FormRow:
     @property
     def required(self) -> bool:
         """Whether a value has to be given."""
-        return bool(self.field.required) and not self.keeps_when_blank
+        needed = bool(self.field.required) or self.refuses_empty
+        return needed and not self.keeps_when_blank
 
     @property
     def note(self) -> str:

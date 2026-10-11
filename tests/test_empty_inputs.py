@@ -78,6 +78,23 @@ async def region_of(database: Database, email: str) -> str | None:
         return region
 
 
+def control(page: str, name: str) -> str:
+    """The input a form draws for a field, with a select's options."""
+    select = re.search(rf'<select[^>]*name="{name}".*?</select>', page, re.DOTALL)
+    if select is not None:
+        return select.group(0)
+    found = re.search(rf'<(input|textarea)[^>]*name="{name}"[^>]*>', page)
+    assert found is not None
+    return found.group(0)
+
+
+def label(page: str, name: str) -> str:
+    """What the legend above a field says."""
+    found = re.search(rf'id="field-{name}-label">(.*?)</legend>', page, re.DOTALL)
+    assert found is not None
+    return found.group(1)
+
+
 class TestTheForms:
     async def test_text_left_empty_on_a_record_saves_as_empty_text(
         self, client: httpx.AsyncClient, database: Database
@@ -136,6 +153,27 @@ class TestTheForms:
         assert note is not None
         assert "This field is required." in note.group(1)
         assert REFUSED not in refused.text
+
+
+class TestWhatTheEditFormDraws:
+    async def test_a_field_the_record_needs_is_drawn_required(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        edit = (await client.get("/admin/orders/1/edit")).text
+        new = (await client.get("/admin/orders/new")).text
+
+        assert re.search(r"\brequired\b", control(edit, "total"))
+        assert "required" in label(edit, "total")
+        assert '<option value="">' not in control(edit, "status")
+        assert not re.search(r"\brequired\b", control(new, "total"))
+        assert '<option value="">' in control(new, "status")
+
+    async def test_text_and_a_checkbox_are_not(self, client: httpx.AsyncClient) -> None:
+        edit = (await client.get("/admin/customers/1/edit")).text
+
+        assert not re.search(r"\brequired\b", control(edit, "region"))
+        assert "required" not in label(edit, "region")
+        assert "required" not in label(edit, "is_active")
 
 
 class TestARecordThatExists:
