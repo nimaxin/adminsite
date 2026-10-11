@@ -10,6 +10,7 @@ Then open http://127.0.0.1:8000/admin and sign in as admin / admin.
 
 import asyncio
 import contextlib
+import html
 import logging
 import os
 import re
@@ -23,7 +24,12 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -73,6 +79,43 @@ VISITOR_COOKIE = "adminsite_demo_visitor"
 # used only when it looks exactly like one.
 VISITOR_ID = re.compile(r"[A-Za-z0-9_-]{22}")
 COOKIE_SECONDS = 7 * 24 * 3600
+
+# What a visitor without the cookie gets first. A browser goes on from it to
+# the address it asked for, now with the cookie; a client that keeps no
+# cookies, such as a link preview, stays here and reads the card.
+WELCOME = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>adminsite demo</title>
+<meta name="description" content="A public demo of adminsite, an admin panel for
+SQLAlchemy 2.0. Sign in as admin with the password admin.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="adminsite demo">
+<meta property="og:description" content="A public demo of adminsite, an admin panel
+for SQLAlchemy 2.0. Sign in as admin with the password admin.">
+<meta property="og:image"
+      content="https://nimaxin.github.io/adminsite/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<style>body {{ margin: 3rem 1.5rem; font: 16px system-ui, sans-serif;
+background: #f3f3f0; color: #1a1a18; }}</style>
+</head>
+<body>
+<p id="note"><a href="{target}">Open the demo</a></p>
+<script>
+  if (navigator.cookieEnabled) {{
+    location.replace(document.querySelector("#note a").href);
+  }} else {{
+    document.querySelector("#note").textContent =
+      "The demo needs cookies, to keep your copy apart from everyone else's.";
+  }}
+</script>
+</body>
+</html>
+"""
 
 # Everything a visitor can change: the shop, the gallery, their history and
 # saved views.
@@ -257,18 +300,27 @@ class Visitors:
             copy.busy -= 1
             copy.last_used = time.monotonic()
 
-    def welcome(self, request: Request) -> RedirectResponse:
-        """Give a new visitor their cookie, and send them back where they were going."""
-        home = request.scope.get("root_path", "")
+    def welcome(self, request: Request) -> Response:
+        """Give a new visitor their cookie, then send them where they were going.
+
+        Not with a redirect: a client that keeps no cookies would be sent round
+        forever. The page it gets instead is where a browser goes on from.
+        """
         if request.method in ("GET", "HEAD"):
             # raw_path is the whole path as the browser sent it, mount and all.
             path = request.scope.get("raw_path") or request.url.path.encode()
             target = path.decode("latin-1")
             if request.url.query:
                 target += f"?{request.url.query}"
+            response: Response = HTMLResponse(
+                WELCOME.format(target=html.escape(target)),
+                # Only ever without the cookie, so never kept for later.
+                headers={"Cache-Control": "no-store"},
+            )
         else:
-            target = f"{home}/"
-        response = RedirectResponse(target, status_code=303)
+            # A form cannot be sent again, so its sender starts over at home.
+            home = request.scope.get("root_path", "")
+            response = RedirectResponse(f"{home}/", status_code=303)
         # On the whole site, so a new cookie takes the place of a bad one
         # instead of sitting beside it.
         response.set_cookie(

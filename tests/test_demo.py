@@ -42,10 +42,15 @@ def token_from(body: str) -> str:
     return found.group(1)
 
 
+async def enter(client: httpx.AsyncClient, path: str) -> httpx.Response:
+    """Open a page as a browser does: the first answer only sets the cookie."""
+    await client.get(path)
+    return await client.get(path)
+
+
 async def sign_in(client: httpx.AsyncClient) -> str:
     """Sign in as the demo says to, and return the new session's token."""
-    # The first visit only hands out the visitor's cookie.
-    page = await client.get("/admin/login", follow_redirects=True)
+    page = await enter(client, "/admin/login")
     response = await client.post(
         "/admin/login",
         data={"username": "admin", "password": "admin", "_csrf": token_from(page.text)},
@@ -70,15 +75,17 @@ async def count(copy: Copy, table: Any) -> int:
 
 
 class TestVisitors:
-    async def test_a_new_visitor_gets_a_cookie_and_goes_on(
+    async def test_a_new_visitor_gets_a_cookie_and_a_page_that_goes_on(
         self, tmp_path: Path
     ) -> None:
         app = build_app(tmp_path, SECRET)
         async with app.router.lifespan_context(app), client_for(app) as client:
-            response = await client.get("/admin/orders?status=PAID")
+            response = await client.get("/admin/orders?status=PAID&page=2")
 
-            assert response.status_code == 303
-            assert response.headers["location"] == "/admin/orders?status=PAID"
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "no-store"
+            assert 'href="/admin/orders?status=PAID&amp;page=2"' in response.text
+            assert "location.replace(" in response.text
             assert VISITOR_ID.fullmatch(client.cookies[VISITOR_COOKIE])
             # The copy waits for the cookie to come back.
             assert visitors_of(app).copies == {}
@@ -89,11 +96,33 @@ class TestVisitors:
         app = build_app(tmp_path, SECRET)
         async with app.router.lifespan_context(app), client_for(app) as client:
             for _ in range(3):
-                assert (await client.get("/admin/")).status_code == 303
+                response = await client.get("/admin/")
+                # A page, not a redirect, so the client is not sent round forever.
+                assert response.status_code == 200
+                assert "location" not in response.headers
                 client.cookies.clear()
 
             assert visitors_of(app).copies == {}
             assert not (tmp_path / "visitors").exists()
+
+    async def test_a_link_preview_gets_the_demo_card(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            page = await client.get("/admin/")
+
+        assert '<meta property="og:title" content="adminsite demo">' in page.text
+        assert "assets/social-preview.png" in page.text
+
+    async def test_a_form_without_the_cookie_starts_over_at_home(
+        self, tmp_path: Path
+    ) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as client:
+            response = await client.post("/admin/orders/1/delete")
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/admin/"
+        assert visitors_of(app).copies == {}
 
     async def test_each_visitor_sees_only_their_own_changes(
         self, tmp_path: Path
@@ -120,7 +149,7 @@ class TestVisitors:
             client.cookies.set(VISITOR_COOKIE, "../template")
             response = await client.get("/admin/")
 
-            assert response.status_code == 303
+            assert response.status_code == 200
             assert VISITOR_ID.fullmatch(response.cookies[VISITOR_COOKIE])
             assert visitors_of(app).copies == {}
 
@@ -158,7 +187,7 @@ class TestVisitors:
             client_for(app) as third,
         ):
             for client in (first, second, third):
-                await client.get("/admin/login", follow_redirects=True)
+                await enter(client, "/admin/login")
             names = [
                 client.cookies[VISITOR_COOKIE] for client in (first, second, third)
             ]
@@ -173,9 +202,9 @@ class TestVisitors:
             client_for(app) as first,
             client_for(app) as second,
         ):
-            await first.get("/admin/login", follow_redirects=True)
+            await enter(first, "/admin/login")
             copy_of(app, first).busy += 1
-            response = await second.get("/admin/login", follow_redirects=True)
+            response = await enter(second, "/admin/login")
 
         assert response.status_code == 503
         assert response.headers["retry-after"] == "60"
@@ -223,7 +252,7 @@ class TestDemo:
     async def test_the_sign_in_page_says_how_to_get_in(self, tmp_path: Path) -> None:
         app = build_app(tmp_path, SECRET)
         async with app.router.lifespan_context(app), client_for(app) as client:
-            page = await client.get("/admin/login", follow_redirects=True)
+            page = await enter(client, "/admin/login")
 
         assert "Sign in as admin with the password admin." in page.text
         assert "Only you see what you change" in page.text
@@ -294,7 +323,7 @@ class TestDemo:
     ) -> None:
         app = build_app(tmp_path, SECRET)
         async with app.router.lifespan_context(app), client_for(app) as client:
-            page = await client.get("/admin/login", follow_redirects=True)
+            page = await enter(client, "/admin/login")
             await client.post(
                 "/admin/login",
                 data={

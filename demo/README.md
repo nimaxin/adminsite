@@ -5,9 +5,11 @@ https://adminsite.duckdns.org for anyone to try. Visitors sign in as admin / adm
 anything, each on a copy of their own, so nobody sees what anyone else typed.
 
 At startup `app.py` writes the shop and the gallery as they start, with the gallery's sample
-files, to `template/` in the data folder. A cookie tells visitors apart, and the first time it
-comes back the template is copied to `visitors/<cookie>/`, with an admin of its own. A client
-that keeps no cookies never gets a copy. A copy nobody has used for an hour is thrown away, and
+files, to `template/` in the data folder. A cookie tells visitors apart. A visitor without it
+gets a page that sets it and goes on to the address they asked for, and the first time the
+cookie comes back the template is copied to `visitors/<cookie>/`, with an admin of its own. A
+client that keeps no cookies, such as a link preview, stays on that page, which carries the
+demo's card, and never gets a copy. A copy nobody has used for an hour is thrown away, and
 at most 500 are kept, the least recently used going first; one takes about 0.3 MB of memory
 and 125 KB of the data folder.
 
