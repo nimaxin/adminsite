@@ -7,6 +7,16 @@ file that runs as written, each page starts with the common case, and the exampl
 models they use. The docs are built with Zensical and published with each release, so they match
 the version on PyPI.
 
+What changed:
+
+- A record whose text column cannot be null but has a default, such as `note: Mapped[str] =
+  mapped_column(default="")`, can be saved with that text empty. The edit form, inline rows,
+  values changed in the list, the API and the import read the empty text as None, and the database
+  refused the whole save. It is now stored as `""`, as is the key of a file removed from such a
+  column. Any other field whose column cannot be null, such as a number or a choice, left empty on
+  a record that exists is refused under its input, since a default only fills in a new record,
+  unless the field is given `required=False` (#84).
+
 ## 0.1.0
 
 adminsite leaves alpha: installing it no longer needs an exact version, and the package is marked

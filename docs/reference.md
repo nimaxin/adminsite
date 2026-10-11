@@ -140,6 +140,7 @@ The classes you use most, with their signatures and docstrings.
         - error_message
         - stored
         - keeps_value_when_blank
+        - stores_empty_text
         - unused_options
         - display
         - text_for

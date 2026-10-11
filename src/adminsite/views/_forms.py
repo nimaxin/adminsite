@@ -107,16 +107,17 @@ class FormParser(Generic[M]):
                 # Left empty on a record that exists: it keeps what it has.
                 continue
             try:
+                value: Any
                 if isinstance(item, FileField):
-                    choice = item.parse_upload(
+                    value = item.parse_upload(
                         raw,
                         remove=data.get(f"{path}-remove") is not None,
                         has_file=bool(
                             record is not None and self._fields.value_at(record, path)
                         ),
                     )
-                    if choice is not UNCHANGED:
-                        result.values[path] = choice
+                    if value is UNCHANGED:
+                        continue
                 elif isinstance(item, JSONField) and item.schema is not None:
                     # Drawn from its schema, the document has an input for
                     # each of its parts. A new record's schema may follow
@@ -126,11 +127,12 @@ class FormParser(Generic[M]):
                         if draft is None:
                             draft = self.draft_record(data, request)
                         owner = draft
-                    result.values[path] = item.read_form(data, path, record=owner)
+                    value = item.read_form(data, path, record=owner)
                 elif _holds_many(item):
-                    result.values[path] = item.parse_many(_as_list(raw))
+                    value = item.parse_many(_as_list(raw))
                 else:
-                    result.values[path] = item.parse(_as_text(raw))
+                    value = item.parse(_as_text(raw))
+                result.values[path] = self._fields.storable(record, path, value)
             except DocumentError as error:
                 result.errors.update(error.errors)
             except FieldValidationError as error:
@@ -189,7 +191,9 @@ class FormParser(Generic[M]):
                 for path in paths:
                     item = child._fields.field_for(path)
                     try:
-                        row.values[path] = item.parse(_as_text(raw[path]))
+                        row.values[path] = child._fields.storable(
+                            found, path, item.parse(_as_text(raw[path]))
+                        )
                     except FieldValidationError as error:
                         errors[inline.input_name(index, path)] = error.message
             rows.append(row)
