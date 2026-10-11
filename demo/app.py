@@ -1,4 +1,7 @@
-"""The public demo, open to anyone and reset every hour: the shop and gallery.
+"""The public demo, open to anyone: the shop and the gallery.
+
+Every visitor works on a copy of their own, so nobody sees what anyone else
+typed, and a copy nobody has used for an hour is thrown away.
 
     uv run --group demo uvicorn demo.app:app
 
@@ -9,18 +12,20 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 import secrets
 import shutil
 import time
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
-from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from adminsite import Admin, SavedViews
 from adminsite.audit import (
@@ -46,34 +51,39 @@ from examples.shop import (
     dashboard,
 )
 
-# uvicorn prints this logger, so each reset shows in the server's log.
+# uvicorn prints this logger, so the demo's housekeeping shows in the server's log.
 logger = logging.getLogger("uvicorn.error")
 
 BANNER = (
     "This is a public demo. Sign in as admin with the password admin. "
-    "Anything you change is undone every hour."
+    "Only you see what you change, and it is cleared after an hour away."
 )
 
-RESET_SECONDS = 3600
 MEGABYTE = 1024 * 1024
+# A copy nobody has used for this long is thrown away.
+IDLE_SECONDS = 3600
+# How often the demo looks for copies to throw away.
+SWEEP_SECONDS = 60
+# The most copies kept at once, oldest out first. A copy takes about 0.3 MB of
+# memory and 125 KB of the data folder, which on the server is 256 MB, so 500
+# leave most of that folder for what visitors upload.
+MAX_VISITORS = 500
+VISITOR_COOKIE = "adminsite_demo_visitor"
+# What secrets.token_urlsafe(16) makes. The id names a folder, so the cookie is
+# used only when it looks exactly like one.
+VISITOR_ID = re.compile(r"[A-Za-z0-9_-]{22}")
+COOKIE_SECONDS = 7 * 24 * 3600
 
 # Everything a visitor can change: the shop, the gallery, their history and
 # saved views.
 METADATA = (Base.metadata, gallery.Base.metadata, audit_metadata, saved_view_metadata)
-TABLES = (
-    *reversed(Base.metadata.sorted_tables),
-    *reversed(gallery.Base.metadata.sorted_tables),
-    *audit_metadata.sorted_tables,
-    *saved_view_metadata.sorted_tables,
-)
 
 
 class WhatNotWho:
     """The demo's log: what visitors did, but not where they came from.
 
-    Everyone signs in as admin, so every visitor would read the others'
-    addresses, and whatever they typed as a username when a sign in failed.
-    Sign ins are left out, and so are the address and browser of the rest.
+    Everyone signs in as admin, so sign ins say nothing, and the demo keeps no
+    visitor's address or browser. Both are left out of the log.
     """
 
     def __init__(self, store: AuditLog) -> None:
@@ -123,46 +133,29 @@ class DemoCustomerView(CustomerView):
     import_limit = 200
 
 
-def seconds_until_reset(now: float) -> float:
-    """How long until the next reset, which falls at the start of an hour."""
-    return RESET_SECONDS - now % RESET_SECONDS
+async def build_template(folder: Path) -> None:
+    """Write the shop and the gallery as they start, for every visitor to copy."""
+    folder.mkdir(parents=True)
+    engine = create_async_engine(f"sqlite+aiosqlite:///{folder / 'shop.db'}")
+    try:
+        async with engine.begin() as connection:
+            for metadata in METADATA:
+                await connection.run_sync(metadata.create_all)
+        async with AsyncSession(engine) as session, session.begin():
+            session.add_all(build_sample_shop())
+            uploads = folder / "uploads"
+            session.add_all(await asyncio.to_thread(gallery.build_gallery, uploads))
+    finally:
+        await engine.dispose()
 
 
-async def reset(engine: AsyncEngine, uploads: Path) -> None:
-    """Put the shop and the gallery back as they started, with no history.
-
-    Saved views and uploads go too, but for the gallery's own sample files.
-    The records change in one transaction, so a visitor never sees an empty
-    shop. The uploads go first, since the gallery writes its samples there.
-    """
-    await asyncio.to_thread(shutil.rmtree, uploads, ignore_errors=True)
-    async with engine.begin() as connection:
-        for metadata in METADATA:
-            await connection.run_sync(metadata.create_all)
-    async with AsyncSession(engine) as session, session.begin():
-        for table in TABLES:
-            await session.execute(delete(table))
-        session.add_all(build_sample_shop())
-        session.add_all(await asyncio.to_thread(gallery.build_gallery, uploads))
-
-
-async def reset_every_hour(engine: AsyncEngine, uploads: Path) -> None:
-    """Reset the demo at the start of every hour, for as long as it runs."""
-    while True:
-        await asyncio.sleep(seconds_until_reset(time.time()))
-        try:
-            await reset(engine, uploads)
-        except Exception:
-            # The next hour tries again, and the demo stays up meanwhile.
-            logger.exception("Resetting the demo failed.")
-        else:
-            logger.info("The demo is back as it started.")
-
-
-def build_app(data: Path, secret_key: str) -> FastAPI:
-    """The demo, keeping its database and uploads in the folder `data`."""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{data / 'shop.db'}")
-    uploads = data / "uploads"
+def build_admin(folder: Path, secret_key: str) -> tuple[Admin, AsyncEngine]:
+    """The admin of one visitor's copy, kept in the folder `folder`."""
+    # One person uses a copy, now and then, so no connection waits between requests.
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{folder / 'shop.db'}", poolclass=NullPool
+    )
+    uploads = folder / "uploads"
 
     class DemoProductView(ProductView):
         """The example's products, with smaller photos kept beside the data."""
@@ -179,24 +172,6 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
 
         fields = gallery.showcase_fields(LocalStorage(uploads), upload_limit=MEGABYTE)
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        data.mkdir(parents=True, exist_ok=True)
-        await reset(engine, uploads)
-        resetting = asyncio.create_task(reset_every_hour(engine, uploads))
-        yield
-        resetting.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await resetting
-        await engine.dispose()
-
-    app = FastAPI(
-        title="adminsite demo",
-        lifespan=lifespan,
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None,
-    )
     admin = Admin(
         engine,
         title="Acme shop",
@@ -222,10 +197,205 @@ def build_app(data: Path, secret_key: str) -> FastAPI:
         saved_views=SavedViews(engine, create_table=True),
         timezones=["Europe/Paris", "Asia/Tehran", "America/New_York"],
     )
-    app.mount("/admin", admin)
-    app.state.admin = admin
-    app.state.engine = engine
-    app.state.uploads = uploads
+    return admin, engine
+
+
+@dataclass
+class Copy:
+    """One visitor's copy of the demo, and when it was last used."""
+
+    admin: Admin
+    engine: AsyncEngine
+    folder: Path
+    last_used: float
+    # The requests it is answering right now; a busy copy is never thrown away.
+    busy: int = 0
+
+
+class Visitors:
+    """Gives each visitor an admin of their own, on their own copy of the demo.
+
+    A cookie tells visitors apart. A copy is made only when the cookie comes
+    back, so a client that keeps no cookies never makes one.
+    """
+
+    def __init__(
+        self,
+        data: Path,
+        secret_key: str,
+        *,
+        idle_seconds: float = IDLE_SECONDS,
+        max_visitors: int = MAX_VISITORS,
+    ) -> None:
+        self.template = data / "template"
+        self.folder = data / "visitors"
+        self.secret_key = secret_key
+        self.idle_seconds = idle_seconds
+        self.max_visitors = max_visitors
+        self.copies: dict[str, Copy] = {}
+        self._changing = asyncio.Lock()
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        """Answer a request with the admin of the visitor who sent it."""
+        request = Request(scope)
+        visitor = request.cookies.get(VISITOR_COOKIE, "")
+        if not VISITOR_ID.fullmatch(visitor):
+            await self.welcome(request)(scope, receive, send)
+            return
+        copy = await self.hold(visitor)
+        if copy is None:
+            full = PlainTextResponse(
+                "The demo is full. Try again in a minute.",
+                status_code=503,
+                headers={"Retry-After": "60"},
+            )
+            await full(scope, receive, send)
+            return
+        try:
+            await copy.admin(scope, receive, send)
+        finally:
+            copy.busy -= 1
+            copy.last_used = time.monotonic()
+
+    def welcome(self, request: Request) -> RedirectResponse:
+        """Give a new visitor their cookie, and send them back where they were going."""
+        home = request.scope.get("root_path", "")
+        if request.method in ("GET", "HEAD"):
+            # raw_path is the whole path as the browser sent it, mount and all.
+            path = request.scope.get("raw_path") or request.url.path.encode()
+            target = path.decode("latin-1")
+            if request.url.query:
+                target += f"?{request.url.query}"
+        else:
+            target = f"{home}/"
+        response = RedirectResponse(target, status_code=303)
+        # On the whole site, so a new cookie takes the place of a bad one
+        # instead of sitting beside it.
+        response.set_cookie(
+            VISITOR_COOKIE,
+            secrets.token_urlsafe(16),
+            max_age=COOKIE_SECONDS,
+            path="/",
+            secure=request.url.scheme == "https",
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
+    async def hold(self, visitor: str) -> Copy | None:
+        """The visitor's copy, made now if they have none, marked busy.
+
+        None when every copy is busy and there is no room for another.
+        """
+        copy = self.copies.get(visitor)
+        if copy is None:
+            async with self._changing:
+                copy = self.copies.get(visitor)
+                if copy is None:
+                    full = len(self.copies) >= self.max_visitors
+                    if full and not await self._throw_away_oldest():
+                        return None
+                    copy = await self._make(visitor)
+                    self.copies[visitor] = copy
+        copy.busy += 1
+        copy.last_used = time.monotonic()
+        return copy
+
+    async def sweep(self) -> None:
+        """Throw away every copy nobody has used for `idle_seconds`."""
+        async with self._changing:
+            now = time.monotonic()
+            idle = [
+                visitor
+                for visitor, copy in self.copies.items()
+                if not copy.busy and now - copy.last_used >= self.idle_seconds
+            ]
+            for visitor in idle:
+                await self._throw_away(visitor)
+        if idle:
+            logger.info(
+                "Threw away %d idle copies of the demo, %d left.",
+                len(idle),
+                len(self.copies),
+            )
+
+    async def close(self) -> None:
+        """Let go of every copy's database, for when the demo stops."""
+        for copy in self.copies.values():
+            await copy.engine.dispose()
+        self.copies.clear()
+
+    async def _make(self, visitor: str) -> Copy:
+        folder = self.folder / visitor
+        # A copy thrown away earlier may have left its folder behind.
+        await asyncio.to_thread(shutil.rmtree, folder, ignore_errors=True)
+        await asyncio.to_thread(shutil.copytree, self.template, folder)
+        admin, engine = build_admin(folder, self.secret_key)
+        return Copy(admin, engine, folder, time.monotonic())
+
+    async def _throw_away_oldest(self) -> bool:
+        idle = [
+            (copy.last_used, visitor)
+            for visitor, copy in self.copies.items()
+            if not copy.busy
+        ]
+        if not idle:
+            return False
+        await self._throw_away(min(idle)[1])
+        return True
+
+    async def _throw_away(self, visitor: str) -> None:
+        # Out of the dictionary first, so no request picks it up again.
+        copy = self.copies.pop(visitor)
+        await copy.engine.dispose()
+        await asyncio.to_thread(shutil.rmtree, copy.folder, ignore_errors=True)
+
+
+async def sweep_forever(visitors: Visitors) -> None:
+    """Throw away idle copies every minute, for as long as the demo runs."""
+    while True:
+        await asyncio.sleep(SWEEP_SECONDS)
+        try:
+            await visitors.sweep()
+        except Exception:
+            # The next sweep tries again, and the demo stays up meanwhile.
+            logger.exception("Throwing away idle copies of the demo failed.")
+
+
+def build_app(
+    data: Path,
+    secret_key: str,
+    *,
+    idle_seconds: float = IDLE_SECONDS,
+    max_visitors: int = MAX_VISITORS,
+) -> FastAPI:
+    """The demo, keeping the template and every visitor's copy in `data`."""
+    visitors = Visitors(
+        data, secret_key, idle_seconds=idle_seconds, max_visitors=max_visitors
+    )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Copies from an earlier run belong to nobody now.
+        for folder in (visitors.template, visitors.folder):
+            await asyncio.to_thread(shutil.rmtree, folder, ignore_errors=True)
+        await build_template(visitors.template)
+        sweeping = asyncio.create_task(sweep_forever(visitors))
+        yield
+        sweeping.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweeping
+        await visitors.close()
+
+    app = FastAPI(
+        title="adminsite demo",
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+    app.mount("/admin", visitors)
+    app.state.visitors = visitors
 
     @app.get("/", include_in_schema=False)
     async def home() -> RedirectResponse:

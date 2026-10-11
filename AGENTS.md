@@ -22,9 +22,9 @@ read https://nimaxin.github.io/adminsite/llms.txt instead.
 - `docs/` is the docs site, built with Zensical from `mkdocs.yml`, and `overrides/main.html` gives
   its pages their link previews; `examples/shop.py` is the demo shop, and `examples/fields.py` a
   gallery with every kind of field, each labelled by its class. Add a new field type to it.
-- `demo/` serves both at https://adminsite.duckdns.org, signed in as admin / admin and reset
-  every hour. `.github/workflows/demo.yml` deploys it after CI passes on main; `demo/README.md`
-  describes the server.
+- `demo/` serves both at https://adminsite.duckdns.org, signed in as admin / admin, with a copy
+  of its own for every visitor. `.github/workflows/demo.yml` deploys it after CI passes on main;
+  `demo/README.md` describes the server.
 - `tests/` runs every database test on SQLite async and sync, and on Postgres and MySQL when their
   URLs are set.
 

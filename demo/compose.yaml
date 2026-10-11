@@ -17,8 +17,8 @@ services:
     restart: unless-stopped
     environment:
       DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:?Set DEMO_SECRET_KEY}
-    # Nothing needs to outlive the hour, so the image stays read-only and
-    # the data lives in memory, where uploads cannot fill the disk.
+    # No copy outlives an hour away, so the image stays read-only and the
+    # data lives in memory, where uploads cannot fill the disk.
     read_only: true
     tmpfs:
       - /data:size=256m,uid=10001,gid=10001,mode=0700

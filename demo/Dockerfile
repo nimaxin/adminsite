@@ -1,4 +1,4 @@
-# The online demo: the example shop behind uvicorn, reset every hour.
+# The online demo: the example shop behind uvicorn, a copy for every visitor.
 # Built from the repository root, as demo/compose.yaml does:
 #   docker build -f demo/Dockerfile .
 FROM python:3.13-slim

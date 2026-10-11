@@ -2,11 +2,17 @@
 
 The example shop and the field gallery (`examples/fields.py`), served at
 https://adminsite.duckdns.org for anyone to try. Visitors sign in as admin / admin and may change
-anything. Every hour `app.py` puts the shop, the gallery, their history and saved views back as
-they started, and empties the uploads but for the gallery's sample files.
+anything, each on a copy of their own, so nobody sees what anyone else typed.
+
+At startup `app.py` writes the shop and the gallery as they start, with the gallery's sample
+files, to `template/` in the data folder. A cookie tells visitors apart, and the first time it
+comes back the template is copied to `visitors/<cookie>/`, with an admin of its own. A client
+that keeps no cookies never gets a copy. A copy nobody has used for an hour is thrown away, and
+at most 500 are kept, the least recently used going first; one takes about 0.3 MB of memory
+and 125 KB of the data folder.
 
 Everyone signs in as the same admin, so the audit log keeps what visitors did but not their sign
-ins, IP addresses or browsers: each visitor would read the others' otherwise.
+ins, IP addresses or browsers.
 
 ## Running it here
 

@@ -31,7 +31,7 @@ all come from your models.
 !!! tip "Try it"
     [The live demo](https://adminsite.duckdns.org) runs the example shop, and a Field gallery with
     every kind of field. Sign in as admin with the password admin and change anything you like.
-    It goes back as it started every hour.
+    You get a copy of your own, so only you see what you change.
 
 ## What you get
 
