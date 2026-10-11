@@ -32,6 +32,7 @@ class StringField(Field[str | None]):
     python_type = str
     error_message = "Enter some text."
     column_types = (str,)
+    stores_empty_text = True
 
 
 @dataclass(eq=False, repr=False)

@@ -201,25 +201,27 @@ def read_values(
             errors[path] = _("Files are uploaded through the form, not the API.")
             continue
         try:
+            value: Any
             if isinstance(item, JSONField):
                 # Sent as JSON, or as text to read, and checked against the
                 # field's schema where it has one.
                 document = item.parse(raw) if isinstance(raw, str) else raw
-                values[path] = item.check(document, record)
+                value = item.check(document, record)
             elif isinstance(item, ListField) and isinstance(raw, list):
-                values[path] = item.parse_values(
+                value = item.parse_values(
                     ["" if one is None else str(one) for one in raw]
                 )
             elif isinstance(item, RelationField) and item.collection:
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of keys."))
-                values[path] = item.parse_many([str(key) for key in raw])
+                value = item.parse_many([str(key) for key in raw])
             elif isinstance(item, EnumField) and item.multiple:
                 if not isinstance(raw, list):
                     raise FieldValidationError(path, _("Send a list of options."))
-                values[path] = item.parse_many([str(one) for one in raw])
+                value = item.parse_many([str(one) for one in raw])
             else:
-                values[path] = item.parse(as_text(raw))
+                value = item.parse(as_text(raw))
+            values[path] = view._fields.storable(record, path, value)
         except DocumentError as error:
             errors.update(error.errors)
         except FieldValidationError as error:

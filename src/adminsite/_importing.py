@@ -337,7 +337,9 @@ def check_row(
             continue
         item = view._fields.field_for(path)
         try:
-            row.values[path] = item.parse(normalize(item, text))
+            row.values[path] = view._fields.storable(
+                record, path, item.parse(normalize(item, text))
+            )
         except FieldValidationError as error:
             row.errors[path] = error.message
 

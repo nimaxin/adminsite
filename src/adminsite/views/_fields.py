@@ -8,7 +8,7 @@ from sqlalchemy import inspect as sqlalchemy_inspect
 from adminsite._orm.repository import SQLAlchemyRepository
 from adminsite.audit._inputs import looks_secret
 from adminsite.columns import path_of
-from adminsite.exceptions import AdminSiteError
+from adminsite.exceptions import AdminSiteError, FieldValidationError
 from adminsite.fields import (
     BaseField,
     ComputedField,
@@ -222,6 +222,30 @@ class ViewFields(Generic[M]):
                     found.append(one)
             value = found
         return value
+
+    def storable(self, record: M | None, path: str, value: Any) -> Any:
+        """The value a record stores at a path, for what its input read as.
+
+        An input left empty reads as None, which a new record leaves to the
+        column's default. A record that exists has no default to fall back
+        on, so where the column cannot be null, a field that stores empty
+        text stores "", and any other is refused as required, unless the
+        view gave it `required` itself, as for a value a hook fills in.
+        """
+        if value is not None or record is None:
+            return value
+        item = self.field_for(path)
+        if not item.stored:
+            return value
+        column = self._inspector.resolve(self._model, path).field
+        if column is None or column.nullable:
+            return value
+        if item.stores_empty_text:
+            return ""
+        given = self._settings.overrides.get(path)
+        if given is not None and given.required is not None:
+            return value
+        raise FieldValidationError(path, _("This field is required."))
 
     def hides(self, record: M, path: str) -> bool:
         """Whether a path reads through a linked record kept from this user.

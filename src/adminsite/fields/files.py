@@ -86,6 +86,7 @@ class FileField(Field[str | None]):
     widget = "file"
     column_types = (str,)
     unused_options = frozenset({"max_length"})
+    stores_empty_text = True
 
     def display(self, value: Any) -> str:
         """The file's original name."""

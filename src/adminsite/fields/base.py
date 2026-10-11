@@ -38,7 +38,9 @@ class BaseField:
         help_text: A line under the input, saying how to fill it in.
         required: Whether the form refuses the field left empty. Left as
             None, the column decides: required where it cannot be null and
-            has no default.
+            has no default. A default only fills in a new record, so on a
+            record that exists, a field whose column cannot be null is
+            required, unless it stores empty text.
         read_only: Shown on the form and never read back from it, even if
             someone adds the input back by hand.
         max_length: The most characters the input takes. Left as None, the
@@ -111,6 +113,13 @@ class BaseField:
     """Whether an input left empty on a record that exists keeps its value.
 
     True for a password, so a form saved without one keeps the old.
+    """
+    stores_empty_text = False
+    """Whether an input left empty stores "" where the column cannot be null.
+
+    True for text, and for a file, whose column keeps its key as text. Only
+    a record that exists stores it: a new one is left to the column's
+    default.
     """
     unused_options: ClassVar[frozenset[str]] = frozenset()
     """The options this kind never reads, refused when the admin starts.
