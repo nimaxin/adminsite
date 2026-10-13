@@ -87,7 +87,8 @@
 
 /*
  * What daisyUI has no name for: a surface between the panel and the ground,
- * the lines between rows, text that steps back, and six tones for badges.
+ * the lines between rows, text that steps back, a field's fill, border and
+ * icons, and six tones for badges.
  * A choice's tone follows its place among the choices, so the first option
  * is always amber, the second blue, and so on, on every page.
  */
@@ -101,9 +102,24 @@
   --selected: #f1f8f4;
   --chart: #2fa472;
   --chart-strong: #0b5c40;
-  --shadow-quiet: 0 1px 1px rgb(26 26 24 / 0.04);
+  --shadow-quiet: 0 1px 2px rgb(26 26 24 / 0.07);
   --shadow-panel: 0 1px 2px rgb(26 26 24 / 0.05);
   --shadow-float: 0 16px 40px rgb(26 26 24 / 0.16), 0 2px 8px rgb(26 26 24 / 0.08);
+  --shadow-primary: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1px 2px rgb(6 50 34 / 0.35);
+  --shadow-field: inset 0 1px 2px rgb(26 26 24 / 0.04);
+  --shadow-focus: 0 0 0 3px rgb(11 122 83 / 0.18);
+  --shadow-focus-error: 0 0 0 3px rgb(180 35 24 / 0.16);
+
+  --field: #fafaf8;
+  --field-border: #c8c8c0;
+  --field-border-hover: #a3a39b;
+  --field-disabled: #f0f0ec;
+  --field-disabled-border: #e3e3de;
+  --field-disabled-text: #8e8e87;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --select-arrow-disabled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5b5ae' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --date-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+  --time-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
 
   --tone-0-bg: #fdf1dc;
   --tone-0-fg: #8a4b00;
@@ -135,9 +151,24 @@
     --selected: #11211a;
     --chart: #2f9e6c;
     --chart-strong: #7fe8b8;
-    --shadow-quiet: none;
+    --shadow-quiet: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow-float: 0 18px 48px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.5);
+    --shadow-primary: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow-field: inset 0 1px 2px rgb(0 0 0 / 0.45);
+    --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
+    --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
+
+    --field: #0e0f0f;
+    --field-border: #3d4040;
+    --field-border-hover: #5c605f;
+    --field-disabled: #191a1a;
+    --field-disabled-border: #262828;
+    --field-disabled-text: #737570;
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --select-arrow-disabled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2353554f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --date-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    --time-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
 
     --tone-0-bg: #3a2808;
     --tone-0-fg: #f6c46a;
@@ -169,9 +200,24 @@
   --selected: #11211a;
   --chart: #2f9e6c;
   --chart-strong: #7fe8b8;
-  --shadow-quiet: none;
+  --shadow-quiet: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-float: 0 18px 48px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.5);
+  --shadow-primary: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-field: inset 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
+  --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
+
+  --field: #0e0f0f;
+  --field-border: #3d4040;
+  --field-border-hover: #5c605f;
+  --field-disabled: #191a1a;
+  --field-disabled-border: #262828;
+  --field-disabled-text: #737570;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --select-arrow-disabled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2353554f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --date-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+  --time-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6a6a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
 
   --tone-0-bg: #3a2808;
   --tone-0-fg: #f6c46a;
@@ -235,13 +281,17 @@
   --text-body--line-height: calc(1.25 / 0.875);
 }
 
-/* A button with a white face and a hairline border, for every action that
-   is not the page's main one. */
+/* A button with a white face and a border, for every action that is not the
+   page's main one. */
 @utility btn-plain {
   --btn-bg: var(--color-base-100);
-  --btn-border: var(--color-base-300);
+  --btn-border: var(--color-line-strong);
   --btn-shadow: var(--shadow-quiet);
   font-weight: 500;
+
+  &:hover {
+    --btn-bg: var(--color-subtle);
+  }
 }
 
 @layer components {
@@ -271,6 +321,19 @@
     height: 0.375rem;
     border-radius: 999px;
     background: var(--tone-dot, currentColor);
+  }
+
+  /* The band at the top of a card that holds its title, a step darker than
+     the card, with the card's rounded corners. A folded card is all band. */
+  .card-head {
+    background-color: var(--color-subtle);
+    border-start-start-radius: calc(var(--radius-box) - 1px);
+    border-start-end-radius: calc(var(--radius-box) - 1px);
+  }
+
+  details:not([open]) > .card-head {
+    border-end-start-radius: calc(var(--radius-box) - 1px);
+    border-end-end-radius: calc(var(--radius-box) - 1px);
   }
 }
 
@@ -302,6 +365,160 @@
 .menu-sm :where(li:not(.menu-title) > :not(ul, menu, details, .menu-title)),
 .menu-sm :where(li:not(.menu-title) > details > summary:not(.menu-title)) {
   font-size: var(--text-note);
+}
+
+/* A field has a fill of its own, a border that shows and a slight well, so
+   it reads as a place to type rather than a line on the card. In use it
+   turns white with a ring in the accent, where daisyUI drew a thick frame in
+   the colour of the text. Outside any layer, so it wins over daisyUI's own
+   rules. Each state below repeats the selector, so it outranks the states
+   before it: hover, focus, a mistake, then disabled. */
+:is(.input, .select, .textarea, .file-input):not(.input-ghost) {
+  --input-color: var(--field-border);
+  background-color: var(--field);
+  box-shadow: var(--shadow-field);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
+}
+
+:is(.input, .select, .textarea, .file-input):not(.input-ghost):hover {
+  --input-color: var(--field-border-hover);
+}
+
+:is(.input, .select, .textarea, .file-input):not(.input-ghost):is(:focus, :focus-within, :open) {
+  --input-color: var(--color-primary);
+  background-color: var(--color-base-100);
+  box-shadow: var(--shadow-focus);
+  /* Drawn in Windows' high contrast mode, which leaves shadows out. */
+  outline: 2px solid transparent;
+  outline-offset: 0;
+}
+
+:is(.input, .select, .textarea, .file-input):not(.input-ghost):is(.input-error, .select-error, .textarea-error, .file-input-error) {
+  --input-color: var(--color-error);
+}
+
+:is(.input, .select, .textarea, .file-input):not(.input-ghost):is(.input-error, .select-error, .textarea-error, .file-input-error):is(:focus, :focus-within) {
+  box-shadow: var(--shadow-focus-error);
+}
+
+/* A field inside a tinted box, such as a part of a document, stays white, so
+   it never takes the box's own colour. */
+.bg-subtle :is(.input, .select, .textarea, .file-input):not(.input-ghost) {
+  background-color: var(--color-base-100);
+}
+
+/* A disabled field sinks into the page: flat grey, a faint border, faded
+   text, and no change under the pointer. */
+:is(.input, .select, .textarea, .file-input):not(.input-ghost):is(:disabled, [disabled], :has(> input:disabled)) {
+  --input-color: var(--field-disabled-border);
+  border-color: var(--field-disabled-border);
+  background-color: var(--field-disabled);
+  color: var(--field-disabled-text);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+:is(.input, .textarea):is(:disabled, [disabled])::placeholder {
+  color: var(--field-disabled-text);
+  opacity: 0.7;
+}
+
+/* A thin chevron in the grey of the other icons, where daisyUI drew a solid
+   triangle. */
+.select:not([multiple]) {
+  background-image: var(--select-arrow);
+  background-position: right 0.75rem center;
+  background-size: 1rem 1rem;
+  background-repeat: no-repeat;
+  padding-inline-end: 2.25rem;
+}
+
+[dir="rtl"] .select:not([multiple]) {
+  background-position: left 0.75rem center;
+}
+
+.select:not([multiple]):is(:disabled, [disabled]) {
+  background-image: var(--select-arrow-disabled);
+}
+
+/* The list a select opens is a floating card, like the other menus. */
+:is(.select, .select select)::picker(select) {
+  border: 1px solid var(--color-base-300);
+  background-color: var(--color-base-100);
+  box-shadow: var(--shadow-float);
+  padding: 0.375rem;
+}
+
+:is(.select, .select select) option:checked {
+  background-color: var(--color-selected);
+  font-weight: 500;
+}
+
+/* The calendar and the clock in date and time fields, drawn like the other
+   icons rather than as the system's own. */
+input.input::-webkit-calendar-picker-indicator {
+  width: 1rem;
+  height: 1rem;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  background: var(--date-icon) center / 1rem no-repeat;
+  opacity: 1;
+  cursor: pointer;
+}
+
+input.input[type="time"]::-webkit-calendar-picker-indicator {
+  background-image: var(--time-icon);
+}
+
+input.input::-webkit-calendar-picker-indicator:hover {
+  background-color: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+}
+
+input.input:disabled::-webkit-calendar-picker-indicator {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A file field is a place to drop a file, with a plain button to pick one. */
+.file-input {
+  height: 2.75rem;
+  padding: 0.3125rem;
+  padding-inline-end: 0.75rem;
+  border-style: dashed;
+  color: var(--color-muted);
+}
+
+.file-input::file-selector-button {
+  height: 100%;
+  margin: 0;
+  margin-inline-end: 0.75rem;
+  padding-inline: 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: calc(var(--radius-field) - 0.1875rem);
+  background: var(--color-base-100);
+  box-shadow: var(--shadow-quiet);
+  color: var(--color-base-content);
+  font-size: var(--text-note);
+  font-weight: 500;
+}
+
+.file-input:hover::file-selector-button {
+  background: var(--color-subtle);
+}
+
+/* The page's main button stands a little off the page, and the button the
+   keyboard is on shows a ring in the accent rather than in the text's
+   colour. */
+.btn-primary:not(:disabled, .btn-disabled, .btn-soft) {
+  --btn-shadow: var(--shadow-primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* A closed popover takes no room. The browser hides one with a rule that any

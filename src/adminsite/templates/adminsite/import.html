@@ -18,7 +18,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="flex-1 bg-subtle px-4 py-6 lg:px-7">
+<div class="flex-1 bg-base-200 px-4 py-6 lg:px-7">
   <form class="flex max-w-2xl flex-col gap-5" method="post" action="{{ urls.list(view) }}/import"
         enctype="multipart/form-data">
     {{ csrf_input | safe if csrf_input }}

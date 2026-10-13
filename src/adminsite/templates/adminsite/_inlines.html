@@ -2,7 +2,7 @@
 {% for table in inlines %}
   <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" x-data="{ count: {{ table.rows|length }} }"
            aria-labelledby="inline-{{ table.name }}">
-    <div class="flex items-center gap-2 border-b border-line px-5 py-3.5">
+    <div class="card-head flex items-center gap-2 border-b border-line px-5 py-3.5">
       <h2 id="inline-{{ table.name }}" class="text-body font-semibold">{{ table.label }}</h2>
       <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-note font-medium text-muted">{{ table.rows|length }}</span>
     </div>

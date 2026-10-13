@@ -76,8 +76,9 @@ npm run build
 ```
 
 Beside daisyUI's own colours, the themes set CSS variables a stylesheet of yours can change:
-`--subtle` behind cards, `--line` and `--line-strong` between rows, `--muted` for text that steps
-back, `--link`, `--selected` for ticked rows, and `--chart` and `--chart-strong` for bars. Text
+`--subtle` for the band that holds a card's title, `--line` and `--line-strong` between rows,
+`--muted` for text that steps back, `--link`, `--selected` for ticked rows, `--chart` and
+`--chart-strong` for bars, and `--field`, `--field-border` and `--field-disabled` for inputs. Text
 comes in four sizes, `--text-caption`, `--text-note`, `--text-label` and `--text-body`, in the
 system's own typeface. Badges use six tones, as [Badge colours](fields.md#badge-colours) shows.
 

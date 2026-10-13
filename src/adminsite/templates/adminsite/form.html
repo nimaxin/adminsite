@@ -45,7 +45,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="flex-1 bg-subtle px-4 pt-6 lg:px-7">
+<div class="flex-1 bg-base-200 px-4 pt-6 lg:px-7">
   {#- novalidate: the browser's own checks speak its language and look like
       nothing else here, so every mistake is told by the admin instead. -#}
   <form id="record-form" class="flex max-w-3xl flex-col gap-5" method="post" action="{{ action }}" novalidate
@@ -82,7 +82,7 @@
         {#- Open where it holds a mistake, so the mistake is never folded away. -#}
         <details class="group rounded-box border border-base-300 bg-base-100 shadow-quiet"
                  {% if not card.collapsed or card.paths()|select("in", wrong)|list %}open{% endif %}>
-          <summary class="flex cursor-pointer list-none items-center gap-3 px-5 py-3.5">
+          <summary class="card-head flex cursor-pointer list-none items-center gap-3 px-5 py-3.5">
             <span class="min-w-0 flex-1">
               <span class="block text-body font-semibold">{{ card.title }}</span>
               {% if card.description %}<span class="block pt-0.5 text-label text-muted">{{ card.description }}</span>{% endif %}
@@ -95,7 +95,7 @@
         </details>
       {% elif card.kind == "panel" %}
         <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet" aria-labelledby="panel-{{ loop.index }}">
-          <div class="border-b border-line px-5 py-3.5">
+          <div class="card-head border-b border-line px-5 py-3.5">
             <h2 id="panel-{{ loop.index }}" class="text-body font-semibold">{{ card.title }}</h2>
             {% if card.description %}<p class="pt-0.5 text-label text-muted">{{ card.description }}</p>{% endif %}
           </div>
@@ -111,7 +111,7 @@
         <section class="rounded-box border border-base-300 bg-base-100 shadow-quiet"
                  {% if loop.first %}aria-labelledby="form-title"{% else %}aria-label="{{ view.label }}"{% endif %}>
           {% if loop.first %}
-            <h2 id="form-title" class="border-b border-line px-5 py-3.5 text-body font-semibold">{{ view.label }}</h2>
+            <h2 id="form-title" class="card-head border-b border-line px-5 py-3.5 text-body font-semibold">{{ view.label }}</h2>
           {% endif %}
           <div class="flex flex-col gap-5 p-5">
             {% for piece in card.children %}{{ layout_of.part(piece, by_path, wrong) }}{% endfor %}
@@ -124,7 +124,7 @@
 
     {#- The one place to save: it stays at the foot of the screen while a long
         form scrolls, and sits just under a short one. -#}
-    <div class="sticky bottom-0 z-10 -mx-4 bg-subtle px-4 pt-1 pb-4 sm:mx-0 sm:px-0">
+    <div class="sticky bottom-0 z-10 -mx-4 bg-base-200 px-4 pt-1 pb-4 sm:mx-0 sm:px-0">
       <div class="flex flex-wrap items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-3 shadow-float sm:px-4">
         <button class="btn btn-primary max-sm:flex-1" type="submit">{{ submit_label }}</button>
         <a class="btn btn-ghost" href="{{ cancel_url }}">{{ _('Cancel') }}</a>
