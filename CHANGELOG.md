@@ -1,11 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+Forms have a new look: a field is white in the light theme and nearly black in the dark one, with
+a border that shows, and cards stand on a darker ground with their titles in a band. Three fixes
+matter to anyone on 0.1.0: saving a record could erase, in every inline row, a field that holds
+several values; leaving a text empty could make the database refuse the whole save; and a filtered
+list on a big table stopped counting at 10,000.
 
 The docs are rewritten to be shorter and easier to follow. Getting started builds an admin in one
 file that runs as written, each page starts with the common case, and the examples link to the
 models they use. The docs are built with Zensical and published with each release, so they match
 the version on PyPI.
+
+Before upgrading:
+
+- On a view with `count_mode = CountMode.ESTIMATED`, a search, a filter or `scope_query` is now
+  counted exactly, which on a very large table takes a full count (#82).
+- A project that overrides `form.html`, `detail.html`, `index.html`, `activity.html`,
+  `import.html`, `error.html`, `_inlines.html`, `_page_numbers.html`, `_records_total.html` or
+  `widgets/checkbox.html` should start its copy again from the new one.
+- A project that builds its own stylesheet should build it again from the new
+  `frontend/input.css`, which draws the new fields. The ground behind the cards is now daisyUI's
+  `base-200`, and `--subtle` colours the band that holds a card's title.
 
 What changed:
 
@@ -20,8 +37,7 @@ What changed:
 - On a view with `count_mode = CountMode.ESTIMATED`, a search, a filter or `scope_query` is
   counted exactly. The count stopped at 10,000, so the list, the filters drawer and the Actions
   menu said "more than 10,000" and the pager had no page numbers. The rows still come first and
-  the total follows. A project that overrides `_records_total.html` or `_page_numbers.html` should
-  start its copy again from the new one (#82).
+  the total follows (#82).
 - In an inline row, an `EnumField` with `multiple=True` and a link to many records work as they do
   on a view's own form. The row's values did not show, so saving the parent, even only to rename
   it, erased that field in every row, and a save kept only the first value picked. A link to many
