@@ -22,6 +22,12 @@ What changed:
   menu said "more than 10,000" and the pager had no page numbers. The rows still come first and
   the total follows. A project that overrides `_records_total.html` or `_page_numbers.html` should
   start its copy again from the new one (#82).
+- In an inline row, an `EnumField` with `multiple=True` and a link to many records work as they do
+  on a view's own form. The row's values did not show, so saving the parent, even only to rename
+  it, erased that field in every row, and a save kept only the first value picked. A link to many
+  records made the parent's edit page fail with a server error as soon as a row held linked
+  records. A link in a row searched among over a hundred records also keeps what was picked when
+  the form comes back with an error (#87).
 
 ## 0.1.0
 

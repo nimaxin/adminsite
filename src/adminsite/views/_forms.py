@@ -191,9 +191,12 @@ class FormParser(Generic[M]):
                 for path in paths:
                     item = child._fields.field_for(path)
                     try:
-                        row.values[path] = child._fields.storable(
-                            found, path, item.parse(_as_text(raw[path]))
-                        )
+                        value: Any
+                        if _holds_many(item):
+                            value = item.parse_many(_as_list(raw[path]))
+                        else:
+                            value = item.parse(_as_text(raw[path]))
+                        row.values[path] = child._fields.storable(found, path, value)
                     except FieldValidationError as error:
                         errors[inline.input_name(index, path)] = error.message
             rows.append(row)

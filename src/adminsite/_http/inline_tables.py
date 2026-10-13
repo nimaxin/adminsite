@@ -4,10 +4,11 @@ from typing import TYPE_CHECKING, Any
 
 from starlette.requests import Request
 
-from adminsite._http.form_rows import Choice, FormRow
+from adminsite._http.form_rows import Choice, FormRow, chosen_in_order
 from adminsite._http.forms import title_for
 from adminsite.fields import EnumField, RelationField
 from adminsite.views import Inline, ModelView
+from adminsite.views._linked_names import name_all_linked
 from adminsite.views._picker import PICKER_LIMIT, Picker
 
 if TYPE_CHECKING:
@@ -55,6 +56,9 @@ class InlineTable:
 class _RelationOptions:
     choices: list[Choice]
     searchable: bool
+    # The name of each record a searched link was sent back with, by key,
+    # since a form that comes back holds the keys picked, not the records.
+    named: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -95,10 +99,12 @@ class _CellMaker:
             current = None
             if row.found is not None:
                 current = self.child._fields.value_at(row.found, path)
-            raw = None
+            sent = None
             if row.typed is not None and not readonly:
-                raw = _text(row.typed.get(self.inline.input_name(row.index, path)))
-            cells.append(self(row.index, path, current, raw, readonly=readonly))
+                # An input the form left out, such as a box left unticked,
+                # was sent empty.
+                sent = row.typed.get(self.inline.input_name(row.index, path), "")
+            cells.append(self(row.index, path, current, sent, readonly=readonly))
         return InlineTableRow(key=row.key, cells=cells, delete=row.delete)
 
     def __call__(
@@ -106,7 +112,7 @@ class _CellMaker:
         index: int | str,
         path: str,
         current: Any,
-        raw: Any = None,
+        sent: Any = None,
         *,
         readonly: bool = False,
     ) -> FormRow:
@@ -115,33 +121,57 @@ class _CellMaker:
         row = FormRow(
             path=name,
             field=item,
-            value=str(raw) if raw is not None else item.serialize(current),
+            value=_text(sent) if sent is not None else item.serialize(current),
             display=item.display(current),
             error=self.errors.get(name, ""),
             readonly=readonly,
             lookup_path=f"{self.inline.name}.{path}",
             browser_required=False,
         )
-        if isinstance(item, RelationField) and raw is None and current is not None:
+        if isinstance(item, RelationField) and sent is None and current is not None:
             # A linked record is named as the form names it, not by its bare
             # text, which for a model is only its class and address.
-            row.display = title_for(self.admin, item, current)
+            row.display = name_all_linked(
+                item, current, views=self.admin.views, inspector=self.admin.inspector
+            )
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
-            row.selected = (row.value,) if row.value else ()
+            row.selected = item.values_of(current) if sent is None else _picks(sent)
+            if item.multiple:
+                row.picked = chosen_in_order(row.choices, row.selected)
         elif isinstance(item, RelationField) and path in self.options:
-            found = self.options[path]
-            row.choices = found.choices
-            row.searchable = found.searchable
-            if raw is None and current is not None:
-                picker = Picker(
-                    self.admin.views, self.admin.inspector, item, self.request
-                )
-                row.value = picker.key_of(current)
-                row.picked_label = row.display
-                row.picked = (Choice(row.value, row.picked_label),)
-            row.selected = (row.value,) if row.value else ()
+            self._fill_relation(row, item, self.options[path], current, sent)
         return row
+
+    def _fill_relation(
+        self,
+        row: FormRow,
+        item: RelationField,
+        options: _RelationOptions,
+        current: Any,
+        sent: Any,
+    ) -> None:
+        """Give a link the records it offers and the ones it holds, by name."""
+        picker = Picker(self.admin.views, self.admin.inspector, item, self.request)
+        row.choices = options.choices
+        row.searchable = options.searchable
+        row.selected = tuple(picker.keys_of(current)) if sent is None else _picks(sent)
+        row.value = row.selected[0] if row.selected else ""
+        if row.searchable:
+            if sent is None:
+                row.picked = [
+                    Choice(picker.key_of(one), title_for(self.admin, item, one))
+                    for one in _records(current)
+                ]
+            else:
+                row.picked = [
+                    Choice(key, options.named[key])
+                    for key in row.selected
+                    if key in options.named
+                ]
+            row.picked_label = row.picked[0].label if row.picked else ""
+        elif item.collection:
+            row.picked = chosen_in_order(row.choices, row.selected)
 
 
 async def build_inline_tables(
@@ -182,13 +212,18 @@ async def build_inline_tables(
         drawn = {path for row in (*rows, blank) for path in row.fields}
         paths = [path for path in child._settings.candidates if path in drawn]
 
-        options = {
-            path: await _relation_options(
-                admin, session, child._fields.field_for(path), request
-            )
-            for path in paths
-            if isinstance(child._fields.field_for(path), RelationField)
-        }
+        options: dict[str, _RelationOptions] = {}
+        for path in paths:
+            item = child._fields.field_for(path)
+            if not isinstance(item, RelationField):
+                continue
+            sent = [
+                key
+                for row in rows
+                if row.typed is not None
+                for key in _picks(row.typed.get(inline.input_name(row.index, path)))
+            ]
+            options[path] = await _relation_options(admin, session, item, request, sent)
         table = InlineTable(
             inline=inline,
             label=inline.label or view._fields.label_for(inline.name),
@@ -236,9 +271,18 @@ def _rows_from_form(
 
 
 async def _relation_options(
-    admin: "Admin", session: "SessionAdapter", item: Any, request: Request
+    admin: "Admin",
+    session: "SessionAdapter",
+    item: Any,
+    request: Request,
+    sent: Sequence[str] = (),
 ) -> _RelationOptions:
-    """Load a link's choices once, for every row of the table to share."""
+    """Load a link's choices once, for every row of the table to share.
+
+    `sent` holds the keys the rows came back with, after a failed save. A
+    link searched among too many records to list reads those records in
+    one query, to name them.
+    """
     picker = Picker(admin.views, admin.inspector, item, request)
     page = await picker.offered(session, limit=PICKER_LIMIT)
     if page is None:
@@ -246,7 +290,12 @@ async def _relation_options(
         # search box that would find nothing either.
         return _RelationOptions(choices=[], searchable=False)
     if page.has_next:
-        return _RelationOptions(choices=[], searchable=True)
+        found = await picker.chosen(session, sent) if sent else []
+        return _RelationOptions(
+            choices=[],
+            searchable=True,
+            named={picker.key_of(one): title_for(admin, item, one) for one in found},
+        )
     return _RelationOptions(
         choices=[
             Choice(picker.key_of(found), title_for(admin, item, found))
@@ -262,6 +311,21 @@ def _text(value: Any) -> str:
     if isinstance(value, list | tuple):
         return str(value[0]) if value else ""
     return str(value)
+
+
+def _picks(value: Any) -> tuple[str, ...]:
+    """Every value the form sent for one input, which may hold several."""
+    if value is None:
+        return ()
+    values = value if isinstance(value, list | tuple) else [value]
+    return tuple(str(one) for one in values if str(one).strip())
+
+
+def _records(current: Any) -> list[Any]:
+    """What a link holds, as a list however many records that is."""
+    if current is None:
+        return []
+    return list(current) if isinstance(current, list | tuple | set) else [current]
 
 
 def child_tables(
