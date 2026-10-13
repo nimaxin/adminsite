@@ -106,13 +106,13 @@
   --shadow-panel: 0 1px 2px rgb(26 26 24 / 0.05);
   --shadow-float: 0 16px 40px rgb(26 26 24 / 0.16), 0 2px 8px rgb(26 26 24 / 0.08);
   --shadow-primary: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1px 2px rgb(6 50 34 / 0.35);
-  --shadow-field: inset 0 1px 2px rgb(26 26 24 / 0.04);
+  --shadow-field: inset 0 1px 2px rgb(26 26 24 / 0.05);
   --shadow-focus: 0 0 0 3px rgb(11 122 83 / 0.18);
   --shadow-focus-error: 0 0 0 3px rgb(180 35 24 / 0.16);
 
-  --field: #fafaf8;
-  --field-border: #c8c8c0;
-  --field-border-hover: #a3a39b;
+  --field: #ffffff;
+  --field-border: #aeaea6;
+  --field-border-hover: #8a8a82;
   --field-disabled: #f0f0ec;
   --field-disabled-border: #e3e3de;
   --field-disabled-text: #8e8e87;
@@ -159,9 +159,9 @@
     --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
     --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
 
-    --field: #0e0f0f;
-    --field-border: #3d4040;
-    --field-border-hover: #5c605f;
+    --field: #090a0a;
+    --field-border: #4a4d4c;
+    --field-border-hover: #6a6e6d;
     --field-disabled: #191a1a;
     --field-disabled-border: #262828;
     --field-disabled-text: #737570;
@@ -208,9 +208,9 @@
   --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
   --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
 
-  --field: #0e0f0f;
-  --field-border: #3d4040;
-  --field-border-hover: #5c605f;
+  --field: #090a0a;
+  --field-border: #4a4d4c;
+  --field-border-hover: #6a6e6d;
   --field-disabled: #191a1a;
   --field-disabled-border: #262828;
   --field-disabled-text: #737570;
@@ -367,12 +367,14 @@
   font-size: var(--text-note);
 }
 
-/* A field has a fill of its own, a border that shows and a slight well, so
-   it reads as a place to type rather than a line on the card. In use it
-   turns white with a ring in the accent, where daisyUI drew a thick frame in
-   the colour of the text. Outside any layer, so it wins over daisyUI's own
-   rules. Each state below repeats the selector, so it outranks the states
-   before it: hover, focus, a mistake, then disabled. */
+/* A field is where text is typed, so it gives the text the most contrast:
+   the lightest surface of the light theme, the same white as a card, and the
+   darkest of the dark theme. Its border, which shows, and a slight well set
+   it apart from the card. In use the border and a ring take the accent,
+   where daisyUI drew a thick frame in the colour of the text. Outside any
+   layer, so it wins over daisyUI's own rules. Each state below repeats the
+   selector, so it outranks the states before it: hover, focus, a mistake,
+   then disabled. */
 :is(.input, .select, .textarea, .file-input):not(.input-ghost) {
   --input-color: var(--field-border);
   background-color: var(--field);
@@ -389,7 +391,6 @@
 
 :is(.input, .select, .textarea, .file-input):not(.input-ghost):is(:focus, :focus-within, :open) {
   --input-color: var(--color-primary);
-  background-color: var(--color-base-100);
   box-shadow: var(--shadow-focus);
   /* Drawn in Windows' high contrast mode, which leaves shadows out. */
   outline: 2px solid transparent;
@@ -402,12 +403,6 @@
 
 :is(.input, .select, .textarea, .file-input):not(.input-ghost):is(.input-error, .select-error, .textarea-error, .file-input-error):is(:focus, :focus-within) {
   box-shadow: var(--shadow-focus-error);
-}
-
-/* A field inside a tinted box, such as a part of a document, stays white, so
-   it never takes the box's own colour. */
-.bg-subtle :is(.input, .select, .textarea, .file-input):not(.input-ghost) {
-  background-color: var(--color-base-100);
 }
 
 /* A disabled field sinks into the page: flat grey, a faint border, faded

@@ -28,11 +28,11 @@ What changed:
   records made the parent's edit page fail with a server error as soon as a row held linked
   records. A link in a row searched among over a hundred records also keeps what was picked when
   the form comes back with an error (#87).
-- A new look for forms. A field has a fill of its own and a border that shows, and turns white
-  with a ring in the accent while you type, where it drew a thick black frame. Cards stand on a
-  darker ground with their titles in a band, a select has a thin arrow, date and time fields use
-  the admin's own icons, a file field is a place to drop a file, and a disabled field looks
-  disabled. Dark mode matches.
+- A new look for forms. A field is white in the light theme and nearly black in the dark one,
+  with a border that shows, and its border and a ring take the accent while you type, where it
+  drew a thick black frame. Cards stand on a darker ground with their titles in a band, a select
+  has a thin arrow, date and time fields use the admin's own icons, a file field is a place to
+  drop a file, and a disabled field looks disabled.
 - A switch on a form says No while it is off. It said Yes either way.
 
 ## 0.1.0
