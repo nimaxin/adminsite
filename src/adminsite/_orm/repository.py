@@ -53,7 +53,7 @@ Scope = Callable[[Select[Any]], Select[Any]]
 M = TypeVar("M")
 
 # Up to this many rows an exact count is cheap, so an estimated count only
-# guesses above it, and a narrowed count stops just past it.
+# guesses above it.
 EXACT_COUNT_LIMIT = 10_000
 
 
@@ -73,7 +73,6 @@ class Total:
 
     value: int | None = None
     estimated: bool = False
-    at_least: bool = False
 
 
 class SQLAlchemyRepository(Generic[M]):
@@ -128,7 +127,6 @@ class SQLAlchemyRepository(Generic[M]):
             total=total.value,
             has_next=has_next,
             estimated=total.estimated,
-            at_least=total.at_least,
         )
 
     async def count(
@@ -136,20 +134,12 @@ class SQLAlchemyRepository(Generic[M]):
         session: SessionAdapter,
         spec: QuerySpec,
         scope: Scope | None = None,
-        *,
-        limit: int | None = None,
     ) -> int:
-        """Count the records the query matches, ignoring the page.
-
-        With a limit the count stops there, so it never costs more than
-        reading that many keys.
-        """
+        """Count the records the query matches, ignoring the page."""
         rows = self.base_statement(scope).with_only_columns(
             *self._primary_key_columns()
         )
         rows = self.narrow(rows, spec)
-        if limit is not None:
-            rows = rows.limit(limit)
         counted = select(func.count()).select_from(rows.subquery())
         return int(await session.scalar(counted) or 0)
 
@@ -162,14 +152,7 @@ class SQLAlchemyRepository(Generic[M]):
         """Count the matches as hard as the count mode asks."""
         if spec.count is CountMode.NONE:
             return Total()
-        if spec.count is CountMode.ESTIMATED:
-            if self._narrows(spec, scope):
-                counted = await self.count(
-                    session, spec, scope, limit=EXACT_COUNT_LIMIT + 1
-                )
-                if counted > EXACT_COUNT_LIMIT:
-                    return Total(EXACT_COUNT_LIMIT, at_least=True)
-                return Total(counted)
+        if spec.count is CountMode.ESTIMATED and not self._narrows(spec, scope):
             guess = await self.estimate(session)
             if guess is not None and guess > EXACT_COUNT_LIMIT:
                 return Total(guess, estimated=True)
@@ -298,7 +281,6 @@ class SQLAlchemyRepository(Generic[M]):
             total=total.value,
             has_next=bool(next_cursor),
             estimated=total.estimated,
-            at_least=total.at_least,
             keyset=True,
             next_cursor=next_cursor,
             previous_cursor=previous_cursor,

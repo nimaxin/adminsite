@@ -324,7 +324,6 @@
   "inputs is an object.": "inputs bir nesne olmalı.",
   "keys is a list.": "keys bir liste olmalı.",
   "limit is a number.": "limit bir sayı olmalı.",
-  "more than {count}": "en az {count}",
   "new": "yeni",
   "open": "kayıtları açma",
   "part of a bulk action": "toplu bir işlemin parçası",

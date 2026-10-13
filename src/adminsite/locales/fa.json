@@ -324,7 +324,6 @@
   "inputs is an object.": "inputs باید یک شیء باشد.",
   "keys is a list.": "keys باید فهرست باشد.",
   "limit is a number.": "limit باید عدد باشد.",
-  "more than {count}": "بیش از {count}",
   "new": "تازه",
   "open": "باز کردن",
   "part of a bulk action": "بخشی از یک عملیات گروهی",

@@ -331,7 +331,6 @@
   "inputs is an object.": "inputs должен быть объектом.",
   "keys is a list.": "keys должен быть списком.",
   "limit is a number.": "limit должен быть числом.",
-  "more than {count}": "более {count}",
   "new": "новая",
   "open": "просмотр",
   "part of a bulk action": "в рамках массового действия",

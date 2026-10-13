@@ -303,7 +303,6 @@
   "inputs is an object.": "inputs必须是对象。",
   "keys is a list.": "keys必须是列表。",
   "limit is a number.": "limit必须是数字。",
-  "more than {count}": "超过{count}",
   "new": "新增",
   "open": "详情查看",
   "part of a bulk action": "属于批量操作",

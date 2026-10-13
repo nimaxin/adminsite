@@ -2,7 +2,7 @@
     and pages have numbers: the first, the last, and the ones either side of
     this one. The rows come before their total, so these are sent again once
     it is in. -#}
-{%- set exact = page.total is not none and not page.estimated and not page.at_least -%}
+{%- set exact = page.total is not none and not page.estimated -%}
 <span id="page-numbers" class="flex items-center gap-1 empty:hidden"
       {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
   {%- if exact and not page.keyset and page.limit %}

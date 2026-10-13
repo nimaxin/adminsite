@@ -17,6 +17,11 @@ What changed:
   a record that exists is refused under its input, since a default only fills in a new record,
   unless the field is given `required=False`. The edit form marks such a field required, so a
   choice there no longer offers Not set (#84).
+- On a view with `count_mode = CountMode.ESTIMATED`, a search, a filter or `scope_query` is
+  counted exactly. The count stopped at 10,000, so the list, the filters drawer and the Actions
+  menu said "more than 10,000" and the pager had no page numbers. The rows still come first and
+  the total follows. A project that overrides `_records_total.html` or `_page_numbers.html` should
+  start its copy again from the new one (#82).
 
 ## 0.1.0
 
