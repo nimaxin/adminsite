@@ -1,6 +1,8 @@
 <label class="label cursor-pointer justify-start gap-3 text-base-content">
-  <input type="checkbox" class="toggle toggle-primary toggle-sm"
+  <input type="checkbox" class="peer toggle toggle-primary toggle-sm"
          id="{{ row.input_id }}" name="{{ row.path }}" value="true"
          {% if row.value %}checked{% endif %} {{ field_attrs|default('') }}>
-  {{ _('Yes') }}
+  {#- The switch says what it is set to, and changes as it is flipped. -#}
+  <span class="peer-checked:hidden">{{ _('No') }}</span>
+  <span class="hidden peer-checked:inline">{{ _('Yes') }}</span>
 </label>

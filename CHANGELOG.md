@@ -33,6 +33,7 @@ What changed:
   darker ground with their titles in a band, a select has a thin arrow, date and time fields use
   the admin's own icons, a file field is a place to drop a file, and a disabled field looks
   disabled. Dark mode matches.
+- A switch on a form says No while it is off. It said Yes either way.
 
 ## 0.1.0
 
