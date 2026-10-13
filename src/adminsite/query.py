@@ -30,9 +30,8 @@ class CountMode(StrEnum):
 
     Postgres and MySQL keep one in their statistics. It is used when nothing
     narrows the list and the table holds more than 10,000 rows, shown as
-    "about 2,500,000". A narrowed list is counted up to 10,000 and shown as
-    "more than 10,000" past that. SQLite keeps no estimate, so it counts
-    exactly.
+    "about 2,500,000". A search, a filter or a scope is counted exactly.
+    SQLite keeps no estimate, so it counts exactly.
     """
     NONE = "none"
     """No count at all.
@@ -119,9 +118,8 @@ class Page:
     limit: int | None = None
     total: int | None = None
     has_next: bool = False
-    # The total is the database's estimate, or a count that stopped early.
+    # The total is the database's estimate.
     estimated: bool = False
-    at_least: bool = False
     # Set when the page was read by keyset: where the next and previous
     # pages start.
     keyset: bool = False

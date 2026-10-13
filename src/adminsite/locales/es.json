@@ -324,7 +324,6 @@
   "inputs is an object.": "inputs debe ser un objeto.",
   "keys is a list.": "keys debe ser una lista.",
   "limit is a number.": "limit debe ser un número.",
-  "more than {count}": "más de {count}",
   "new": "nuevo",
   "open": "abrir registros",
   "part of a bulk action": "parte de una acción masiva",

@@ -352,7 +352,6 @@
   "inputs is an object.": "يجب أن يكون inputs كائنًا.",
   "keys is a list.": "يجب أن يكون keys قائمة.",
   "limit is a number.": "يجب أن يكون limit عددًا.",
-  "more than {count}": "أكثر من {count}",
   "new": "جديد",
   "open": "فتح",
   "part of a bulk action": "جزء من إجراء جماعي",

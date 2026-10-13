@@ -339,12 +339,11 @@ def kept_total(request: Request, key: str) -> dict[str, Any] | None:
         return None
     total = sent.get("total")
     estimated = sent.get("estimated")
-    at_least = sent.get("at_least")
     if not isinstance(total, int) or isinstance(total, bool) or total < 0:
         return None
-    if not isinstance(estimated, bool) or not isinstance(at_least, bool):
+    if not isinstance(estimated, bool):
         return None
-    return {"total": total, "estimated": estimated, "at_least": at_least}
+    return {"total": total, "estimated": estimated}
 
 
 def sort_value(spec: QuerySpec) -> str:
@@ -380,12 +379,10 @@ def export_params(request: Request) -> dict[str, Any]:
 
 
 def total_text(page: Any) -> str:
-    """How many records match, as the list says it: exact, about, or more."""
+    """How many records match, as the list says it: exact or about."""
     if page.total is None:
         return ""
     number = format_number(page.total)
-    if page.at_least:
-        return _("more than {count}", count=number)
     if page.estimated:
         return _("about {count}", count=number)
     return number

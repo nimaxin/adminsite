@@ -261,8 +261,8 @@ class EventView(ModelView[Event]):
 ```
 
 `CountMode.ESTIMATED` shows the row count that Postgres and MySQL keep in their statistics, such as
-"about 2,500,000", and counts a narrowed list only up to 10,000. SQLite counts exactly.
-`CountMode.NONE` shows no total. Either one leaves the counts off the filters' options, as
+"about 2,500,000". A search or a filter is counted exactly once the rows are on screen, so put an
+index on the columns people filter by. SQLite counts exactly. `CountMode.NONE` shows no total. Either one leaves the counts off the filters' options, as
 [Filters](filters.md#counts) says.
 
 `Pagination.KEYSET` goes on from the last row seen instead of skipping rows, so page 400 costs the

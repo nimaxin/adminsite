@@ -303,7 +303,6 @@
   "inputs is an object.": "inputsにはオブジェクトを指定してください。",
   "keys is a list.": "keysにはリストを指定してください。",
   "limit is a number.": "limitには数値を指定してください。",
-  "more than {count}": "{count}以上",
   "new": "新規",
   "open": "詳細表示",
   "part of a bulk action": "一括操作の一部",

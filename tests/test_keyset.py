@@ -205,12 +205,16 @@ class TestEstimatedCounts:
         assert page.estimated is True
         assert page.has_next is True
 
-    async def test_a_narrowed_count_stops_at_the_limit(
+    async def test_a_narrowed_list_is_counted_exactly_past_the_limit(
         self,
         database: Database,
         orders: SQLAlchemyRepository[Order],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        async def guess(session: object) -> int:
+            return 2_500_000
+
+        monkeypatch.setattr(orders, "estimate", guess)
         monkeypatch.setattr(repository_module, "EXACT_COUNT_LIMIT", 4)
         spec = QuerySpec(
             limit=3,
@@ -221,8 +225,8 @@ class TestEstimatedCounts:
         async with database.session() as session:
             page = await orders.list(session, spec)
 
-        assert page.total == 4
-        assert page.at_least is True
+        assert page.total == 7
+        assert page.estimated is False
 
     async def test_a_scope_that_narrows_is_never_estimated(
         self,

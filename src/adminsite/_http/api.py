@@ -301,7 +301,7 @@ async def collection(admin: "Admin", request: Request) -> Response:
         {
             "items": items,
             "total": page.total,
-            "estimated": page.estimated or page.at_least,
+            "estimated": page.estimated,
             "page": None if page.keyset else read.page,
             "has_next": page.has_next,
             "next": page.next_cursor or None,
