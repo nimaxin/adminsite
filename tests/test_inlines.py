@@ -4,14 +4,21 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import ForeignKey, String, func, select
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import JSON, Column, ForeignKey, String, Table, func, select
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    selectinload,
+)
 from starlette.applications import Starlette
 from starlette.requests import Request
 
 from adminsite import Admin, Field, Inline, Link, ModelView, Statement
 from adminsite.database import Database, SessionAdapter
 from adminsite.exceptions import AdminSiteError, RecordNotFoundError
+from adminsite.fields import EnumField
 from adminsite.views._picker import PICKER_LIMIT
 from tests.models import Order, OrderItem, Product
 from tests.support import Backend, count_queries, request_from
@@ -370,6 +377,25 @@ class TestPages:
             response = await client.get("/admin/orders/1/edit")
 
         assert '"label": "Linen shirt at 59.00"' in response.text
+
+    async def test_a_searched_line_keeps_its_record_when_the_form_comes_back(
+        self, database: Database
+    ) -> None:
+        async with database.session() as session:
+            for number in range(PICKER_LIMIT):
+                await session.add(
+                    Product(name=f"Spare part {number}", price=Decimal("1.00"))
+                )
+            await session.commit()
+
+        line = {"key": "", "product": "3", "quantity": "lots", "unit_price": "5"}
+        async with client_for(database, OrderView) as client:
+            response = await client.post(
+                "/admin/orders/1/edit", data={**EDIT_FORM, **lines(line)}
+            )
+
+        assert response.status_code == 422
+        assert 'picked: [{"label": "Wool scarf", "value": "3"}]' in response.text
 
     async def test_a_line_added_in_the_page_can_search(
         self, client: httpx.AsyncClient
@@ -950,3 +976,216 @@ class TestWhatTheParentFills:
             (1, 3, 2)
         ]
         assert [(player.team_id, player.name) for player in players] == [(1, "Ana")]
+
+
+class RuleBase(DeclarativeBase):
+    """Kept apart from the test models, so only these tests make the tables."""
+
+
+rule_zones = Table(
+    "inline_rule_zones",
+    RuleBase.metadata,
+    Column("rule_id", ForeignKey("inline_rules.id"), primary_key=True),
+    Column("zone_id", ForeignKey("inline_zones.id"), primary_key=True),
+)
+
+
+class Zone(RuleBase):
+    __tablename__ = "inline_zones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Store(RuleBase):
+    __tablename__ = "inline_stores"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+
+    rules: Mapped[list["ShippingRule"]] = relationship(cascade="all, delete-orphan")
+
+
+class ShippingRule(RuleBase):
+    """Where a carrier does not go: countries picked from a list, and zones."""
+
+    __tablename__ = "inline_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    store_id: Mapped[int] = mapped_column(ForeignKey("inline_stores.id"))
+    carrier: Mapped[str] = mapped_column(String(30))
+    countries: Mapped[list[str]] = mapped_column(JSON, default=list)
+    zones: Mapped[list[Zone]] = relationship(secondary=rule_zones)
+
+
+COUNTRIES = [("DE", "Germany"), ("FR", "France"), ("IT", "Italy"), ("US", "USA")]
+
+
+class StoreView(ModelView[Store]):
+    fields = [Store.name]
+    inlines = [
+        Inline(
+            Store.rules,
+            fields=[
+                ShippingRule.carrier,
+                EnumField(ShippingRule.countries, choices=COUNTRIES, multiple=True),
+                ShippingRule.zones,
+            ],
+        )
+    ]
+
+
+class ZoneView(ModelView[Zone]):
+    fields = [Zone.name]
+
+
+@pytest.fixture
+async def stores(backend: Backend) -> AsyncIterator[Database]:
+    """The test database with a store whose one rule leaves out a few places."""
+    database = backend.database
+    async with database.session() as session:
+        await session.run(
+            lambda plain: RuleBase.metadata.create_all(plain.connection())
+        )
+        zones = [Zone(name=name) for name in ("Islands", "Mountains", "Overseas")]
+        for zone in zones:
+            await session.add(zone)
+        await session.add(
+            Store(
+                name="Main",
+                rules=[
+                    ShippingRule(
+                        carrier="Post", countries=["DE", "FR"], zones=zones[:2]
+                    )
+                ],
+            )
+        )
+        await session.commit()
+    yield database
+    async with database.session() as session:
+        await session.run(lambda plain: RuleBase.metadata.drop_all(plain.connection()))
+        await session.commit()
+
+
+def rule_rows(*rows: dict[str, str | list[str]]) -> dict[str, str | list[str]]:
+    """Form data for the store and its rules, as the browser would send it."""
+    data: dict[str, str | list[str]] = {"name": "Main", "rules-count": str(len(rows))}
+    for index, row in enumerate(rows):
+        for key, value in row.items():
+            data[f"rules-{index}-{key}"] = value
+    return data
+
+
+async def rules_of(database: Database) -> list[tuple[str, list[str], list[str]]]:
+    """Each rule's carrier, countries and zones, as saved."""
+    async with database.session() as session:
+        found = await session.scalars(
+            select(ShippingRule)
+            .options(selectinload(ShippingRule.zones))
+            .order_by(ShippingRule.id)
+        )
+        return [
+            (rule.carrier, rule.countries, sorted(zone.name for zone in rule.zones))
+            for rule in found.all()
+        ]
+
+
+class TestFieldsHoldingSeveralValues:
+    async def test_a_row_shows_what_it_holds(self, stores: Database) -> None:
+        async with client_for(stores, StoreView, ZoneView) as client:
+            form = await client.get("/admin/stores/1/edit")
+
+        assert form.status_code == 200
+        assert (
+            'picked: [{"label": "Germany", "value": "DE"}, '
+            '{"label": "France", "value": "FR"}]'
+        ) in form.text
+        assert '{"label": "Islands", "value": "1"}' in form.text
+        assert '{"label": "Mountains", "value": "2"}' in form.text
+        assert '{"label": "Overseas", "value": "3"}' not in form.text
+
+    async def test_saving_stores_every_value_picked(self, stores: Database) -> None:
+        async with client_for(stores, StoreView, ZoneView) as client:
+            response = await client.post(
+                "/admin/stores/1/edit",
+                data=rule_rows(
+                    {
+                        "key": "1",
+                        "carrier": "Post",
+                        "countries": ["IT", "US"],
+                        "zones": ["3", "1"],
+                    },
+                    {"key": "", "carrier": "Ship", "countries": "DE", "zones": "2"},
+                ),
+            )
+
+        assert response.status_code == 303
+        assert await rules_of(stores) == [
+            ("Post", ["IT", "US"], ["Islands", "Overseas"]),
+            ("Ship", ["DE"], ["Mountains"]),
+        ]
+
+    async def test_a_row_can_be_saved_with_none(self, stores: Database) -> None:
+        async with client_for(stores, StoreView, ZoneView) as client:
+            response = await client.post(
+                "/admin/stores/1/edit",
+                data=rule_rows({"key": "1", "carrier": "Post"}),
+            )
+
+        assert response.status_code == 303
+        assert await rules_of(stores) == [("Post", [], [])]
+
+    async def test_a_refused_value_is_shown_beside_the_row_s_input(
+        self, stores: Database
+    ) -> None:
+        async with client_for(stores, StoreView, ZoneView) as client:
+            response = await client.post(
+                "/admin/stores/1/edit",
+                data=rule_rows(
+                    {
+                        "key": "1",
+                        "carrier": "Post",
+                        "countries": ["IT", "XX"],
+                        "zones": ["3"],
+                    }
+                ),
+            )
+
+        assert response.status_code == 422
+        assert 'href="#field-rules-0-countries">Rules, row 1, countries</a>' in (
+            response.text
+        )
+        assert "Choose one of the listed options." in response.text
+        # What was picked is still there to fix and save again.
+        assert 'picked: [{"label": "Italy", "value": "IT"}]' in response.text
+        assert 'picked: [{"label": "Overseas", "value": "3"}]' in response.text
+        assert await rules_of(stores) == [
+            ("Post", ["DE", "FR"], ["Islands", "Mountains"])
+        ]
+
+    async def test_a_searched_link_names_what_each_row_holds(
+        self, stores: Database
+    ) -> None:
+        # Over a hundred zones, so a rule's zones are searched, not listed.
+        async with stores.session() as session:
+            for number in range(PICKER_LIMIT):
+                await session.add(Zone(name=f"Zone {number}"))
+            await session.commit()
+
+        async with client_for(stores, StoreView, ZoneView) as client:
+            form = await client.get("/admin/stores/1/edit")
+            again = await client.post(
+                "/admin/stores/1/edit",
+                data=rule_rows({"key": "1", "carrier": "", "zones": ["3", "1"]}),
+            )
+
+        assert '{"label": "Islands", "value": "1"}' in form.text
+        assert '{"label": "Mountains", "value": "2"}' in form.text
+        assert again.status_code == 422
+        assert (
+            'picked: [{"label": "Overseas", "value": "3"}, '
+            '{"label": "Islands", "value": "1"}]'
+        ) in again.text
