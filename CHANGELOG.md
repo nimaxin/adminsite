@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- The bar that holds a form's Save button has the cards' quiet shadow, where it cast the large
+  shadow of a menu.
+
 ## 0.2.0
 
 Forms have a new look: a field is white in the light theme and nearly black in the dark one, with
