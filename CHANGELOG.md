@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
+
+A release of fixes. Mounted in Litestar, the admin opens every page, where before only its front
+page did. Saved views and the filters drawer behave as people expect: a saved view opens from
+anywhere on its tab and asks before it is removed, and a picked filter choice such as "Today" can
+be let go from the drawer, which now has a Clear all on a computer too.
+
+Before upgrading:
+
+- A project that overrides `base.html`, `form.html`, `_filters.html`, `_filters_footer.html`,
+  `_list_forms.html` or `_saved_tabs.html` should start its copy again from the new one.
 
 What changed:
 
