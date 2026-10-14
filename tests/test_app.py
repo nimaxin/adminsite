@@ -3,6 +3,9 @@ import hashlib
 import httpx
 import pytest
 from fastapi import FastAPI
+from litestar import Litestar, asgi
+from litestar.testing import AsyncTestClient
+from litestar.types import Receive, Scope, Send
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
@@ -76,6 +79,19 @@ class TestMounting:
 
             assert response.status_code == 200
             assert "/backoffice/orders" in response.text
+
+    async def test_it_mounts_into_litestar_too(self, admin: Admin) -> None:
+        @asgi("/backoffice", is_mount=True, copy_scope=True)
+        async def mounted(scope: Scope, receive: Receive, send: Send) -> None:
+            await admin(scope, receive, send)
+
+        async with AsyncTestClient(app=Litestar(route_handlers=[mounted])) as client:
+            page = await client.get("/backoffice/orders")
+            stylesheet = await client.get("/backoffice/static/adminsite.css?v=1")
+
+            assert page.status_code == 200
+            assert "/backoffice/customers" in page.text
+            assert stylesheet.status_code == 200
 
     async def test_links_follow_where_it_is_mounted(self, admin: Admin) -> None:
         app = Starlette()

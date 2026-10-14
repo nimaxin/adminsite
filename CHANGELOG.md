@@ -6,6 +6,9 @@ What changed:
 
 - The bar that holds a form's Save button has the cards' quiet shadow, where it cast the large
   shadow of a menu.
+- Mounted in Litestar, the admin opens every page, where only its front page opened and the rest
+  returned 404 (#89). The Litestar example in Getting started sets `copy_scope=True`, as Litestar
+  asks.
 
 ## 0.2.0
 
