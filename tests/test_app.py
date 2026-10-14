@@ -4,12 +4,12 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from litestar import Litestar, asgi
-from litestar.testing import AsyncTestClient
 from litestar.types import Receive, Scope, Send
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
 from adminsite._http.urls import STATIC_DIR
+from adminsite.admin import _with_mount_path
 from adminsite.database import Database
 from tests.models import Customer, Order, Product
 from tests.support import counted
@@ -85,13 +85,31 @@ class TestMounting:
         async def mounted(scope: Scope, receive: Receive, send: Send) -> None:
             await admin(scope, receive, send)
 
-        async with AsyncTestClient(app=Litestar(route_handlers=[mounted])) as client:
-            page = await client.get("/backoffice/orders")
-            stylesheet = await client.get("/backoffice/static/adminsite.css?v=1")
+        app = Litestar(route_handlers=[mounted])
+        # Litestar types the scope as TypedDicts and httpx as a plain mapping.
+        transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
 
-            assert page.status_code == 200
-            assert "/backoffice/customers" in page.text
-            assert stylesheet.status_code == 200
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://testserver"
+        ) as client:
+            response = await client.get("/backoffice/orders")
+
+            assert response.status_code == 200
+            assert "/backoffice/customers" in response.text
+
+    def test_a_query_string_on_the_raw_path_is_left_out(self) -> None:
+        # Litestar's own test client leaves it there.
+        scope = {
+            "type": "http",
+            "root_path": "",
+            "path": "/orders/",
+            "raw_path": b"/backoffice/orders?page=2",
+        }
+
+        mounted = _with_mount_path(scope)
+
+        assert mounted["root_path"] == "/backoffice"
+        assert mounted["path"] == "/backoffice/orders"
 
     async def test_links_follow_where_it_is_mounted(self, admin: Admin) -> None:
         app = Starlette()
