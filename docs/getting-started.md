@@ -149,7 +149,7 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do, at any path:
     from litestar.types import Receive, Scope, Send
 
 
-    @asgi("/admin", is_mount=True)
+    @asgi("/admin", is_mount=True, copy_scope=True)
     async def admin_app(scope: Scope, receive: Receive, send: Send) -> None:
         await admin(scope, receive, send)
 

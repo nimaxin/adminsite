@@ -1,6 +1,7 @@
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -828,4 +829,20 @@ class Admin:
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         """Let the admin be mounted like any other ASGI app."""
-        await self.app(scope, receive, send)
+        await self.app(_with_mount_path(scope), receive, send)
+
+
+def _with_mount_path(scope: Any) -> Any:
+    """The scope with the admin's own path back, where the framework took it out."""
+    # Litestar hands a mounted app only the rest of the path, with a slash added,
+    # and no root_path, so every link the admin drew would leave it. The path the
+    # browser asked for is still in raw_path.
+    raw_path = scope.get("raw_path")
+    if not raw_path or scope.get("root_path"):
+        return scope
+    # A test client may leave the query string on it.
+    path = unquote(raw_path.decode("latin-1").partition("?")[0])
+    asked, given = path.rstrip("/"), scope["path"].rstrip("/")
+    if path == scope["path"] or not asked.endswith(given):
+        return scope
+    return {**scope, "root_path": asked[: len(asked) - len(given)], "path": path}
