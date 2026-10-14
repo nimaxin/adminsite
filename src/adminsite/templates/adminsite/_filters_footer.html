@@ -1,9 +1,9 @@
-{#- The foot of the filters drawer on a phone, where the drawer covers the
-    list: Clear all while a filter is on, and a button that shows the list
+{#- The foot of the filters drawer: Clear all while a filter is on, and on a
+    phone, where the drawer covers the list, a button that shows the list
     again, saying how many it holds. The table sends it again with every
     reload, so the count is never stale. -#}
 {%- set names = panels|map(attribute="filter.name")|list -%}
-<div id="filters-footer" class="flex items-center gap-4 border-t border-line px-5 py-3 md:hidden"
+<div id="filters-footer" class="flex items-center gap-4 border-t border-line px-5 py-3 {% if not chips %}md:hidden{% endif %}"
      {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
   {% if chips %}
     {% set cleared = {"page": None, "after": None, "before": None} %}
@@ -11,7 +11,7 @@
     <a class="font-medium underline underline-offset-3" href="{{ urls.here(**cleared) }}"
        data-keeps="{{ names|join(' ') }}">{{ _('Clear all') }}</a>
   {% endif %}
-  <button class="btn btn-primary ms-auto" type="button" popovertarget="filters" popovertargetaction="hide">
+  <button class="btn btn-primary ms-auto md:hidden" type="button" popovertarget="filters" popovertargetaction="hide">
     {%- if total_text %}{{ ngettext('Show {count} {thing}', 'Show {count} {things}', page.total, count=total_text, thing=view.label|in_sentence, things=view.label_plural|in_sentence) }}
     {%- else %}{{ _('Show {things}', things=view.label_plural|in_sentence) }}{% endif -%}
   </button>
