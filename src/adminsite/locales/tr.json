@@ -215,6 +215,7 @@
   "Remove this filter": "Bu filtreyi kaldır",
   "Remove this row": "Bu satırı kaldır",
   "Remove {name}": "Kaldır: {name}",
+  "Remove {name}?": "{name} kaldırılsın mı?",
   "Row": "Satır",
   "Row {number} already adds a {thing} with the key {key}.": "Anahtarı {key} olan bir {thing} zaten {number}. satırda ekleniyor.",
   "Rows per page": "Sayfa başına satır",

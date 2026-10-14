@@ -200,6 +200,7 @@
   "Remove this filter": "このフィルターを解除",
   "Remove this row": "この行を削除",
   "Remove {name}": "{name}を削除",
+  "Remove {name}?": "{name}を削除しますか？",
   "Row": "行",
   "Row {number} already adds a {thing} with the key {key}.": "キーが{key}の{thing}は、すでに{number}行目で追加されています。",
   "Rows per page": "1ページあたりの行数",

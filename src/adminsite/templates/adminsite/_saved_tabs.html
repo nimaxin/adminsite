@@ -11,17 +11,20 @@
      class="flex h-10 shrink-0 items-center border-b-2 text-label font-medium {% if on_all %}border-base-content text-base-content{% else %}border-transparent text-muted hover:text-base-content{% endif %}">
     {{ _('All {things}', things=view.label_plural|in_sentence) }}
   </a>
+  {#- The whole tab is the link, its "shared" label too. The cross follows it,
+      since a button cannot sit inside a link. -#}
   {% for item in saved_views %}
     {% set on = active_view and active_view.id == item.id %}
-    <span class="group flex h-10 shrink-0 items-center gap-1.5 border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
+    {% set mine = item.owner == view_owner %}
+    <span class="group flex h-10 shrink-0 items-center border-b-2 {% if on %}border-base-content{% else %}border-transparent{% endif %}">
       <a href="{{ urls.list(view) }}{{ '?' ~ item.query if item.query }}" {% if on %}aria-current="page"{% endif %}
-         class="text-label font-medium {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
+         class="flex h-full items-center gap-1.5 text-label font-medium {% if mine %}pe-1.5{% endif %} {% if on %}text-base-content{% else %}text-muted hover:text-base-content{% endif %}">
         {{ item.name }}
+        {% if item.shared %}<span class="text-caption text-muted">{{ _('shared') }}</span>{% endif %}
       </a>
-      {% if item.shared %}<span class="text-caption text-muted">{{ _('shared') }}</span>{% endif %}
-      {% if item.owner == view_owner %}
+      {% if mine %}
         <button class="btn btn-ghost btn-xs btn-square text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"
-                type="submit" form="delete-view-{{ item.id }}"
+                type="button" onclick="document.getElementById('delete-view-{{ item.id }}').showModal()"
                 aria-label="{{ _('Remove {name}', name=item.name) }}">{{ icons.icon("x", 12) }}</button>
       {% endif %}
     </span>

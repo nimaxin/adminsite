@@ -220,6 +220,7 @@
   "Remove this filter": "Удалить этот фильтр",
   "Remove this row": "Удалить эту строку",
   "Remove {name}": "Удалить «{name}»",
+  "Remove {name}?": "Удалить «{name}»?",
   "Row": "Строка",
   "Row {number} already adds a {thing} with the key {key}.": "Строка {number} уже добавляет запись ({thing}) с ключом {key}.",
   "Rows per page": "Строк на странице",

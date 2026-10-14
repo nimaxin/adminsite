@@ -215,6 +215,7 @@
   "Remove this filter": "Retirer ce filtre",
   "Remove this row": "Retirer cette ligne",
   "Remove {name}": "Retirer {name}",
+  "Remove {name}?": "Retirer {name} ?",
   "Row": "Ligne",
   "Row {number} already adds a {thing} with the key {key}.": "La ligne {number} crée déjà un élément de type {thing} avec la clé {key}.",
   "Rows per page": "Lignes par page",

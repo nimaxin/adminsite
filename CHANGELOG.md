@@ -9,6 +9,8 @@ What changed:
 - Mounted in Litestar, the admin opens every page, where only its front page opened and the rest
   returned 404 (#89). The Litestar example in Getting started sets `copy_scope=True`, as Litestar
   asks.
+- A saved view's tab opens the view wherever it is clicked, where its "shared" label did nothing,
+  and its × asks before it removes the view (#90).
 
 ## 0.2.0
 

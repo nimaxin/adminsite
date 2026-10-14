@@ -200,6 +200,7 @@
   "Remove this filter": "移除此篩選條件",
   "Remove this row": "移除此列",
   "Remove {name}": "移除{name}",
+  "Remove {name}?": "確定要移除{name}嗎？",
   "Row": "列",
   "Row {number} already adds a {thing} with the key {key}.": "鍵為{key}的{thing}已在第{number}列新增。",
   "Rows per page": "每頁列數",

@@ -215,6 +215,7 @@
   "Remove this filter": "Remover este filtro",
   "Remove this row": "Remover esta linha",
   "Remove {name}": "Remover {name}",
+  "Remove {name}?": "Remover {name}?",
   "Row": "Linha",
   "Row {number} already adds a {thing} with the key {key}.": "A linha {number} já adiciona um registro de {thing} com a chave {key}.",
   "Rows per page": "Linhas por página",

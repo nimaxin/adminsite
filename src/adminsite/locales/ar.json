@@ -235,6 +235,7 @@
   "Remove this filter": "إزالة عامل التصفية هذا",
   "Remove this row": "إزالة هذا الصف",
   "Remove {name}": "إزالة {name}",
+  "Remove {name}?": "هل تريد إزالة {name}؟",
   "Row": "الصف",
   "Row {number} already adds a {thing} with the key {key}.": "المفتاح {key} مستخدم بالفعل في الصف {number} لإضافة {thing}.",
   "Rows per page": "عدد الصفوف في الصفحة",
