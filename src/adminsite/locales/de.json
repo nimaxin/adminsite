@@ -215,6 +215,7 @@
   "Remove this filter": "Diesen Filter entfernen",
   "Remove this row": "Diese Zeile entfernen",
   "Remove {name}": "{name} entfernen",
+  "Remove {name}?": "{name} entfernen?",
   "Row": "Zeile",
   "Row {number} already adds a {thing} with the key {key}.": "{thing} mit dem Schlüssel {key} wird bereits in Zeile {number} angelegt.",
   "Rows per page": "Zeilen pro Seite",

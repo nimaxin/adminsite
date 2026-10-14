@@ -315,5 +315,8 @@ class TestOwners:
         assert "Mine" in page.text
         assert "Team" in page.text
         assert "Hers" not in page.text
-        # Only your own views can be removed.
-        assert page.text.count('form="delete-view-') == 1
+        # Only your own views can be removed, and removing one asks first.
+        assert page.text.count('<dialog id="delete-view-') == 1
+        assert "Remove Mine?" in page.text
+        # The "shared" label is part of the link, so clicking it opens the view.
+        assert re.search(r">\s*Team\s*<span[^>]*>shared</span>\s*</a>", page.text)

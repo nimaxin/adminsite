@@ -215,6 +215,7 @@
   "Remove this filter": "حذف این فیلتر",
   "Remove this row": "حذف این ردیف",
   "Remove {name}": "حذف {name}",
+  "Remove {name}?": "{name} حذف شود؟",
   "Row": "ردیف",
   "Row {number} already adds a {thing} with the key {key}.": "ردیف {number} یک {thing} با همین کلید {key} می‌افزاید.",
   "Rows per page": "ردیف در هر صفحه",
