@@ -205,6 +205,45 @@ class TestFilters:
         assert "data-applies" in week.group(0)
         assert "data-applies" not in between.group(0)
 
+    async def test_a_picked_choice_is_let_go_when_picked_again(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        customers = await client.get("/admin/customers?is_active=true")
+        orders = await client.get("/admin/orders")
+
+        active = re.search(
+            r'<fieldset id="filter-is_active".*?</fieldset>', customers.text, re.DOTALL
+        )
+        dates = re.search(
+            r'<fieldset id="filter-created_at">.*?</fieldset>', orders.text, re.DOTALL
+        )
+        assert active is not None
+        assert dates is not None
+        assert 'oneChoice("true")' in active.group(0)
+        choices = re.findall(r'<input type="radio"[^>]*>', active.group(0))
+        shortcuts = re.findall(r'<input type="radio"[^>]*>', dates.group(0))
+        assert choices
+        assert shortcuts
+        for radio in choices + shortcuts:
+            assert '@click="pickAgain($el, $event)"' in radio
+        # Each range names its shortcuts after itself, so two ranges keep apart.
+        assert all('name="created_at-shortcut"' in radio for radio in shortcuts)
+
+    async def test_the_drawer_offers_clear_all_on_a_computer_too(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        filtered = await client.get("/admin/orders?status=SHIPPED")
+        plain = await client.get("/admin/orders")
+
+        foot = r'<div id="filters-footer" class="([^"]*)"'
+        shown = re.search(foot, filtered.text)
+        hidden = re.search(foot, plain.text)
+        assert shown is not None
+        assert hidden is not None
+        assert "md:hidden" not in shown.group(1)
+        # With no filter on, the foot holds only the phone's Show button.
+        assert "md:hidden" in hidden.group(1)
+
     @pytest.mark.parametrize(
         ("query", "chip"),
         [

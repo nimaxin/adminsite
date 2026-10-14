@@ -330,6 +330,52 @@
     };
   }
 
+  // A filter that takes one choice lets it go when it is picked again, which
+  // a radio cannot do on its own. The click comes before the change that
+  // picks a radio, so the filter still holds the last choice to compare.
+  // Space on a picked radio fires no click, so its key is heard instead,
+  // and kept from picking the radio again once it is let go.
+  function pickedAgain(radio, event, picked) {
+    if (radio.value !== picked) return false;
+    if (event.type === "keydown") event.preventDefault();
+    radio.checked = false;
+    return true;
+  }
+  function oneChoice(picked) {
+    return {
+      picked,
+      pickAgain(radio, event) {
+        if (!pickedAgain(radio, event, this.picked)) return;
+        this.picked = "";
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+    };
+  }
+
+  // A range filter sends one value: a shortcut's name, or its two ends
+  // joined by a comma. A shortcut, or "between", picked again lets the range
+  // go, and its value tells the drawer to apply.
+  function rangeFilter(preset, low, high) {
+    return {
+      preset,
+      low,
+      high,
+      get value() {
+        if (this.preset && this.preset !== "custom") return this.preset;
+        return this.low || this.high ? `${this.low},${this.high}` : "";
+      },
+      pickAgain(radio, event) {
+        if (!pickedAgain(radio, event, this.preset)) return;
+        const held = this.value;
+        this.preset = this.low = this.high = "";
+        if (!held) return;
+        this.$nextTick(() => {
+          this.$refs.sent.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      },
+    };
+  }
+
   // A picker: one box to type in, and a list under it that opens as soon as
   // the box is clicked or typed in. It holds one record or option, or
   // several, as chips in the order they were chosen. Its list is in the

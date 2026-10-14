@@ -11,6 +11,10 @@ What changed:
   asks.
 - A saved view's tab opens the view wherever it is clicked, where its "shared" label did nothing,
   and its × asks before it removes the view (#90).
+- The filters drawer has a Clear all on a computer too, where only phones had one, and a choice
+  that takes one value, such as "Today" or Yes, is let go when picked again, where it stayed
+  picked (#91). Two date filters on one list keep their shortcuts apart, where picking one
+  unticked the other's.
 
 ## 0.2.0
 
