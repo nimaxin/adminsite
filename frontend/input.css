@@ -281,10 +281,10 @@
   --text-body--line-height: calc(1.25 / 0.875);
 }
 
-/* How a list draws its rows. Compact lists, which each person turns on in
-   the account menu, set data-density on the page and bring the rows closer
-   together; forms and record pages keep their spacing. A project's own
-   stylesheet can set any of these. */
+/* How a list draws its rows. Compact mode, which each person turns on in the
+   account menu, sets data-density on the page and brings the rows closer
+   together; forms keep their spacing. A project's own stylesheet can set any
+   of these. */
 :root {
   --list-text: var(--text-body);
   --list-row: 3rem;
@@ -303,8 +303,9 @@
   --list-cut: 20rem;
 }
 
-/* What a list page sets once, such as the space around its heading, follows
-   the same choice through this variant, as in compact:py-2. */
+/* What a page sets once, such as the space around a list's heading or a
+   record's fields, follows the same choice through this variant, as in
+   compact:py-2. */
 @custom-variant compact (&:where([data-density="compact"] *));
 
 /* The sidebar folded to its icons, which each person chooses from the button
