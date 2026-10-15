@@ -43,11 +43,12 @@
     background: var(--ground);
   }
 
-  /* Everything that reads stays 72px inside the edges, since some sites crop
-     the card a little. */
+  /* GitHub's template keeps everything that reads 80px inside the edges. Reddit
+     and Telegram show the card at 16:9 and cut another 71px off each side, so
+     the words start 152px from the left. */
   .words {
     position: absolute;
-    inset: 72px auto 72px 72px;
+    inset: 88px auto 88px 152px;
     width: 500px;
     display: flex;
     flex-direction: column;
@@ -92,7 +93,7 @@
   /* The demo's orders list, running off the right and bottom edges. */
   .shot {
     position: absolute;
-    left: 640px;
+    left: 700px;
     top: 92px;
     width: 1000px;
     border: 1px solid var(--line);
