@@ -68,4 +68,4 @@ class TestSampleData:
 
 class TestPackage:
     def test_version_is_readable(self) -> None:
-        assert adminsite.__version__.startswith("0.2.1")
+        assert adminsite.__version__.startswith("0.3.0")

@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+More of a list fits on a screen. Compact mode, a switch in the account menu, draws lists and
+record pages closer together, so a laptop shows 14 rows of a list where it showed 9, and the
+sidebar folds to its icons to give a list's columns 176px more. Each person chooses both for
+themselves, and forms keep their spacing.
 
 Before upgrading:
 
