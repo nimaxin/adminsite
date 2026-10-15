@@ -92,6 +92,10 @@ one file.
 - [Light and dark themes](https://nimaxin.github.io/adminsite/customizing/), a layout for phones,
   and [pages that work](https://nimaxin.github.io/adminsite/accessibility/) with a keyboard and a
   screen reader.
+- [Compact mode](https://nimaxin.github.io/adminsite/customizing/#compact-mode), which each person
+  turns on to fit more rows on a screen, and a
+  [sidebar that folds](https://nimaxin.github.io/adminsite/views/#the-sidebar) to its icons to make
+  room for more columns.
 - [Async or sync](https://nimaxin.github.io/adminsite/databases/), on SQLite, Postgres and MySQL,
   with no N+1 queries.
 - [SQLModel](https://nimaxin.github.io/adminsite/databases/#sqlmodel) models as they are.
