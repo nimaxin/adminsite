@@ -85,3 +85,14 @@ system's own typeface. Badges use six tones, as [Badge colours](fields.md#badge-
 The build writes `src/adminsite/static/adminsite.css`. If your own templates use Tailwind or
 daisyUI classes the shipped stylesheet does not have, build a stylesheet of your own from the same
 input, with your template folder added as a `@source`, and serve it from your own `base.html`.
+
+## Compact lists
+
+Each person can turn on Compact lists in the account menu, beside Dark mode. Every list then draws
+its rows closer together, 36px apart instead of 48, with values a size smaller, so a screen holds
+about half as many rows again. Forms and record pages keep their spacing, and the choice stays in
+that person's browser.
+
+The sizes are CSS variables a stylesheet of yours can change: `--list-row`, `--list-head`,
+`--list-cell`, `--list-text`, `--list-picture` and `--list-cut`, set on `:root` and again under
+`[data-density="compact"]`.

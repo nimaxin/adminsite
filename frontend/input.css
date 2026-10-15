@@ -281,6 +281,32 @@
   --text-body--line-height: calc(1.25 / 0.875);
 }
 
+/* How a list draws its rows. Compact lists, which each person turns on in
+   the account menu, set data-density on the page and bring the rows closer
+   together; forms and record pages keep their spacing. A project's own
+   stylesheet can set any of these. */
+:root {
+  --list-text: var(--text-body);
+  --list-row: 3rem;
+  --list-head: 2.5rem;
+  --list-cell: 0.75rem;
+  --list-picture: 2rem;
+  --list-cut: 28rem;
+}
+
+[data-density="compact"] {
+  --list-text: var(--text-label);
+  --list-row: 2.25rem;
+  --list-head: 2rem;
+  --list-cell: 0.5rem;
+  --list-picture: 1.5rem;
+  --list-cut: 20rem;
+}
+
+/* What a list page sets once, such as the space around its heading, follows
+   the same choice through this variant, as in compact:py-2. */
+@custom-variant compact (&:where([data-density="compact"] *));
+
 /* A button with a white face and a border, for every action that is not the
    page's main one. */
 @utility btn-plain {

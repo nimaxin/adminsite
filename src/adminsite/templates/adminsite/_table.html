@@ -35,14 +35,14 @@
     <div id="records-scroll" class="relative min-h-0 flex-1 overflow-auto">
       {#- Clicks on the rows tick them, once one is ticked, and the rows
           show they can be clicked. -#}
-      <table class="w-full border-separate border-spacing-0 max-md:hidden"
+      <table class="w-full border-separate border-spacing-0 text-(length:--list-text) max-md:hidden"
              {% if actions %}@click="pickRows($event)" @mousedown="keepRowText($event)"
              :class="$store.selection.picked && '[&_tbody_tr]:cursor-pointer'"{% endif %}>
         <caption class="sr-only">{{ view.label_plural }}</caption>
         <thead>
           <tr>
             {% if actions %}
-              <th class="sticky top-0 z-10 h-10 w-12 border-y border-base-300 bg-subtle ps-4 pe-1 text-start lg:ps-7">
+              <th class="sticky top-0 z-10 h-(--list-head) w-12 border-y border-base-300 bg-subtle ps-4 pe-1 text-start lg:ps-7">
                 <input type="checkbox" class="checkbox checkbox-sm align-middle" aria-label="{{ _('Select this page') }}"
                        @change="
                          $refs.actions.querySelectorAll('input[name=keys]')
@@ -54,7 +54,7 @@
             {% endif %}
             {#- The row's menu comes first, where it is in reach however many
                 columns the table has. -#}
-            <th class="sticky top-0 z-10 h-10 w-10 border-y border-base-300 bg-subtle px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
+            <th class="sticky top-0 z-10 h-(--list-head) w-10 border-y border-base-300 bg-subtle px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
               <span class="sr-only">{{ _('Actions') }}</span>
             </th>
             {% for path in columns %}
@@ -62,7 +62,7 @@
               {#- An amount lines up on the right; a key is a name for its
                   record, not an amount, so it reads from the start like text. -#}
               {% set numeric = view._fields.field_for(path).widget == 'number' and path not in view._schema.primary_key %}
-              <th class="sticky top-0 z-10 h-10 border-y border-base-300 bg-subtle px-3 text-note font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
+              <th class="sticky top-0 z-10 h-(--list-head) border-y border-base-300 bg-subtle px-(--list-cell) text-note font-medium whitespace-nowrap {% if numeric %}text-end{% else %}text-start{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %} {% if state %}text-base-content{% else %}text-muted{% endif %}"
                   {% if state == "asc" %}aria-sort="ascending"{% elif state == "desc" %}aria-sort="descending"{% endif %}>
                 {% if view._pages.sortable(path) %}
                   <a class="inline-flex items-center gap-1 hover:text-base-content"
@@ -183,7 +183,7 @@
 
   {% include "adminsite/_action_forms.html" %}
 
-  <div class="flex flex-wrap items-center gap-3 border-t border-base-300 px-4 py-3 text-label text-muted lg:px-7">
+  <div class="flex flex-wrap items-center gap-3 border-t border-base-300 px-4 py-3 text-label text-muted compact:py-2 lg:px-7">
     {% include "adminsite/_records_count.html" %}
     <span class="flex-1"></span>
     {% if page_sizes %}
