@@ -13,6 +13,9 @@ What changed:
 - Compact lists: a switch in the account menu, beside Dark mode, draws every list with its rows
   closer together, 36px apart where they were 48, so a screen holds about half as many rows again.
   Each person turns it on for themselves, and forms and record pages keep their spacing.
+- The sidebar folds to its icons from a button beside the admin's name, which gives the page 176px
+  more room for a list's columns. Each name shows when the pointer rests on its icon, and each
+  person's choice is kept.
 
 ## 0.2.1
 

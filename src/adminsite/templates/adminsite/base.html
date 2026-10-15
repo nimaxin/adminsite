@@ -63,6 +63,9 @@
     if (localStorage.getItem("adminsite-density") === "compact") {
       document.documentElement.dataset.density = "compact";
     }
+    if (localStorage.getItem("adminsite-sidebar") === "folded") {
+      document.documentElement.dataset.sidebar = "folded";
+    }
   } catch (error) {}
   // Dark when chosen, or, until someone chooses, when the device is.
   function themeIsDark() {
@@ -88,6 +91,21 @@
       else localStorage.removeItem("adminsite-density");
     } catch (error) {}
   }
+  // From a laptop up, the sidebar folds to its icons for whoever folds it,
+  // which leaves the page more room. Read above too, before the page draws.
+  function sidebarIsFolded() {
+    return document.documentElement.dataset.sidebar === "folded";
+  }
+  function switchSidebar() {
+    const root = document.documentElement;
+    if (sidebarIsFolded()) delete root.dataset.sidebar;
+    else root.dataset.sidebar = "folded";
+    try {
+      if (sidebarIsFolded()) localStorage.setItem("adminsite-sidebar", "folded");
+      else localStorage.removeItem("adminsite-sidebar");
+    } catch (error) {}
+    Alpine.store("sidebar").folded = sidebarIsFolded();
+  }
 
   // What is ticked in the list. The table and the Actions menu above it both
   // read it, and the table starts it again each time it reloads. Ticking
@@ -95,6 +113,9 @@
   // say it.
   document.addEventListener("alpine:init", () => {
     Alpine.store("selection", { picked: 0, everything: false, matching: "", allMatching: "" });
+    // Whether the sidebar shows only its icons, which then name themselves
+    // when the pointer rests on them.
+    Alpine.store("sidebar", { folded: sidebarIsFolded() });
   });
 
   // Ticking rows in the list. The box's cell ticks its row. Once a row is
@@ -1036,36 +1057,51 @@
     <label for="navigation" class="drawer-overlay" aria-label="{{ _('Close the menu') }}"></label>
     {#- As tall as the window, so its links scroll under the account menu,
         which stays at the foot. -#}
-    <aside class="flex h-full w-60 flex-col gap-3.5 bg-base-200 px-2.5 py-3.5 lg:w-58">
-      <a href="{{ urls.index() }}" class="flex h-8 items-center gap-2.5 px-1.5">
-        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" class="shrink-0">
-          <rect width="24" height="24" rx="7" class="fill-accent"/>
-          <path d="M7.5 16.5 12 7.5l4.5 9M9.4 13.2h5.2" fill="none" class="stroke-accent-content"
-                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="truncate text-[15px] font-semibold tracking-tight">{{ title }}</span>
-      </a>
+    {#- From a laptop up it folds to its icons. Folded, every name stays for
+        screen readers and shows when the pointer rests on its icon, and a
+        line takes the place of each group's title. -#}
+    <aside class="flex h-full w-60 flex-col gap-3.5 bg-base-200 px-2.5 py-3.5 motion-reduce:transition-none lg:w-58 folded:lg:w-14" x-data>
+      <div class="flex items-center gap-1 folded:lg:flex-col folded:lg:gap-2.5">
+        <a href="{{ urls.index() }}" class="flex h-8 min-w-0 flex-1 items-center gap-2.5 px-1.5 folded:lg:flex-none"
+           :title='$store.sidebar.folded ? {{ title|tojson }} : null'>
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" class="shrink-0">
+            <rect width="24" height="24" rx="7" class="fill-accent"/>
+            <path d="M7.5 16.5 12 7.5l4.5 9M9.4 13.2h5.2" fill="none" class="stroke-accent-content"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="truncate text-[15px] font-semibold tracking-tight folded:lg:sr-only">{{ title }}</span>
+        </a>
+        <button type="button" class="btn btn-ghost btn-sm btn-square text-muted max-lg:hidden" @click="switchSidebar()"
+                aria-label="{{ _('Fold the sidebar') }}"
+                :aria-label='$store.sidebar.folded ? {{ _("Unfold the sidebar")|tojson }} : {{ _("Fold the sidebar")|tojson }}'
+                :title='$store.sidebar.folded ? {{ _("Unfold the sidebar")|tojson }} : {{ _("Fold the sidebar")|tojson }}'>
+          {{ icons.icon("sidebar", 16, "rtl:-scale-x-100") }}
+        </button>
+      </div>
 
-      <button class="flex h-8.5 items-center gap-2 rounded-field border border-base-300 bg-base-100 ps-2.5 pe-1.5 text-muted shadow-quiet hover:text-base-content"
-              type="button" onclick="openPalette()" aria-label="{{ _('Search, or press Control K') }}">
+      <button class="flex h-8.5 items-center gap-2 rounded-field border border-base-300 bg-base-100 ps-2.5 pe-1.5 text-muted shadow-quiet hover:text-base-content folded:lg:justify-center folded:lg:px-0"
+              type="button" onclick="openPalette()" aria-label="{{ _('Search, or press Control K') }}"
+              :title='$store.sidebar.folded ? {{ _("Search, or press Control K")|tojson }} : null'>
         {{ icons.icon("search") }}
-        <span class="flex-1 text-start">{{ _('Search') }}</span>
-        <kbd class="kbd kbd-xs border-base-300 bg-base-200 font-mono text-caption text-muted">{{ _('Ctrl K') }}</kbd>
+        <span class="flex-1 text-start folded:lg:hidden">{{ _('Search') }}</span>
+        <kbd class="kbd kbd-xs border-base-300 bg-base-200 font-mono text-caption text-muted folded:lg:hidden">{{ _('Ctrl K') }}</kbd>
       </button>
 
       {% set on_overview = not current and not on_activity and not status %}
       {% macro nav_link(url, label, active, icon_name="", icon_markup="") -%}
         <li>
           <a href="{{ url }}" {% if active %}aria-current="page"{% endif %}
-             class="flex h-8.5 items-center gap-2.5 rounded-field border px-2.5 font-medium {% if active %}border-base-300 bg-base-100 text-base-content shadow-quiet{% else %}border-transparent text-base-content/80 hover:bg-base-100/70 hover:text-base-content{% endif %}">
-            <span class="{% if active %}text-base-content{% else %}text-muted{% endif %} inline-flex size-4 items-center justify-center" aria-hidden="true">
+             :title='$store.sidebar.folded ? {{ label|tojson }} : null'
+             class="flex h-8.5 items-center gap-2.5 rounded-field border px-2.5 font-medium folded:lg:justify-center folded:lg:px-0 {% if active %}border-base-300 bg-base-100 text-base-content shadow-quiet{% else %}border-transparent text-base-content/80 hover:bg-base-100/70 hover:text-base-content{% endif %}">
+            <span class="{% if active %}text-base-content{% else %}text-muted{% endif %} inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
               {%- if icon_markup %}{{ icons.custom(icon_markup, urls) }}
               {%- else %}{{ icons.icon(icon_name or "rows") }}{% endif -%}
             </span>
-            <span class="truncate">{{ label }}</span>
+            <span class="truncate folded:lg:sr-only">{{ label }}</span>
           </a>
         </li>
       {%- endmacro %}
+      {% set group_line = "folded:lg:mt-2.5 folded:lg:border-t folded:lg:border-base-300 folded:lg:pt-2.5" %}
 
       <nav class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto" aria-label="{{ _('Main') }}">
         <ul class="flex flex-col gap-0.5">
@@ -1073,17 +1109,17 @@
         </ul>
         {% for group, views in groups %}
           {% if group %}
-            <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted" id="nav-group-{{ loop.index }}">{{ group }}</p>
+            <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-{{ loop.index }}">{{ group }}</p>
           {% endif %}
-          <ul class="flex flex-col gap-0.5 {% if not group %}mt-0.5{% endif %}" {% if group %}aria-labelledby="nav-group-{{ loop.index }}"{% endif %}>
+          <ul class="flex flex-col gap-0.5 {% if group %}{{ group_line }}{% else %}mt-0.5{% endif %}" {% if group %}aria-labelledby="nav-group-{{ loop.index }}"{% endif %}>
             {% for item in views %}
               {{ nav_link(item.url, item.label, current == item.key, "page" if item.key.startswith("page:") else "rows", item.icon) }}
             {% endfor %}
           </ul>
         {% endfor %}
         {% if show_activity %}
-          <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted" id="nav-group-admin">{{ _('Admin') }}</p>
-          <ul class="flex flex-col gap-0.5" aria-labelledby="nav-group-admin">
+          <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-admin">{{ _('Admin') }}</p>
+          <ul class="flex flex-col gap-0.5 {{ group_line }}" aria-labelledby="nav-group-admin">
             {{ nav_link(urls.activity(), _('Activity'), on_activity, "history") }}
           </ul>
         {% endif %}
@@ -1116,18 +1152,19 @@
         {% endif %}
         <div class="dropdown dropdown-top w-full">
           <div tabindex="0" role="button" aria-haspopup="true"
-               class="flex w-full cursor-pointer items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 shadow-quiet hover:bg-base-100/70">
+               :title='$store.sidebar.folded ? {{ (user|string if user else _("Settings"))|tojson }} : null'
+               class="flex w-full cursor-pointer items-center gap-2.5 rounded-field border border-base-300 bg-base-100 p-1.5 shadow-quiet hover:bg-base-100/70 folded:lg:justify-center folded:lg:p-0.5">
             {% if user %}
               <span class="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral text-note font-semibold text-neutral-content"
                     aria-hidden="true">{{ user|initial }}</span>
-              <span class="min-w-0 flex-1 truncate font-medium">{{ user }}</span>
+              <span class="min-w-0 flex-1 truncate font-medium folded:lg:sr-only">{{ user }}</span>
             {% else %}
               <span class="inline-flex size-7 shrink-0 items-center justify-center text-muted">{{ icons.icon("sliders") }}</span>
-              <span class="min-w-0 flex-1 truncate font-medium">{{ _('Settings') }}</span>
+              <span class="min-w-0 flex-1 truncate font-medium folded:lg:sr-only">{{ _('Settings') }}</span>
             {% endif %}
-            <span class="text-muted">{{ icons.icon("chevrons-up-down") }}</span>
+            <span class="text-muted folded:lg:hidden">{{ icons.icon("chevrons-up-down") }}</span>
           </div>
-          <ul tabindex="0" class="dropdown-content menu z-30 mb-1.5 w-full rounded-box border border-base-300 bg-base-100 p-1.5 shadow-float">
+          <ul tabindex="0" class="dropdown-content menu z-30 mb-1.5 w-full rounded-box border border-base-300 bg-base-100 p-1.5 shadow-float folded:lg:w-56">
             <li>
               <button type="button" role="switch" x-data="{ dark: themeIsDark() }" :aria-checked="dark.toString()"
                       @click="switchTheme(); dark = themeIsDark()">

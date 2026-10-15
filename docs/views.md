@@ -399,6 +399,10 @@ class PaymentView(ModelView[Payment]):
 The pages of a view left out of the sidebar still open, and links from other records still lead
 to them.
 
+From a laptop up, the button beside the admin's name folds the sidebar to its icons, which gives
+the page 176px more room, and each person's choice is kept. Give each view its own `icon`, so the
+folded sidebar tells them apart.
+
 ## Answer per request
 
 Every `get_` method receives the request, so the answer can depend on the user, and

@@ -307,6 +307,10 @@
    the same choice through this variant, as in compact:py-2. */
 @custom-variant compact (&:where([data-density="compact"] *));
 
+/* The sidebar folded to its icons, which each person chooses from the button
+   beside the admin's name: folded:lg:w-14. */
+@custom-variant folded (&:where([data-sidebar="folded"] *));
+
 /* A button with a white face and a border, for every action that is not the
    page's main one. */
 @utility btn-plain {
@@ -540,6 +544,15 @@ input.input:disabled::-webkit-calendar-picker-indicator {
 .btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Folded to its icons, the sidebar lets the account menu open past its edge,
+   where daisyUI's drawer would cut it off. Outside any layer, so it wins over
+   daisyUI's own rule. */
+@media (width >= 64rem) {
+  [data-sidebar="folded"] .drawer-side {
+    overflow: visible;
+  }
 }
 
 /* A closed popover takes no room. The browser hides one with a rule that any
