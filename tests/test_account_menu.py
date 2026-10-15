@@ -57,6 +57,7 @@ class TestTheMenu:
             r'<span class="min-w-0 flex-1 truncate font-medium">nima<', menu
         )
         assert 'role="switch"' in menu and "Dark mode" in menu
+        assert "Compact lists" in menu
         assert '<span class="whitespace-nowrap">Language</span>' in menu
         assert '<span class="whitespace-nowrap">Time zone</span>' in menu
         assert 'form="sign-out-form"' in menu and "Sign out" in menu
@@ -90,6 +91,16 @@ class TestTheMenu:
         assert 'name="language"' not in page.text
         assert 'name="timezone"' not in page.text
 
+    async def test_compact_lists_is_a_switch(
+        self, signed_in: httpx.AsyncClient
+    ) -> None:
+        page = await signed_in.get("/admin/orders")
+        menu = page.text.split('<div class="dropdown dropdown-top w-full">', 1)[1]
+        button = menu.split("Compact lists", 1)[0].rsplit("<button", 1)[1]
+
+        assert 'role="switch"' in button
+        assert '@click="switchDensity(); compact = listsAreCompact()"' in button
+
     def test_its_closed_menus_take_no_room(self) -> None:
         # The language and time zone menus are popovers drawn with daisyUI's
         # menu, whose display wins over the browser's own way of hiding a
@@ -98,3 +109,28 @@ class TestTheMenu:
         stylesheet = STYLESHEET.read_text(encoding="utf-8")
 
         assert "[popover]:not(:popover-open){display:none}" in stylesheet
+
+
+class TestCompactLists:
+    async def test_a_page_reads_the_choice_before_it_draws(
+        self, signed_in: httpx.AsyncClient
+    ) -> None:
+        page = await signed_in.get("/admin/orders")
+
+        # In the head, as the theme is, so a list never jumps from one spacing
+        # to the other after it is drawn.
+        head = page.text.split("</head>", 1)[0]
+        assert 'localStorage.getItem("adminsite-density") === "compact"' in head
+
+    async def test_the_rows_take_their_sizes_from_it(
+        self, signed_in: httpx.AsyncClient
+    ) -> None:
+        page = await signed_in.get("/admin/orders")
+        rows = page.text.split("<tbody>", 1)[1].split("</tbody>", 1)[0]
+        stylesheet = STYLESHEET.read_text(encoding="utf-8")
+
+        assert rows.count("h-(--list-row)") == rows.count("<td")
+        assert "px-(--list-cell)" in rows
+        assert "--list-row:3rem" in stylesheet
+        compact = stylesheet.split("[data-density=compact]{", 1)[1].split("}", 1)[0]
+        assert "--list-row:2.25rem" in compact

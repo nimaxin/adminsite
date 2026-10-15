@@ -9,7 +9,7 @@
 <tr class="hover:bg-subtle has-[input[name=keys]:checked]:bg-selected">
   {% if actions %}
     {#- The whole cell ticks the row, not only the box in it. -#}
-    <td class="h-12 cursor-pointer border-b border-line ps-4 pe-1 lg:ps-7">
+    <td class="h-(--list-row) cursor-pointer border-b border-line ps-4 pe-1 lg:ps-7">
       <input type="checkbox" class="checkbox checkbox-sm align-middle" name="keys" value="{{ key }}"
              aria-label="{{ _('Select {name}', name=view.get_record_title(row)) }}"
              @change="
@@ -18,7 +18,7 @@
              ">
     </td>
   {% endif %}
-  <td class="h-12 border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
+  <td class="h-(--list-row) border-b border-line px-1 {% if not actions %}ps-4 lg:ps-7{% endif %}">
     {% with allowed = row_actions.get(key, []) if row_actions else [],
             title = view.get_record_title(row),
             edit_url = urls.edit(view, key) if can_edit else "",
@@ -31,7 +31,7 @@
     {% set widget = item.widget %}
     {% set text = view._fields.display(row, path) %}
     {% set amount = widget == 'number' and path not in view._schema.primary_key %}
-    <td class="h-12 border-b border-line px-3 whitespace-nowrap {% if amount %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %}">
+    <td class="h-(--list-row) border-b border-line px-(--list-cell) whitespace-nowrap {% if amount %}text-end font-medium tabular-nums{% elif widget in ('date', 'datetime', 'time') %}text-muted tabular-nums{% endif %} {% if loop.last %}pe-4 lg:pe-7{% endif %}">
       {% if loop.first %}
         {#- The first cell opens the record, or the form where a view
             has no record page, or is plain text where it has neither. -#}
@@ -39,9 +39,9 @@
         {% set is_key = widget == "number" and path in view._schema.primary_key %}
         {% set shown = ("#" ~ text if is_key and text else (text or view.get_record_title(row))) %}
         {% if opens %}
-          <a class="block w-fit max-w-md truncate font-medium text-link hover:underline {% if is_key %}font-mono text-label{% endif %}" href="{{ opens }}">{{ shown }}</a>
+          <a class="block w-fit max-w-(--list-cut) truncate font-medium text-link hover:underline {% if is_key %}font-mono text-label{% endif %}" href="{{ opens }}">{{ shown }}</a>
         {% else %}
-          <span class="block max-w-md truncate font-medium {% if is_key %}font-mono text-label{% endif %}">{{ shown }}</span>
+          <span class="block max-w-(--list-cut) truncate font-medium {% if is_key %}font-mono text-label{% endif %}">{{ shown }}</span>
         {% endif %}
       {% else %}
         {%- set shown -%}
@@ -53,16 +53,16 @@
           {% elif widget == "image" %}
             {% set stored = view._fields.value_at(row, path) %}
             <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"
-                 class="size-8 rounded-md object-cover" loading="lazy">
+                 class="size-(--list-picture) rounded-md object-cover" loading="lazy">
           {% elif widget == "file" %}
-            <a class="block w-fit max-w-md truncate text-link hover:underline" href="{{ urls.file(view, path, view._fields.value_at(row, path)) }}">{{ text }}</a>
+            <a class="block w-fit max-w-(--list-cut) truncate text-link hover:underline" href="{{ urls.file(view, path, view._fields.value_at(row, path)) }}">{{ text }}</a>
           {% elif widget in ("select", "checkbox") %}
             {{ values.badge(item, view._fields.value_at(row, path), text) }}
           {% else %}
             {#- Cut short where it is long, as a note, a list of values or
                 the names of many linked records can be, so no value makes
                 its column wider than this. An amount keeps to the end. -#}
-            <span class="block max-w-md truncate {% if amount %}ms-auto{% endif %}">{{ text }}</span>
+            <span class="block max-w-(--list-cut) truncate {% if amount %}ms-auto{% endif %}">{{ text }}</span>
           {% endif %}
         {%- endset -%}
         {% if path in changes %}

@@ -60,6 +60,9 @@
   try {
     const saved = localStorage.getItem("adminsite-theme");
     if (saved) document.documentElement.dataset.theme = saved;
+    if (localStorage.getItem("adminsite-density") === "compact") {
+      document.documentElement.dataset.density = "compact";
+    }
   } catch (error) {}
   // Dark when chosen, or, until someone chooses, when the device is.
   function themeIsDark() {
@@ -70,6 +73,20 @@
     const root = document.documentElement;
     root.dataset.theme = themeIsDark() ? "light" : "dark";
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
+  }
+  // Lists draw their rows closer together for whoever turns this on. Read
+  // above, before the page draws, so a list never jumps from one to the other.
+  function listsAreCompact() {
+    return document.documentElement.dataset.density === "compact";
+  }
+  function switchDensity() {
+    const root = document.documentElement;
+    if (listsAreCompact()) delete root.dataset.density;
+    else root.dataset.density = "compact";
+    try {
+      if (listsAreCompact()) localStorage.setItem("adminsite-density", "compact");
+      else localStorage.removeItem("adminsite-density");
+    } catch (error) {}
   }
 
   // What is ticked in the list. The table and the Actions menu above it both
@@ -1118,6 +1135,16 @@
                 <span class="flex-1">{{ _('Dark mode') }}</span>
                 <span class="relative h-4 w-7 shrink-0 rounded-full" :class="dark ? 'bg-primary' : 'bg-base-300'" aria-hidden="true">
                   <span class="absolute start-0.5 top-0.5 size-3 rounded-full bg-base-100 transition-transform" :class="dark && 'translate-x-3 rtl:-translate-x-3'"></span>
+                </span>
+              </button>
+            </li>
+            <li>
+              <button type="button" role="switch" x-data="{ compact: listsAreCompact() }" :aria-checked="compact.toString()"
+                      @click="switchDensity(); compact = listsAreCompact()">
+                <span class="text-muted">{{ icons.icon("compact") }}</span>
+                <span class="flex-1">{{ _('Compact lists') }}</span>
+                <span class="relative h-4 w-7 shrink-0 rounded-full" :class="compact ? 'bg-primary' : 'bg-base-300'" aria-hidden="true">
+                  <span class="absolute start-0.5 top-0.5 size-3 rounded-full bg-base-100 transition-transform" :class="compact && 'translate-x-3 rtl:-translate-x-3'"></span>
                 </span>
               </button>
             </li>

@@ -530,6 +530,8 @@ class TestLongValues:
         # Text was cut short before; a record's name, an email, the names of
         # many linked records and their values were not, so one long value
         # could stretch its column across the screen.
-        link = r'<a class="block w-fit max-w-md truncate [^"]*" href="[^"]+">'
+        link = (
+            r'<a class="block w-fit max-w-\(--list-cut\) truncate [^"]*" href="[^"]+">'
+        )
         assert re.search(link + "Aisha Khan</a>", row)
-        assert row.count("max-w-md truncate") == 4
+        assert row.count("max-w-(--list-cut) truncate") == 4

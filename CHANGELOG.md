@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+Before upgrading:
+
+- A project that overrides `base.html`, `list.html`, `_table.html`, `_row.html`, `_toolbar.html`,
+  `_saved_tabs.html`, `_filter_chips.html`, `_records_total.html` or `_icons.html` should start
+  its copy again from the new one.
+
+What changed:
+
+- Compact lists: a switch in the account menu, beside Dark mode, draws every list with its rows
+  closer together, 36px apart where they were 48, so a screen holds about half as many rows again.
+  Each person turns it on for themselves, and forms and record pages keep their spacing.
+
 ## 0.2.1
 
 A release of fixes. Mounted in Litestar, the admin opens every page, where before only its front

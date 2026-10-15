@@ -2,7 +2,7 @@
     drawer at its filter, and its cross takes the filter off. The table sends
     the row again with every reload, so it never goes stale. -#}
 {% import "adminsite/_icons.html" as icons %}
-<div id="filter-chips" class="flex flex-wrap items-center gap-2 px-4 pb-3 empty:hidden lg:px-7"
+<div id="filter-chips" class="flex flex-wrap items-center gap-2 px-4 pb-3 empty:hidden compact:pb-2 lg:px-7"
      {% if oob|default(false) %}hx-swap-oob="true"{% endif %}>
   {%- if chips %}
     {% for panel in chips %}
