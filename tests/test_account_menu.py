@@ -54,7 +54,7 @@ class TestTheMenu:
         menu = page.text.split('<div class="dropdown dropdown-top w-full">', 1)[1]
 
         assert re.search(
-            r'<span class="min-w-0 flex-1 truncate font-medium">nima<', menu
+            r'<span class="min-w-0 flex-1 truncate font-medium[^"]*">nima<', menu
         )
         assert 'role="switch"' in menu and "Dark mode" in menu
         assert "Compact lists" in menu
@@ -81,9 +81,9 @@ class TestTheMenu:
         async with serve(Admin(database, views=[OrderView])) as client:
             page = await client.get("/admin/orders")
 
-        assert (
-            '<span class="min-w-0 flex-1 truncate font-medium">Settings</span>'
-            in page.text
+        assert re.search(
+            r'<span class="min-w-0 flex-1 truncate font-medium[^"]*">Settings</span>',
+            page.text,
         )
         assert "Dark mode" in page.text
         assert "sign-out-form" not in page.text
