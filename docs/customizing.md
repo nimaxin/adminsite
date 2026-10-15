@@ -86,13 +86,13 @@ The build writes `src/adminsite/static/adminsite.css`. If your own templates use
 daisyUI classes the shipped stylesheet does not have, build a stylesheet of your own from the same
 input, with your template folder added as a `@source`, and serve it from your own `base.html`.
 
-## Compact lists
+## Compact mode
 
-Each person can turn on Compact lists in the account menu, beside Dark mode. Every list then draws
-its rows closer together, 36px apart instead of 48, with values a size smaller, so a screen holds
-about half as many rows again. Forms and record pages keep their spacing, and the choice stays in
-that person's browser.
+Each person can turn on Compact mode in the account menu, beside Dark mode. Lists then draw their
+rows 36px apart instead of 48, with values a size smaller, so a screen holds about half as many
+rows again, and record pages draw their fields closer together. Forms keep their spacing, and the
+choice stays in that person's browser.
 
-The sizes are CSS variables a stylesheet of yours can change: `--list-row`, `--list-head`,
+A list's sizes are CSS variables a stylesheet of yours can change: `--list-row`, `--list-head`,
 `--list-cell`, `--list-text`, `--list-picture` and `--list-cut`, set on `:root` and again under
 `[data-density="compact"]`.

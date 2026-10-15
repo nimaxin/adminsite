@@ -5,14 +5,14 @@
 {% block page_title %}{{ heading }} · {{ title }}{% endblock %}
 
 {% block breadcrumb %}
-  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-label text-muted lg:px-7">
+  <nav aria-label="{{ _('Breadcrumb') }}" class="flex h-11 items-end gap-1.5 px-4 text-label text-muted compact:h-9 lg:px-7">
     <a class="hover:text-base-content" href="{{ urls.list(view) }}">{{ view.label_plural }}</a>
     {{ icons.icon("chevron-right", 14) }}
     <span aria-current="page" class="truncate text-base-content">{{ heading }}</span>
   </nav>
 {% endblock %}
 
-{% block header_class %}lg:pt-2 lg:pb-5{% endblock %}
+{% block header_class %}lg:pt-2 lg:pb-5 compact:lg:pb-3{% endblock %}
 
 {#- The first choice on the page, such as a status, stands beside the name. -#}
 {% set first = namespace(path=none, value="") %}
@@ -25,7 +25,7 @@
 {% block header %}
   <div class="flex min-w-0 flex-col gap-1.5">
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight">{{ heading }}</h1>
+      <h1 class="truncate text-[26px] font-semibold leading-tight tracking-tight compact:text-[22px]">{{ heading }}</h1>
       {% if first.path %}
         {{ values.badge(view._fields.field_for(first.path), view._fields.value_at(record, first.path), first.value) }}
       {% endif %}
@@ -101,13 +101,13 @@
     <div role="tablist" aria-label="{{ _('Sections') }}" class="flex gap-5 border-b border-base-300 px-4 lg:px-7">
       <button role="tab" type="button" id="tab-details" aria-controls="panel-details"
               aria-selected="true" :aria-selected="(tab === 'details').toString()" @click="tab = 'details'"
-              class="-mb-px h-10 border-b-2 text-label font-medium"
+              class="-mb-px h-10 border-b-2 text-label font-medium compact:h-8.5"
               :class="tab === 'details' ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
         {{ _('Details') }}
       </button>
       <button role="tab" type="button" id="tab-history" aria-controls="panel-history"
               aria-selected="false" :aria-selected="(tab === 'history').toString()" @click="tab = 'history'"
-              class="-mb-px h-10 border-b-2 border-transparent text-label font-medium text-muted"
+              class="-mb-px h-10 border-b-2 border-transparent text-label font-medium text-muted compact:h-8.5"
               :class="tab === 'history' ? 'border-base-content text-base-content' : 'border-transparent text-muted hover:text-base-content'">
         {{ _('History ({count})', count=(history|length) ~ ('+' if older_history else '')) }}
       </button>
@@ -116,9 +116,9 @@
     <div class="border-b border-base-300"></div>
   {% endif %}
 
-  <div class="flex-1 bg-base-200 px-4 py-6 lg:px-7">
+  <div class="flex-1 bg-base-200 px-4 py-6 compact:py-4 lg:px-7">
     <div role="tabpanel" id="panel-details" aria-labelledby="tab-details" x-show="tab === 'details'"
-         class="flex max-w-5xl flex-col gap-5">
+         class="flex max-w-5xl flex-col gap-5 compact:gap-4">
       {% for title, description, paths in sections %}
         {% set listed = paths|reject("equalto", skipped)|list %}
         {% if listed %}
@@ -127,7 +127,7 @@
           <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
                    {% if title %}aria-labelledby="fields-{{ loop.index }}"{% else %}aria-label="{{ view.label }}"{% endif %}>
             {% if title %}
-              <div class="card-head px-5 py-3.5">
+              <div class="card-head px-5 py-3.5 compact:py-2.5">
                 <h2 id="fields-{{ loop.index }}" class="text-body font-semibold">{{ title }}</h2>
                 {% if description %}<p class="pt-0.5 text-label text-muted">{{ description }}</p>{% endif %}
               </div>
@@ -139,7 +139,7 @@
                 {#- A JSON document with a schema it fits reads as labelled values. -#}
                 {% set stored = view._fields.value_at(record, path) if item.widget == "json" and not view._fields.hides(record, path) else none %}
                 {% set reading = item.form_document(record, stored) if stored is not none and item.form_document is defined else none %}
-                <div class="grid gap-1 px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4 {% if title or not loop.first %}border-t border-line{% endif %}"
+                <div class="grid gap-1 px-5 py-3 compact:py-2 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4 {% if title or not loop.first %}border-t border-line{% endif %}"
                      {% if reading is not none %}x-data="{ view: 'values' }"{% endif %}>
                   <dt class="text-label leading-5 text-muted">{{ label }}</dt>
                   <dd class="min-w-0 break-words leading-5">
@@ -203,16 +203,16 @@
       {% for table in children %}
         <section class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-quiet"
                  aria-labelledby="child-{{ loop.index }}">
-          <div class="card-head flex items-center gap-2 px-5 py-3.5">
+          <div class="card-head flex items-center gap-2 px-5 py-3.5 compact:py-2.5">
             <h2 id="child-{{ loop.index }}" class="text-body font-semibold">{{ table.label }}</h2>
             <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-base-300 bg-subtle px-1.5 text-note font-medium text-muted">{{ table.rows|length }}</span>
           </div>
           <div class="relative overflow-x-auto overflow-y-hidden">
-            <table class="w-full text-body">
+            <table class="w-full text-body compact:text-label">
               <thead>
                 <tr class="border-y border-line bg-subtle">
                   {% for header in table.headers %}
-                    <th class="h-9 px-5 text-note font-medium text-muted {{ 'text-end' if table.numeric[loop.index0] else 'text-start' }}">{{ header }}</th>
+                    <th class="h-9 px-5 compact:h-8 text-note font-medium text-muted {{ 'text-end' if table.numeric[loop.index0] else 'text-start' }}">{{ header }}</th>
                   {% endfor %}
                 </tr>
               </thead>
@@ -220,12 +220,12 @@
                 {% for cells in table.rows %}
                   <tr>
                     {% for text in cells %}
-                      <td class="h-11 px-5 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{% if text %}{{ text }}{% else %}{% include "adminsite/_empty.html" %}{% endif %}</td>
+                      <td class="h-11 px-5 compact:h-9 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{% if text %}{{ text }}{% else %}{% include "adminsite/_empty.html" %}{% endif %}</td>
                     {% endfor %}
                   </tr>
                 {% else %}
                   <tr>
-                    <td colspan="{{ table.headers|length }}" class="h-11 px-5 text-muted">{{ _('None yet.') }}</td>
+                    <td colspan="{{ table.headers|length }}" class="h-11 px-5 text-muted compact:h-9">{{ _('None yet.') }}</td>
                   </tr>
                 {% endfor %}
               </tbody>

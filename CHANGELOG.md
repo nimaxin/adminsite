@@ -4,15 +4,15 @@
 
 Before upgrading:
 
-- A project that overrides `base.html`, `list.html`, `_table.html`, `_row.html`, `_toolbar.html`,
-  `_saved_tabs.html`, `_filter_chips.html`, `_records_total.html` or `_icons.html` should start
-  its copy again from the new one.
+- A project that overrides `base.html`, `list.html`, `detail.html`, `_table.html`, `_row.html`,
+  `_toolbar.html`, `_saved_tabs.html`, `_filter_chips.html`, `_records_total.html` or
+  `_icons.html` should start its copy again from the new one.
 
 What changed:
 
-- Compact lists: a switch in the account menu, beside Dark mode, draws every list with its rows
-  closer together, 36px apart where they were 48, so a screen holds about half as many rows again.
-  Each person turns it on for themselves, and forms and record pages keep their spacing.
+- Compact mode: a switch in the account menu, beside Dark mode, draws lists and record pages
+  closer together. A list's rows are 36px apart where they were 48, so a screen holds about half
+  as many rows again. Each person turns it on for themselves, and forms keep their spacing.
 - The sidebar folds to its icons from a button beside the admin's name, which gives the page 176px
   more room for a list's columns. Each name shows when the pointer rests on its icon, and each
   person's choice is kept.

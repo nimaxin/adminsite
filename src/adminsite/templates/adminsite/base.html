@@ -77,17 +77,18 @@
     root.dataset.theme = themeIsDark() ? "light" : "dark";
     try { localStorage.setItem("adminsite-theme", root.dataset.theme); } catch (error) {}
   }
-  // Lists draw their rows closer together for whoever turns this on. Read
-  // above, before the page draws, so a list never jumps from one to the other.
-  function listsAreCompact() {
+  // Compact mode draws lists and record pages closer together for whoever
+  // turns it on. Read above, before the page draws, so it never jumps from
+  // one spacing to the other.
+  function compactModeIsOn() {
     return document.documentElement.dataset.density === "compact";
   }
-  function switchDensity() {
+  function switchCompactMode() {
     const root = document.documentElement;
-    if (listsAreCompact()) delete root.dataset.density;
+    if (compactModeIsOn()) delete root.dataset.density;
     else root.dataset.density = "compact";
     try {
-      if (listsAreCompact()) localStorage.setItem("adminsite-density", "compact");
+      if (compactModeIsOn()) localStorage.setItem("adminsite-density", "compact");
       else localStorage.removeItem("adminsite-density");
     } catch (error) {}
   }
@@ -1176,10 +1177,10 @@
               </button>
             </li>
             <li>
-              <button type="button" role="switch" x-data="{ compact: listsAreCompact() }" :aria-checked="compact.toString()"
-                      @click="switchDensity(); compact = listsAreCompact()">
+              <button type="button" role="switch" x-data="{ compact: compactModeIsOn() }" :aria-checked="compact.toString()"
+                      @click="switchCompactMode(); compact = compactModeIsOn()">
                 <span class="text-muted">{{ icons.icon("compact") }}</span>
-                <span class="flex-1">{{ _('Compact lists') }}</span>
+                <span class="flex-1">{{ _('Compact mode') }}</span>
                 <span class="relative h-4 w-7 shrink-0 rounded-full" :class="compact ? 'bg-primary' : 'bg-base-300'" aria-hidden="true">
                   <span class="absolute start-0.5 top-0.5 size-3 rounded-full bg-base-100 transition-transform" :class="compact && 'translate-x-3 rtl:-translate-x-3'"></span>
                 </span>
