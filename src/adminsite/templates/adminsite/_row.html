@@ -49,7 +49,7 @@
             {#- Read through a record its own view keeps from this user. -#}
             <span class="text-muted">{{ text }}</span>
           {% elif not text %}
-            {% include "adminsite/_empty.html" %}
+            {% with empty_text = item.empty_text %}{% include "adminsite/_empty.html" %}{% endwith %}
           {% elif widget == "image" %}
             {% set stored = view._fields.value_at(row, path) %}
             <img src="{{ urls.file(view, path, stored) }}" alt="{{ text }}"

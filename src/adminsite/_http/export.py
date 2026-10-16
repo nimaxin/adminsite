@@ -46,9 +46,13 @@ def csv_rows(view: ModelView[Any], records: Sequence[Any], paths: Sequence[str])
     """Write records as CSV text, using what the list would show."""
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
+    empty_texts = [view._fields.field_for(path).empty_text for path in paths]
     for record in records:
         writer.writerow(
-            [as_cell(plain(view._fields.display(record, path))) for path in paths]
+            [
+                as_cell(plain(view._fields.display(record, path)) or empty_text)
+                for path, empty_text in zip(paths, empty_texts, strict=True)
+            ]
         )
     return buffer.getvalue()
 

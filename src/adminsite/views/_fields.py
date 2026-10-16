@@ -294,8 +294,7 @@ class ViewFields(Generic[M]):
 
         A value read through a linked record its view's scope keeps from
         this user reads as Hidden, unless `as_seen` is False, as for the
-        audit log, which keeps what is true. A field that shows nothing
-        shows its `empty_text`.
+        audit log, which keeps what is true.
         """
         item = self.field_for(path)
         if item.form_only:
@@ -306,23 +305,21 @@ class ViewFields(Generic[M]):
             return _("Hidden")
         if isinstance(item, RelationField):
             # A linked record reads here as it does everywhere else.
-            text = name_all_linked(
+            return name_all_linked(
                 item,
                 value,
                 views=self._view._views,
                 inspector=self._inspector,
                 as_seen=as_seen,
             )
-        elif (
+        if (
             "." in path
             and self._inspector.resolve(self._model, path).crosses_collection
         ):
             # Read through a link to many, it holds a value for each record.
             shown = (item.text_for(record, one) for one in value or ())
-            text = ", ".join(text for text in shown if text)
-        else:
-            text = item.text_for(record, value)
-        return text or item.empty_text
+            return ", ".join(text for text in shown if text)
+        return item.text_for(record, value)
 
     def name_linked(self, item: RelationField, record: Any) -> str:
         """Name a record one of this view's links points at."""

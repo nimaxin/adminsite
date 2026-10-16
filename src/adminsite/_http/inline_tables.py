@@ -344,6 +344,9 @@ def child_tables(
                 "numeric": [
                     child._fields.field_for(path).widget == "number" for path in paths
                 ],
+                "empty_texts": [
+                    child._fields.field_for(path).empty_text for path in paths
+                ],
                 "rows": [
                     [child._fields.display(found, path) for path in paths]
                     for found in children
