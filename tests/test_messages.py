@@ -6,7 +6,7 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, Html, Message, ModelView
+from adminsite import Admin, Html, Message, ModelView, RefusedError
 from adminsite.actions import Selection, action
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.database import Database, SessionAdapter
@@ -36,9 +36,9 @@ class OrderView(ModelView[Order]):
     async def note(self, session: SessionAdapter) -> str:
         return "Checked <b>nothing</b>."
 
-    @action("Pin", on="view")
-    async def pin(self, session: SessionAdapter) -> Message:
-        return Message("Read this slowly.", sticky=True)
+    @action("Close the books", on="view")
+    async def close_books(self, session: SessionAdapter) -> str:
+        raise RefusedError("The books close at the end of the month.")
 
 
 @pytest.fixture
@@ -77,22 +77,22 @@ async def run(client: httpx.AsyncClient, name: str, **data: str) -> httpx.Respon
     )
 
 
-def toast(page: httpx.Response) -> str:
-    """The message area of a page."""
-    found = re.search(r'<div class="toast.*?</div>\s*</div>\s*</div>', page.text, re.S)
-    assert found is not None, "no message on the page"
+def messages(page: httpx.Response) -> str:
+    """The messages of a page, at the end of its header."""
+    found = re.search(r'<div id="messages".*?</header>', page.text, re.S)
+    assert found is not None, "no place for messages on the page"
+    assert "role=" in found.group(0), "no message on the page"
     return found.group(0)
 
 
 class TestAValueToCopy:
-    async def test_it_stays_with_a_copy_button(self, client: httpx.AsyncClient) -> None:
+    async def test_it_shows_with_a_copy_button(self, client: httpx.AsyncClient) -> None:
         page = await run(client, "rotate", keys="1")
 
-        shown = toast(page)
+        shown = messages(page)
         assert "The new key is ready." in shown
         assert re.search(r"<code[^>]*>abc123</code>", shown)
         assert "Copy" in shown
-        assert "setTimeout" not in shown
 
     async def test_the_log_keeps_the_text_but_never_the_value(
         self, client: httpx.AsyncClient, log: AuditLog
@@ -126,9 +126,10 @@ class TestALink:
     async def test_it_follows_the_text(self, client: httpx.AsyncClient) -> None:
         page = await run(client, "queue_export", keys="1")
 
-        assert (
-            '<a class="link font-medium" href="/admin/orders?status=PAID">'
-            "Paid orders</a>" in toast(page)
+        assert re.search(
+            r'The export is on its way\. <a class="[^"]*" '
+            r'href="/admin/orders\?status=PAID">Paid orders</a>',
+            messages(page),
         )
 
 
@@ -136,22 +137,51 @@ class TestMarkup:
     async def test_html_is_written_as_markup(self, client: httpx.AsyncClient) -> None:
         page = await run(client, "recheck")
 
-        assert "Queued <b>40</b> checks." in toast(page)
+        assert "Queued <b>40</b> checks." in messages(page)
 
     async def test_plain_text_is_escaped(self, client: httpx.AsyncClient) -> None:
         page = await run(client, "note")
 
-        assert "Checked &lt;b&gt;nothing&lt;/b&gt;." in toast(page)
+        assert "Checked &lt;b&gt;nothing&lt;/b&gt;." in messages(page)
 
 
-class TestHowLongItStays:
-    async def test_good_news_still_fades(self, client: httpx.AsyncClient) -> None:
+class TestWhereItShows:
+    async def test_it_is_under_the_heading(self, client: httpx.AsyncClient) -> None:
         page = await run(client, "note")
 
-        assert "setTimeout" in toast(page)
+        header = page.text.index("<header")
+        assert header < page.text.index('id="messages"') < page.text.index("</header>")
+        assert "Checked &lt;b&gt;nothing&lt;/b&gt;." in messages(page)
 
-    async def test_a_sticky_message_stays(self, client: httpx.AsyncClient) -> None:
-        page = await run(client, "pin")
+    async def test_it_stays_until_it_is_closed(self, client: httpx.AsyncClient) -> None:
+        page = await run(client, "note")
 
-        assert "Read this slowly." in toast(page)
-        assert "setTimeout" not in toast(page)
+        shown = messages(page)
+        assert "setTimeout" not in shown
+        assert 'aria-label="Close"' in shown
+
+    async def test_it_is_shown_once(self, client: httpx.AsyncClient) -> None:
+        await run(client, "note")
+
+        again = await client.get("/admin/orders")
+
+        assert "Checked" not in again.text
+
+
+class TestHowItIsAnnounced:
+    async def test_news_is_announced_politely(self, client: httpx.AsyncClient) -> None:
+        page = await run(client, "note")
+
+        shown = messages(page)
+        assert 'role="status"' in shown
+        assert "message-error" not in shown
+
+    async def test_a_problem_is_announced_at_once(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        page = await run(client, "close_books")
+
+        shown = messages(page)
+        assert 'role="alert"' in shown
+        assert "message-error" in shown
+        assert "The books close at the end of the month." in shown

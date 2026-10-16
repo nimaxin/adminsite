@@ -488,9 +488,7 @@ class TestTheList:
     ) -> None:
         plain = await client.get("/admin/plain")
 
-        assert re.search(
-            r'<div class="[^"]*empty:hidden[^"]*" id="toasts"></div>', plain.text
-        )
+        assert re.search(r'<div id="messages" class="[^"]*">\s*</div>', plain.text)
 
     async def test_it_costs_no_more_queries(self, backend: Backend) -> None:
         admin = Admin(backend.database, views=[OrderView, PlainOrders])
@@ -589,8 +587,8 @@ class TestSavingAValue:
         assert saved.text.lstrip().startswith("<tr")
         assert re.search(r'<span class="pill [^"]*">Paid</span>', saved.text)
         assert 'data-edit-url="/admin/orders/3/edit/status"' in saved.text
-        toast = saved.text.split('hx-swap-oob="beforeend:#toasts"', 1)[1]
-        assert "Order #3 saved." in toast
+        message = saved.text.split('hx-swap-oob="innerHTML:#messages"', 1)[1]
+        assert "Order #3 saved." in message
         assert (await stored_order(database, 3)).status is OrderStatus.PAID
 
     async def test_only_that_value_is_read(

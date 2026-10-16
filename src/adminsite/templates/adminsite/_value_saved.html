@@ -1,4 +1,6 @@
 {#- What a saved value answers with: the record's row drawn again, to take the
-    place of the one being edited, and a message in the corner. -#}
+    place of the one being edited, and a message under the page's heading. It
+    takes the place of any message there, so saving value after value does not
+    stack them up and push the list down each time. -#}
 {% include "adminsite/_row.html" %}
-<div hx-swap-oob="beforeend:#toasts">{% include "adminsite/_message.html" %}</div>
+<div hx-swap-oob="innerHTML:#messages">{% include "adminsite/_message.html" %}</div>

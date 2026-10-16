@@ -15,8 +15,8 @@ templates of your own.
   `aria-sort`, and each row's checkbox is named after its record, such as "Select Order #12".
 - **Forms.** Every input is named by its field's label, and an error or a help text is tied to it
   with `aria-describedby`.
-- **Messages.** News such as "Saved" is announced politely. A problem is announced at once and
-  stays until it is closed.
+- **Messages.** News such as "Saved" is announced politely, and a problem at once. Every message
+  stays under the page's heading until it is closed, so nobody has to read it in a hurry.
 - **Language and direction.** Every page states its language and direction, so a screen reader
   pronounces Persian as Persian. See [Translations](translations.md).
 - **Contrast.** Secondary text stays readable in both themes.

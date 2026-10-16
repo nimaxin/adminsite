@@ -156,7 +156,7 @@ def action(
     handed the request or the session the action runs in.
 
     A method returns the message to show, a `Message` for more than a line
-    that fades, or a response to send instead, such as a file to download.
+    of text, or a response to send instead, such as a file to download.
     Raise `RefusedError` to stop it with a message; everything it did is
     rolled back.
 

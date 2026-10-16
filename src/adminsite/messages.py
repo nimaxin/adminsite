@@ -14,38 +14,28 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class Message:
-    """What an action answers, when a line of text that fades is not enough.
+    """What an action answers, when a line of text is not enough.
 
     ```python
     Message("The new key is ready.", copy="sk_live_k3j9x2")
     Message("The export is on its way.", link="/admin/exports", link_text="Exports")
-    Message(Html("Queued <b>40</b> checks."), sticky=True)
     ```
 
     Args:
         text: What happened. It is escaped, unless given as `Html`.
-        sticky: Whether it stays on screen until it is closed, where a
-            message that all went well otherwise fades after a few seconds.
         link: An address to follow, written after the text.
         link_text: The words of the link. Left empty, "Open".
         copy: A value shown with a button that copies it, such as a new API
-            key. It keeps the message on screen, and the audit log, which
-            keeps the text, never keeps it.
+            key. The audit log, which keeps the text, never keeps it.
     """
 
     text: str
-    sticky: bool = False
     link: str = ""
     link_text: str = ""
     copy: str = ""
 
     def __str__(self) -> str:
         return str(self.text)
-
-    @property
-    def stays(self) -> bool:
-        """Whether it stays on screen until it is closed."""
-        return self.sticky or bool(self.copy)
 
     def as_json(self) -> dict[str, Any]:
         """The message as the JSON API answers it."""
@@ -64,7 +54,6 @@ def stored_message(answer: Any, kind: str) -> dict[str, Any]:
             "text": str(answer.text),
             "html": isinstance(answer.text, Markup),
             "kind": kind,
-            "sticky": answer.stays,
             "link": answer.link,
             "link_text": answer.link_text,
             # Not "copy": the page reads these as attributes, and a dict's
@@ -90,7 +79,7 @@ def add_message(request: Request, text: "str | Message", kind: str = "info") -> 
         request: The request being answered.
         text: What to say, escaped unless given as `Html`, or a `Message`.
         kind: "error" draws it as a problem; anything else, such as the
-            default "info", as news that fades.
+            default "info", as good news.
     """
     session = request.scope.get("session")
     if session is None:

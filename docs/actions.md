@@ -255,8 +255,8 @@ back and reported the same way.
 
 ## Answer with more than a line
 
-A message that all went well fades after a few seconds. When the person has to read, follow or
-copy something, return a `Message`:
+An action's message shows under the page's heading until it is closed. When the person has to
+follow a link or copy something, return a `Message`:
 
 ```python
 from adminsite import Message
@@ -280,9 +280,8 @@ class AccountView(ModelView[Account]):
         )
 ```
 
-`sticky` keeps the message on screen until it is closed, `link` and `link_text` add an address to
-follow, and `copy` adds a value to copy, which the audit log never keeps. The text is escaped, so
-return `Html(...)` for markup of your own.
+`link` and `link_text` add an address to follow, and `copy` adds a value to copy, which the audit
+log never keeps. The text is escaped, so return `Html(...)` for markup of your own.
 
 ## Answer with a file
 
