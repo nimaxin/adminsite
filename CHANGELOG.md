@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+An action's message now sits under the page's heading and stays until it is closed, and a field
+can say what its empty value means, such as "Every region" for a multi-select left empty. The
+folded sidebar scrolls a long list of views without a scrollbar.
 
 Before upgrading:
 
