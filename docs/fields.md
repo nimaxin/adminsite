@@ -109,6 +109,23 @@ The tones are `amber`, `blue`, `green`, `grey`, `violet` and `rose`. A value lef
 `None` draws no badge, so a risk flag shows only when it is set. A single tone, such as `"grey"`,
 colours every value alike. A value is named by its enum member or by the value the column stores.
 
+## Say what an empty value means
+
+An empty value often means something: a supplier with no closing date is still open, and a rule
+with no regions picked applies in every region. Give the field `empty_text`, and the list, the
+record page and the export show it where they would show a hyphen or an empty cell:
+
+```python
+from adminsite import Field
+
+
+class SupplierView(ModelView[Supplier]):
+    fields = [Supplier.name, Field(Supplier.closed_at, empty_text="Still open")]
+```
+
+A link to many records and a multi-select take it too, such as `empty_text="Every region"`. The
+form, the filters and the search are unchanged, and an import reads the text back as empty.
+
 ## Relationships
 
 A relationship shows the linked records' names in the list and a picker in the form. On a table of
