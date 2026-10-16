@@ -163,7 +163,7 @@ class OrderView(ModelView[Order]):
     ) -> Message:
         order.status = OrderStatus.REFUNDED
         order.note = f"{reason} (refunded by {request.session.get('user', 'staff')})"
-        return Message(f"Order #{order.id} is refunded.", sticky=True)
+        return Message(f"Order #{order.id} is refunded.")
 
     @action("Export one day", on="view", permission=Permission.EXPORT)
     async def export_day(

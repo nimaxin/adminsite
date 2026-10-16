@@ -1,19 +1,22 @@
-{#- One message in the corner. Good news fades after a few seconds; a problem
-    stays until it is closed, so nobody misses it for reading slowly, and so
-    does a message that asks to, or that holds a value to copy. -#}
+{#- One message under the page's heading. It stays until it is closed or the
+    page changes, so nobody misses it for reading slowly, and a long word,
+    such as a file's name or a key, breaks rather than running past its edge.
+    The text keeps the page's own colour on a tint, so it reads as easily. -#}
 {% import "adminsite/_icons.html" as icons %}
 {% set problem = message.kind == 'error' %}
-<div role="{{ 'alert' if problem else 'status' }}" x-data="{ shown: true, copied: false }" x-show="shown"
-     {% if not problem and not message.sticky %}x-init="setTimeout(() => shown = false, 6000)"{% endif %}
-     class="alert max-w-md items-start whitespace-normal {% if problem %}alert-error{% else %}alert-success{% endif %} alert-soft shadow-float">
-  <div class="flex min-w-0 flex-col gap-2">
-    <span>
+<div role="{{ 'alert' if problem else 'status' }}"
+     class="message {% if problem %}message-error{% endif %} grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 rounded-field border py-2.5 ps-3 pe-2 text-label leading-5">
+  <span class="{% if problem %}text-error{% else %}text-success{% endif %}">
+    {{- icons.icon("circle-alert" if problem else "circle-check", 20) -}}
+  </span>
+  <div class="flex min-w-0 flex-col gap-2 wrap-anywhere">
+    <p>
       {%- if message.html %}{{ message.text | safe }}{% else %}{{ message.text }}{% endif -%}
-      {% if message.link %} <a class="link font-medium" href="{{ message.link }}">{{ message.link_text or _('Open') }}</a>{% endif %}
-    </span>
+      {% if message.link %} <a class="font-medium text-link underline underline-offset-2" href="{{ message.link }}">{{ message.link_text or _('Open') }}</a>{% endif %}
+    </p>
     {% if message.to_copy %}
-      <div class="flex items-center gap-2">
-        <code x-ref="value" class="min-w-0 break-all rounded-field bg-base-100 px-2 py-1 font-mono text-label text-base-content">{{ message.to_copy }}</code>
+      <div class="flex items-center gap-2" x-data="{ copied: false }">
+        <code x-ref="value" class="min-w-0 flex-1 break-all rounded-field border border-base-300 bg-base-100 px-2 py-1 font-mono text-note">{{ message.to_copy }}</code>
         <button type="button" class="btn btn-plain btn-xs shrink-0"
                 @click="navigator.clipboard.writeText($refs.value.textContent); copied = true">
           <span x-show="!copied">{{ _('Copy') }}</span>
@@ -22,6 +25,6 @@
       </div>
     {% endif %}
   </div>
-  <button type="button" class="btn btn-ghost btn-xs btn-square" @click="shown = false"
-          aria-label="{{ _('Close') }}">{{ icons.icon("x", 14) }}</button>
+  <button type="button" class="btn btn-square btn-ghost btn-sm -my-1.5 text-muted"
+          onclick="this.parentElement.remove()" aria-label="{{ _('Close') }}">{{ icons.icon("x") }}</button>
 </div>

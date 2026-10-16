@@ -1263,12 +1263,6 @@
     {% if admin.banner %}
       <p role="note" class="tone-0 shrink-0 px-4 py-2 text-center text-label font-medium [&_a]:underline [&_a]:underline-offset-2 lg:mb-2 lg:rounded-box">{{ admin.banner }}</p>
     {% endif %}
-    {#- The messages left for this page, in the corner. An answer from HTMX can
-        add one, as a value saved from the list does. -#}
-    <div class="toast toast-end toast-bottom z-50 empty:hidden" id="toasts">
-      {%- for message in messages %}{% include "adminsite/_message.html" %}{% endfor -%}
-    </div>
-
     {#- The page sits on a raised panel, so it reads apart from the sidebar. -#}
     <main id="content" tabindex="-1" x-data="{ scrolled: false }"
           class="flex min-h-0 flex-1 flex-col bg-base-100 focus:outline-none lg:overflow-hidden lg:rounded-box lg:border lg:border-base-300 lg:shadow-panel">
@@ -1293,6 +1287,14 @@
             {{ icons.icon("search", 18) }}
           </button>
           {% block header_actions %}{% endblock %}
+        </div>
+        {#- The messages left for this page, on a line of their own under its
+            heading. The header does not scroll, so they stay in view until
+            they are closed or the page changes. An answer from HTMX can put
+            one here, as a value saved from the list does. Shown only while it
+            holds one, as a closed message is taken out. -#}
+        <div id="messages" class="hidden basis-full flex-col gap-2 has-[>*]:flex">
+          {%- for message in messages %}{% include "adminsite/_message.html" %}{% endfor -%}
         </div>
       </header>
       {#- Relative, so text kept for screen readers ("sr-only") is placed inside

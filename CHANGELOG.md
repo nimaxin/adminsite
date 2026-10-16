@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+Before upgrading:
+
+- `Message` no longer takes `sticky`: every message now stays until it is closed, so leave it out.
+- A project that overrides `base.html`, `_message.html`, `_value_saved.html` or `_icons.html`
+  should start its copy again from the new one.
+
+What changed:
+
+- An action's message sits under the page's heading, across the page, and stays until it is
+  closed or the page changes. It was a box in the corner that faded after six seconds, covered
+  the page's own buttons, and let a long file name or key run under its close button.
+
 ## 0.3.0
 
 More of a list fits on a screen. Compact mode, a switch in the account menu, draws lists and

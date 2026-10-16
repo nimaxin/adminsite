@@ -109,6 +109,8 @@
   --shadow-field: inset 0 1px 2px rgb(26 26 24 / 0.05);
   --shadow-focus: 0 0 0 3px rgb(11 122 83 / 0.18);
   --shadow-focus-error: 0 0 0 3px rgb(180 35 24 / 0.16);
+  --message-tint: 7%;
+  --message-edge: 30%;
 
   --field: #ffffff;
   --field-border: #aeaea6;
@@ -158,6 +160,8 @@
     --shadow-field: inset 0 1px 2px rgb(0 0 0 / 0.45);
     --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
     --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
+    --message-tint: 13%;
+    --message-edge: 38%;
 
     --field: #090a0a;
     --field-border: #4a4d4c;
@@ -207,6 +211,8 @@
   --shadow-field: inset 0 1px 2px rgb(0 0 0 / 0.45);
   --shadow-focus: 0 0 0 3px rgb(62 207 142 / 0.25);
   --shadow-focus-error: 0 0 0 3px rgb(255 138 127 / 0.22);
+  --message-tint: 13%;
+  --message-edge: 38%;
 
   --field: #090a0a;
   --field-border: #4a4d4c;
@@ -365,6 +371,19 @@
   details:not([open]) > .card-head {
     border-end-start-radius: calc(var(--radius-box) - 1px);
     border-end-end-radius: calc(var(--radius-box) - 1px);
+  }
+
+  /* A message under a page's heading: a tint of green for news, or of red
+     for a problem, with an edge a little stronger, behind text in the page's
+     own colour. Dark mode takes a stronger tint, so it still shows. */
+  .message {
+    --message: var(--color-success);
+    border-color: color-mix(in oklab, var(--message) var(--message-edge), var(--color-base-100));
+    background-color: color-mix(in oklab, var(--message) var(--message-tint), var(--color-base-100));
+  }
+
+  .message-error {
+    --message: var(--color-error);
   }
 }
 
