@@ -87,8 +87,9 @@
 
 /*
  * What daisyUI has no name for: a surface between the panel and the ground,
- * the lines between rows, text that steps back, a field's fill, border and
- * icons, and six tones for badges.
+ * the lines between rows, text that steps back, fainter text for what an
+ * empty value means, a field's fill, border and icons, and six tones for
+ * badges.
  * A choice's tone follows its place among the choices, so the first option
  * is always amber, the second blue, and so on, on every page.
  */
@@ -98,6 +99,7 @@
   --line: #eeeeea;
   --line-strong: #cfcfc8;
   --muted: #4f4f4a;
+  --faint: #6f6f69;
   --link: #0b7a53;
   --selected: #f1f8f4;
   --chart: #2fa472;
@@ -149,6 +151,7 @@
     --line: #1f2121;
     --line-strong: #3a3c3c;
     --muted: #b8b8b2;
+    --faint: #8a8a84;
     --link: #5ad9a0;
     --selected: #11211a;
     --chart: #2f9e6c;
@@ -200,6 +203,7 @@
   --line: #1f2121;
   --line-strong: #3a3c3c;
   --muted: #b8b8b2;
+  --faint: #8a8a84;
   --link: #5ad9a0;
   --selected: #11211a;
   --chart: #2f9e6c;
@@ -250,6 +254,7 @@
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-link: var(--link);
   --color-selected: var(--selected);
   --color-chart: var(--chart);

@@ -190,7 +190,7 @@
                     {% elif value %}
                       {{ value }}
                     {% else %}
-                      {% include "adminsite/_empty.html" %}
+                      {% with empty_text = item.empty_text %}{% include "adminsite/_empty.html" %}{% endwith %}
                     {% endif %}
                   </dd>
                 </div>
@@ -220,7 +220,7 @@
                 {% for cells in table.rows %}
                   <tr>
                     {% for text in cells %}
-                      <td class="h-11 px-5 compact:h-9 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{% if text %}{{ text }}{% else %}{% include "adminsite/_empty.html" %}{% endif %}</td>
+                      <td class="h-11 px-5 compact:h-9 {{ 'text-end tabular-nums' if table.numeric[loop.index0] else '' }}">{% if text %}{{ text }}{% else %}{% with empty_text = table.empty_texts[loop.index0] %}{% include "adminsite/_empty.html" %}{% endwith %}{% endif %}</td>
                     {% endfor %}
                   </tr>
                 {% else %}

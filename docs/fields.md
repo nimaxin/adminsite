@@ -112,8 +112,9 @@ colours every value alike. A value is named by its enum member or by the value t
 ## Say what an empty value means
 
 An empty value often means something: a supplier with no closing date is still open, and a rule
-with no regions picked applies in every region. Give the field `empty_text`, and the list, the
-record page and the export show it where they would show a hyphen or an empty cell:
+with no regions picked applies in every region. Give the field `empty_text`, and the list and the
+record page show it faint, like a placeholder, where they would show a hyphen, so it never reads
+as a value someone set. The export writes it into the empty cell:
 
 ```python
 from adminsite import Field

@@ -5,8 +5,9 @@
 Before upgrading:
 
 - `Message` no longer takes `sticky`: every message now stays until it is closed, so leave it out.
-- A project that overrides `base.html`, `_message.html`, `_value_saved.html` or `_icons.html`
-  should start its copy again from the new one.
+- A project that overrides `base.html`, `detail.html`, `_row.html`, `_empty.html`,
+  `_message.html`, `_value_saved.html` or `_icons.html` should start its copy again from the new
+  one.
 
 What changed:
 
@@ -16,9 +17,10 @@ What changed:
 - With more views than fit, the folded sidebar scrolls its icons without a scrollbar, which on
   Windows took half its width and pushed the icons aside, and fades the edge with more icons past
   it. Unfolded, its scrollbar is thin and quiet, and the open page's link is scrolled into view.
-- Every field takes `empty_text`, which the list, the record page and the export show where the
-  field has no value, for an empty value that means something: `empty_text="Every region"` on a
-  multi-select left empty. A link to records takes it too.
+- Every field takes `empty_text`, for an empty value that means something:
+  `empty_text="Every region"` on a multi-select left empty. The list and the record page show it
+  faint, like a placeholder, where they showed a hyphen, and the export writes it into the empty
+  cell. A link to records takes it too.
 
 ## 0.3.0
 

@@ -74,9 +74,7 @@ async def detail(admin: "Admin", request: Request) -> Response:
         (
             path,
             view._fields.label_for(path),
-            (many[path].text or view._fields.field_for(path).empty_text)
-            if path in many
-            else view._fields.display(record, path),
+            many[path].text if path in many else view._fields.display(record, path),
             opens.get(path, ""),
         )
         for path in paths

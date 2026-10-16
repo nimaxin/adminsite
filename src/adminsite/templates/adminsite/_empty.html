@@ -1,2 +1,5 @@
-{#- An empty value: a hyphen people see, and words a screen reader says. -#}
-<span class="text-muted" aria-hidden="true">-</span><span class="sr-only">{{ _('Not set') }}</span>
+{#- An empty value: a hyphen people see, and words a screen reader says. A
+    field's `empty_text` says what it means instead, faint and slanted like a
+    placeholder, so it never reads as a value someone set. Right to left
+    scripts have no italic, so there it is only faint. -#}
+{% if empty_text|default("") %}<span class="text-faint ltr:italic">{{ empty_text }}</span>{% else %}<span class="text-muted" aria-hidden="true">-</span><span class="sr-only">{{ _('Not set') }}</span>{% endif %}

@@ -36,11 +36,11 @@ class BaseField:
         label: The field's label. Left empty, the column's label, or the
             name written as words: `created_at` reads "Created at".
         help_text: A line under the input, saying how to fill it in.
-        empty_text: What the list, the record page and the export show where
-            the field has no value, for an empty value that means something:
-            "Every region" for a multi-select left empty. Left empty, the
-            pages show a hyphen and the export an empty cell. The form is
-            unchanged.
+        empty_text: What an empty value means, such as "Every region" for a
+            multi-select left empty. The list and the record page show it
+            faint, like a placeholder, where they would show a hyphen, so it
+            never reads as a value someone set, and the export writes it
+            into the empty cell. The form is unchanged.
         required: Whether the form refuses the field left empty. Left as
             None, the column decides: required where it cannot be null and
             has no default. A default only fills in a new record, so on a

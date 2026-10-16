@@ -4,11 +4,14 @@ import httpx
 import pytest
 from starlette.applications import Starlette
 
-from adminsite import Admin, Field, ModelView
+from adminsite import Admin, Field, Inline, ModelView
 from adminsite._importing import normalize
 from adminsite.database import Database
 from adminsite.fields import RelationField
-from tests.models import Article, Product, Tag
+from tests.models import Article, Customer, Order, Product, Tag
+
+# How the pages draw an empty value's text: faint, so it never reads as a value.
+FAINT = '<span class="text-faint ltr:italic">{}</span>'
 
 
 class ProductView(ModelView[Product]):
@@ -21,6 +24,13 @@ class ArticleView(ModelView[Article]):
 
 class TagView(ModelView[Tag]):
     record_title = "{name}"
+
+
+class CustomerView(ModelView[Customer]):
+    fields = [Customer.name]
+    inlines = [
+        Inline(Customer.orders, fields=[Field(Order.note, empty_text="No note")])
+    ]
 
 
 @pytest.fixture
@@ -39,7 +49,11 @@ async def articles(database: Database) -> dict[str, str]:
 
 @pytest.fixture
 async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
-    admin = Admin(database, views=[ProductView, ArticleView, TagView], secret_key="s")
+    admin = Admin(
+        database,
+        views=[ProductView, ArticleView, TagView, CustomerView],
+        secret_key="s",
+    )
     app = Starlette()
     app.mount("/admin", admin)
     async with httpx.AsyncClient(
@@ -49,27 +63,34 @@ async def client(database: Database) -> AsyncIterator[httpx.AsyncClient]:
 
 
 class TestAnEmptyValue:
-    async def test_the_list_shows_the_text(
+    async def test_the_list_shows_the_text_faint(
         self, client: httpx.AsyncClient, articles: dict[str, str]
     ) -> None:
         products = await client.get("/admin/products")
         listed = await client.get("/admin/articles")
 
-        assert "No description" in products.text
-        assert "Every tag" in listed.text
+        assert FAINT.format("No description") in products.text
+        assert FAINT.format("Every tag") in listed.text
         assert "Science" in listed.text
 
-    async def test_the_record_page_shows_the_text(
+    async def test_the_record_page_shows_the_text_faint(
         self, client: httpx.AsyncClient, articles: dict[str, str]
     ) -> None:
         product = await client.get("/admin/products/1")
         untagged = await client.get(f"/admin/articles/{articles['untagged']}")
         tagged = await client.get(f"/admin/articles/{articles['tagged']}")
 
-        assert "No description" in product.text
-        assert "Every tag" in untagged.text
+        assert FAINT.format("No description") in product.text
+        assert FAINT.format("Every tag") in untagged.text
         assert "Science" in tagged.text
         assert "Every tag" not in tagged.text
+
+    async def test_a_child_row_on_the_record_page_shows_it(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        customer = await client.get("/admin/customers/1")
+
+        assert FAINT.format("No note") in customer.text
 
     async def test_the_export_writes_the_text(self, client: httpx.AsyncClient) -> None:
         export = await client.get("/admin/products/export?format=csv")
@@ -80,6 +101,12 @@ class TestAnEmptyValue:
         form = await client.get("/admin/products/1/edit")
 
         assert "No description" not in form.text
+
+    def test_the_value_itself_stays_empty(self) -> None:
+        assert ProductView()._fields.display(Product(name="Gift card"), "name") == (
+            "Gift card"
+        )
+        assert ProductView()._fields.display(Product(), "description") == ""
 
     def test_an_import_reads_it_back_as_empty(self) -> None:
         item = ProductView()._fields.field_for("description")
