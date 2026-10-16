@@ -52,6 +52,19 @@ class TestTheSidebar:
 
         assert page.text.index("<aside") < page.text.index('<main id="content"')
 
+    async def test_the_open_pages_link_is_scrolled_into_view(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        # With more links than fit, the open page's link sat out of sight
+        # below the others until the list was scrolled down to it. It is
+        # scrolled to once the whole sidebar is there, account menu and all.
+        page = await client.get("/admin/orders")
+        script = page.text.split("</aside>", 1)[1].split("</script>", 1)[0]
+
+        assert 'document.getElementById("sidebar-links")' in script
+        assert """querySelector('[aria-current="page"]')""" in script
+        assert "links.scrollTop =" in script
+
 
 class TestFoldingTheSidebar:
     async def test_a_button_beside_the_name_folds_it(
@@ -102,6 +115,15 @@ class TestFoldingTheSidebar:
         stylesheet = STYLESHEET.read_text(encoding="utf-8")
 
         assert "[data-sidebar=folded] .drawer-side{overflow:visible}" in stylesheet
+
+    def test_folded_its_links_scroll_without_a_scrollbar(self) -> None:
+        # On Windows the scrollbar took half the folded sidebar's width and
+        # pushed its icons aside. An edge with more links past it fades.
+        stylesheet = STYLESHEET.read_text(encoding="utf-8")
+        hidden = "[data-sidebar=folded] #sidebar-links{scrollbar-width:none}"
+
+        assert hidden in stylesheet
+        assert "#sidebar-links[data-more-below]{--more-below:1.5rem}" in stylesheet
 
 
 class TestAViewLeftOutOfTheSidebar:

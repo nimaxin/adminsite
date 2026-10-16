@@ -575,6 +575,39 @@ input.input:disabled::-webkit-calendar-picker-indicator {
   }
 }
 
+/* The sidebar's links scroll when there are more than fit, with a thin
+   scrollbar in the colour of the lines. Folded to its icons the sidebar has
+   no room for one: on Windows it took half the width and pushed the icons
+   aside. There the links scroll without it, and an edge with more links
+   past it fades instead, as the script after the links marks. */
+#sidebar-links {
+  --more-above: 0px;
+  --more-below: 0px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--more-above),
+    #000 calc(100% - var(--more-below)),
+    transparent
+  );
+}
+
+#sidebar-links[data-more-above] {
+  --more-above: 1.5rem;
+}
+
+#sidebar-links[data-more-below] {
+  --more-below: 1.5rem;
+}
+
+@media (width >= 64rem) {
+  [data-sidebar="folded"] #sidebar-links {
+    scrollbar-width: none;
+  }
+}
+
 /* A closed popover takes no room. The browser hides one with a rule that any
    class setting display wins over, such as daisyUI's menu, so the closed
    language and time zone menus were still laid out, unseen, under the account

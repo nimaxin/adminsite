@@ -1104,7 +1104,7 @@
       {%- endmacro %}
       {% set group_line = "folded:lg:mt-2.5 folded:lg:border-t folded:lg:border-base-300 folded:lg:pt-2.5" %}
 
-      <nav class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto" aria-label="{{ _('Main') }}">
+      <nav id="sidebar-links" class="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto" aria-label="{{ _('Main') }}">
         <ul class="flex flex-col gap-0.5">
           {{ nav_link(urls.index(), _('Overview'), on_overview, "overview") }}
         </ul>
@@ -1257,6 +1257,32 @@
         </div>
       </div>
     </aside>
+    {#- Run once the whole sidebar is there: the account menu at its foot
+        takes room from the links, which scroll under it. -#}
+    <script>
+      // With more links than fit, the open page's link is scrolled into view
+      // before the page draws, so it shows wherever it is in the list. An edge
+      // with more links past it fades, which tells that the list goes on where
+      // the folded sidebar draws no scrollbar.
+      {
+        const links = document.getElementById("sidebar-links");
+        const open = links.querySelector('[aria-current="page"]');
+        if (open && open.offsetTop + open.offsetHeight > links.clientHeight) {
+          links.scrollTop = open.offsetTop - (links.clientHeight - open.offsetHeight) / 2;
+        }
+        const markEdges = () => {
+          links.toggleAttribute("data-more-above", links.scrollTop > 1);
+          links.toggleAttribute(
+            "data-more-below",
+            links.scrollTop + links.clientHeight < links.scrollHeight - 1,
+          );
+        };
+        markEdges();
+        links.addEventListener("scroll", markEdges, { passive: true });
+        // Folding the sidebar, or a window grown or shrunk, changes what fits.
+        new ResizeObserver(markEdges).observe(links);
+      }
+    </script>
   </div>
 
   <div class="drawer-content flex h-dvh min-w-0 flex-col lg:py-2 lg:pe-2">
