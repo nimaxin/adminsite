@@ -13,6 +13,9 @@ What changed:
 - An action's message sits under the page's heading, across the page, and stays until it is
   closed or the page changes. It was a box in the corner that faded after six seconds, covered
   the page's own buttons, and let a long file name or key run under its close button.
+- With more views than fit, the folded sidebar scrolls its icons without a scrollbar, which on
+  Windows took half its width and pushed the icons aside, and fades the edge with more icons past
+  it. Unfolded, its scrollbar is thin and quiet, and the open page's link is scrolled into view.
 
 ## 0.3.0
 
