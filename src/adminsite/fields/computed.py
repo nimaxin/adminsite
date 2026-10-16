@@ -70,9 +70,9 @@ class ComputedField(BaseField, Generic[M, V]):
     ComputedField("orders", load=order_counts, default=0)
     ```
 
-    It takes `label`, `help_text`, `format`, `hidden_in_list` and the flags
-    that leave it off the list, the record page or the export, as
-    `BaseField` describes them.
+    It takes `label`, `help_text`, `empty_text`, `format`, `hidden_in_list`
+    and the flags that leave it off the list, the record page or the export,
+    as `BaseField` describes them.
 
     Args:
         name: The field's name, such as "capacity". Its label is made

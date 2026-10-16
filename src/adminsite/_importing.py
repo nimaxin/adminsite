@@ -374,8 +374,11 @@ def normalize(item: Any, text: str) -> str:
 
     A form's checkbox reads anything but a yes as no, but a file that says
     "maybe" is a mistake worth pointing out. Yes and no in the page's own
-    language count, as the export writes them so.
+    language count, as the export writes them so. So does a field's
+    `empty_text`, which the export writes for an empty value.
     """
+    if item.empty_text and lower(text) == lower(item.empty_text):
+        return ""
     if item.widget == "checkbox":
         said = lower(text)
         if said == lower(_("Yes")):

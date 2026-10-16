@@ -36,6 +36,11 @@ class BaseField:
         label: The field's label. Left empty, the column's label, or the
             name written as words: `created_at` reads "Created at".
         help_text: A line under the input, saying how to fill it in.
+        empty_text: What the list, the record page and the export show where
+            the field has no value, for an empty value that means something:
+            "Every region" for a multi-select left empty. Left empty, the
+            pages show a hyphen and the export an empty cell. The form is
+            unchanged.
         required: Whether the form refuses the field left empty. Left as
             None, the column decides: required where it cannot be null and
             has no default. A default only fills in a new record, so on a
@@ -69,6 +74,7 @@ class BaseField:
     _: KW_ONLY
     label: str = ""
     help_text: str = ""
+    empty_text: str = ""
     required: bool | None = None
     read_only: bool = False
     max_length: int | None = None
