@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- adminsite supports Python 3.15 and is tested on it, like 3.11 to 3.14.
+
 ## 0.4.0
 
 An action's message now sits under the page's heading and stays until it is closed, and a field
