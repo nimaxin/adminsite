@@ -90,7 +90,9 @@ class FieldRegistry:
         return field_class
 
     def _wants_a_box(self, schema: FieldSchema) -> bool:
-        return schema.max_length is None or schema.max_length > TEXTAREA_LENGTH
+        if schema.long_text:
+            return True
+        return schema.max_length is not None and schema.max_length > TEXTAREA_LENGTH
 
 
 def build_default_registry() -> FieldRegistry:

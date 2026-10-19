@@ -3,7 +3,12 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from sqlalchemy import String, Text
+from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
 
+from adminsite import ModelView
 from adminsite.exceptions import FieldValidationError
 from adminsite.fields import (
     BooleanField,
@@ -27,6 +32,33 @@ from tests.models import Customer, Order, OrderStatus, Product
 @pytest.fixture
 def inspector() -> SQLAlchemyInspector:
     return SQLAlchemyInspector()
+
+
+class TextBase(DeclarativeBase):
+    pass
+
+
+class Markdown(TypeDecorator[str]):
+    """Text of the project's own type, kept in a Text column."""
+
+    impl = Text
+    cache_ok = True
+
+
+class Event(TextBase):
+    """Only read by the inspector, so it needs no table."""
+
+    __tablename__ = "text_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    code: Mapped[str | None]
+    title: Mapped[str] = mapped_column(String())
+    place: Mapped[str] = mapped_column(String(100))
+    summary: Mapped[str] = mapped_column(String(1000))
+    notes: Mapped[str] = mapped_column(Text)
+    agenda: Mapped[str] = mapped_column(Markdown)
+    minutes: Mapped[str] = mapped_column(LONGTEXT)
 
 
 class TestDisplay:
@@ -234,6 +266,33 @@ class TestRegistry:
         # A key is not read-only by itself: a form that names one means to
         # set it.
         assert identifier.read_only is False
+
+
+class TestOneLineOrABox:
+    @pytest.mark.parametrize("name", ["name", "code", "title", "place"])
+    def test_a_string_is_edited_on_one_line(
+        self, inspector: SQLAlchemyInspector, name: str
+    ) -> None:
+        column = inspector.inspect(Event).field_named(name)
+
+        assert default_registry.field_class_for(column) is StringField
+
+    @pytest.mark.parametrize("name", ["summary", "notes", "agenda", "minutes"])
+    def test_long_text_is_edited_in_a_box(
+        self, inspector: SQLAlchemyInspector, name: str
+    ) -> None:
+        column = inspector.inspect(Event).field_named(name)
+
+        assert default_registry.field_class_for(column) is TextAreaField
+
+    def test_a_field_given_on_the_view_still_decides(self) -> None:
+        class EventView(ModelView[Event]):
+            fields = [StringField(Event.notes), TextAreaField(Event.name)]
+
+        view = EventView()
+
+        assert type(view._fields.field_for("notes")) is StringField
+        assert type(view._fields.field_for("name")) is TextAreaField
 
 
 class TestChoiceTones:
