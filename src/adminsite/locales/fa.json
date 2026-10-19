@@ -274,6 +274,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "ردیف نخست، نام ستون‌هاست. تا پیش‌نمایش را نبینید چیزی ذخیره نمی‌شود.",
   "The password was wrong.": "رمز عبور اشتباه بود.",
   "There is no such username.": "چنین نام کاربری‌ای وجود ندارد.",
+  "This account is switched off.": "این حساب غیرفعال است.",
   "This action runs on one record. Send its key.": "این عملیات روی یک رکورد اجرا می‌شود. کلید آن را بفرستید.",
   "This cannot be undone.": "این کار برگشت‌پذیر نیست.",
   "This card could not be loaded.": "این کارت بارگذاری نشد.",

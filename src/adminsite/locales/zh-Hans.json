@@ -253,6 +253,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "第一行为列名。在查看预览之前，不会保存任何内容。",
   "The password was wrong.": "密码错误。",
   "There is no such username.": "用户名不存在。",
+  "This account is switched off.": "此账户已停用。",
   "This action runs on one record. Send its key.": "此操作只能作用于一条记录。请发送该记录的主键。",
   "This cannot be undone.": "此操作无法撤销。",
   "This card could not be loaded.": "此卡片加载失败。",

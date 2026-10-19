@@ -274,6 +274,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "İlk satır sütun adlarını içerir. Önizlemeyi görmeden hiçbir şey kaydedilmez.",
   "The password was wrong.": "Şifre yanlış girildi.",
   "There is no such username.": "Böyle bir kullanıcı adı yok.",
+  "This account is switched off.": "Bu hesap devre dışı.",
   "This action runs on one record. Send its key.": "Bu işlem tek bir kayıt üzerinde çalışır. Kaydın anahtarını gönderin.",
   "This cannot be undone.": "Bu işlem geri alınamaz.",
   "This card could not be loaded.": "Bu kart yüklenemedi.",

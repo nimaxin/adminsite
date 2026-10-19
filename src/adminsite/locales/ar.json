@@ -302,6 +302,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "يحمل الصف الأول أسماء الأعمدة. لن يُحفظ شيء قبل أن ترى المعاينة.",
   "The password was wrong.": "كلمة المرور غير صحيحة.",
   "There is no such username.": "اسم المستخدم هذا غير موجود.",
+  "This account is switched off.": "هذا الحساب معطّل.",
   "This action runs on one record. Send its key.": "يعمل هذا الإجراء على سجل واحد. أرسل مفتاحه.",
   "This cannot be undone.": "لا يمكن التراجع عن ذلك.",
   "This card could not be loaded.": "تعذّر تحميل هذه البطاقة.",

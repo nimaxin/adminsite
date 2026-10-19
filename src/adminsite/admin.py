@@ -257,6 +257,10 @@ class Admin:
             self.add_page(page)
         for plugin in plugins:
             self.use(plugin)
+        # A provider that brings more than a sign in, such as AdminUsers,
+        # sets itself up as a plugin does.
+        if isinstance(auth, Plugin):
+            self.use(auth)
 
     def add_view(self, view: ModelView[Any] | type[ModelView[Any]]) -> ModelView[Any]:
         """Register a view, given as its class, `ModelView[Tag]` or an instance.

@@ -281,6 +281,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "Первая строка содержит названия столбцов. До предпросмотра ничего не сохраняется.",
   "The password was wrong.": "Неверный пароль.",
   "There is no such username.": "Пользователя с таким именем нет.",
+  "This account is switched off.": "Эта учётная запись отключена.",
   "This action runs on one record. Send its key.": "Это действие выполняется для одной записи. Отправьте её ключ.",
   "This cannot be undone.": "Это действие нельзя отменить.",
   "This card could not be loaded.": "Не удалось загрузить карточку.",
