@@ -163,6 +163,20 @@ class AuthProvider:
         request.session[SESSION_KEY] = self.identity(user)
         return user
 
+    async def sign_in_note(self, request: Request) -> str:
+        """A line above the sign in form, such as how to make the first account.
+
+        Nothing by default. `AdminUsers` says how to make the first superuser
+        while nobody can sign in.
+
+        Args:
+            request: The request being answered.
+
+        Returns:
+            The line, escaped unless given as `Html`, or "" for none.
+        """
+        return ""
+
     async def sign_in_failed(self, request: Request, username: str) -> str:
         """Called when a sign in fails. Returns what to tell the person.
 

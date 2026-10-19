@@ -28,7 +28,10 @@ __all__ = [
 async def login_form(admin: "Admin", request: Request) -> Response:
     """The sign in page."""
     values = await admin.auth.sign_in_values(request) if admin.auth else {}
-    return await admin.render("login.html", request, {"error": "", "values": values})
+    note = await admin.auth.sign_in_note(request) if admin.auth else ""
+    return await admin.render(
+        "login.html", request, {"error": "", "values": values, "note": note}
+    )
 
 
 async def login(admin: "Admin", request: Request) -> Response:
@@ -65,10 +68,11 @@ async def login(admin: "Admin", request: Request) -> Response:
         message = await admin.auth.sign_in_failed(request, username)
         # The username typed stays, so a mistyped password costs only that.
         values = {**await admin.auth.sign_in_values(request), "username": username}
+        note = await admin.auth.sign_in_note(request)
         return await admin.render(
             "login.html",
             request,
-            {"error": message, "values": values},
+            {"error": message, "values": values, "note": note},
             status_code=401,
         )
     await note_sign_in(admin, request, AuditEvent.SIGNED_IN, user=user)

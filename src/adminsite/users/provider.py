@@ -6,7 +6,7 @@ from datetime import UTC, datetime, tzinfo
 from typing import TYPE_CHECKING, Any
 
 import anyio
-from sqlalchemy import select, update
+from sqlalchemy import inspect, select, update
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 
@@ -25,6 +25,7 @@ from adminsite.exceptions import (
     SignInRefusedError,
 )
 from adminsite.i18n import gettext as _
+from adminsite.markup import Html
 from adminsite.permissions import Grants
 from adminsite.plugins import Plugin
 from adminsite.timezones import known_timezone, to_column_time
@@ -164,6 +165,38 @@ class AdminUsers(AuthProvider, Plugin):
     def _now(self) -> datetime:
         """Now, as the users' tables keep a time."""
         return to_column_time(datetime.now(UTC), stored_in=self._database_zone)
+
+    async def has_tables(self) -> bool:
+        """Whether the users' tables are in the database, made first if this may."""
+        database = await self._database()
+        async with database.session() as session:
+            found: bool = await session.run(
+                lambda plain: inspect(plain.connection()).has_table(User.__tablename__)
+            )
+        return found
+
+    async def sign_in_note(self, request: Request) -> str:
+        """Say how to make the first superuser, while nobody can sign in."""
+        if not await self.has_tables():
+            return _(
+                "The users' tables are not in the database yet. Run your "
+                "migrations, or give AdminUsers create_table=True."
+            )
+        database = await self._database()
+        async with database.session() as session:
+            anyone = await session.scalar(select(User.id).limit(1))
+        if anyone is not None:
+            return ""
+        sentence = _(
+            "No one can sign in yet. Run this where your app lives to make the "
+            "first superuser."
+        )
+        # A narrow phone wraps the command at its spaces, never inside the
+        # option, whose hyphens a line could otherwise break after.
+        return Html(
+            '{}<code dir="ltr">adminsite users create <var>name</var> '
+            '<span class="whitespace-nowrap">--superuser</span></code>'
+        ).format(sentence)
 
     async def verify(self, username: str, password: str) -> User | None:
         """Check the password, and that the account is switched on."""

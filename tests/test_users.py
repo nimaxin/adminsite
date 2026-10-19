@@ -3,11 +3,12 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import create_engine, select, update
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
@@ -301,6 +302,37 @@ class TestCreating:
 
         tehran = datetime.now(ZoneInfo("Asia/Tehran")).replace(tzinfo=None)
         assert abs(made.created_at - tehran) < timedelta(minutes=1)
+
+
+class TestTheSignInNote:
+    async def test_it_says_how_to_make_the_first_superuser(self, site: Site) -> None:
+        page = await site.client.get("/admin/login")
+
+        assert "No one can sign in yet." in page.text
+        assert (
+            '<code dir="ltr">adminsite users create <var>name</var> '
+            '<span class="whitespace-nowrap">--superuser</span></code>' in page.text
+        )
+
+    async def test_it_goes_once_someone_can_sign_in(self, site: Site) -> None:
+        await site.users.create_user("nima", PASSWORD, superuser=True)
+
+        page = await site.client.get("/admin/login")
+
+        assert "No one can sign in yet." not in page.text
+
+    async def test_it_says_when_the_tables_are_missing(self, tmp_path: Path) -> None:
+        engine = create_engine(f"sqlite:///{tmp_path / 'shop.db'}")
+        admin = Admin(engine, title="Shop", auth=AdminUsers(), secret_key=SECRET)
+        app = Starlette()
+        app.mount("/admin", admin)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            page = await client.get("/admin/login")
+        engine.dispose()
+
+        assert "The users&#39; tables are not in the database yet." in page.text
 
 
 class TestTheAdmin:

@@ -33,6 +33,12 @@
         <p class="mt-1 text-muted">{{ _('Sign in to continue.') }}</p>
       </div>
 
+      {#- What the auth provider says first, such as how to make the first
+          account while nobody can sign in. -#}
+      {% if note %}
+        <p role="note" class="rounded-field border border-base-300 bg-subtle px-3 py-2.5 text-label leading-relaxed [&_code]:mt-1.5 [&_code]:block [&_code]:font-mono [&_code]:text-note">{{ note }}</p>
+      {% endif %}
+
       {% if error %}
         <div role="alert" class="rounded-field border border-error/30 bg-error/5 px-3 py-2.5 text-error" id="login-error">
           {{ error }}
