@@ -1,13 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
+
+A small release. A form edits a string column without a length, as `Mapped[str]` declares, on one
+line, where it gave it a box like a `Text` column's. adminsite also supports Python 3.15.
+
+Before upgrading:
+
+- A column for long text declared without a length, such as a description written `Mapped[str]`,
+  is now edited on one line. Declare it `Text`, or give it `TextAreaField` on its view, to keep
+  the box.
 
 What changed:
 
 - adminsite supports Python 3.15 and is tested on it, like 3.11 to 3.14.
-- A string column without a length, such as `Mapped[str]` or `String()`, is edited on one line.
-  It was edited in a box like a `Text` column, so a form of names and codes was all boxes, and
-  Enter added a line instead of saving. `Text`, MySQL's `MEDIUMTEXT` and `LONGTEXT`, and a
+- A string column without a length, such as `Mapped[str]` or `String()`, is edited on one line
+  (#101). It was edited in a box like a `Text` column, so a form of names and codes was all boxes,
+  and Enter added a line instead of saving. `Text`, MySQL's `MEDIUMTEXT` and `LONGTEXT`, and a
   `String` longer than 255 keep the box.
 
 ## 0.4.0
