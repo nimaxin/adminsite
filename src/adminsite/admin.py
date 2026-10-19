@@ -45,6 +45,7 @@ from adminsite._http.listing import list_records
 from adminsite._http.lookups import action_lookup, filter_lookup, lookup
 from adminsite._http.pages import custom_page
 from adminsite._http.palette import palette
+from adminsite._http.password import change_password, password_form
 from adminsite._http.requests import own_cookie
 from adminsite._http.saved_views import delete_list_view, save_list_view
 from adminsite._http.signing_in import login, login_form, logout
@@ -91,7 +92,16 @@ HEADINGS = {403: "Not allowed", 404: "Not found"}
 
 # Paths under /-/ that the admin keeps for itself.
 RESERVED_PAGES = frozenset(
-    {"activity", "api", "files", "language", "search", "static", "timezone"}
+    {
+        "activity",
+        "api",
+        "files",
+        "language",
+        "password",
+        "search",
+        "static",
+        "timezone",
+    }
 )
 LANGUAGE_COOKIE = "adminsite_language"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -415,6 +425,14 @@ class Admin:
                 found.append(view)
         return found
 
+    @property
+    def changes_passwords(self) -> bool:
+        """Whether people may change their own password, as the provider allows."""
+        return (
+            self.auth is not None
+            and type(self.auth).change_password is not AuthProvider.change_password
+        )
+
     async def history_views(self, request: Request) -> list[ModelView[Any]]:
         """The views whose history this user may read, if auditing is on."""
         if self.audit is None:
@@ -567,6 +585,7 @@ class Admin:
                 self._handler(stored_file),
                 name="file",
             ),
+            *self._password_routes(),
             *self._api_routes(),
             *self._extra_routes,
             Route(
@@ -696,6 +715,24 @@ class Admin:
                 self._handler(delete_record),
                 methods=["POST"],
                 name="delete",
+            ),
+        ]
+
+    def _password_routes(self) -> list[Route]:
+        if not self.changes_passwords:
+            return []
+        return [
+            Route(
+                "/-/password",
+                self._handler(password_form),
+                methods=["GET"],
+                name="password_form",
+            ),
+            Route(
+                "/-/password",
+                self._handler(change_password),
+                methods=["POST"],
+                name="password",
             ),
         ]
 

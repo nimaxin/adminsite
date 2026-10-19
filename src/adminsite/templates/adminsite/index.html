@@ -26,6 +26,9 @@
         </section>
       {% endfor %}
     </div>
+  {% elif user and admin.views|length and not groups %}
+    {#- Signed in, but nothing in the sidebar is open to them yet. -#}
+    <p class="rounded-box border border-base-300 bg-base-100 px-5 py-4 text-muted">{{ _('Nothing here is open to you yet. Ask an administrator for access.') }}</p>
   {% else %}
     <p class="rounded-box border border-base-300 bg-base-100 px-5 py-4 text-muted">{{ _('Nothing to show yet.') }}</p>
   {% endif %}

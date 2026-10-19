@@ -271,14 +271,10 @@ class PermissionsField(OwnWords, JSONField):
         return [view for view in self.admin.views if view.name not in OWN_VIEWS]
 
     def _pages(self) -> list[Any]:
-        """The pages of your own a role can grant, leaving out those for everyone."""
+        """The pages of your own a role can grant."""
         if self.admin is None:
             return []
-        return [
-            page
-            for page in self.admin.pages.values()
-            if not getattr(page, "for_everyone", False)
-        ]
+        return list(self.admin.pages.values())
 
     def _offered_by_name(self) -> dict[str, set[str]]:
         """Every permission each view and page offers, by its name in the grants."""

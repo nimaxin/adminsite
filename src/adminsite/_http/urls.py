@@ -151,6 +151,10 @@ class Urls:
         """The login page."""
         return f"{self.base}/login"
 
+    def password(self) -> str:
+        """The page where people change their own password."""
+        return f"{self.base}/-/password"
+
     def logout(self) -> str:
         """Where signing out is posted."""
         return f"{self.base}/logout"

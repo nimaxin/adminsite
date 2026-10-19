@@ -1108,7 +1108,7 @@
         <kbd class="kbd kbd-xs border-base-300 bg-base-200 font-mono text-caption text-muted folded:lg:hidden">{{ _('Ctrl K') }}</kbd>
       </button>
 
-      {% set on_overview = not current and not on_activity and not status %}
+      {% set on_overview = not current and not on_activity and not status and not on_password %}
       {% macro nav_link(url, label, active, icon_name="", icon_markup="") -%}
         <li>
           <a href="{{ url }}" {% if active %}aria-current="page"{% endif %}
@@ -1242,7 +1242,15 @@
               </li>
             {% endif %}
             {% if user %}
-              <li class="mt-1 border-t border-base-300 pt-1">
+              {% if admin.changes_passwords %}
+                <li class="mt-1 border-t border-base-300 pt-1">
+                  <a href="{{ urls.password() }}">
+                    <span class="text-muted">{{ icons.icon("lock") }}</span>
+                    {{ _('Change password') }}
+                  </a>
+                </li>
+              {% endif %}
+              <li class="{% if not admin.changes_passwords %}mt-1 border-t border-base-300 pt-1{% endif %}">
                 <button type="submit" form="sign-out-form">
                   <span class="text-muted">{{ icons.icon("sign-out") }}</span>
                   {{ _('Sign out') }}
