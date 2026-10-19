@@ -284,6 +284,8 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.auth.AuthProvider
 
+::: adminsite.Grants
+
 ::: adminsite.auth.PasswordAuth
 
 ::: adminsite.auth.hash_password

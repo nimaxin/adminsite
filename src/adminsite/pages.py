@@ -7,6 +7,7 @@ from starlette.responses import Response
 from adminsite._text import snake_case
 from adminsite.exceptions import AdminSiteError
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Permission, grants_of
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -71,6 +72,9 @@ class AdminPage:
     async def allows(self, request: Request) -> bool:
         """Whether this user may open the page. Everyone may, unless you say.
 
+        Where the auth provider's `grants_for` gave the user grants, the
+        page follows them, under "-/" and its name.
+
         Args:
             request: The request, with the signed in user on
                 `request.state.user`.
@@ -79,7 +83,8 @@ class AdminPage:
             True when the user may open it. A page they may not is left
             out of the sidebar and answers 403.
         """
-        return True
+        grants = grants_of(request)
+        return grants is None or grants.allows(f"-/{self.name}", Permission.VIEW)
 
     async def get_context(self, request: Request) -> dict[str, Any]:
         """The values the template needs, on top of what every page has.

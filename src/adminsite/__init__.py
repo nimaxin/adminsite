@@ -14,7 +14,7 @@ from adminsite.fields import BaseField, Field
 from adminsite.markup import Html
 from adminsite.messages import Message
 from adminsite.pages import AdminPage
-from adminsite.permissions import Permission, RequestAction
+from adminsite.permissions import Grants, Permission, RequestAction
 from adminsite.plugins import Plugin
 from adminsite.query import CountMode, Pagination
 from adminsite.saved_views import SavedViews
@@ -43,6 +43,7 @@ __all__ = [
     "Descending",
     "Field",
     "FieldsetWidget",
+    "Grants",
     "Html",
     "Inline",
     "Link",

@@ -8,6 +8,7 @@ from starlette.requests import Request
 from adminsite.auth.passwords import hash_password, looks_hashed, verify_password
 from adminsite.exceptions import AdminSiteError, SignInRefusedError
 from adminsite.i18n import gettext as _
+from adminsite.permissions import Grants
 
 __all__ = [
     "SESSION_KEY",
@@ -58,6 +59,23 @@ class AuthProvider:
             The user, or None to sign them out.
         """
         return key
+
+    async def grants_for(self, user: Any) -> Grants | None:
+        """What this user may do, view by view, or None to leave it to the views.
+
+        None by default, so each view answers from its own settings and its
+        `allows`. A provider that keeps roles answers with the `Grants` they
+        add up to, and each view and page then follows them, unless its own
+        `allows` says otherwise. It runs on every request, once the user is
+        loaded.
+
+        Args:
+            user: The user, as `load_user` returned them.
+
+        Returns:
+            The grants, or None.
+        """
+        return None
 
     async def authenticate_token(self, token: str) -> Any | None:
         """Return the user an API token belongs to, or nothing.

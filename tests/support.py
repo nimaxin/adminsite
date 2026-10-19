@@ -7,6 +7,7 @@ from sqlalchemy import Engine, event
 from starlette.requests import Request
 
 from adminsite.database import Database
+from adminsite.permissions import GRANTS_KEY, Grants
 from tests.models import Product
 
 # What people read when the database refuses a change, whatever the rule.
@@ -61,10 +62,11 @@ class QueryCounter:
         event.remove(self.engine, "before_cursor_execute", self._record)
 
 
-def request_from(user: object = None) -> Request:
+def request_from(user: object = None, grants: Grants | None = None) -> Request:
     """A request from this user, kept where sign in keeps it: scope["user_record"].
 
-    Left out, a request from no one signed in.
+    Left out, a request from no one signed in. `grants` are kept beside the
+    user, as the admin keeps what the auth provider's `grants_for` answers.
     """
     scope: dict[str, object] = {
         "type": "http",
@@ -74,6 +76,8 @@ def request_from(user: object = None) -> Request:
     }
     if user is not None:
         scope["user_record"] = user
+    if grants is not None:
+        scope[GRANTS_KEY] = grants
     return Request(scope)
 
 
