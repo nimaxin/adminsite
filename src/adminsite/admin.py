@@ -64,7 +64,7 @@ from adminsite.i18n import Translations, activate, canonical, negotiate
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.pages import AdminPage
-from adminsite.permissions import Permission
+from adminsite.permissions import GRANTS_KEY, Permission
 from adminsite.plugins import Plugin
 from adminsite.saved_views import SavedViews
 from adminsite.timezones import (
@@ -736,9 +736,7 @@ class Admin:
                             status_code=401,
                             headers={"WWW-Authenticate": "Bearer"},
                         )
-                    request.state.user = user
-                    request.scope["user_record"] = user
-                    request.scope[USER_KEY] = self.auth.identity(user)
+                    await self._keep_user(request, user)
                 # A browser sends the session cookie by itself, so a change
                 # made with it has to carry the form token as a header.
                 if request.method not in SAFE_METHODS and not by_token:
@@ -760,6 +758,14 @@ class Admin:
                 await request.close()
 
         return handle
+
+    async def _keep_user(self, request: Request, user: Any) -> None:
+        """Keep the signed in user with the request, and what they may do."""
+        assert self.auth is not None
+        request.state.user = user
+        request.scope["user_record"] = user
+        request.scope[USER_KEY] = self.auth.identity(user)
+        request.scope[GRANTS_KEY] = await self.auth.grants_for(user)
 
     async def _api_user(self, request: Request) -> tuple[Any, bool]:
         """Who is calling: a bearer token first, then the session."""
@@ -815,9 +821,7 @@ class Admin:
                     user = await self.auth.current_user(request)
                     if user is None:
                         return RedirectResponse(Urls(request).login(), status_code=303)
-                    request.state.user = user
-                    request.scope["user_record"] = user
-                    request.scope[USER_KEY] = self.auth.identity(user)
+                    await self._keep_user(request, user)
                 answer: Response = await endpoint(self, request)
                 return answer
             finally:

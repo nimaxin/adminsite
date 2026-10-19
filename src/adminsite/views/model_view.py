@@ -41,7 +41,12 @@ from adminsite.fields import (
 from adminsite.filters.sql import SQLFilter
 from adminsite.i18n import gettext as _
 from adminsite.inspector import SQLAlchemyInspector
-from adminsite.permissions import Permission, RequestAction, permission_name
+from adminsite.permissions import (
+    Permission,
+    RequestAction,
+    grants_of,
+    permission_name,
+)
 from adminsite.query import CountMode, Pagination
 from adminsite.views._actions import DELETE_ACTION, ActionRunner
 from adminsite.views._audit import AuditRecorder
@@ -604,7 +609,9 @@ class ModelView(Generic[M]):
         """Whether the current user may do this, to this record.
 
         By default it answers from the `can_` settings, such as `can_edit`,
-        and allows everything else.
+        and then from the grants the auth provider's `grants_for` gave the
+        user, if it gave any. Everything else is allowed. An override that
+        calls `super().allows(...)` keeps both.
 
         Args:
             action: What the user wants to do: a `Permission`, such as
@@ -619,6 +626,13 @@ class ModelView(Generic[M]):
             True when the user may.
         """
         name = permission_name(action)
+        if not self._switched_on(name):
+            return False
+        grants = grants_of(request)
+        return grants is None or grants.allows(self.name, name)
+
+    def _switched_on(self, name: str) -> bool:
+        """Whether the view's `can_` settings leave this permission on."""
         if name == Permission.CREATE:
             return self.can_create
         if name == Permission.EDIT:
