@@ -49,6 +49,7 @@ class Site:
     users: AdminUsers
     client: httpx.AsyncClient
     database: Database
+    admin: Admin
 
     async def sign_in(self, username: str, password: str = PASSWORD) -> None:
         page = await self.client.get("/admin/login")
@@ -102,7 +103,7 @@ async def serve(database: Database, **options: Any) -> AsyncIterator[Site]:
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://testserver"
     ) as client:
-        yield Site(users, client, database)
+        yield Site(users, client, database, admin)
 
 
 @pytest.fixture

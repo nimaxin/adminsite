@@ -11,10 +11,19 @@ from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 
 from adminsite._storage import Store
+from adminsite.audit import AuditEntry, AuditEvent, AuditStore
+from adminsite.audit._actor import actor_of
+from adminsite.audit._inputs import HIDDEN
+from adminsite.audit.store import record_or_warn
 from adminsite.auth.passwords import hash_password, verify_password
 from adminsite.auth.provider import AuthProvider, _no_one
 from adminsite.database import Database
-from adminsite.exceptions import AdminSiteError, IntegrityError, SignInRefusedError
+from adminsite.exceptions import (
+    AdminSiteError,
+    IntegrityError,
+    RefusedError,
+    SignInRefusedError,
+)
 from adminsite.i18n import gettext as _
 from adminsite.permissions import Grants
 from adminsite.plugins import Plugin
@@ -91,12 +100,14 @@ class AdminUsers(AuthProvider, Plugin):
         self._tables: _Tables | None = None
         self._database_zone: tzinfo = UTC
         self._secret = ""
+        self._audit: AuditStore | None = None
 
     def setup(self, admin: "Admin") -> None:
         """Keep the admin's database and secret key, and add the Users and Roles."""
         self._tables = _Tables(admin.database, create_table=self.create_table)
         self._database_zone = known_timezone(admin.database_timezone)
         self._secret = admin.secret_key
+        self._audit = admin.audit
         users = UserView(admin.inspector, admin.field_registry)
         users._users = self
         admin.add_view(users)
@@ -105,6 +116,40 @@ class AdminUsers(AuthProvider, Plugin):
     def keep_signed_in(self, request: Request, user: User) -> None:
         """Keep this session signed in after the user's own password changed."""
         request.session[CHECK_KEY] = self._check(user)
+
+    async def change_password(self, request: Request, current: str, new: str) -> None:
+        """Check the current password, then keep the new one and stay signed in.
+
+        Every other session of the user is signed out, and the change goes to
+        the user's history when the admin keeps an audit log.
+        """
+        user = request.scope.get("user_record")
+        matched = isinstance(user, User) and await anyio.to_thread.run_sync(
+            verify_password, current, user.password_hash
+        )
+        if not matched or not isinstance(user, User):
+            raise RefusedError(_("That is not your current password."), field="current")
+        problem = password_problem(new)
+        if problem is not None:
+            raise RefusedError(problem, field="new")
+        hashed = await anyio.to_thread.run_sync(hash_password, new)
+        database = await self._database()
+        statement = update(User).where(User.id == user.id).values(password_hash=hashed)
+        async with database.session() as session:
+            await session.execute(statement)
+            await session.commit()
+        user.password_hash = hashed
+        self.keep_signed_in(request, user)
+        if self._audit is not None:
+            entry = AuditEntry(
+                view=UserView.name,
+                record_key=str(user.id),
+                record_title=user.username,
+                event=AuditEvent.UPDATED,
+                changes={"password_hash": (HIDDEN, HIDDEN)},
+                **actor_of(request),
+            )
+            await record_or_warn(self._audit, [entry])
 
     async def _database(self) -> Database:
         """The admin's database, with the tables made if this may make them."""

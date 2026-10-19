@@ -447,6 +447,10 @@ class ModelCounts(Widget):
     template = "adminsite/dashboard/counts.html"
     width = 4
 
+    async def allows(self, admin: "Admin", request: Request) -> bool:
+        """Shown to whoever may open a view, so it is never an empty card."""
+        return any(view.in_sidebar for view in await admin.views_allowing(request))
+
     async def load(self, admin: "Admin", request: Request) -> list[CountItem]:
         """Count the records of every view this user may open, within its scope."""
         urls = Urls(request)

@@ -77,6 +77,25 @@ class AuthProvider:
         """
         return None
 
+    async def change_password(self, request: Request, current: str, new: str) -> None:
+        """Change the signed in user's own password.
+
+        The account menu offers Change password only where a provider writes
+        this, as `AdminUsers` does.
+
+        Args:
+            request: The request, with the signed in user on
+                `request.state.user`.
+            current: The password they have now, typed again to prove it.
+            new: The password they want, already typed twice alike.
+
+        Raises:
+            RefusedError: When the current password is wrong or the new one
+                will not do, with a message for the form. `field="current"`
+                or `field="new"` puts it beside that box.
+        """
+        raise NotImplementedError
+
     async def authenticate_token(self, token: str) -> Any | None:
         """Return the user an API token belongs to, or nothing.
 
