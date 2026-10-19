@@ -41,6 +41,49 @@ and `HISTORY`, or the permission an [action](actions.md) asks for. `record` is t
 question is about, or `None` for the view as a whole. The check runs before a page is shown and
 again before anything is written, and buttons for what the user may not do are left out.
 
+## Roles
+
+With [`AdminUsers`](auth.md#users-and-roles-in-the-admin), a superuser ticks on the Roles page what
+each role may do: View, Add, Edit, Delete, Export, Import and History on each view, View on each
+page of your own, and each permission an action asks for of its own, such as
+`@action("Mark as shipped", permission="ship")`. Each person may do whatever one of their roles
+allows, and a superuser everything.
+
+The roles come after the view's own settings, so a view with `can_delete = False` never deletes,
+and an `allows` that ends with `super().allows(...)`, as above, keeps both. Rules about rows and
+fields stay in code, where they can ask about a role:
+
+```python
+from starlette.requests import Request
+
+from adminsite import Statement
+
+
+class OrderView(ModelView[Order]):
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        if request.state.user.has_role("Support"):
+            return statement.where(Order.status == OrderStatus.PAID)
+        return statement
+```
+
+### Roles from your own user table
+
+An [auth provider](auth.md#your-own-user-table) of your own can answer the same way: its
+[`grants_for`][adminsite.auth.AuthProvider.grants_for] returns the [`Grants`][adminsite.Grants] a
+user's roles add up to, each view named as in its URL, and every view and page follows them.
+
+```python
+from adminsite import Grants
+from adminsite.auth import AuthProvider
+
+
+class StaffAuth(AuthProvider):
+    async def grants_for(self, user: User) -> Grants | None:
+        if user.is_staff:
+            return Grants(everything=True)
+        return Grants({"orders": {"view", "edit"}, "customers": {"view"}})
+```
+
 ## History
 
 `Permission.HISTORY` decides who reads a view's [audit log](audit.md): the History tab on its

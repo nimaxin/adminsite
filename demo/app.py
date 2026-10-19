@@ -41,11 +41,12 @@ from adminsite.audit import (
     audit_metadata,
 )
 from adminsite.audit.entry import SIGN_IN_EVENTS
-from adminsite.auth import PasswordAuth, hash_password
+from adminsite.auth import hash_password
 from adminsite.database import Database, SessionAdapter
 from adminsite.fields import ImageField
 from adminsite.files import LocalStorage
 from adminsite.saved_views import saved_view_metadata
+from adminsite.users import AdminUsers, Role, User, user_metadata
 from examples import fields as gallery
 from examples.shop import (
     Base,
@@ -117,9 +118,15 @@ background: #f3f3f0; color: #1a1a18; }}</style>
 </html>
 """
 
-# Everything a visitor can change: the shop, the gallery, their history and
-# saved views.
-METADATA = (Base.metadata, gallery.Base.metadata, audit_metadata, saved_view_metadata)
+# Everything a visitor can change: the shop, the gallery, their history, saved
+# views, and the people who sign in.
+METADATA = (
+    Base.metadata,
+    gallery.Base.metadata,
+    audit_metadata,
+    saved_view_metadata,
+    user_metadata,
+)
 
 
 class WhatNotWho:
@@ -162,12 +169,35 @@ class WhatNotWho:
         return await self.store.find(query, limit=limit)
 
 
-class DemoAuth(PasswordAuth):
-    """The demo's one account, filled in on the sign in page for visitors."""
+class DemoUsers(AdminUsers):
+    """The demo's people, with the superuser filled in on the sign in page."""
 
     async def sign_in_values(self, request: Request) -> Mapping[str, str]:
         """Everyone signs in as admin, so nobody has to find the details."""
         return {"username": "admin", "password": "admin"}
+
+
+def build_people() -> list[User]:
+    """The superuser everyone signs in as, and a support agent with a role.
+
+    Written straight into the tables: the passwords are shorter than the
+    Users page would take.
+    """
+    support = Role(
+        name="Support",
+        description="Answers customers and sends their orders.",
+        permissions={
+            "orders": ["view", "edit", "ship"],
+            "customers": ["view", "edit"],
+            "products": ["view"],
+        },
+    )
+    return [
+        User(username="admin", password_hash=hash_password("admin"), is_superuser=True),
+        User(
+            username="support", password_hash=hash_password("support"), roles=[support]
+        ),
+    ]
 
 
 class DemoCustomerView(CustomerView):
@@ -188,6 +218,7 @@ async def build_template(folder: Path) -> None:
             session.add_all(build_sample_shop())
             uploads = folder / "uploads"
             session.add_all(await asyncio.to_thread(gallery.build_gallery, uploads))
+            session.add_all(await asyncio.to_thread(build_people))
     finally:
         await engine.dispose()
 
@@ -233,7 +264,7 @@ def build_admin(folder: Path, secret_key: str) -> tuple[Admin, AsyncEngine]:
             gallery.ServerView,
         ],
         dashboard=dashboard,
-        auth=DemoAuth({"admin": hash_password("admin")}),
+        auth=DemoUsers(),
         secret_key=secret_key,
         session_https_only=True,
         audit=WhatNotWho(AuditLog(engine, create_table=True)),

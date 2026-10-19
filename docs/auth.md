@@ -5,6 +5,62 @@ on your own machine, and nowhere else.
 
 The examples on this page use the [example models](models.md).
 
+## Users and roles in the admin
+
+[`AdminUsers`][adminsite.users.AdminUsers] keeps the admin's own users and roles in your database,
+and your superusers manage them in the admin:
+
+```python
+from adminsite import Admin
+from adminsite.users import AdminUsers
+
+admin = Admin(
+    engine,
+    views=[OrderView, CustomerView],
+    auth=AdminUsers(),
+    secret_key=settings.admin_secret_key,
+)
+```
+
+Superusers find Users and Roles in the sidebar, beside Activity. A role says, view by view, what
+the people who hold it may do, and [Roles](permissions.md#roles) shows how that meets your own
+rules. Everyone changes their own password from the account menu.
+
+The users live in three tables on `user_metadata`. adminsite never creates a table in your database
+uninvited, so add them to your migrations:
+
+```python
+# alembic/env.py
+from adminsite.users import user_metadata
+
+target_metadata = [Base.metadata, user_metadata]
+```
+
+Or let adminsite create them, for a quick start, with `AdminUsers(create_table=True)`.
+
+### Make the first superuser
+
+Run this in the folder your app runs from:
+
+```
+adminsite users create nima --superuser
+```
+
+It finds the `Admin` in `main.py`, `app.py` or `app/main.py`, as `fastapi dev` finds the app, or
+wherever `--admin shop.web:admin` says. It asks for the password twice, or reads it from
+`ADMINSITE_PASSWORD` in a script or a container. `--role Support` gives someone a role that exists.
+
+Tests and seed scripts call [`create_role`][adminsite.users.AdminUsers.create_role] and
+[`create_user`][adminsite.users.AdminUsers.create_user] on the `AdminUsers` the admin was given:
+
+```python
+users = AdminUsers()
+admin = Admin(engine, auth=users, secret_key=settings.admin_secret_key)
+
+await users.create_role("Support", {"orders": ["view", "edit"], "customers": ["view"]})
+await users.create_user("lena", "a long password", roles=["Support"])
+```
+
 ## A fixed list of users
 
 ```python

@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+Users and roles managed in the admin: `auth=AdminUsers()` keeps the admin's own users in your
+database, superusers add people and give them roles, and each role is a grid of what its holders
+may do on each view and page.
+
+Before upgrading:
+
+- A project that overrides `base.html`, `index.html` or `login.html` should start its copy again
+  from the new one.
+
+What changed:
+
+- `AdminUsers`, in the new `adminsite.users`, signs people in against three tables on
+  `user_metadata`, and adds Users and Roles pages that only superusers open, beside Activity
+  (#100). A role's grid has a box for each permission each view offers, the actions' own
+  permissions among them, and the views and pages follow what a person's roles allow.
+- `adminsite users create nima --superuser` makes the first superuser from a terminal, finding
+  the `Admin` in `main.py`, `app.py` or `app/main.py`, or wherever `--admin` says.
+- Everyone signed in through `AdminUsers` changes their own password from the account menu. A new
+  password, or an account switched off, signs that person out everywhere else.
+- `AuthProvider.grants_for` lets a provider of your own grant permissions view by view, as roles
+  do, with `Grants`. `AuthProvider.change_password` and `AuthProvider.sign_in_note` let it offer
+  Change password and put a line above the sign in form.
+- Someone signed in who may open nothing is told to ask an administrator for access, where the
+  overview showed an empty card.
+
 ## 0.4.1
 
 A small release. A form edits a string column without a length, as `Mapped[str]` declares, on one
