@@ -253,6 +253,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "1行目は列名として読み込まれます。プレビューを確認するまで、何も保存されません。",
   "The password was wrong.": "パスワードが間違っていました。",
   "There is no such username.": "そのユーザー名は存在しません。",
+  "This account is switched off.": "このアカウントは無効になっています。",
   "This action runs on one record. Send its key.": "この操作は1件のレコードに対して実行されます。そのレコードのキーを送信してください。",
   "This cannot be undone.": "この操作は元に戻せません。",
   "This card could not be loaded.": "このカードを読み込めませんでした。",

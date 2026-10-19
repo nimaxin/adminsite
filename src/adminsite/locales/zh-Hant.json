@@ -253,6 +253,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "第一列須為欄名稱。在您看過預覽之前，不會儲存任何資料。",
   "The password was wrong.": "密碼錯誤。",
   "There is no such username.": "找不到這個使用者名稱。",
+  "This account is switched off.": "此帳戶已停用。",
   "This action runs on one record. Send its key.": "此動作只能對一筆記錄執行。請傳送該記錄的鍵。",
   "This cannot be undone.": "此動作無法復原。",
   "This card could not be loaded.": "無法載入此卡片。",

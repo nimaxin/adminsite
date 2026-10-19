@@ -65,6 +65,7 @@ from adminsite.fields import (
     TextAreaField,
 )
 from adminsite.files import LocalStorage
+from adminsite.users import AdminUsers
 
 __all__ = [
     "JSON",
@@ -181,6 +182,7 @@ __all__ = [
     "queue_export",
     "relationship",
     "render_csv",
+    "request",
     "save_settings",
     "select",
     "send_confirmation",
@@ -190,6 +192,7 @@ __all__ = [
     "staff_auth",
     "support_auth",
     "too_many_lately",
+    "users",
     "warehouses_for",
 ]
 
@@ -645,6 +648,8 @@ auth = PasswordAuth({"nima": settings.admin_password_hash})
 staff_auth = PasswordAuth({"nima": settings.admin_password_hash})
 support_auth = PasswordAuth({"lena": settings.admin_password_hash})
 admin = Admin(engine, views=[OrderView, CustomerView])
+users = AdminUsers()
+request = Request({"type": "http"})
 
 last_monday = datetime(2026, 9, 21)
 month_start = datetime(2026, 9, 1)

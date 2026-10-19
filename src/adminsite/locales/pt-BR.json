@@ -274,6 +274,7 @@
   "The first row names the columns. Nothing is saved until you have seen the preview.": "A primeira linha traz os nomes das colunas. Nada é salvo até você ver a pré-visualização.",
   "The password was wrong.": "A senha estava incorreta.",
   "There is no such username.": "Esse nome de usuário não existe.",
+  "This account is switched off.": "Esta conta está desativada.",
   "This action runs on one record. Send its key.": "Esta ação é executada em um único registro. Envie a chave dele.",
   "This cannot be undone.": "Esta ação não pode ser desfeita.",
   "This card could not be loaded.": "Não foi possível carregar este cartão.",

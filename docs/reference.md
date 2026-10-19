@@ -288,6 +288,14 @@ The classes you use most, with their signatures and docstrings.
 
 ::: adminsite.auth.PasswordAuth
 
+::: adminsite.users.AdminUsers
+    options:
+      members: [create_user, create_role]
+
+::: adminsite.users.User
+
+::: adminsite.users.Role
+
 ::: adminsite.auth.hash_password
 
 
