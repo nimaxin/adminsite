@@ -10,7 +10,7 @@
 {%- endset -%}
 {#- An input as wide as what it holds: a number or a date short, a line of
     text longer, long text, files and many values the whole width. -#}
-{%- set full = row.widget in ("textarea", "json", "file", "image", "list") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
+{%- set full = row.widget in ("textarea", "json", "file", "image", "list", "permissions") or row.field.collection|default(false) or row.field.multiple|default(false) -%}
 {%- set short = row.widget in ("number", "date", "time", "datetime") -%}
 {#- A document drawn as a form switches between the form and its JSON. -#}
 {%- set document = row.document if row.document is defined else none -%}

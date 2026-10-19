@@ -1,0 +1,68 @@
+{#- What a role grants: a row for each view and page, a column for each
+    permission, and at the end the permissions a view's own actions ask for.
+    The boxes keep one hidden input up to date with the JSON the field reads,
+    so the form sends what is ticked. -#}
+{%- set grid = row.field.grid(row.value) -%}
+{%- set grid_id = "field-" ~ (row.id_prefix ~ row.path)|replace(".", "-") -%}
+{%- set width = grid.columns|length + (2 if grid.has_actions else 1) -%}
+<div class="relative overflow-x-auto overflow-y-hidden rounded-field border border-line-strong bg-base-100"
+     x-data="permissionGrid()" @change="sync($event.target)">
+  <input type="hidden" name="{{ row.path }}" x-ref="value" value="{{ grid.json }}">
+  {#- As wide as what it holds, so a phone scrolls it rather than breaking
+      every label over several lines. -#}
+  <table class="w-full min-w-max text-label" {{ field_attrs|default('') }}>
+    <thead class="border-b border-line bg-subtle">
+      <tr>
+        <td class="min-w-40"></td>
+        {% for permission, label in grid.columns %}
+          <th scope="col" id="{{ grid_id }}-{{ permission }}" class="h-9 px-2 text-center text-note font-medium text-muted">{{ label }}</th>
+        {% endfor %}
+        {% if grid.has_actions %}
+          <th scope="col" class="h-9 px-3 text-start text-note font-medium text-muted">{{ _('Actions') }}</th>
+        {% endif %}
+      </tr>
+    </thead>
+    {% for group in grid.groups %}
+      {% set group_index = loop.index %}
+      <tbody>
+        {% if group.label %}
+          <tr>
+            <th scope="rowgroup" colspan="{{ width }}" class="px-3 pt-4 pb-1 text-start text-note font-semibold text-muted">{{ group.label }}</th>
+          </tr>
+        {% endif %}
+        {% for line in group.lines %}
+          {% set line_id = grid_id ~ "-" ~ group_index ~ "-" ~ loop.index %}
+          <tr class="border-t border-line">
+            <th scope="row" id="{{ line_id }}" class="py-2 ps-3 pe-2 text-start font-normal">{{ line.label }}</th>
+            {% for box in line.boxes %}
+              <td class="px-2 py-2 text-center">
+                {% if box %}
+                  <input type="checkbox" class="checkbox checkbox-sm align-middle"
+                         data-grant="{{ line.name }}" data-permission="{{ box.permission }}"
+                         aria-labelledby="{{ line_id }} {{ grid_id }}-{{ box.permission }}"
+                         {% if box.checked %}checked{% endif %}>
+                {% endif %}
+              </td>
+            {% endfor %}
+            {% if grid.has_actions %}
+              <td class="px-3 py-2">
+                <div class="flex flex-col gap-1.5">
+                  {% for box in line.actions %}
+                    {% set action_id = line_id ~ "-action-" ~ loop.index %}
+                    <label class="inline-flex items-center gap-2 whitespace-nowrap">
+                      <input type="checkbox" class="checkbox checkbox-sm"
+                             data-grant="{{ line.name }}" data-permission="{{ box.permission }}"
+                             aria-labelledby="{{ line_id }} {{ action_id }}"
+                             {% if box.checked %}checked{% endif %}>
+                      <span id="{{ action_id }}">{{ box.label }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    {% endfor %}
+  </table>
+</div>

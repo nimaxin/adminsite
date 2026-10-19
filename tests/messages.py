@@ -59,6 +59,18 @@ INDIRECT = [
     "open",
     # What sets items of a list apart inside a sentence: Ann, Bob.
     ", ",
+    # The labels of the fields on the Users and Roles pages, which a field
+    # translates each time it is read.
+    "Username",
+    "Password",
+    "Active",
+    "Superuser",
+    "Roles",
+    "Last sign in",
+    "Name",
+    "Description",
+    "Permissions",
+    "Users",
     # The months, as a date is written: Sep 8, 2026.
     "Jan",
     "Feb",

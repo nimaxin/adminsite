@@ -825,6 +825,26 @@
     return html;
   }
 
+  // A role's permission grid keeps the JSON the form sends in one hidden
+  // input. Every other box on a row needs View, so ticking one ticks View,
+  // and taking View away clears the row.
+  function permissionGrid() {
+    return {
+      sync(box) {
+        if (!box.dataset.grant) return;
+        const row = [...this.$root.querySelectorAll(`input[data-grant="${CSS.escape(box.dataset.grant)}"]`)];
+        const view = row.find((one) => one.dataset.permission === "view");
+        if (box === view && !box.checked) row.forEach((one) => { one.checked = false; });
+        else if (box.checked && view) view.checked = true;
+        const granted = {};
+        this.$root.querySelectorAll("input[data-grant]:checked").forEach((one) => {
+          (granted[one.dataset.grant] ??= []).push(one.dataset.permission);
+        });
+        this.$refs.value.value = JSON.stringify(granted);
+      },
+    };
+  }
+
   // A JSON box: the textarea holds the text, and a layer behind it draws the
   // same text in colour, with line numbers beside it. Tab indents, Enter keeps
   // the indent, and brackets and quotes close themselves. A check as it is
@@ -1108,20 +1128,33 @@
         <ul class="flex flex-col gap-0.5">
           {{ nav_link(urls.index(), _('Overview'), on_overview, "overview") }}
         </ul>
+        {#- Views in the Admin group, such as the Users and Roles, sit with the
+            admin's own Activity page at the end. -#}
+        {% set admin_group = namespace(heading=_('Admin'), items=[]) %}
         {% for group, views in groups %}
-          {% if group %}
-            <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-{{ loop.index }}">{{ group }}</p>
+          {% if group == admin_group.heading %}
+            {% set admin_group.items = views %}
+          {% else %}
+            {% if group %}
+              <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-{{ loop.index }}">{{ group }}</p>
+            {% endif %}
+            <ul class="flex flex-col gap-0.5 {% if group %}{{ group_line }}{% else %}mt-0.5{% endif %}" {% if group %}aria-labelledby="nav-group-{{ loop.index }}"{% endif %}>
+              {% for item in views %}
+                {{ nav_link(item.url, item.label, current == item.key, "page" if item.key.startswith("page:") else "rows", item.icon) }}
+              {% endfor %}
+            </ul>
           {% endif %}
-          <ul class="flex flex-col gap-0.5 {% if group %}{{ group_line }}{% else %}mt-0.5{% endif %}" {% if group %}aria-labelledby="nav-group-{{ loop.index }}"{% endif %}>
-            {% for item in views %}
-              {{ nav_link(item.url, item.label, current == item.key, "page" if item.key.startswith("page:") else "rows", item.icon) }}
-            {% endfor %}
-          </ul>
         {% endfor %}
-        {% if show_activity %}
-          <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-admin">{{ _('Admin') }}</p>
+        {% if show_activity or admin_group.items %}
+          <p class="px-2.5 pb-1 pt-4 text-note font-medium text-muted folded:lg:sr-only" id="nav-group-admin">{{ admin_group.heading }}</p>
           <ul class="flex flex-col gap-0.5 {{ group_line }}" aria-labelledby="nav-group-admin">
-            {{ nav_link(urls.activity(), _('Activity'), on_activity, "history") }}
+            {% for item in admin_group.items %}
+              {% set own_icon = {"view:admin_users": "users", "view:admin_roles": "shield"}.get(item.key, "page" if item.key.startswith("page:") else "rows") %}
+              {{ nav_link(item.url, item.label, current == item.key, own_icon, item.icon) }}
+            {% endfor %}
+            {% if show_activity %}
+              {{ nav_link(urls.activity(), _('Activity'), on_activity, "history") }}
+            {% endif %}
           </ul>
         {% endif %}
       </nav>
