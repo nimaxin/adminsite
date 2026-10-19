@@ -5,6 +5,10 @@
 What changed:
 
 - adminsite supports Python 3.15 and is tested on it, like 3.11 to 3.14.
+- A string column without a length, such as `Mapped[str]` or `String()`, is edited on one line.
+  It was edited in a box like a `Text` column, so a form of names and codes was all boxes, and
+  Enter added a line instead of saving. `Text`, MySQL's `MEDIUMTEXT` and `LONGTEXT`, and a
+  `String` longer than 255 keep the box.
 
 ## 0.4.0
 

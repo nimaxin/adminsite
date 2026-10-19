@@ -10,8 +10,8 @@ page, each labelled with its class.
 
 | Column | Field | Shown as | Edited with |
 |---|---|---|---|
-| `str` with a length up to 255 | `StringField` | the text | a text input |
-| `str` without a length, or longer | `TextAreaField` | the text | a text box |
+| `str`, without a length or with one up to 255 | `StringField` | the text | a text input |
+| `Text`, or a `str` longer than 255 | `TextAreaField` | the text | a text box |
 | `int` | `IntegerField` | `42` | a number input |
 | `float` | `FloatField` | `4.2` | a number input |
 | `Decimal` | `DecimalField` | `1,234.50` | a number input |

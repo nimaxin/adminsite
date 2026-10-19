@@ -10,7 +10,9 @@ from sqlalchemy import (
     Enum,
     Integer,
     SmallInteger,
+    Text,
 )
+from sqlalchemy.dialects.mysql import LONGTEXT, MEDIUMTEXT
 from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 from sqlalchemy.orm import Mapper, RelationshipProperty
@@ -132,6 +134,7 @@ class SQLAlchemyInspector:
             or column.server_default is not None
             or column.table.autoincrement_column is column,
             max_length=getattr(column.type, "length", None),
+            long_text=self._holds_long_text(column.type),
             # A TypeDecorator answers for the type it wraps.
             with_timezone=bool(getattr(column.type, "timezone", False)),
             enum_values=self._enum_values_of(column.type),
@@ -154,8 +157,19 @@ class SQLAlchemyInspector:
             python_type=self._python_type_of(item_type),
             python_type_known=self._names_python_type(item_type),
             max_length=getattr(item_type, "length", None),
+            long_text=self._holds_long_text(item_type),
             enum_values=self._enum_values_of(item_type),
         )
+
+    def _holds_long_text(self, column_type: TypeEngine[Any]) -> bool:
+        """Whether the column's type is made for long text, as Text is.
+
+        MySQL's MEDIUMTEXT and LONGTEXT are too, though SQLAlchemy does not
+        make them a kind of Text.
+        """
+        if isinstance(column_type, TypeDecorator):
+            return self._holds_long_text(column_type.impl_instance)
+        return isinstance(column_type, Text | MEDIUMTEXT | LONGTEXT)
 
     def _integer_range_of(self, column_type: TypeEngine[Any]) -> range | None:
         """The whole numbers an integer column holds, by the size of its type.

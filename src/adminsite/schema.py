@@ -40,6 +40,9 @@ class FieldSchema:
     # default, a server default or the database's numbering.
     has_default: bool = False
     max_length: int | None = None
+    # Whether the column's type is made for long text, as Text is, so a form
+    # edits it in a box. A string without a length is edited on one line.
+    long_text: bool = False
     # Whether a datetime column keeps the time zone, as one declared
     # DateTime(timezone=True) does.
     with_timezone: bool = False
