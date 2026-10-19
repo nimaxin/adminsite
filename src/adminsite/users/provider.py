@@ -16,52 +16,31 @@ from adminsite.auth.provider import AuthProvider, _no_one
 from adminsite.database import Database
 from adminsite.exceptions import AdminSiteError, IntegrityError, SignInRefusedError
 from adminsite.i18n import gettext as _
-from adminsite.i18n import ngettext
 from adminsite.permissions import Grants
 from adminsite.plugins import Plugin
 from adminsite.timezones import known_timezone, to_column_time
 from adminsite.users.models import Role, User, user_metadata
+from adminsite.users.rules import normal_username, password_problem
+from adminsite.users.views import UserView, role_view
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
 
 __all__ = [
     "CHECK_KEY",
-    "SHORTEST_PASSWORD",
     "AdminUsers",
     "grants_from",
-    "normal_username",
-    "password_problem",
 ]
 
 # Where the session keeps a check made from the user's password hash, so a
 # new password signs out every session made with the old one.
 CHECK_KEY = "adminsite_password_check"
 
-# The fewest characters a password may have, as Django asks by default.
-SHORTEST_PASSWORD = 8
-
 
 class _Tables(Store):
     """The users' tables, made only where the project asks for them."""
 
     metadata = user_metadata
-
-
-def normal_username(username: str) -> str:
-    """A username as it is kept: no spaces around it, in small letters."""
-    return username.strip().lower()
-
-
-def password_problem(password: str) -> str | None:
-    """What is wrong with a new password, or None when it will do."""
-    if len(password) < SHORTEST_PASSWORD:
-        return ngettext(
-            "Enter at least {count} character.",
-            "Enter at least {count} characters.",
-            SHORTEST_PASSWORD,
-        )
-    return None
 
 
 def grants_from(user: User) -> Grants:
@@ -114,10 +93,18 @@ class AdminUsers(AuthProvider, Plugin):
         self._secret = ""
 
     def setup(self, admin: "Admin") -> None:
-        """Keep the admin's database, where the users live, and its secret key."""
+        """Keep the admin's database and secret key, and add the Users and Roles."""
         self._tables = _Tables(admin.database, create_table=self.create_table)
         self._database_zone = known_timezone(admin.database_timezone)
         self._secret = admin.secret_key
+        users = UserView(admin.inspector, admin.field_registry)
+        users._users = self
+        admin.add_view(users)
+        admin.add_view(role_view(admin))
+
+    def keep_signed_in(self, request: Request, user: User) -> None:
+        """Keep this session signed in after the user's own password changed."""
+        request.session[CHECK_KEY] = self._check(user)
 
     async def _database(self) -> Database:
         """The admin's database, with the tables made if this may make them."""
