@@ -160,7 +160,8 @@ The admin is an ASGI app, so it mounts wherever ASGI apps do, at any path:
 ## Add a sign in
 
 Anyone who can open the admin can change your data, so add a sign in before it goes online.
-[Signing in](auth.md) shows how. Read [Permissions](permissions.md) before other people use it.
+[Signing in](auth.md) shows how, with users and roles you manage in the admin or your own user
+table. Read [Permissions](permissions.md) before other people use it.
 
 ## A bigger example
 

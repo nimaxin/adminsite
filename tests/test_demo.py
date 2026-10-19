@@ -260,6 +260,36 @@ class TestDemo:
         assert re.search(r'<input[^>]*name="username"[^>]*value="admin"', page.text)
         assert re.search(r'<input[^>]*name="password"[^>]*value="admin"', page.text)
 
+    async def test_admin_manages_the_people_and_support_does_less(
+        self, tmp_path: Path
+    ) -> None:
+        app = build_app(tmp_path, SECRET)
+        async with app.router.lifespan_context(app), client_for(app) as admin:
+            await sign_in(admin)
+            users = await admin.get("/admin/admin_users")
+            roles = await admin.get("/admin/admin_roles/1/edit")
+        async with app.router.lifespan_context(app), client_for(app) as agent:
+            page = await enter(agent, "/admin/login")
+            await agent.post(
+                "/admin/login",
+                data={
+                    "username": "support",
+                    "password": "support",
+                    "_csrf": token_from(page.text),
+                },
+            )
+            orders = await agent.get("/admin/orders")
+            tags = await agent.get("/admin/tags")
+            people = await agent.get("/admin/admin_users")
+
+        assert users.status_code == 200
+        assert "support" in users.text
+        assert 'data-grant="orders" data-permission="ship"' in roles.text
+        assert orders.status_code == 200
+        assert "Mark as shipped" in orders.text
+        assert tags.status_code == 403
+        assert people.status_code == 403
+
     async def test_the_front_door_leads_to_the_admin(self, tmp_path: Path) -> None:
         async with client_for(build_app(tmp_path, SECRET)) as client:
             home = await client.get("/")

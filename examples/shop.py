@@ -2,7 +2,8 @@
 
     uv run uvicorn examples.shop:app --reload
 
-Then open http://127.0.0.1:8000/admin and sign in as nima / letmein.
+Then open http://127.0.0.1:8000/admin and sign in as nima / letmein, a
+superuser, or as lena / letmein to see what the Support role allows.
 """
 
 import enum
@@ -40,10 +41,11 @@ from adminsite import (
     Stat,
 )
 from adminsite.actions import Selection, action
-from adminsite.auth import PasswordAuth, hash_password
+from adminsite.auth import hash_password
 from adminsite.database import SessionAdapter
 from adminsite.fields import EnumField, ImageField
 from adminsite.files import LocalStorage
+from adminsite.users import AdminUsers, Role, User, user_metadata
 
 
 class Base(DeclarativeBase):
@@ -249,9 +251,11 @@ class OrderView(ModelView[Order]):
         )
         return f"Today's orders come to €{total or 0}."
 
+    # A permission of its own, which a role's grid gives a box of its own.
     @action(
         "Mark as shipped",
         confirm="Mark the chosen orders as shipped?",
+        permission="ship",
         icon=outline(
             '<path d="M2 6h12v10H2z"/><path d="M14 10h4l4 3v3h-8"/>'
             '<circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/>'
@@ -328,10 +332,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Create the tables and put some records in, the first time."""
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await connection.run_sync(user_metadata.create_all)
 
     async with AsyncSession(engine) as session:
         if not await session.scalar(select(Customer.id).limit(1)):
             session.add_all(build_sample_shop())
+            await session.commit()
+        if not await session.scalar(select(User.id).limit(1)):
+            session.add_all(build_people())
             await session.commit()
     yield
 
@@ -343,8 +351,8 @@ admin = Admin(
     title="Acme shop",
     views=[OrderView, CustomerView, ProductView, TagView],
     dashboard=dashboard,
-    # Hash the password where you keep it, not here.
-    auth=PasswordAuth({"nima": hash_password("letmein")}),
+    # People and roles kept in the shop's own database, managed under Admin.
+    auth=AdminUsers(),
     secret_key="change-this-before-you-deploy-anything",
     # Every change goes to adminsite_audit.db, shown on each record's
     # History tab and on the Activity page.
@@ -355,6 +363,29 @@ admin = Admin(
     timezones=["Europe/Paris", "Asia/Tehran", "America/New_York"],
 )
 app.mount("/admin", admin)
+
+
+def build_people() -> list[User]:
+    """A superuser, and someone in support who may do less.
+
+    Written straight into the tables, as a migration could: the passwords are
+    shorter than `adminsite users create` would take.
+    """
+    support = Role(
+        name="Support",
+        description="Answers customers and sends their orders.",
+        permissions={
+            "orders": ["view", "edit", "ship"],
+            "customers": ["view", "edit"],
+            "products": ["view"],
+        },
+    )
+    return [
+        User(
+            username="nima", password_hash=hash_password("letmein"), is_superuser=True
+        ),
+        User(username="lena", password_hash=hash_password("letmein"), roles=[support]),
+    ]
 
 
 def build_sample_shop() -> list[Base]:

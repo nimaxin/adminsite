@@ -309,7 +309,8 @@ committed first.
 
 `@action` takes the button's `label`, an `icon`, a `confirm` question, `inputs` to ask for as they
 are, `dangerous` for a red button listed last, the `permission` it needs, its `name` in the URL,
-and `audit_answer` to keep a secret answer out of the [audit log](audit.md#actions).
+and `audit_answer` to keep a secret answer out of the [audit log](audit.md#actions). A `permission`
+of its own, such as `"ship"`, gets a box of its own on each [role](permissions.md#roles).
 [`@action`][adminsite.actions.action] says what each one does. An `icon` takes what a view's
 [`icon`](views.md#the-sidebar) takes:
 

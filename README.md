@@ -71,6 +71,8 @@ one file.
   row.
 - [Built-in sign in](https://nimaxin.github.io/adminsite/auth/), with users from your own user
   table.
+- [Users and roles](https://nimaxin.github.io/adminsite/auth/#users-and-roles-in-the-admin) managed
+  in the admin, each role a grid of what it may do.
 - [Audit log](https://nimaxin.github.io/adminsite/audit/) of who changed what and when, with a
   history on every record.
 - [Import](https://nimaxin.github.io/adminsite/import/) from CSV or Excel with a preview, and
