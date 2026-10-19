@@ -50,6 +50,9 @@ dependencies = [
 [project.optional-dependencies]
 excel = ["openpyxl>=3.1"]
 
+[project.scripts]
+adminsite = "adminsite._cli:main"
+
 [project.urls]
 Homepage = "https://github.com/nimaxin/adminsite"
 Documentation = "https://nimaxin.github.io/adminsite/"
