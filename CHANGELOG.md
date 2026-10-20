@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 Users and roles managed in the admin: `auth=AdminUsers()` keeps the admin's own users in your
 database, superusers add people and give them roles, and each role is a grid of what its holders
@@ -8,8 +8,8 @@ may do on each view and page.
 
 Before upgrading:
 
-- A project that overrides `base.html`, `index.html` or `login.html` should start its copy again
-  from the new one.
+- A project that overrides `base.html`, `index.html`, `login.html`, `_field.html` or `_icons.html`
+  should start its copy again from the new one.
 
 What changed:
 
