@@ -15,8 +15,18 @@ __all__ = [
 ]
 
 # The tables live on their own metadata, so a project can add them to its
-# migrations without them ever mixing with the project's own models.
-user_metadata = MetaData()
+# migrations without them ever mixing with the project's own models. Their
+# constraints are named here, not by each database, so a later migration that
+# changes one finds it by the same name on Postgres, MySQL and SQLite.
+user_metadata = MetaData(
+    naming_convention={
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s",
+    }
+)
 
 
 def _now() -> datetime:

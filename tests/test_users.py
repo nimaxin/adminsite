@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, create_mock_engine, select, update
+from sqlalchemy.schema import CreateTable
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
@@ -302,6 +303,28 @@ class TestCreating:
 
         tehran = datetime.now(ZoneInfo("Asia/Tehran")).replace(tzinfo=None)
         assert abs(made.created_at - tehran) < timedelta(minutes=1)
+
+
+class TestTheTables:
+    @pytest.mark.parametrize("url", ["postgresql://", "mysql://", "sqlite://"])
+    def test_their_constraints_have_the_same_names_everywhere(self, url: str) -> None:
+        dialect = create_mock_engine(url, executor=None).dialect
+
+        made = "\n".join(
+            str(CreateTable(table).compile(dialect=dialect))
+            for table in user_metadata.sorted_tables
+        )
+
+        for name in [
+            "pk_adminsite_users",
+            "uq_adminsite_users_username",
+            "pk_adminsite_roles",
+            "uq_adminsite_roles_name",
+            "pk_adminsite_user_roles",
+            "fk_adminsite_user_roles_user_id_adminsite_users",
+            "fk_adminsite_user_roles_role_id_adminsite_roles",
+        ]:
+            assert f"CONSTRAINT {name} " in made
 
 
 class TestTheSignInNote:
