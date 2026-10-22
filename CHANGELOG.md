@@ -6,6 +6,8 @@ What changed:
 
 - With `AdminUsers`, a superuser sees the sign ins on the Activity page and can filter by them,
   where a view whose `scope_query` leaves out rows for everyone hid them (#104).
+- On a role's grid, a box that several actions share shows each of their labels once, where an
+  action offered on the list and on the record page read "Retry, Retry" (#105).
 
 ## 0.5.0
 
