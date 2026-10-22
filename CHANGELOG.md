@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.1
+
+A release of fixes for the users and roles added in 0.5.0. A superuser now sees the sign ins on the
+Activity page whatever a view's `scope_query` leaves out, and a role's grid shows each action's
+label once in a box that several actions share.
 
 What changed:
 
