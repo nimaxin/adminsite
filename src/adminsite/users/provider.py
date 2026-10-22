@@ -31,7 +31,7 @@ from adminsite.plugins import Plugin
 from adminsite.timezones import known_timezone, to_column_time
 from adminsite.users.models import Role, User, user_metadata
 from adminsite.users.rules import normal_username, password_problem
-from adminsite.users.views import UserView, role_view
+from adminsite.users.views import UserView, _is_superuser, role_view
 
 if TYPE_CHECKING:
     from adminsite.admin import Admin
@@ -240,6 +240,12 @@ class AdminUsers(AuthProvider, Plugin):
     async def grants_for(self, user: Any) -> Grants | None:
         """What the user's roles add up to, or everything for a superuser."""
         return grants_from(user) if isinstance(user, User) else Grants()
+
+    async def may_read_sign_ins(
+        self, request: Request, *, reads_everything: bool
+    ) -> bool:
+        """Whether this person sees who signed in: a superuser always does."""
+        return reads_everything or _is_superuser(request)
 
     async def current_user(self, request: Request) -> Any | None:
         """The signed in user, unless their password has changed since."""

@@ -99,7 +99,8 @@ changes. Each entry keeps the IP address and the browser too, as `entry.ip` and
 proxy, as with uvicorn's `--forwarded-allow-ips`.
 
 With a [sign in](auth.md) set up, the log keeps every sign in, failed attempt and sign out. By
-default the Activity page shows them to whoever may read the history of every view, and
+default the Activity page shows them to whoever may read the history of every view, and with
+[`AdminUsers`](auth.md#users-and-roles-in-the-admin) to every superuser.
 `AuthProvider.may_read_sign_ins` changes who.
 
 ## The Activity page
