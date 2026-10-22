@@ -318,13 +318,17 @@ def _offered(view: "ModelView[Any]") -> set[str]:
 def _asked_by_actions(view: "ModelView[Any]") -> list[tuple[str, str]]:
     """The permissions a view's actions ask for beyond the columns, each labelled.
 
-    Actions that ask for the same one share its box, named after them all.
+    Actions that ask for the same one share its box, named after them all,
+    each label once.
     """
     asked: dict[str, list[str]] = {}
     for found in view._actions.marked.values():
         if found.permission not in STANDARD:
             asked.setdefault(found.permission, []).append(found.label)
-    return [(permission, _(", ").join(labels)) for permission, labels in asked.items()]
+    return [
+        (permission, _(", ").join(dict.fromkeys(labels)))
+        for permission, labels in asked.items()
+    ]
 
 
 def _grants_shaped(value: Any) -> bool:

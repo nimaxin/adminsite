@@ -34,6 +34,11 @@ class OrderView(ModelView[Order]):
     async def refund(self, selection: Selection[Order]) -> str:
         return "refunded"
 
+    # The same action on an order's own page, which shares its box.
+    @action("Pay the money back", on="record", permission="refund")
+    async def refund_one(self, order: Order) -> str:
+        return "refunded"
+
 
 class CustomerView(ModelView[Customer]):
     fields = ["name", "email"]
@@ -298,6 +303,14 @@ class TestTheRoleForm:
         assert 'data-grant="admin_users"' not in page.text
         assert "Pay the money back" in page.text
         assert 'data-grant="orders" data-permission="refund"' in page.text
+
+    async def test_actions_that_share_a_box_name_it_once(self, site: Site) -> None:
+        await site.sign_in("nima")
+
+        page = await site.client.get("/admin/admin_roles/new")
+
+        labels = re.findall(r'<span id="[^"]*-action-\d+">([^<]*)</span>', page.text)
+        assert labels == ["Pay the money back"]
 
     async def test_a_box_the_view_switches_off_is_not_drawn(self, site: Site) -> None:
         await site.sign_in("nima")
