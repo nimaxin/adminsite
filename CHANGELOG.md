@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- With `AdminUsers`, a superuser sees the sign ins on the Activity page and can filter by them,
+  where a view whose `scope_query` leaves out rows for everyone hid them (#104).
+
 ## 0.5.0
 
 Users and roles managed in the admin: `auth=AdminUsers()` keeps the admin's own users in your

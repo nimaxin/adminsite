@@ -1,5 +1,5 @@
 import re
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -9,11 +9,13 @@ import pytest
 from starlette.applications import Starlette
 from starlette.requests import Request
 
-from adminsite import Admin, ModelView, Permission
+from adminsite import Admin, ModelView, Permission, Statement
 from adminsite.audit import AuditEvent, AuditLog, AuditQuery
 from adminsite.auth import AuthProvider, PasswordAuth, SignInRefusedError, hash_password
 from adminsite.database import Database
+from adminsite.users import AdminUsers
 from tests.models import Order, Product
+from tests.test_users import PASSWORD, fresh_tables
 
 PASSWORDS = {"nima": hash_password("letmein"), "clerk": hash_password("letmein")}
 
@@ -32,6 +34,13 @@ class OrderView(ModelView[Order]):
         if action == Permission.HISTORY and user == "clerk":
             return False
         return await super().allows(action, request=request, record=record)
+
+
+class ShelvedProductView(ModelView[Product]):
+    """Products, leaving out one that is off the shelves for everyone."""
+
+    def scope_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Product.name != "Wool scarf")
 
 
 class Account:
@@ -84,13 +93,16 @@ def token_from(body: str) -> str:
 
 @asynccontextmanager
 async def browser(
-    database: Database, log: AuditLog, auth: AuthProvider
+    database: Database,
+    log: AuditLog,
+    auth: AuthProvider,
+    views: Sequence[type[ModelView[Any]]] = (ProductView, OrderView),
 ) -> AsyncIterator[httpx.AsyncClient]:
     site = Admin(
         database, title="Shop", audit=log, auth=auth, secret_key="for-the-tests"
     )
-    site.add_view(ProductView)
-    site.add_view(OrderView)
+    for view in views:
+        site.add_view(view)
     app = Starlette()
     app.mount("/admin", site)
     async with httpx.AsyncClient(
@@ -240,3 +252,35 @@ class TestWhoSeesThem:
             page = await client.get("/admin/-/activity")
 
         assert "could not sign in" in page.text
+
+    async def test_a_superuser_does_though_a_scope_leaves_rows_out(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        users = AdminUsers()
+        async with browser(database, log, users, [ShelvedProductView]) as client:
+            await fresh_tables(database)
+            await users.create_user("nima", PASSWORD, superuser=True)
+            await sign_in(client, "nobody", "x")
+            await sign_in(client, "nima", PASSWORD)
+            page = await client.get("/admin/-/activity?event=sign_in_failed")
+
+        assert 'value="sign_in_failed" selected' in page.text
+        assert "There is no such username." in page.text
+
+    async def test_someone_with_a_role_does_not(
+        self, database: Database, log: AuditLog
+    ) -> None:
+        users = AdminUsers()
+        async with browser(database, log, users) as client:
+            await fresh_tables(database)
+            every_history = ["view", "history"]
+            await users.create_role(
+                "Auditor", {"products": every_history, "orders": every_history}
+            )
+            await users.create_user("lena", PASSWORD, roles=["Auditor"])
+            await sign_in(client, "nobody", "x")
+            await sign_in(client, "lena", PASSWORD)
+            page = await client.get("/admin/-/activity")
+
+        assert page.status_code == 200
+        assert "could not sign in" not in page.text
