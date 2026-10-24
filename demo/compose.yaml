@@ -44,6 +44,8 @@ services:
       DEMO_HOST: ${DEMO_HOST:?Set DEMO_HOST}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Other sites the server hosts beside the demo; empty anywhere else.
+      - ${CADDY_SITES:-./sites}:/etc/caddy/sites:ro
       # Certificates survive a restart, so Let's Encrypt is not asked again.
       - caddy_data:/data
       - caddy_config:/config

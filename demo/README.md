@@ -36,7 +36,10 @@ A Hetzner machine with Ubuntu, Docker and a firewall that lets in SSH, HTTP and 
 keys only.
 
 - `/srv/adminsite-demo/repo` is a clone of this repository, owned by the `deploy` user.
-- `/srv/adminsite-demo/.env` holds `DEMO_HOST` and `DEMO_SECRET_KEY`.
+- `/srv/adminsite-demo/.env` holds `DEMO_HOST`, `DEMO_SECRET_KEY` and `CADDY_SITES`.
+- `/srv/caddy-sites` holds the other sites the server hosts, which `CADDY_SITES` points at: one
+  `*.caddy` file each, which the Caddyfile imports. After changing one, reload Caddy:
+  `docker exec adminsite-demo-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`.
 - `/srv/adminsite-demo/deploy.sh` is a copy of `deploy.sh`. It is the only command the `deploy`
   user's key may run.
 

@@ -9,3 +9,7 @@
 	}
 	reverse_proxy app:8000
 }
+
+# Other sites on the same server, which are not part of the demo: one
+# *.caddy file each, in the folder CADDY_SITES names (see compose.yaml).
+import /etc/caddy/sites/*.caddy

@@ -29,6 +29,7 @@ adminsite_views.db
 shop_uploads/
 fields_uploads/
 demo-data/
+demo/sites/
 
 # Built docs
 site/
