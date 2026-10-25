@@ -426,6 +426,13 @@ def button(page: httpx.Response) -> str:
     return found.group(0)
 
 
+def password_toggle(page: httpx.Response, input_id: str) -> str:
+    """The button that shows what is typed in a password box, and hides it."""
+    found = re.search(rf'<button[^>]*aria-controls="{input_id}"[^>]*>', page.text)
+    assert found is not None, input_id
+    return found.group(0)
+
+
 class TestTheSignInForm:
     async def test_it_starts_empty(self, client: httpx.AsyncClient) -> None:
         page = await client.get("/admin/login")
@@ -465,3 +472,11 @@ class TestTheSignInForm:
         assert 'value=""' in box(answer, "password")
         assert "wrong" not in answer.text
         assert "autofocus" in box(answer, "password")
+
+    async def test_the_password_can_be_shown(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/login")
+
+        toggle = password_toggle(page, "password")
+        assert 'aria-label="Show password"' in toggle
+        assert 'aria-pressed="false"' in toggle
+        assert 'type="password"' in box(page, "password")

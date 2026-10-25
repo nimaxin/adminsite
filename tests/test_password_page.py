@@ -8,7 +8,7 @@ from adminsite.audit import AuditEvent, AuditQuery
 from adminsite.auth import PasswordAuth, hash_password
 from adminsite.database import Database
 from tests.test_accessibility import Controls
-from tests.test_auth import SECRET, sign_in, token_from
+from tests.test_auth import SECRET, password_toggle, sign_in, token_from
 from tests.test_user_pages import OrderView, Site, site
 from tests.test_users import PASSWORD
 
@@ -73,6 +73,14 @@ class TestChangingIt:
 
         assert page.status_code == 200
         assert controls.unnamed() == []
+
+    async def test_each_box_can_show_what_is_typed(self, site: Site) -> None:
+        await site.sign_in("nima")
+
+        page = await site.client.get("/admin/-/password")
+
+        for name in ("current", "new", "repeat"):
+            assert 'aria-pressed="false"' in password_toggle(page, f"password-{name}")
 
     async def test_a_wrong_current_password_is_refused(self, site: Site) -> None:
         await site.sign_in("nima")

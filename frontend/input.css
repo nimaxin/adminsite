@@ -476,6 +476,12 @@
   opacity: 0.7;
 }
 
+/* Edge draws an eye of its own in a password box, beside the button the
+   admin draws there. */
+input::-ms-reveal {
+  display: none;
+}
+
 /* A thin chevron in the grey of the other icons, where daisyUI drew a solid
    triangle. */
 .select:not([multiple]) {

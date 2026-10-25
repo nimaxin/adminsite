@@ -245,6 +245,7 @@
   "Sep": "9月",
   "Settings": "設定",
   "Show": "表示",
+  "Show password": "パスワードを表示",
   "Show {count} {thing}": "{things}を表示（{count}）",
   "Show {things}": "{things}を表示",
   "Show {thing} as": "{thing}の表示形式",

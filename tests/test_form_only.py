@@ -18,6 +18,7 @@ from adminsite.database import Database, SessionAdapter
 from adminsite.fields import JSONField, PasswordField
 from adminsite.views.contexts import SaveContext
 from tests.models import Account, Customer, Setting
+from tests.test_auth import password_toggle
 
 
 def hashed(password: str) -> str:
@@ -148,6 +149,12 @@ class TestANewAccount:
         assert 'value=""' in field
         assert 'autocomplete="new-password"' in field
         assert "required" in field
+
+    async def test_what_is_typed_can_be_shown(self, client: httpx.AsyncClient) -> None:
+        page = await client.get("/admin/accounts/new")
+
+        assert 'aria-label="Show password"' in password_toggle(page, "field-password")
+        assert 'aria-labelledby="field-password-label"' in password_input(page)
 
     async def test_it_cannot_be_left_out(self, client: httpx.AsyncClient) -> None:
         answer = await submit(

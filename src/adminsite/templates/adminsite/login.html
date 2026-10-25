@@ -1,3 +1,4 @@
+{% import "adminsite/_password_input.html" as passwords -%}
 <!doctype html>
 <html lang="{{ language }}" dir="{{ direction }}">
 <head>
@@ -6,6 +7,7 @@
 <title>{{ _('Sign in') }} · {{ title }}</title>
 <link rel="stylesheet" href="{{ urls.static('adminsite.css') }}">
 {% include "adminsite/_browser_timezone.html" %}
+{% include "adminsite/_show_password.html" %}
 <script>
   try {
     const saved = localStorage.getItem("adminsite-theme");
@@ -57,9 +59,11 @@
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="text-label font-medium" for="password">{{ _('Password') }}</label>
-        <input class="input w-full" id="password" name="password" type="password"
-               autocomplete="current-password" value="{{ filled.get('password', '') }}"
-               {% if filled.get('username') and not filled.get('password') %}autofocus{% endif %}>
+        {% call passwords.box("password") %}
+          <input class="grow" id="password" name="password" type="password"
+                 autocomplete="current-password" value="{{ filled.get('password', '') }}"
+                 {% if filled.get('username') and not filled.get('password') %}autofocus{% endif %}>
+        {% endcall %}
       </div>
       <button class="btn btn-primary mt-1" type="submit"
               {% if filled.get('username') and filled.get('password') %}autofocus{% endif %}>{{ _('Sign in') }}</button>

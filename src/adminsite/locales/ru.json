@@ -265,6 +265,7 @@
   "Sep": "сент.",
   "Settings": "Настройки",
   "Show": "Показать",
+  "Show password": "Показать пароль",
   "Show {count} {thing}": {
     "one": "Показать {count} запись",
     "few": "Показать {count} записи",

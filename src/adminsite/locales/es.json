@@ -260,6 +260,7 @@
   "Sep": "sept",
   "Settings": "Configuración",
   "Show": "Mostrar",
+  "Show password": "Mostrar contraseña",
   "Show {count} {thing}": {
     "one": "Mostrar {count} {thing}",
     "other": "Mostrar {count} {things}"

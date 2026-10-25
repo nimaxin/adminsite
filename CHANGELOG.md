@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- Every password box has a button at its end that shows what is typed and hides it again: on the
+  sign in page, on Change password and for a `PasswordField` in a form. In Edge it takes the place
+  of the browser's own. A project that overrides `base.html`, `login.html`, `password.html`,
+  `widgets/password.html` or `_icons.html` should start its copy again from the new one.
+
 ## 0.5.1
 
 A release of fixes for the users and roles added in 0.5.0. A superuser now sees the sign ins on the
