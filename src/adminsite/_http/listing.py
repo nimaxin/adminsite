@@ -40,6 +40,7 @@ __all__ = [
     "SIZE_KEY",
     "SIZE_PARAM",
     "TOTAL_TRIGGER",
+    "ChoicePicker",
     "FilterPanel",
     "ListRequest",
     "active_chips",
@@ -72,7 +73,8 @@ COLUMNS_PARAM = "cols"
 COLUMNS_KEY = "adminsite_columns"
 SIZE_PARAM = "size"
 SIZE_KEY = "adminsite_page_size"
-# A choice filter with more options than this gets a box to narrow them.
+# A choice filter with more options than this is a picker, which narrows them
+# as you type, rather than a list of boxes to tick.
 SEARCHABLE_OVER = 10
 # The element in the table that asks for the list's total once the rows are
 # on screen. htmx names it in the HX-Trigger header of that request.
@@ -82,6 +84,30 @@ TOTAL_TRIGGER = "records-counter"
 KEPT_TOTAL_HEADER = "adminsite-total"
 # The filters drawer, which asks for its options' counts as it opens.
 FILTER_COUNTS_TRIGGER = "filters"
+
+
+@dataclass
+class ChoicePicker:
+    """What the picker reads of a form's row, for a choice filter with many options."""
+
+    path: str
+    label: str
+    picked: Sequence[Choice]
+    # Put before the path in its ids, as in a relation filter's picker.
+    id_prefix = "filter-"
+    # A filter is never wrong, and can always be left off.
+    error = ""
+    required = False
+
+    @property
+    def input_id(self) -> str:
+        """The id of the box typed in."""
+        return f"field-{self.id_prefix}{self.path}"
+
+    @property
+    def picked_pairs(self) -> list[dict[str, str]]:
+        """The options picked, as the picker's script reads them."""
+        return [{"value": one.value, "label": one.label} for one in self.picked]
 
 
 @dataclass
@@ -116,8 +142,21 @@ class FilterPanel:
 
     @property
     def searchable(self) -> bool:
-        """Whether its choices are too many to read through without a search."""
+        """Whether its choices are too many to tick through, so a picker holds them."""
         return self.filter.template == "choice" and len(self.options) > SEARCHABLE_OVER
+
+    @property
+    def choice_picker(self) -> ChoicePicker:
+        """The picker a choice filter with too many options to tick is drawn as.
+
+        It holds what is picked in the order the URL has it, leaving out a
+        value the filter does not offer, as the filter itself does.
+        """
+        labels = {option.value: option.label for option in self.options}
+        picked = [
+            Choice(value, labels[value]) for value in self.chosen if value in labels
+        ]
+        return ChoicePicker(self.filter.name, self.filter.label, picked)
 
 
 @dataclass
