@@ -77,7 +77,9 @@ async def key_of(database: Database, email: str) -> int:
 
 def offered(answer: httpx.Response) -> list[str]:
     """The names a lookup offers, in order."""
-    found = re.findall(r'<span class="min-w-0 break-words">([^<]*)</span>', answer.text)
+    found = re.findall(
+        r'<span class="min-w-0 flex-1 break-words">([^<]*)</span>', answer.text
+    )
     return [html.unescape(name) for name in found]
 
 

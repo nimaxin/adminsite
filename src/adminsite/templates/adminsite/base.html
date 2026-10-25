@@ -351,25 +351,6 @@
     link.search = params.toString();
   }, true);
 
-  // A filter's long list of choices narrows to what is typed above it, the
-  // way a picker's does. A choice already ticked stays, to be unticked.
-  function choiceSearch() {
-    return {
-      query: "",
-      empty: false,
-      init() {
-        this.$watch("query", () => {
-          this.empty = ![...this.$refs.choices.children].some((choice) => this.shows(choice));
-        });
-      },
-      shows(choice) {
-        const wanted = folded(this.query.trim());
-        return !wanted || folded(choice.dataset.label).includes(wanted)
-          || choice.querySelector("input").checked;
-      },
-    };
-  }
-
   // A filter that takes one choice lets it go when it is picked again, which
   // a radio cannot do on its own. The click comes before the change that
   // picks a radio, so the filter still holds the last choice to compare.

@@ -1,8 +1,10 @@
 {#- One record in a picker's list, whether the list is in the page or came
     back from a search. A press keeps the typing in the box, and a click
     chooses; Enter clicks the highlighted one. Single quotes, because a
-    record's name may hold a double quote. -#}
+    record's name may hold a double quote. An option of a filter that
+    `picker_counts` names ends with its count, placed by `choice_index`. -#}
 {% import "adminsite/_icons.html" as icons %}
+{% import "adminsite/_option_count.html" as counts %}
 <li role="option" class="flex cursor-pointer items-center gap-2 rounded-field px-2.5 py-1.5 data-[active=true]:bg-base-200"
     data-value="{{ choice.value }}"
     x-show='offers({{ choice.value|tojson }}, {{ choice.label|tojson }})'
@@ -10,5 +12,6 @@
     @mousedown.prevent @mouseenter="hover($el)"
     @click='choose({{ choice.value|tojson }}, {{ choice.label|tojson }})'>
   <span class="inline-flex w-3.5 shrink-0 text-primary"><span class="inline-flex" x-show='holds({{ choice.value|tojson }})'>{{ icons.icon("check", 14) }}</span></span>
-  <span class="min-w-0 break-words">{{ choice.label }}</span>
+  <span class="min-w-0 flex-1 break-words">{{ choice.label }}</span>
+  {%- if picker_counts|default(none) %}{{ counts.slot(picker_counts, choice_index, choice) }}{% endif %}
 </li>

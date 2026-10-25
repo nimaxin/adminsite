@@ -16,12 +16,12 @@
      class="inset-auto top-2 bottom-2 end-2 m-0 h-auto w-88 max-w-[calc(100vw-1rem)] overflow-hidden rounded-box border border-base-300 bg-base-100 p-0 text-base-content shadow-float max-md:inset-0 max-md:w-full max-md:max-w-none max-md:rounded-none max-md:border-0">
   {% if counted %}<span id="filters-counted" hidden></span>{% endif %}
   {#- A box ticked, a shortcut picked or an end of a range typed applies the
-      form; each of those is marked `data-applies`. The box that narrows a
-      long list is not, nor is picking "between", which waits for its ends.
-      A choice or a shortcut picked again lets its filter go and applies the
-      form, a range through its hidden value, which is marked too. A record
-      picked or let go applies it as well, and a text filter applies itself
-      once the typing stops. -#}
+      form; each of those is marked `data-applies`. Picking "between" is
+      not, as it waits for its ends. A choice or a shortcut picked again
+      lets its filter go and applies the form, a range through its hidden
+      value, which is marked too. A record or a choice picked in a picker,
+      or let go, applies it as well, and a text filter applies itself once
+      the typing stops. -#}
   <form class="flex h-full flex-col" method="get" action="{{ urls.list(view) }}"
         data-keeps="{{ names|join(' ') }}" data-drops-empty
         hx-get="{{ urls.list(view) }}" hx-trigger="change[target.hasAttribute('data-applies')] delay:250ms, picker-change delay:250ms, submit"
@@ -38,41 +38,39 @@
     <div class="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5">
       {% for panel in panels %}
         {% set name = panel.filter.name %}
-        {% set one_choice = panel.filter.template == "choice" and not panel.filter.multiple %}
+        {% set one_choice = panel.filter.template == "choice" and not panel.filter.multiple and not panel.searchable %}
         <div class="border-b border-line py-4 last:border-b-0">
           <fieldset id="filter-{{ name|replace('.', '-') }}"
                     {%- if one_choice %} x-data='oneChoice({{ (panel.chosen[0] if panel.chosen else "")|tojson }})'{% endif %}>
             <legend class="mb-2 text-label font-semibold">{{ panel.filter.label }}</legend>
-            {% if panel.filter.template == "choice" %}
+            {% if panel.searchable %}
+              {#- Choices too many to tick through are picked by name, as on a
+                  form: a box that narrows them as you type, holding the ones
+                  picked as chips, with each one's count in the list. The box
+                  has no name, so what is typed in it is never sent. -#}
+              {%- set row = panel.choice_picker -%}
+              {%- set picker_multiple = panel.filter.multiple -%}
+              {%- set picker_ordered = false -%}
+              {%- set picker_options = panel.options -%}
+              {%- set picker_counts = name if panel.counted else none -%}
+              {%- set picker_hint = _('Search') -%}
+              {%- set picker_search = picker_hint -%}
+              {%- set field_attrs %}aria-label="{{ panel.filter.label }}"{% endset -%}
+              {% include "adminsite/widgets/_picker.html" %}
+            {% elif panel.filter.template == "choice" %}
               {% set kind = "radio" if one_choice else "checkbox" %}
-              {#- A long list gets a box above it that narrows it as you type.
-                  The box has no name, so the filter never sends what was typed. -#}
-              <div {% if panel.searchable %}x-data="choiceSearch()"{% endif %}>
-                {% if panel.searchable %}
-                  <label class="input input-sm mb-2 w-full">
-                    <span class="text-muted">{{ icons.icon("search") }}</span>
-                    <input type="search" class="grow" x-model="query" @keydown.enter.prevent
-                           placeholder="{{ _('Search') }}"
-                           aria-label="{{ _('Search {things}', things=panel.filter.label|in_sentence) }}">
+              <div class="-mx-2 flex flex-col gap-0.5">
+                {% for option in panel.options %}
+                  <label class="flex h-8 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200">
+                    <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}" data-applies
+                           class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
+                           {% if one_choice %}x-model="picked" @click="pickAgain($el, $event)"
+                           @keydown.space="pickAgain($el, $event)"{% endif %}
+                           {% if option.value in panel.chosen %}checked{% endif %}>
+                    <span class="flex-1">{{ option.label }}</span>
+                    {% if panel.counted %}{{ counts.slot(name, loop.index, option) }}{% endif %}
                   </label>
-                {% endif %}
-                <div class="relative -mx-2 flex max-h-64 flex-col gap-0.5 overflow-x-hidden overflow-y-auto" {% if panel.searchable %}x-ref="choices"{% endif %}>
-                  {% for option in panel.options %}
-                    <label class="flex h-8 shrink-0 cursor-pointer items-center gap-2.5 rounded-field px-2 hover:bg-base-200"
-                           {% if panel.searchable %}data-label="{{ option.label }}" x-show="shows($el)"{% endif %}>
-                      <input type="{{ kind }}" name="{{ name }}" value="{{ option.value }}" data-applies
-                             class="{{ kind }} {{ kind }}-sm {{ kind }}-primary"
-                             {% if one_choice %}x-model="picked" @click="pickAgain($el, $event)"
-                             @keydown.space="pickAgain($el, $event)"{% endif %}
-                             {% if option.value in panel.chosen %}checked{% endif %}>
-                      <span class="flex-1">{{ option.label }}</span>
-                      {% if panel.counted %}{{ counts.slot(name, loop.index, option) }}{% endif %}
-                    </label>
-                  {% endfor %}
-                </div>
-                {% if panel.searchable %}
-                  <p class="py-2 text-muted" x-show="empty" x-cloak>{{ _('Nothing found.') }}</p>
-                {% endif %}
+                {% endfor %}
               </div>
             {% elif panel.filter.template == "range" %}
               {#- A shortcut, or a value at each end. What is sent is one value,
@@ -125,6 +123,7 @@
               {%- set picker_multiple = panel.filter.multiple -%}
               {%- set picker_ordered = false -%}
               {%- set picker_options = none -%}
+              {%- set picker_counts = none -%}
               {%- set picker_hint = _("Search {things}", things=things) -%}
               {%- set picker_search = picker_hint -%}
               {%- set field_attrs %}aria-label="{{ panel.filter.label }}"{% endset -%}

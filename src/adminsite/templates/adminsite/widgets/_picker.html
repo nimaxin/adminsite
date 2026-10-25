@@ -5,7 +5,9 @@
     link to over a hundred records is. `picker_multiple` holds several, and
     `picker_ordered` shows them as numbered rows to put in order, with the
     box under them for adding one. `picker_hint` is the box's placeholder,
-    and `picker_search` the one a link to one record shows while searching. -#}
+    and `picker_search` the one a link to one record shows while searching.
+    `picker_counts` names a filter whose options are counted, and gives each
+    option a place for its count, which the filters drawer fills in. -#}
 {% import "adminsite/_icons.html" as icons %}
 {%- set list_id = "options-" ~ (row.id_prefix ~ row.path)|replace(".", "-") -%}
 {%- set ordered = picker_ordered|default(false) -%}
@@ -96,6 +98,8 @@
         class="relative max-h-64 overflow-auto p-1">
       {% if local %}
         {% for choice in picker_options %}
+          {#- An included template is not given this loop, so it gets the place. -#}
+          {% set choice_index = loop.index %}
           {% include "adminsite/widgets/_option.html" %}
         {% endfor %}
       {% endif %}
