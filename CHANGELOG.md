@@ -1,18 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+Every password box can now show what is typed, and a choice filter with many options is a picker in
+the filters drawer, as a relation filter is.
+
+Before upgrading:
+
+- A project that overrides `base.html`, `login.html`, `password.html`, `_filters.html`,
+  `_icons.html`, `widgets/password.html`, `widgets/_picker.html` or `widgets/_option.html` should
+  start its copy again from the new one.
 
 What changed:
 
 - Every password box has a button at its end that shows what is typed and hides it again: on the
   sign in page, on Change password and for a `PasswordField` in a form. In Edge it takes the place
-  of the browser's own. A project that overrides `base.html`, `login.html`, `password.html`,
-  `widgets/password.html` or `_icons.html` should start its copy again from the new one.
+  of the browser's own.
 - In the filters drawer, a choice filter with more than 10 options is a picker, as a relation
   filter is: a box that narrows the options as you type and holds the ones picked as chips, with
   each option's count in the list (#108). A list of 10 or fewer stays as boxes to tick, and no
-  longer scrolls inside the drawer. A project that overrides `_filters.html`,
-  `widgets/_picker.html` or `widgets/_option.html` should start its copy again from the new one.
+  longer scrolls inside the drawer.
 
 ## 0.5.1
 
