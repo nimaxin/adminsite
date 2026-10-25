@@ -260,6 +260,7 @@
   "Sep": "Eyl",
   "Settings": "Ayarlar",
   "Show": "Göster",
+  "Show password": "Şifreyi göster",
   "Show {count} {thing}": {
     "one": "{count} {thing} kaydını göster",
     "other": "{count} {thing} kaydını göster"

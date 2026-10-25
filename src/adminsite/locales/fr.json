@@ -260,6 +260,7 @@
   "Sep": "sept.",
   "Settings": "Paramètres",
   "Show": "Afficher",
+  "Show password": "Afficher le mot de passe",
   "Show {count} {thing}": {
     "one": "Afficher {count} {thing}",
     "other": "Afficher {count} {things}"

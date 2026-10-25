@@ -260,6 +260,7 @@
   "Sep": "سپتامبر",
   "Settings": "تنظیمات",
   "Show": "نمایش",
+  "Show password": "نمایش رمز عبور",
   "Show {count} {thing}": {
     "one": "نمایش {count} {thing}",
     "other": "نمایش {count} {thing}"

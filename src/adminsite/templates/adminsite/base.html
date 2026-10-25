@@ -13,6 +13,7 @@
 {% for src in admin.scripts %}<script src="{{ urls.asset(src) }}" defer></script>
 {% endfor %}
 {% include "adminsite/_browser_timezone.html" %}
+{% include "adminsite/_show_password.html" %}
 <script>
   const REMOVE_CHOSEN = {{ _("Remove {name}")|tojson }};
   const MOVE_UP = {{ _("Move {name} up")|tojson }};

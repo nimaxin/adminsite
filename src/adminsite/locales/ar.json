@@ -280,6 +280,7 @@
   "Sep": "سبتمبر",
   "Settings": "الإعدادات",
   "Show": "عرض",
+  "Show password": "إظهار كلمة المرور",
   "Show {count} {thing}": {
     "few": "عرض {things} ({count})",
     "many": "عرض {things} ({count})",
