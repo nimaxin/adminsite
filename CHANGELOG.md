@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- Going to another page fades the old page into the new one in Chrome and Safari, where it used
+  to swap at once. The sidebar, and whatever else both pages share, stays still. Where reduced
+  motion is turned on, pages swap at once as before.
+
 ## 0.6.0
 
 Every password box can now show what is typed, and a choice filter with many options is a picker in
