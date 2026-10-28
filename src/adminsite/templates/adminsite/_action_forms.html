@@ -45,7 +45,8 @@
       const field = form.querySelector('input[name="keys"]');
       if (field) field.value = key;
       if (dialog) dialog.showModal();
-      else form.submit();
+      // Sent as a button would send it, which starts the bar across the top.
+      else form.requestSubmit();
     }
   </script>
 {% endif %}

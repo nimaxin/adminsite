@@ -2,9 +2,9 @@
   {% set address = urls.file(view, row.path, row.value) %}
   <div class="mb-2 flex items-center gap-3">
     {% if row.widget == "image" %}
-      <a href="{{ address }}"><img src="{{ address }}" alt="{{ row.display }}" class="h-16 w-16 rounded-box object-cover"></a>
+      <a href="{{ address }}" data-file><img src="{{ address }}" alt="{{ row.display }}" class="h-16 w-16 rounded-box object-cover"></a>
     {% endif %}
-    <a class="link link-hover min-w-0 flex-1 truncate" href="{{ address }}">{{ row.display }}</a>
+    <a class="link link-hover min-w-0 flex-1 truncate" href="{{ address }}" data-file>{{ row.display }}</a>
     {% if not row.required %}
       <label class="label cursor-pointer gap-2">
         <input type="checkbox" class="checkbox checkbox-xs" name="{{ row.path }}-remove">
