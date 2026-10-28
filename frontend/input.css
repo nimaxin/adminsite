@@ -577,6 +577,15 @@ input.input:disabled::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+/* Going to another page of the admin fades the old page into the new one.
+   What both pages share, such as the sidebar, stays still. Where motion is
+   turned down, pages swap at once. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
 /* Folded to its icons, the sidebar lets the account menu open past its edge,
    where daisyUI's drawer would cut it off. Outside any layer, so it wins over
    daisyUI's own rule. */
