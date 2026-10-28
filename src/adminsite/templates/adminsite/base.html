@@ -351,6 +351,48 @@
     link.search = params.toString();
   }, true);
 
+  // From the moment a link or a form leaves for another page, a thin bar
+  // across the top says the page is on its way, until it is drawn. A link to
+  // a page the sidebar lists shows as the open one there at once. A link to a
+  // file, such as an export, keeps this page, so it starts no bar, and neither
+  // does a link that opens a new tab or only moves within this page.
+  let drawnOpen;
+  function showOpen(link) {
+    const open = document.querySelector('#sidebar-links [aria-current="page"]');
+    if (drawnOpen === undefined) drawnOpen = open;
+    open?.removeAttribute("aria-current");
+    link?.setAttribute("aria-current", "page");
+  }
+  function leaving() {
+    document.documentElement.dataset.leaving = "";
+  }
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href]");
+    if (!link || event.defaultPrevented || event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if ((link.target && link.target !== "_self") || link.origin !== location.origin) return;
+    if (link.hasAttribute("download") || link.hasAttribute("data-file")) return;
+    const page = (address) => address.split("#")[0];
+    if (link.href.includes("#") && page(link.href) === page(location.href)) return;
+    leaving();
+    const listed = [...document.querySelectorAll("#sidebar-links a")].find((one) => one.href === link.href);
+    if (listed) showOpen(listed);
+  });
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    const method = event.submitter?.formMethod || form.method;
+    const target = event.submitter?.formTarget || form.target;
+    if (event.defaultPrevented || method === "dialog" || (target && target !== "_self")) return;
+    leaving();
+  });
+  // Back on this page from the browser's memory, as after the back button,
+  // the bar is gone and the sidebar shows this page as the open one again.
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    delete document.documentElement.dataset.leaving;
+    if (drawnOpen !== undefined) showOpen(drawnOpen);
+  });
+
   // A filter that takes one choice lets it go when it is picked again, which
   // a radio cannot do on its own. The click comes before the change that
   // picks a radio, so the filter still holds the last choice to compare.
@@ -1046,6 +1088,8 @@
 </script>
 </head>
 <body class="bg-base-200 font-sans text-body text-base-content antialiased">
+{#- The bar leaving() starts, which the stylesheet draws growing. -#}
+<div id="loading-bar" class="pointer-events-none fixed start-0 top-0 z-50 h-0.5 w-0 bg-primary"></div>
 <a href="#content"
    class="btn btn-primary btn-sm sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-[60]">
   {{ _('Skip to the content') }}
@@ -1091,12 +1135,14 @@
       </button>
 
       {% set on_overview = not current and not on_activity and not status and not on_password %}
+      {#- A link looks open from its aria-current, which a click moves to it at
+          once, before the page it opens arrives. -#}
       {% macro nav_link(url, label, active, icon_name="", icon_markup="") -%}
         <li>
           <a href="{{ url }}" {% if active %}aria-current="page"{% endif %}
              :title='$store.sidebar.folded ? {{ label|tojson }} : null'
-             class="flex h-8.5 items-center gap-2.5 rounded-field border px-2.5 font-medium folded:lg:justify-center folded:lg:px-0 {% if active %}border-base-300 bg-base-100 text-base-content shadow-quiet{% else %}border-transparent text-base-content/80 hover:bg-base-100/70 hover:text-base-content{% endif %}">
-            <span class="{% if active %}text-base-content{% else %}text-muted{% endif %} inline-flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+             class="group flex h-8.5 items-center gap-2.5 rounded-field border border-transparent px-2.5 font-medium text-base-content/80 hover:bg-base-100/70 hover:text-base-content aria-[current=page]:border-base-300 aria-[current=page]:bg-base-100 aria-[current=page]:text-base-content aria-[current=page]:shadow-quiet folded:lg:justify-center folded:lg:px-0">
+            <span class="inline-flex size-4 shrink-0 items-center justify-center text-muted group-aria-[current=page]:text-base-content" aria-hidden="true">
               {%- if icon_markup %}{{ icons.custom(icon_markup, urls) }}
               {%- else %}{{ icons.icon(icon_name or "rows") }}{% endif -%}
             </span>

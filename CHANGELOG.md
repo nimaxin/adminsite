@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- A thin bar across the top of the window shows that the next page is on its way, from a moment
+  after a link or a button is clicked until the page is drawn, and a link in the sidebar shows as
+  the open page as soon as it is clicked. Links to files, such as Export CSV, show no bar. A
+  project that overrides `base.html`, `list.html`, `detail.html`, `import.html`, `_row.html`,
+  `_action_forms.html` or `widgets/file.html` should start its copy again from the new one.
+
 ## 0.6.0
 
 Every password box can now show what is typed, and a choice filter with many options is a picker in

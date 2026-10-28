@@ -214,6 +214,24 @@ class TestUploading:
         assert served.headers["content-type"] == "image/png"
         assert f'src="/admin/-/files/products/description/{key}"' in listed.text
 
+    async def test_a_link_to_the_file_starts_no_loading_bar(
+        self, client: httpx.AsyncClient, database: Database
+    ) -> None:
+        # A file the browser downloads keeps the page on screen, so the bar
+        # across the top, which waits for the next page, would run on.
+        await client.post(
+            "/admin/products/1/edit",
+            data={"name": "Linen shirt", "price": "59.00"},
+            files={"description": ("shirt.png", PNG, "image/png")},
+        )
+        key = await photo_of(database)
+        record = await client.get("/admin/products/1")
+        form = await client.get("/admin/products/1/edit")
+
+        link = f'href="/admin/-/files/products/description/{key}" data-file'
+        assert link in record.text
+        assert form.text.count(link) == 2
+
     async def test_saving_without_a_file_keeps_the_stored_one(
         self, client: httpx.AsyncClient, database: Database
     ) -> None:

@@ -619,6 +619,35 @@ input.input:disabled::-webkit-calendar-picker-indicator {
   }
 }
 
+/* The bar across the top of the window while another page is on its way,
+   which the page's script starts as a link or a form leaves for it. It shows
+   only once the wait is long enough to notice, slows as it nears the end,
+   and fades on its own after a while: a file an action answers with leaves
+   the page where it is, and the bar with it. */
+[data-leaving] #loading-bar {
+  animation: loading-bar 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
+}
+
+@keyframes loading-bar {
+  from {
+    width: 0;
+  }
+  90% {
+    opacity: 1;
+  }
+  to {
+    width: 90%;
+    opacity: 0;
+  }
+}
+
+/* Without motion, it shows at its full length at once. */
+@media (prefers-reduced-motion: reduce) {
+  [data-leaving] #loading-bar {
+    animation-timing-function: steps(1, jump-start);
+  }
+}
+
 /* A closed popover takes no room. The browser hides one with a rule that any
    class setting display wins over, such as daisyUI's menu, so the closed
    language and time zone menus were still laid out, unseen, under the account

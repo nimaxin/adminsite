@@ -156,9 +156,9 @@
                     {% elif item.widget in ("file", "image") and value %}
                       {% set address = urls.file(view, path, view._fields.value_at(record, path)) %}
                       {% if item.widget == "image" %}
-                        <a href="{{ address }}"><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>
+                        <a href="{{ address }}" data-file><img src="{{ address }}" alt="{{ value }}" class="max-h-40 rounded-box border border-base-300"></a>
                       {% else %}
-                        <a class="text-link hover:underline" href="{{ address }}">{{ value }}</a>
+                        <a class="text-link hover:underline" href="{{ address }}" data-file>{{ value }}</a>
                       {% endif %}
                     {% elif url and value %}
                       <a class="text-link hover:underline" href="{{ url }}">{{ value }}</a>
