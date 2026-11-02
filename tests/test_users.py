@@ -125,6 +125,19 @@ class TestSigningIn:
         assert found is not None
         assert found.id == made.id
 
+    async def test_fullwidth_letters_are_the_same_username(
+        self, users: AdminUsers
+    ) -> None:
+        made = await users.create_user(
+            "\N{FULLWIDTH LATIN SMALL LETTER L}ena", PASSWORD
+        )
+
+        found = await users.verify("lena", PASSWORD)
+
+        assert made.username == "lena"
+        assert found is not None
+        assert found.id == made.id
+
     async def test_a_wrong_password_is_refused(self, users: AdminUsers) -> None:
         await users.create_user("lena", PASSWORD)
 

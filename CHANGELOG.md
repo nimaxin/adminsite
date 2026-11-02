@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- With `AdminUsers`, `ａdmin` in fullwidth letters is now the same username as `admin`, so the two
+  can no longer be separate accounts. An account already named that way has to be renamed before it
+  can sign in.
+
 ## 0.6.0
 
 Every password box can now show what is typed, and a choice filter with many options is a picker in

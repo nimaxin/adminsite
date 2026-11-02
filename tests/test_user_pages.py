@@ -213,6 +213,22 @@ class TestTheUserForm:
         assert response.status_code == 422
         assert "That username is taken." in response.text
 
+    async def test_a_lookalike_of_a_taken_username_is_refused(self, site: Site) -> None:
+        await site.users.create_user("lena", PASSWORD)
+        await site.sign_in("nima")
+
+        response = await site.post(
+            "/admin/admin_users/new",
+            {
+                "username": "\N{FULLWIDTH LATIN SMALL LETTER L}ena",
+                "password": PASSWORD,
+                "is_active": "true",
+            },
+        )
+
+        assert response.status_code == 422
+        assert "That username is taken." in response.text
+
     async def test_a_password_left_empty_stays(self, site: Site) -> None:
         lena = await site.users.create_user("lena", PASSWORD)
         await site.sign_in("nima")
