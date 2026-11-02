@@ -1,5 +1,7 @@
 """What a username and a password have to be."""
 
+import unicodedata
+
 from adminsite.i18n import ngettext
 
 __all__ = [
@@ -14,7 +16,8 @@ SHORTEST_PASSWORD = 8
 
 def normal_username(username: str) -> str:
     """A username as it is kept: no spaces around it, in small letters."""
-    return username.strip().lower()
+    # Fullwidth letters and the like become the normal ones, as in Django.
+    return unicodedata.normalize("NFKC", username).strip().lower()
 
 
 def password_problem(password: str) -> str | None:
