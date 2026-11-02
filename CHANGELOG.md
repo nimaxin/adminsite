@@ -1,12 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
+
+A small fix to `AdminUsers`: a username in fullwidth letters is now the same name as one in normal
+letters.
+
+Before upgrading:
+
+- An account whose username has fullwidth letters has to be renamed on the Users page before it can
+  sign in.
 
 What changed:
 
 - With `AdminUsers`, `ａdmin` in fullwidth letters is now the same username as `admin`, so the two
-  can no longer be separate accounts. An account already named that way has to be renamed before it
-  can sign in.
+  can no longer be separate accounts.
 
 ## 0.6.0
 
