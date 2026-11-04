@@ -179,6 +179,7 @@ __all__ = [
     "mapped_column",
     "month_start",
     "note_attempt",
+    "place_order",
     "queue_export",
     "relationship",
     "render_csv",
@@ -679,6 +680,11 @@ def warehouses_for(user: Any) -> list[tuple[str, str]]:
 
 async def send_confirmation(order: Order) -> None:
     """Email the customer that the order is in."""
+
+
+async def place_order(session: SessionAdapter, order: Order) -> None:
+    """Reserve the stock for a new order, and store it."""
+    await session.add(order)
 
 
 async def fetch_new_orders(session: SessionAdapter) -> int:

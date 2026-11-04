@@ -324,9 +324,9 @@ class OrderView(ModelView[Order]):
 ## Delete the chosen rows
 
 Every view that allows deleting offers Delete in the Actions menu. It deletes each record as a
-single delete does, so `allows`, `before_delete` and `after_delete` run for every one, and the audit
-log gets an entry for each. It is all or none: when one record is refused, nothing is deleted. One
-Delete removes at most 1,000 records.
+single delete does, so `allows`, `before_delete`, `delete_record` and `after_delete` run for every
+one, and the audit log gets an entry for each. It is all or none: when one record is refused,
+nothing is deleted. One Delete removes at most 1,000 records.
 
 `can_delete_selected = False` switches it off, and `can_delete = False` switches off every delete.
 
