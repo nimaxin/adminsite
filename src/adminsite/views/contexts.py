@@ -189,8 +189,8 @@ def _loaded(record: object, key: str, path: str) -> Any:
 class SaveContext(Generic[M]):
     """What a save hook is given: `SaveContext[Order]` for an order's save.
 
-    `before_save` and `after_save` run inside the save's transaction,
-    `after_save_committed` once it has committed. In `before_save` the
+    `before_save`, `save_record` and `after_save` run inside the save's
+    transaction, `after_save_committed` once it has committed. In `before_save` the
     values have not been written onto the record yet, so that is where to
     change them: `context.values[Order.slug].set(...)`. Setting an
     attribute on `context.record` there would be overwritten a moment
@@ -213,8 +213,8 @@ class SaveContext(Generic[M]):
 class DeleteContext(Generic[M]):
     """What a delete hook is given: `DeleteContext[Order]` for an order's delete.
 
-    `before_delete` and `after_delete` run inside the delete's transaction,
-    `after_delete_committed` once it has committed.
+    `before_delete`, `delete_record` and `after_delete` run inside the
+    delete's transaction, `after_delete_committed` once it has committed.
     """
 
     session: SessionAdapter

@@ -9,6 +9,11 @@ What changed:
   command palette, the dashboard and the pickers on other forms. A record it leaves out still opens
   from a link and is named there, and a form that holds one keeps it. `scope_query` stays the way
   to hide records from a user.
+- `ModelView.save_record` and `ModelView.delete_record` do the write of a save and of a delete.
+  Override one to store or delete a record your own way, such as a delete that keeps the row and
+  fills in its `deleted_at`. The permission check, the other hooks and the audit log still run
+  around it, and every Delete runs `delete_record`: on the record's page, for the ticked rows and
+  through the API.
 
 ## 0.6.1
 

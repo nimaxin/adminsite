@@ -13,6 +13,7 @@ from adminsite.audit._actor import actor_of
 from adminsite.audit.entry import AuditEntry, AuditEvent
 from adminsite.database import SessionAdapter
 from adminsite.exceptions import (
+    AdminSiteError,
     IntegrityError,
     PermissionDeniedError,
     RecordNotFoundError,
@@ -96,7 +97,7 @@ class Saver(Generic[M]):
         )
         # A copy, so a hook can change what is stored without the caller's
         # own dictionary changing under it.
-        values, stored = await self._store_files(session, dict(values), record)
+        values, stored, replaced = await self._store_files(dict(values), record)
         try:
             async with session.transaction():
                 values = await self._links.resolve(session, values, request)
@@ -109,38 +110,40 @@ class Saver(Generic[M]):
                     request=request,
                 )
                 await self._view.before_save(context)
-                # Whatever the hook left in context.values is what is stored,
-                # apart from form-only values, which the hooks store themselves.
-                values = {
-                    path: value
-                    for path, value in stored_values(context.values).items()
-                    if not self._fields.form_only(path)
-                }
+                paths = list(self._written(context))
 
                 auditing = self._view._audit_log is not None
                 before = (
-                    self._audit.snapshot(target, list(values))
+                    self._audit.snapshot(target, paths)
                     if auditing and not created
                     else {}
                 )
-                if not created:
-                    await self._clear_reordered(session, target, values)
+                # The inline rows go onto the record first, so save_record
+                # stores the record whole, and a new one with its rows.
                 async with session.no_autoflush():
-                    await self._repository.apply_values(session, target, values)
                     await self._apply_inlines(
                         session, target, inline_rows or {}, request
                     )
-                if created:
-                    await session.add(target)
+                await self._view.save_record(context)
                 await _flush_and_reload(session, target)
+                if (
+                    created
+                    and not sqlalchemy_inspect(target, raiseerr=True).has_identity
+                ):
+                    raise AdminSiteError(
+                        f"{type(self._view).__name__}.save_record did not store "
+                        f"the new {self._model.__name__}. Add context.record to "
+                        "context.session, or call super().save_record(context)."
+                    )
 
                 await self._view.after_save(context)
                 # A change the hook made to the record is flushed here rather
                 # than at the commit, so what that flush sets is read too.
                 await _flush_and_reload(session, target)
+                self._drop_replaced(session, target, replaced)
                 session.after_commit(partial(self._view.after_save_committed, context))
                 self._audit.record_save(
-                    session, target, before, list(values), request, created=created
+                    session, target, before, paths, request, created=created
                 )
         except IntegrityError as error:
             await self._discard_files(stored)
@@ -155,6 +158,29 @@ class Saver(Generic[M]):
             await self._discard_files(stored)
             raise
         return target
+
+    async def write(self, context: SaveContext[M]) -> None:
+        """The usual save: the values onto the record, a new one added, then flushed."""
+        session, record = context.session, context.record
+        values = self._written(context)
+        if not context.created:
+            await self._clear_reordered(session, record, values)
+        async with session.no_autoflush():
+            await self._repository.apply_values(session, record, values)
+        if context.created:
+            await session.add(record)
+        await _flush_and_reload(session, record)
+
+    def _written(self, context: SaveContext[M]) -> dict[str, Any]:
+        """What a save writes onto the record, once its hooks have changed it.
+
+        Form-only values are left out, since the hooks store those themselves.
+        """
+        return {
+            path: value
+            for path, value in stored_values(context.values).items()
+            if not self._fields.form_only(path)
+        }
 
     async def _clear_reordered(
         self, session: SessionAdapter, record: M, values: Mapping[str, Any]
@@ -192,15 +218,18 @@ class Saver(Generic[M]):
             await session.flush()
 
     async def _store_files(
-        self, session: SessionAdapter, values: Mapping[str, Any], record: M | None
-    ) -> tuple[dict[str, Any], list[tuple[FileField, str]]]:
+        self, values: Mapping[str, Any], record: M | None
+    ) -> tuple[
+        dict[str, Any], list[tuple[FileField, str]], list[tuple[FileField, str, str]]
+    ]:
         """Store new uploads and swap them for their keys.
 
-        The files a save replaces or removes are deleted once it commits,
-        so a save that fails never loses the file that was there.
+        Also answers the files the values would replace or remove, each with
+        its path, which `_drop_replaced` deletes once the save commits.
         """
         ready = dict(values)
         stored: list[tuple[FileField, str]] = []
+        replaced: list[tuple[FileField, str, str]] = []
         try:
             for path, value in values.items():
                 item = self._fields.field_for(path)
@@ -214,11 +243,26 @@ class Saver(Generic[M]):
                     self._fields.value_at(record, path) if record is not None else None
                 )
                 if old and old != ready[path]:
-                    session.after_commit(_deleting(item, old))
+                    replaced.append((item, path, old))
         except BaseException:
             await self._discard_files(stored)
             raise
-        return ready, stored
+        return ready, stored, replaced
+
+    def _drop_replaced(
+        self,
+        session: SessionAdapter,
+        record: M,
+        replaced: Sequence[tuple[FileField, str, str]],
+    ) -> None:
+        """Delete each replaced file once the save commits, unless the record kept it.
+
+        A save that fails never loses the file that was there, and nor does
+        one whose `save_record` or hooks left the old file on the record.
+        """
+        for item, path, old in replaced:
+            if self._fields.value_at(record, path) != old:
+                session.after_commit(_deleting(item, old))
 
     async def _discard_files(self, stored: Sequence[tuple[FileField, str]]) -> None:
         """Remove files stored for a save that did not go through."""
@@ -311,10 +355,10 @@ class Saver(Generic[M]):
         # What the hooks left unwritten goes first, so that a refusal of the
         # delete itself is the only one put down to the records referring.
         await session.flush()
-        try:
-            await self._repository.delete(session, record)
-        except IntegrityError as error:
-            raise _ReferredToError(str(error)) from error
+        await self._view.delete_record(context)
+        # A delete done another way, such as by filling in a column, is
+        # written here too, so a refusal names this record.
+        await session.flush()
         await self._view.after_delete(context)
         session.after_commit(partial(self._view.after_delete_committed, context))
         if not auditing:
@@ -338,6 +382,13 @@ class Saver(Generic[M]):
                 )
             ],
         )
+
+    async def remove(self, context: DeleteContext[M]) -> None:
+        """The usual delete: the record taken out of its table."""
+        try:
+            await self._repository.delete(context.session, context.record)
+        except IntegrityError as error:
+            raise _ReferredToError(str(error)) from error
 
     async def delete_selected(self, selection: Selection[M]) -> str:
         """Delete the chosen records, each as a single delete would, all or none.

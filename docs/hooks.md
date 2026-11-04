@@ -34,9 +34,11 @@ class OrderView(ModelView[Order]):
 | Hook | When it runs |
 |---|---|
 | `before_save` | Before the submitted values are written onto the record. |
+| `save_record` | Writes the values onto the record and stores it. [Override it](#save-or-delete-another-way) to store the record your own way. |
 | `after_save` | After the flush, so the record has its key and the values the database set, and before the commit. |
 | `after_save_committed` | Once the save has committed. |
 | `before_delete` | Before the record is deleted. |
+| `delete_record` | Removes the record. [Override it](#save-or-delete-another-way) to delete another way. |
 | `after_delete` | After the delete is flushed, before the commit. |
 | `after_delete_committed` | Once the delete has committed. |
 
@@ -88,6 +90,49 @@ class CheckView(ModelView[Check]):
 
 Any other exception is a fault: the change is rolled back and reported as an error, so a bug in a
 hook is never mistaken for a business rule.
+
+## Save or delete another way
+
+`save_record` and `delete_record` do the write itself. Override one to write the record your own
+way, and everything around it still runs: the permission check, the other hooks and the audit log.
+
+A delete that keeps the row:
+
+```python
+from datetime import UTC, datetime
+
+from adminsite import DeleteContext, ModelView
+
+
+class SupplierView(ModelView[Supplier]):
+    async def delete_record(self, context: DeleteContext[Supplier]) -> None:
+        context.record.closed_at = datetime.now(UTC)
+```
+
+Every Delete runs it: on the record's page, for the rows ticked in the list, and through the API.
+[`list_query`](views.md#keep-records-off-the-list) keeps such records off the list.
+
+`save_record` writes the values onto the record and stores it, on a create and on an edit. Call
+`super().save_record(context)` to keep that, or leave it out to store the record your own way:
+
+```python
+from adminsite import ModelView, SaveContext
+
+
+class OrderView(ModelView[Order]):
+    async def save_record(self, context: SaveContext[Order]) -> None:
+        if not context.created:
+            await super().save_record(context)
+            return
+        # New orders go through the shop's own code, which reserves the stock.
+        order = context.record
+        order.customer = context.values[Order.customer].get()
+        order.total = context.values[Order.total].get()
+        await place_order(context.session, order)
+```
+
+The rows of the record's inline tables are on `context.record` already. A new record has to end up
+in the session, as `place_order` does here, since the page opens it next.
 
 ## After the commit
 

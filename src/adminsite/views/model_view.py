@@ -728,6 +728,28 @@ class ModelView(Generic[M]):
                 Name a field to put the message beside its input.
         """
 
+    async def save_record(self, context: SaveContext[M]) -> None:
+        """Writes the values onto the record and stores it, on a create or an edit.
+
+        Override it to store the record another way, such as through your
+        own code: `context.values[Order.total].get()` reads each value.
+        Call `super().save_record(context)` to keep the usual write and add
+        to it. It runs between `before_save` and `after_save`, in the same
+        transaction. The rows of the record's inline tables are on
+        `context.record` already, and are stored with it.
+
+        It stores `context.record`, which the page opens next, so a new
+        record has to end up in `context.session`.
+
+        Args:
+            context: The record, the values to write, the session and the
+                request. `context.created` tells a create from an edit.
+
+        Raises:
+            RefusedError: To refuse the save, with a message for the user.
+        """
+        await self._saver.write(context)
+
     async def after_save(self, context: SaveContext[M]) -> None:
         """Runs after the flush, while the transaction is still open.
 
@@ -763,6 +785,24 @@ class ModelView(Generic[M]):
         Raises:
             RefusedError: To refuse the delete, with a message for the user.
         """
+
+    async def delete_record(self, context: DeleteContext[M]) -> None:
+        """Removes the record from the database.
+
+        Override it to delete another way, such as by keeping the row and
+        filling in its `deleted_at`. Everything else stays as it is: the
+        Delete buttons, the permission, the hooks and the audit log. It runs
+        between `before_delete` and `after_delete`, in the same transaction,
+        for each record a Delete covers: from its page, from the list and
+        through the API.
+
+        Args:
+            context: The record, the session and the request.
+
+        Raises:
+            RefusedError: To refuse the delete, with a message for the user.
+        """
+        await self._saver.remove(context)
 
     async def after_delete(self, context: DeleteContext[M]) -> None:
         """Runs after the delete, while the transaction is still open.
