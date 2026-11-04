@@ -660,7 +660,8 @@ class ModelView(Generic[M]):
         This runs on the list, the count, a single record, an export, a
         bulk action and the history on the Activity page, so a row can never
         leak through a path that forgot to check. A record it leaves out
-        reads as Hidden where another view links to it.
+        reads as Hidden where another view links to it. To keep records off
+        the list but still reachable, such as deleted ones, use `list_query`.
 
         Hand the statement back unchanged for a user it leaves nothing out
         for, such as a superuser. The Activity page then shows them the
@@ -677,9 +678,38 @@ class ModelView(Generic[M]):
         """
         return statement
 
+    def list_query(self, statement: Statement, *, request: Request) -> Statement:
+        """Narrow the list to the rows it shows, such as the ones not deleted.
+
+        Unlike `scope_query`, this leaves every record reachable. It runs on
+        the list, its count and filters, the export, "select all matching",
+        the command palette, the dashboard and the pickers on other forms,
+        but not on a record's own page or where another record links to it.
+        A record it leaves out still opens from a link, and is named there.
+
+        `scope_query` runs first, so this only ever narrows what the user
+        may see.
+
+        Args:
+            statement: A select of the view's model, about to run.
+            request: The request, with the signed in user on
+                `request.state.user`.
+
+        Returns:
+            The statement, narrowed, such as with a `where`. Unchanged by
+            default.
+        """
+        return statement
+
     def _scope_for(self, request: Request) -> Scope:
         """The scope as a function, ready to hand to the repository."""
         return lambda statement: self.scope_query(statement, request=request)
+
+    def _listing_for(self, request: Request) -> Scope:
+        """The scope and then the list's own query, for a read that lists records."""
+        return lambda statement: self.list_query(
+            self.scope_query(statement, request=request), request=request
+        )
 
     # Hooks around saves and deletes.
 

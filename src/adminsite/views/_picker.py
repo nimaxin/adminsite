@@ -170,6 +170,23 @@ class Picker:
         except PermissionDeniedError:
             return None
 
+    async def with_held(
+        self, session: SessionAdapter, offered: Sequence[Any], held: Sequence[str]
+    ) -> list[Any]:
+        """The records on offer, and those the link holds that the offer leaves out.
+
+        The target's `list_query` may keep a record off its list, and so off
+        this offer, while a link still holds it. It stays a choice, so the
+        form keeps what it holds. Read in one query, within the target's
+        scope, so a record the scope hides stays out.
+        """
+        rows = list(offered)
+        listed = {self.key_of(one) for one in rows}
+        missing = [key for key in dict.fromkeys(held) if key not in listed]
+        if missing:
+            rows += await self.chosen(session, missing)
+        return rows
+
     async def chosen(self, session: SessionAdapter, keys: Sequence[str]) -> list[Any]:
         """The records these keys name, in their order, as far as the user may see them.
 

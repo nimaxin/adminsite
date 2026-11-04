@@ -452,14 +452,14 @@ class ModelCounts(Widget):
         return any(view.in_sidebar for view in await admin.views_allowing(request))
 
     async def load(self, admin: "Admin", request: Request) -> list[CountItem]:
-        """Count the records of every view this user may open, within its scope."""
+        """Count the records of each view this user may open, as its list does."""
         urls = Urls(request)
         found = []
         async with admin.database.session() as session:
             for view in await admin.views_allowing(request):
                 if not view.in_sidebar:
                     continue
-                statement = view._repository.base_statement(view._scope_for(request))
+                statement = view._repository.base_statement(view._listing_for(request))
                 total = await session.scalar(
                     select(func.count()).select_from(statement.subquery())
                 )
