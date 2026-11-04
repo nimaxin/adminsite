@@ -123,6 +123,9 @@ Other views follow it too. A picker for a customer reads through `CustomerView`,
 the customers this user may see, and an order whose customer the scope hides shows that customer
 as "Hidden".
 
+To keep records off the list while links still reach them, such as deleted ones, use
+[`list_query`](views.md#keep-records-off-the-list) instead.
+
 ## Fields
 
 `can_access_field` decides who sees which field, page by page, and `get_readonly_fields` who may

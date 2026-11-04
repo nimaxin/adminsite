@@ -223,7 +223,14 @@ async def build_inline_tables(
                 if row.typed is not None
                 for key in _picks(row.typed.get(inline.input_name(row.index, path)))
             ]
-            options[path] = await _relation_options(admin, session, item, request, sent)
+            held = [
+                child._fields.value_at(row.found, path)
+                for row in rows
+                if row.typed is None and row.found is not None
+            ]
+            options[path] = await _relation_options(
+                admin, session, item, request, sent, held
+            )
         table = InlineTable(
             inline=inline,
             label=inline.label or view._fields.label_for(inline.name),
@@ -276,12 +283,14 @@ async def _relation_options(
     item: Any,
     request: Request,
     sent: Sequence[str] = (),
+    held: Sequence[Any] = (),
 ) -> _RelationOptions:
     """Load a link's choices once, for every row of the table to share.
 
     `sent` holds the keys the rows came back with, after a failed save. A
     link searched among too many records to list reads those records in
-    one query, to name them.
+    one query, to name them. `held` is what the saved rows hold, which a
+    listed link offers even where the target's list leaves it out.
     """
     picker = Picker(admin.views, admin.inspector, item, request)
     page = await picker.offered(session, limit=PICKER_LIMIT)
@@ -296,10 +305,12 @@ async def _relation_options(
             searchable=True,
             named={picker.key_of(one): title_for(admin, item, one) for one in found},
         )
+    keys = [*sent, *(key for value in held for key in picker.keys_of(value))]
+    offered = await picker.with_held(session, page.rows, keys)
     return _RelationOptions(
         choices=[
             Choice(picker.key_of(found), title_for(admin, item, found))
-            for found in page.rows
+            for found in offered
         ],
         searchable=False,
     )

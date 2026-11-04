@@ -62,14 +62,14 @@ class Selection(Generic[M]):
         """A statement selecting the primary keys this covers.
 
         Returns:
-            A `select()` of the keys, within the view's scope, to use in
-            your own queries.
+            A `select()` of the keys, within the view's scope and its
+            `list_query`, to use in your own queries.
         """
         columns = [
             getattr(self.view.model, name) for name in self.view._schema.primary_key
         ]
         rows: Select[Any] = select(*columns).select_from(self.view.model)
-        rows = self.view._scope_for(self.request)(rows)
+        rows = self.view._listing_for(self.request)(rows)
         rows = self._repository.narrow(rows, self.spec)
 
         if not self.everything:

@@ -178,9 +178,9 @@ async def _fill_relation(
         row.picked_label = row.picked[0].label if row.picked else ""
         return
 
+    offered = await picker.with_held(session, page.rows, row.selected)
     row.choices = [
-        Choice(picker.key_of(found), title_for(admin, item, found))
-        for found in page.rows
+        Choice(picker.key_of(found), title_for(admin, item, found)) for found in offered
     ]
     if item.collection:
         row.picked = chosen_in_order(row.choices, row.selected)

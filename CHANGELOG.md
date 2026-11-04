@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- `ModelView.list_query` keeps records off the list without hiding them, for deleted or archived
+  records. It narrows the list, its count and filters, the export, "select all matching", the
+  command palette, the dashboard and the pickers on other forms. A record it leaves out still opens
+  from a link and is named there, and a form that holds one keeps it. `scope_query` stays the way
+  to hide records from a user.
+
 ## 0.6.1
 
 A small fix to `AdminUsers`: a username in fullwidth letters is now the same name as one in normal

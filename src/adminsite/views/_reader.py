@@ -114,10 +114,10 @@ class Reader(Generic[M]):
     async def fetch_page(
         self, session: SessionAdapter, spec: QuerySpec, *, request: Request
     ) -> Page:
-        """Read one page, within the scope and after a permission check."""
+        """Read one page through the scope and the list's query, if the user may."""
         await self._view._ensure(Permission.VIEW, request=request)
         page = await self._repository.list(
-            session, spec, self._view._scope_for(request)
+            session, spec, self._view._listing_for(request)
         )
         await self._hide_unseen(session, page.rows, spec.paths, request)
         return page
@@ -267,14 +267,14 @@ class Reader(Generic[M]):
     ) -> list[tuple[SQLFilter[Any], Sequence[FilterOption]]]:
         """Each filter beside the list, with the choices it offers.
 
-        Counted within the scope, so a count never gives away how many
-        records the user may not see, and only where the page shows counts
-        and the filter's `show_counts`, or else the view's count mode, asks
-        for them.
+        Counted within the scope and the list's query, so a count never gives
+        away how many records the user may not see, and matches the list.
+        Counted only where the page shows counts and the filter's
+        `show_counts`, or else the view's count mode, asks for them.
         """
         await self._view._ensure(Permission.VIEW, request=request)
         context = SQLFilterContext(
-            session, self._repository, spec, self._view._scope_for(request)
+            session, self._repository, spec, self._view._listing_for(request)
         )
         offered: list[tuple[SQLFilter[Any], Sequence[FilterOption]]] = []
         for item in self._pages.list_filters(request):

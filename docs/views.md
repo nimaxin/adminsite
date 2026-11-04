@@ -157,6 +157,25 @@ class ContactView(ModelView[Contact]):
 Everything that searches the view uses the condition. Return `None` for the usual search, as above
 for a name.
 
+### Keep records off the list
+
+`list_query` narrows the list without hiding anything, for records such as deleted or closed ones:
+
+```python
+from adminsite import Statement
+from starlette.requests import Request
+
+
+class SupplierView(ModelView[Supplier]):
+    def list_query(self, statement: Statement, *, request: Request) -> Statement:
+        return statement.where(Supplier.closed_at.is_(None))
+```
+
+Closed suppliers are left out of the list, its count and filters, the export, "select all
+matching", the command palette and the pickers on other forms. A product still names its closed
+supplier and links to its page, and a form that holds one keeps it. To hide records from a user
+altogether, use `scope_query`, as [Permissions](permissions.md#rows) shows.
+
 ### Choose the columns
 
 The Columns menu above the list hides and shows columns. A field with `hidden_in_list=True` starts
