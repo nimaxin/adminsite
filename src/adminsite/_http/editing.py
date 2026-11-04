@@ -212,6 +212,7 @@ def form_context(
         "action": urls.edit(view, key) if editing else urls.create(view),
         "cancel_url": urls.detail(view, key) if editing else urls.list(view),
         "can_delete": view.can_delete,
+        "restorable": view._settings.soft_delete is not None,
         "form_error": "",
     }
 

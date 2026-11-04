@@ -281,6 +281,7 @@ class Product(Base):
     keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
     sizes: Mapped[list[int]] = mapped_column(JSON, default=list)
     supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"))
+    deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 
     supplier: Mapped[Supplier] = relationship()
     tags: Mapped[list[Tag]] = relationship(secondary=product_tags)

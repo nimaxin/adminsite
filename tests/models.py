@@ -201,3 +201,27 @@ class Meeting(Base):
 
     def __str__(self) -> str:
         return self.title
+
+
+class Plan(Base):
+    """A row a delete only marks with the time, for soft_delete."""
+
+    __tablename__ = "plans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Subscription(Base):
+    """Points at a plan, so the plan could never be removed while it is held."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plans.id"))
+
+    plan: Mapped[Plan] = relationship()

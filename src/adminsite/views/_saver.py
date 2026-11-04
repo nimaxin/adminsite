@@ -390,6 +390,41 @@ class Saver(Generic[M]):
             things=in_sentence(self._view.label_plural),
         )
 
+    async def restore(
+        self, session: SessionAdapter, records: Sequence[M], *, request: Request
+    ) -> str:
+        """Bring back records a delete only marked, all or none.
+
+        Each one goes through `allows`, which refuses a record that is not
+        deleted. The action that runs this writes it to the audit log.
+        """
+        if len(records) > BULK_DELETE_LIMIT:
+            raise RefusedError(
+                _(
+                    "Restore at most {count} at a time. Narrow the list first.",
+                    count=format_number(BULK_DELETE_LIMIT),
+                )
+            )
+        for record in records:
+            if not await self._view.allows(
+                Permission.RESTORE, request=request, record=record
+            ):
+                raise RefusedError(
+                    _(
+                        "Nothing was restored, because {thing} cannot be.",
+                        thing=self._view.get_record_title(record),
+                    )
+                )
+        for record in records:
+            await self._repository.restore(session, record)
+        return ngettext(
+            "{count} {thing} restored.",
+            "{count} {things} restored.",
+            len(records),
+            thing=in_sentence(self._view.label),
+            things=in_sentence(self._view.label_plural),
+        )
+
 
 def _deleting(item: FileField, key: str) -> Any:
     """Work that deletes one stored file, for after the commit."""

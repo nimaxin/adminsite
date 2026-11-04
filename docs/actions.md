@@ -330,6 +330,25 @@ Delete removes at most 1,000 records.
 
 `can_delete_selected = False` switches it off, and `can_delete = False` switches off every delete.
 
+## Keep deleted records
+
+A record other records still point at cannot be deleted: the database refuses. When the record is
+only finished with, such as a product no longer sold, name a column that Delete fills in with the
+time instead, with [`soft_delete`][adminsite.ModelView.soft_delete]:
+
+```python
+class ProductView(ModelView[Product]):
+    soft_delete = Product.deleted_at
+```
+
+Delete then keeps the row, with its hooks and its audit entry as before. The list, the export, the
+command palette and the pickers on other forms leave deleted records out, and the Deleted filter
+beside the list shows them. A deleted record's page still opens, and its Restore button brings it
+back. Whoever may delete may restore.
+
+A unique column stays unique among deleted records too. To free a deleted record's name, make the
+index partial in your database, such as `UNIQUE (name) WHERE deleted_at IS NULL` on Postgres.
+
 ## Export
 
 Every list has an Export CSV button. It exports every row the search and filters match, with the

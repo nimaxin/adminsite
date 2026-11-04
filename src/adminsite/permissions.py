@@ -28,6 +28,11 @@ class Permission(StrEnum):
     """Changing a record. The permission an action asks for, unless it says."""
     DELETE = "delete"
     """Deleting a record, alone or with others."""
+    RESTORE = "restore"
+    """Bringing back a deleted record, on a view with `soft_delete`.
+
+    Whoever may delete may restore: it is granted with Delete.
+    """
     EXPORT = "export"
     """Downloading the list as CSV."""
     VIEW_DETAIL = "detail"

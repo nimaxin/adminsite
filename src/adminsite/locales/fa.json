@@ -62,8 +62,10 @@
   "Delete": "حذف",
   "Delete at most {count} at a time. Narrow the list first.": "هر بار حداکثر {count} مورد را حذف کنید. اول فهرست را محدودتر کنید.",
   "Delete the chosen {things}? This cannot be undone.": "{things} انتخاب‌شده حذف شوند؟ این کار برگشت‌پذیر نیست.",
+  "Delete the chosen {things}? You can restore them later.": "{things} انتخاب‌شده حذف شوند؟ بعداً می‌توانید آن‌ها را برگردانید.",
   "Delete {name}?": "{name} حذف شود؟",
   "Deleted": "حذف",
+  "Deleted on {when}. Restore it to change it.": "در {when} حذف شده است. برای تغییر، اول آن را برگردانید.",
   "Description": "توضیحات",
   "Details": "جزئیات",
   "Does": "کار",
@@ -205,6 +207,7 @@
   "Nothing to show yet.": "هنوز چیزی برای نمایش نیست.",
   "Nothing was deleted, because other records still refer to {thing}.": "هیچ چیزی حذف نشد، چون رکوردهای دیگری هنوز به {thing} اشاره می‌کنند.",
   "Nothing was deleted, because {thing} cannot be: {reason}": "هیچ چیزی حذف نشد، چون {thing} را نمی‌شود حذف کرد: {reason}",
+  "Nothing was restored, because {thing} cannot be.": "هیچ چیزی برگردانده نشد، چون {thing} را نمی‌شود برگرداند.",
   "Nothing yet.": "هنوز چیزی نیست.",
   "Nov": "نوامبر",
   "Oct": "اکتبر",
@@ -233,6 +236,9 @@
   "Remove {name}": "حذف {name}",
   "Remove {name}?": "{name} حذف شود؟",
   "Repeat the new password": "تکرار رمز عبور تازه",
+  "Restore": "برگرداندن",
+  "Restore at most {count} at a time. Narrow the list first.": "هر بار حداکثر {count} مورد را برگردانید. اول فهرست را محدودتر کنید.",
+  "Restore the chosen {things}?": "{things} انتخاب‌شده برگردانده شوند؟",
   "Role": "نقش",
   "Roles": "نقش‌ها",
   "Row": "ردیف",
@@ -335,6 +341,7 @@
   "Write the permissions as JSON, each view with a list of the permissions it grants.": "مجوزها را به صورت JSON بنویسید، برای هر نما فهرستی از مجوزهایی که می‌دهد.",
   "Write yes or no.": "بله یا خیر بنویسید.",
   "Yes": "بله",
+  "You can restore it later.": "بعداً می‌توانید آن را برگردانید.",
   "You cannot {action} {subject}.": "اجازهٔ {action} {subject} را ندارید.",
   "You cannot {action}.": "اجازهٔ {action} را ندارید.",
   "a backslash inside text has to be doubled": "بک‌اسلش داخل متن باید دوتایی نوشته شود",
@@ -408,6 +415,10 @@
   "{count} {thing} deleted.": {
     "one": "{count} {thing} حذف شد.",
     "other": "{count} {thing} حذف شد."
+  },
+  "{count} {thing} restored.": {
+    "one": "{count} {thing} برگردانده شد.",
+    "other": "{count} {thing} برگردانده شد."
   },
   "{day} or earlier": "تا {day}",
   "{day} or later": "از {day} به بعد",

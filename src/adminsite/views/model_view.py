@@ -261,6 +261,16 @@ class ModelView(Generic[M]):
     The Delete action then sits in the bar that rises when rows are ticked.
     `can_delete` has to allow it too.
     """
+    soft_delete: ColumnReference | None = None
+    """A column Delete fills in with the time, keeping the record: `Product.deleted_at`.
+
+    The list, its count, the export, the command palette and the pickers on
+    other forms leave deleted records out, and a Deleted filter beside the
+    list shows them. A deleted record's page still opens, so links to it keep
+    working, and Restore brings it back. Until then it cannot be changed or
+    deleted again. The column is the model's own date and time column, one
+    that can be empty. Left None, Delete removes the record.
+    """
     can_import: bool = False
     """Whether records can be imported from a CSV or Excel file.
 
@@ -350,7 +360,10 @@ class ModelView(Generic[M]):
             self._registry,
         )
         self._repository = SQLAlchemyRepository(
-            self.model, self._inspector, self._settings.list_filters
+            self.model,
+            self._inspector,
+            self._settings.list_filters,
+            soft_delete=self._settings.soft_delete,
         )
         self._fields = ViewFields(
             self, self._settings, self._inspector, self._registry, self._repository
@@ -581,7 +594,9 @@ class ModelView(Generic[M]):
         """The actions this view offers this user, in the order they appear.
 
         Delete comes last, where the view allows deleting several at once,
-        unless the view has an action of its own by that name.
+        unless the view has an action of its own by that name. A view with
+        `soft_delete` has Restore before it, on a record and on the ticked
+        rows.
 
         Args:
             request: The request, with the signed in user on
@@ -593,6 +608,12 @@ class ModelView(Generic[M]):
         """
         found = list(self._actions.marked.values())
         deletes = self.can_delete and self.can_delete_selected
+        if self._settings.soft_delete is not None and self.can_delete:
+            found += [
+                item
+                for item in self._actions.restore_actions(selected=deletes)
+                if item.name not in self._actions.marked
+            ]
         if deletes and DELETE_ACTION not in self._actions.marked:
             found.append(self._actions.delete_action())
         return found
@@ -600,6 +621,20 @@ class ModelView(Generic[M]):
     async def _delete_selected(self, selection: Selection[M]) -> str:
         """Delete the chosen records: the built-in Delete action."""
         return await self._saver.delete_selected(selection)
+
+    async def _restore_selected(self, selection: Selection[M]) -> str:
+        """Bring back the chosen deleted records: the built-in Restore action."""
+        return await self._saver.restore(
+            selection.session,
+            await selection.records(),
+            request=selection.request,
+        )
+
+    async def _restore(
+        self, record: M, session: SessionAdapter, request: Request
+    ) -> str:
+        """Bring back one deleted record, from its row or its page."""
+        return await self._saver.restore(session, [record], request=request)
 
     # Permissions. Four levels: the view, the action, the field and the row.
 
@@ -610,8 +645,9 @@ class ModelView(Generic[M]):
 
         By default it answers from the `can_` settings, such as `can_edit`,
         and then from the grants the auth provider's `grants_for` gave the
-        user, if it gave any. Everything else is allowed. An override that
-        calls `super().allows(...)` keeps both.
+        user, if it gave any. Everything else is allowed. On a view with
+        `soft_delete`, a deleted record can only be restored, by whoever may
+        delete. An override that calls `super().allows(...)` keeps all of it.
 
         Args:
             action: What the user wants to do: a `Permission`, such as
@@ -628,6 +664,14 @@ class ModelView(Generic[M]):
         name = permission_name(action)
         if not self._switched_on(name):
             return False
+        deleted = record is not None and self._repository.is_deleted(record)
+        if name == Permission.RESTORE:
+            if record is not None and not deleted:
+                return False
+            # Granted with Delete, so roles need no box of its own.
+            name = Permission.DELETE
+        elif deleted and name in (Permission.EDIT, Permission.DELETE):
+            return False
         grants = grants_of(request)
         return grants is None or grants.allows(self.name, name)
 
@@ -639,6 +683,8 @@ class ModelView(Generic[M]):
             return self.can_edit
         if name == Permission.DELETE:
             return self.can_delete
+        if name == Permission.RESTORE:
+            return self.can_delete and self._settings.soft_delete is not None
         if name == Permission.IMPORT:
             return self.can_import
         if name == Permission.VIEW_DETAIL:

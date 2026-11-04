@@ -91,6 +91,9 @@ class QuerySpec:
     # answers == with another condition, not with True or False.
     search_condition: Any = field(default=None, compare=False)
     filters: tuple["FilterValue", ...] = ()
+    # The deleted records of a view with soft_delete: False leaves them out,
+    # True reads them alone, None reads them with the others.
+    deleted: bool | None = False
     sort: tuple[Sort, ...] = ()
     offset: int = 0
     limit: int | None = DEFAULT_PAGE_SIZE

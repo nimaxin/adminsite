@@ -24,11 +24,13 @@ from adminsite.schema import FieldSchema
 from adminsite.timezones import current_timezone, to_column_time, to_local_time
 
 __all__ = [
+    "DELETED_FILTER",
     "DISTINCT_LIMIT",
     "RANGE_SEPARATOR",
     "BooleanFilter",
     "ChoiceFilter",
     "DateRangeFilter",
+    "DeletedFilter",
     "NumberRangeFilter",
     "RelationFilter",
     "SQLFilter",
@@ -40,6 +42,9 @@ __all__ = [
 
 RANGE_SEPARATOR = ","
 DISTINCT_LIMIT = 50
+
+# The name of the filter that shows a view's deleted records, in the URL.
+DELETED_FILTER = "deleted"
 
 # The model a filter narrows the list of.
 M = TypeVar("M")
@@ -426,6 +431,30 @@ class RelationFilter(SQLFilter[Any]):
         return repository.condition_at(f"{self.path}.{self.key}", build)
 
 
+class DeletedFilter(SQLFilter[Any]):
+    """Shows the deleted records of a view with `soft_delete`, in place of the others.
+
+    The read itself is narrowed by `QuerySpec.deleted`, which the view sets
+    from this filter, so the deleted records stay out when it is left off.
+    """
+
+    template = "choice"
+    show_counts = False
+
+    def __init__(self, path: str) -> None:
+        super().__init__(DELETED_FILTER, path=path, label=_("Deleted"))
+
+    async def options(self, context: FilterContext) -> Sequence[FilterOption]:
+        """Offer yes and no, uncounted, since the column holds times."""
+        return (FilterOption("true", _("Yes")), FilterOption("false", _("No")))
+
+    def condition(
+        self, value: FilterValue, repository: SQLAlchemyRepository[Any]
+    ) -> ColumnElement[bool] | None:
+        """Nothing more, as `QuerySpec.deleted` already narrows the read."""
+        return None
+
+
 class TextFilter(SQLFilter[Any]):
     """Records whose text contains what was typed."""
 
@@ -491,7 +520,9 @@ class SQLFilterContext:
         """The records the list may show, in no order."""
         # A scope may sort, and a count grouped by value cannot be sorted by
         # a column it does not group by.
-        return self.repository.base_statement(self.scope).order_by(None)
+        statement = self.repository.base_statement(self.scope).order_by(None)
+        kept = self.repository.deleted_condition(self.spec)
+        return statement if kept is None else statement.where(kept)
 
     def _own_column(self, path: str) -> Any:
         if "." in path:

@@ -28,6 +28,7 @@ __all__ = [
     "MANY_LINKS_SHOWN",
     "LinkedMany",
     "computed_needs",
+    "deleted_on",
     "detail",
     "link_urls",
     "many_links",
@@ -124,8 +125,18 @@ async def detail(admin: "Admin", request: Request) -> Response:
             "can_delete": await view.allows(
                 Permission.DELETE, request=request, record=record
             ),
+            "restorable": view._settings.soft_delete is not None,
+            "deleted_on": deleted_on(view, record),
         },
     )
+
+
+def deleted_on(view: ModelView[Any], record: Any) -> str:
+    """When a delete marked this record, as the page writes a time, or ""."""
+    column = view._settings.soft_delete
+    if column is None or not view._repository.is_deleted(record):
+        return ""
+    return view._fields.display(record, column)
 
 
 # How many records of a to-many link the record page names before it

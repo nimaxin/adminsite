@@ -29,7 +29,11 @@
       {% if first.path %}
         {{ values.badge(view._fields.field_for(first.path), view._fields.value_at(record, first.path), first.value) }}
       {% endif %}
+      {% if deleted_on %}<span class="pill tone-5">{{ _('Deleted') }}</span>{% endif %}
     </div>
+    {% if deleted_on %}
+      <p class="text-label text-muted">{{ _('Deleted on {when}. Restore it to change it.', when=deleted_on) }}</p>
+    {% endif %}
     {% if changed %}
       <p class="text-label text-muted">{{ _('Last changed by {who} on {when}', who=changed.who, when=changed.when) }}</p>
     {% endif %}
@@ -256,7 +260,7 @@
     <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post" action="{{ urls.delete(view, key) }}">
       {{ csrf_input | safe if csrf_input }}
       <h3 class="text-base font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
-      <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
+      <p class="pt-2 text-base-content/80">{{ _('You can restore it later.') if restorable else _('This cannot be undone.') }}</p>
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
         <button type="submit" class="btn btn-error btn-sm">{{ _('Delete') }}</button>

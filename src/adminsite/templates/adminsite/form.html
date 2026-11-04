@@ -145,7 +145,7 @@
     <form class="modal-box max-w-md rounded-box border border-base-300 shadow-float" method="post" action="{{ urls.delete(view, key) }}">
       {{ csrf_input | safe if csrf_input }}
       <h3 class="text-base font-semibold">{{ _('Delete {name}?', name=heading) }}</h3>
-      <p class="pt-2 text-base-content/80">{{ _('This cannot be undone.') }}</p>
+      <p class="pt-2 text-base-content/80">{{ _('You can restore it later.') if restorable else _('This cannot be undone.') }}</p>
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm"
                 onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>

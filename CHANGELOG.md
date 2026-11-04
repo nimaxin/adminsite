@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+What changed:
+
+- `ModelView.soft_delete` names a date and time column that Delete fills in with the time, so a
+  record other records point at can be deleted and keep its history (#114). The list, its count,
+  the export, the command palette and the pickers on other forms leave deleted records out, and a
+  Deleted filter shows them. A deleted record's page still opens, cannot be changed, and has a
+  Restore action, which whoever may delete may run. `Permission.RESTORE` is new. A project that
+  overrides `detail.html` or `form.html` should start its copy again from the new one.
+
 ## 0.6.1
 
 A small fix to `AdminUsers`: a username in fullwidth letters is now the same name as one in normal

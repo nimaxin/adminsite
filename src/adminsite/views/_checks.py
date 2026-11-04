@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import fields as dataclass_fields
+from datetime import datetime
 from typing import Any, Literal, TypeAlias
 
 from adminsite._text import template_names
@@ -16,6 +17,7 @@ from adminsite.fields import (
     ListField,
     RelationField,
 )
+from adminsite.filters.sql import DELETED_FILTER
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationDirection
@@ -31,6 +33,7 @@ __all__ = [
     "check_path",
     "check_placed",
     "check_refresh",
+    "check_soft_delete",
     "check_title",
 ]
 
@@ -290,6 +293,25 @@ def check_refresh(view: str, seconds: object) -> None:
         raise AdminSiteError(
             f"{view}.list_refresh_seconds is {seconds!r}. Give it a whole number of "
             "seconds, such as 30, or None to read the list only when asked."
+        )
+
+
+def check_soft_delete(view: str, field: FieldSchema, *, filters: Sequence[str]) -> None:
+    """Refuse a soft_delete column that cannot hold the time of a delete.
+
+    `filters` are the names of the view's own list filters, none of which
+    may take the name of the one that shows the deleted records.
+    """
+    if field.python_type is not datetime or not field.nullable:
+        raise AdminSiteError(
+            f"{view}.soft_delete names {field.name!r}, which is not a date and time "
+            "column that can be empty. Delete fills it in with the time and Restore "
+            f"empties it: {field.name}: Mapped[datetime | None]."
+        )
+    if DELETED_FILTER in filters:
+        raise AdminSiteError(
+            f"{view}.list_filters has a filter named {DELETED_FILTER!r}, the name "
+            "of the filter that shows the deleted records. Give it another name."
         )
 
 

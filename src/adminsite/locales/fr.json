@@ -62,8 +62,10 @@
   "Delete": "Supprimer",
   "Delete at most {count} at a time. Narrow the list first.": "Vous ne pouvez pas supprimer plus de {count} éléments à la fois. Affinez d’abord la liste.",
   "Delete the chosen {things}? This cannot be undone.": "Supprimer les {things} de la sélection ? Cette action est irréversible.",
+  "Delete the chosen {things}? You can restore them later.": "Supprimer les {things} de la sélection ? Vous pourrez les restaurer plus tard.",
   "Delete {name}?": "Supprimer {name} ?",
   "Deleted": "Suppressions",
+  "Deleted on {when}. Restore it to change it.": "Supprimé le {when}. Restaurez-le pour le modifier.",
   "Description": "Description",
   "Details": "Détails",
   "Does": "Opération",
@@ -205,6 +207,7 @@
   "Nothing to show yet.": "Rien à afficher pour l’instant.",
   "Nothing was deleted, because other records still refer to {thing}.": "Rien n’a été supprimé, car d’autres éléments font encore référence à {thing}.",
   "Nothing was deleted, because {thing} cannot be: {reason}": "Rien n’a été supprimé, car {thing} ne peut pas l’être : {reason}",
+  "Nothing was restored, because {thing} cannot be.": "Rien n’a été restauré, car {thing} ne peut pas l’être.",
   "Nothing yet.": "Rien pour l’instant.",
   "Nov": "nov.",
   "Oct": "oct.",
@@ -233,6 +236,9 @@
   "Remove {name}": "Retirer {name}",
   "Remove {name}?": "Retirer {name} ?",
   "Repeat the new password": "Répétez le nouveau mot de passe",
+  "Restore": "Restaurer",
+  "Restore at most {count} at a time. Narrow the list first.": "Vous ne pouvez pas restaurer plus de {count} éléments à la fois. Affinez d’abord la liste.",
+  "Restore the chosen {things}?": "Restaurer les {things} de la sélection ?",
   "Role": "Rôle",
   "Roles": "Rôles",
   "Row": "Ligne",
@@ -335,6 +341,7 @@
   "Write the permissions as JSON, each view with a list of the permissions it grants.": "Écrivez les permissions en JSON, avec pour chaque vue la liste des permissions qu’elle accorde.",
   "Write yes or no.": "Écrivez « oui » ou « non ».",
   "Yes": "Oui",
+  "You can restore it later.": "Vous pourrez le restaurer plus tard.",
   "You cannot {action} {subject}.": "{subject} : {action} non autorisée.",
   "You cannot {action}.": "Action non autorisée : {action}.",
   "a backslash inside text has to be doubled": "dans un texte, une barre oblique inverse doit être doublée",
@@ -408,6 +415,10 @@
   "{count} {thing} deleted.": {
     "one": "Suppression effectuée : {count} {thing}.",
     "other": "Suppression effectuée : {count} {things}."
+  },
+  "{count} {thing} restored.": {
+    "one": "Restauration effectuée : {count} {thing}.",
+    "other": "Restauration effectuée : {count} {things}."
   },
   "{day} or earlier": "jusqu’au {day}",
   "{day} or later": "à partir du {day}",

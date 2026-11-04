@@ -62,8 +62,10 @@
   "Delete": "Löschen",
   "Delete at most {count} at a time. Narrow the list first.": "Sie können höchstens {count} Datensätze auf einmal löschen. Grenzen Sie die Liste zuerst ein.",
   "Delete the chosen {things}? This cannot be undone.": "Ausgewählte {things} löschen? Dies kann nicht rückgängig gemacht werden.",
+  "Delete the chosen {things}? You can restore them later.": "Ausgewählte {things} löschen? Sie können sie später wiederherstellen.",
   "Delete {name}?": "{name} löschen?",
   "Deleted": "Gelöscht",
+  "Deleted on {when}. Restore it to change it.": "Gelöscht am {when}. Stellen Sie den Eintrag wieder her, um ihn zu ändern.",
   "Description": "Beschreibung",
   "Details": "Details",
   "Does": "Aktion",
@@ -205,6 +207,7 @@
   "Nothing to show yet.": "Noch nichts anzuzeigen.",
   "Nothing was deleted, because other records still refer to {thing}.": "Es wurde nichts gelöscht, weil andere Datensätze noch auf {thing} verweisen.",
   "Nothing was deleted, because {thing} cannot be: {reason}": "Es wurde nichts gelöscht, weil {thing} nicht gelöscht werden kann: {reason}",
+  "Nothing was restored, because {thing} cannot be.": "Es wurde nichts wiederhergestellt, weil {thing} nicht wiederhergestellt werden kann.",
   "Nothing yet.": "Noch nichts vorhanden.",
   "Nov": "Nov.",
   "Oct": "Okt.",
@@ -233,6 +236,9 @@
   "Remove {name}": "{name} entfernen",
   "Remove {name}?": "{name} entfernen?",
   "Repeat the new password": "Neues Passwort wiederholen",
+  "Restore": "Wiederherstellen",
+  "Restore at most {count} at a time. Narrow the list first.": "Sie können höchstens {count} Datensätze auf einmal wiederherstellen. Grenzen Sie die Liste zuerst ein.",
+  "Restore the chosen {things}?": "Ausgewählte {things} wiederherstellen?",
   "Role": "Rolle",
   "Roles": "Rollen",
   "Row": "Zeile",
@@ -335,6 +341,7 @@
   "Write the permissions as JSON, each view with a list of the permissions it grants.": "Schreiben Sie die Berechtigungen als JSON, für jede Ansicht eine Liste der Berechtigungen, die sie gewährt.",
   "Write yes or no.": "Tragen Sie „Ja“ oder „Nein“ ein.",
   "Yes": "Ja",
+  "You can restore it later.": "Sie können den Eintrag später wiederherstellen.",
   "You cannot {action} {subject}.": "Sie haben für {subject} keine Berechtigung zum {action}.",
   "You cannot {action}.": "Sie haben keine Berechtigung zum {action}.",
   "a backslash inside text has to be doubled": "Ein Backslash im Text muss verdoppelt werden",
@@ -408,6 +415,10 @@
   "{count} {thing} deleted.": {
     "one": "{count} {thing} wurde gelöscht.",
     "other": "{count} {things} wurden gelöscht."
+  },
+  "{count} {thing} restored.": {
+    "one": "{count} {thing} wurde wiederhergestellt.",
+    "other": "{count} {things} wurden wiederhergestellt."
   },
   "{day} or earlier": "bis {day}",
   "{day} or later": "ab {day}",

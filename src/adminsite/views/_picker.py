@@ -51,6 +51,12 @@ class Picker:
 
     Left empty, its primary key, as a form's link sends it.
     """
+    deleted: bool | None = False
+    """Which deleted records of a view with `soft_delete` are on offer.
+
+    None for a relation filter, which finds old records by them too. False
+    for a form, where a new link to one would make no sense.
+    """
 
     @classmethod
     def for_filter(
@@ -74,7 +80,14 @@ class Picker:
         if not isinstance(link, RelationField):
             return None
         # A filter can always be left off, whatever the link needs on a form.
-        return cls(views, inspector, replace(link, required=False), request, item.key)
+        return cls(
+            views,
+            inspector,
+            replace(link, required=False),
+            request,
+            item.key,
+            deleted=None,
+        )
 
     @property
     def view(self) -> ModelView[Any] | None:
@@ -150,6 +163,7 @@ class Picker:
             search_condition=view.search_condition(term, request=self.request)
             if view is not None and term
             else None,
+            deleted=self.deleted,
             limit=limit,
             count=CountMode.NONE,
         )

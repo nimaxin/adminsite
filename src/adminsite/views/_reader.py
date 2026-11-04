@@ -13,7 +13,7 @@ from adminsite.exceptions import AdminSiteError
 from adminsite.fields import ComputedField, RelationField
 from adminsite.fields.computed import LOADED
 from adminsite.filters import FilterOption, FilterValue
-from adminsite.filters.sql import SQLFilter, SQLFilterContext
+from adminsite.filters.sql import DeletedFilter, SQLFilter, SQLFilterContext
 from adminsite.permissions import Permission
 from adminsite.query import CountMode, Page, Pagination, QuerySpec, Sort
 from adminsite.schema import ModelSchema
@@ -81,6 +81,10 @@ class Reader(Generic[M]):
             if search.strip()
             else None,
             filters=tuple(filters),
+            deleted=any(
+                isinstance(value.source, DeletedFilter) and value.first == "true"
+                for value in filters
+            ),
             sort=tuple(sort) or self._pages.default_sort(request),
             limit=size or self._view.page_size,
             count=self._view.count_mode,
@@ -95,10 +99,12 @@ class Reader(Generic[M]):
 
         A column the page reads is never left out, whatever the view says,
         since reading it afterwards would cost a query for every row. That
-        covers the columns on show, the key, and the ones the record's name
-        is built from.
+        covers the columns on show, the key, the ones the record's name is
+        built from, and the one `soft_delete` names, which `allows` reads.
         """
         keep = set(loaded) | set(self._schema.primary_key) | self._named_in_title()
+        if self._settings.soft_delete is not None:
+            keep.add(self._settings.soft_delete)
         named = self._view.get_deferred_fields(request)
         paths = (
             self._settings.deferred_fields

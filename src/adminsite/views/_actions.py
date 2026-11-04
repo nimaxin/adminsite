@@ -1,6 +1,6 @@
 """A view's actions: the one asked for, run, answered and written down."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import uuid4
@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DELETE_ACTION",
+    "RESTORE_ACTION",
+    "RESTORE_SELECTED_ACTION",
     "ActionRunner",
 ]
 
@@ -47,6 +49,11 @@ M = TypeVar("M")
 
 # The name of the built-in action that deletes the chosen rows.
 DELETE_ACTION = "delete_selected"
+
+# The names of the built-in actions that bring back deleted records on a
+# view with soft_delete: one record, and the chosen rows.
+RESTORE_ACTION = "restore"
+RESTORE_SELECTED_ACTION = "restore_selected"
 
 
 class ActionRunner(Generic[M]):
@@ -73,18 +80,58 @@ class ActionRunner(Generic[M]):
 
     def delete_action(self) -> Action:
         """The built-in delete, worded for this view in the current language."""
+        things = in_sentence(self._view.label_plural)
+        if self._view._settings.soft_delete is None:
+            confirm = _(
+                "Delete the chosen {things}? This cannot be undone.", things=things
+            )
+        else:
+            confirm = _(
+                "Delete the chosen {things}? You can restore them later.", things=things
+            )
         return Action(
             name=DELETE_ACTION,
             label=_("Delete"),
             method="_delete_selected",
-            confirm=_(
-                "Delete the chosen {things}? This cannot be undone.",
-                things=in_sentence(self._view.label_plural),
-            ),
+            confirm=confirm,
             permission=Permission.DELETE,
             dangerous=True,
             writes_own_audit=True,
         )
+
+    def restore_actions(self, *, selected: bool) -> tuple[Action, ...]:
+        """The built-in Restore on a record, and on the ticked rows if `selected`."""
+        on_record = Action(
+            name=RESTORE_ACTION,
+            label=_("Restore"),
+            method="_restore",
+            permission=Permission.RESTORE,
+            on="record",
+        )
+        if not selected:
+            return (on_record,)
+        on_selection = replace(
+            on_record,
+            name=RESTORE_SELECTED_ACTION,
+            method="_restore_selected",
+            confirm=_(
+                "Restore the chosen {things}?",
+                things=in_sentence(self._view.label_plural),
+            ),
+            on="selection",
+        )
+        return (on_record, on_selection)
+
+    def fitting(self, actions: Sequence[Action], deleted: bool | None) -> list[Action]:
+        """The actions on ticked rows that fit the rows a list shows.
+
+        Restore is no use on records that are not deleted, nor Delete on those
+        that are.
+        """
+        if self._view._settings.soft_delete is None:
+            return list(actions)
+        unfit = DELETE_ACTION if deleted else RESTORE_SELECTED_ACTION
+        return [item for item in actions if item.name != unfit]
 
     def on(self, target: str, request: Request) -> tuple[Action, ...]:
         """The actions of one kind: over a selection, a record or the view."""

@@ -476,15 +476,19 @@ async def rows_context(
     request: Request,
     records: Sequence[Any],
     columns: Sequence[str],
+    deleted: bool | None = False,
 ) -> dict[str, Any]:
     """What drawing these rows of the list needs, for this user.
 
     Whether a row opens the record or its form, the actions on the ticked
     rows and on each record this user may run, and the cells of each row
-    whose values change in place.
+    whose values change in place. `deleted` says whether the rows are the
+    deleted records of a view with `soft_delete`.
     """
     can_edit = await view.allows(Permission.EDIT, request=request, record=None)
-    selection = await offered_actions(view, request, "selection")
+    selection = view._actions.fitting(
+        await offered_actions(view, request, "selection"), deleted
+    )
     record_actions = await offered_actions(view, request, "record")
     # A record action can be refused for one record and allowed for the next.
     row_actions = {
@@ -549,7 +553,9 @@ async def list_total(
         panels = await build_panels(view, session, spec, request, counts=False)
 
     context = as_context(view, request, spec, page, panels, read)
-    context["actions"] = await offered_actions(view, request, "selection")
+    context["actions"] = view._actions.fitting(
+        await offered_actions(view, request, "selection"), spec.deleted
+    )
     return await admin.render("_records_counted.html", request, context)
 
 
@@ -617,7 +623,9 @@ async def list_records(admin: "Admin", request: Request) -> Response:
     context["can_import"] = await view.allows(
         Permission.IMPORT, request=request, record=None
     )
-    context.update(await rows_context(view, request, list(page), read.columns))
+    context.update(
+        await rows_context(view, request, list(page), read.columns, spec.deleted)
+    )
     context["view_actions"] = await offered_actions(view, request, "view")
     context["action_rows"] = await rows_for_actions(
         admin,

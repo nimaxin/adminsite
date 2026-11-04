@@ -25,6 +25,7 @@ from adminsite.views._checks import (
     check_path,
     check_placed,
     check_refresh,
+    check_soft_delete,
     check_title,
 )
 from adminsite.views.layout import Placed, read_layout
@@ -109,6 +110,10 @@ class SettingsReader:
             if name in schema.fields and schema.fields[name].has_default
         )
         self.list_filters = self.filters("list_filters", view.list_filters)
+        # The column a delete fills in with the time, keeping the record. Read
+        # from the class: a column attribute is a descriptor, which read through
+        # the view would take the view for a record of the model.
+        self.soft_delete = self._soft_delete(type(view).soft_delete, schema)
         check_refresh(self._name, view.list_refresh_seconds)
         # The fields whose cells in the list change their value in place,
         # checked against the list and the edit form once both are known.
@@ -194,6 +199,21 @@ class SettingsReader:
                     f"SQLFilter instances, not {type(item).__name__}."
                 )
         return tuple(built)
+
+    def _soft_delete(
+        self, entry: ColumnReference | None, schema: ModelSchema
+    ) -> str | None:
+        """The column `soft_delete` names, checked, or None for a real delete."""
+        if entry is None:
+            return None
+        path = self.converted("soft_delete", entry, path_of)
+        self.check("soft_delete", path, self._model, "own columns")
+        check_soft_delete(
+            self._name,
+            schema.field_named(path),
+            filters=[item.name for item in self.list_filters],
+        )
+        return path
 
     def check(self, setting: str, path: str, model: type[Any], takes: Takes) -> None:
         """Refuse a path the setting cannot take, as check_path says."""

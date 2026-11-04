@@ -62,8 +62,10 @@
   "Delete": "Sil",
   "Delete at most {count} at a time. Narrow the list first.": "Tek seferde en fazla {count} kayıt silebilirsiniz. Önce listeyi daraltın.",
   "Delete the chosen {things}? This cannot be undone.": "Seçilen {things} silinsin mi? Bu işlem geri alınamaz.",
+  "Delete the chosen {things}? You can restore them later.": "Seçilen {things} silinsin mi? Daha sonra geri yükleyebilirsiniz.",
   "Delete {name}?": "{name} silinsin mi?",
   "Deleted": "Silinenler",
+  "Deleted on {when}. Restore it to change it.": "{when} tarihinde silindi. Değiştirmek için önce geri yükleyin.",
   "Description": "Açıklama",
   "Details": "Ayrıntılar",
   "Does": "İşlem",
@@ -205,6 +207,7 @@
   "Nothing to show yet.": "Henüz gösterilecek bir şey yok.",
   "Nothing was deleted, because other records still refer to {thing}.": "Hiçbir kayıt silinmedi, çünkü başka kayıtlar hâlâ {thing} kaydına bağlı.",
   "Nothing was deleted, because {thing} cannot be: {reason}": "Hiçbir kayıt silinmedi, çünkü {thing} kaydı silinemiyor: {reason}",
+  "Nothing was restored, because {thing} cannot be.": "Hiçbir kayıt geri yüklenmedi, çünkü {thing} kaydı geri yüklenemiyor.",
   "Nothing yet.": "Henüz bir şey yok.",
   "Nov": "Kas",
   "Oct": "Eki",
@@ -233,6 +236,9 @@
   "Remove {name}": "Kaldır: {name}",
   "Remove {name}?": "{name} kaldırılsın mı?",
   "Repeat the new password": "Yeni şifreyi tekrarlayın",
+  "Restore": "Geri yükle",
+  "Restore at most {count} at a time. Narrow the list first.": "Tek seferde en fazla {count} kaydı geri yükleyebilirsiniz. Önce listeyi daraltın.",
+  "Restore the chosen {things}?": "Seçilen {things} geri yüklensin mi?",
   "Role": "Rol",
   "Roles": "Roller",
   "Row": "Satır",
@@ -335,6 +341,7 @@
   "Write the permissions as JSON, each view with a list of the permissions it grants.": "İzinleri JSON olarak yazın, her görünüm için verdiği izinlerin listesiyle.",
   "Write yes or no.": "Evet veya hayır yazın.",
   "Yes": "Evet",
+  "You can restore it later.": "Daha sonra geri yükleyebilirsiniz.",
   "You cannot {action} {subject}.": "{subject} için {action} yetkiniz yok.",
   "You cannot {action}.": "Bu işlem için {action} yetkiniz yok.",
   "a backslash inside text has to be doubled": "metin içindeki ters eğik çizgi iki kez yazılmalı",
@@ -408,6 +415,10 @@
   "{count} {thing} deleted.": {
     "one": "{count} {thing} silindi.",
     "other": "{count} {thing} silindi."
+  },
+  "{count} {thing} restored.": {
+    "one": "{count} {thing} geri yüklendi.",
+    "other": "{count} {thing} geri yüklendi."
   },
   "{day} or earlier": "{day} ve öncesi",
   "{day} or later": "{day} ve sonrası",

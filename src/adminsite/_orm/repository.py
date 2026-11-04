@@ -1,5 +1,6 @@
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
@@ -26,6 +27,7 @@ from adminsite.exceptions import InvalidPathError, RecordNotFoundError
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.query import DEFAULT_PAGE_SIZE, CountMode, Page, QuerySpec
 from adminsite.schema import FieldPath, FieldSchema, ModelSchema, RelationSchema
+from adminsite.timezones import to_column_time
 
 if TYPE_CHECKING:
     from adminsite.filters.sql import SQLFilter
@@ -83,12 +85,15 @@ class SQLAlchemyRepository(Generic[M]):
         model: type[M],
         inspector: SQLAlchemyInspector | None = None,
         filters: Sequence["SQLFilter[Any]"] = (),
+        soft_delete: str | None = None,
     ) -> None:
         self.model = model
         self.inspector = inspector or SQLAlchemyInspector()
         self.schema = self.inspector.inspect(model)
         self.filters = tuple(filters)
         self._filters_by_name = {item.name: item for item in self.filters}
+        # The column a delete fills in with the time, keeping the row.
+        self.soft_delete = soft_delete
 
     async def list(
         self,
@@ -188,8 +193,15 @@ class SQLAlchemyRepository(Generic[M]):
         return int(found)
 
     def _narrows(self, spec: QuerySpec, scope: Scope | None) -> bool:
-        """Whether a search, a filter or the scope leaves rows out."""
+        """Whether a search, a filter or the scope leaves rows out.
+
+        Leaving the deleted records out does not count, as the table's own
+        estimate is close enough for a list of the others, but reading the
+        deleted ones alone does.
+        """
         if spec.filters or (spec.search.strip() and spec.search_paths):
+            return True
+        if self.soft_delete is not None and spec.deleted:
             return True
         if scope is None:
             return False
@@ -457,12 +469,43 @@ class SQLAlchemyRepository(Generic[M]):
         return records, int(total or 0)
 
     async def delete(self, session: SessionAdapter, record: Any) -> None:
-        """Remove a record."""
+        """Remove a record, or mark it deleted where the model keeps them."""
         # Refused at its own flush, the delete says so with adminsite's error,
         # so a bulk delete can name the record still referred to.
         with database_refusals():
-            await session.delete(record)
+            if self.soft_delete is None:
+                await session.delete(record)
+            else:
+                field = self.schema.field_named(self.soft_delete)
+                moment = to_column_time(
+                    datetime.now(UTC), with_timezone=field.with_timezone
+                )
+                setattr(record, self.soft_delete, moment)
             await session.flush()
+
+    async def restore(self, session: SessionAdapter, record: Any) -> None:
+        """Bring back a record a delete only marked."""
+        if self.soft_delete is None:
+            return
+        with database_refusals():
+            setattr(record, self.soft_delete, None)
+            await session.flush()
+
+    def is_deleted(self, record: Any) -> bool:
+        """Whether a delete has marked this record."""
+        if self.soft_delete is None:
+            return False
+        return getattr(record, self.soft_delete) is not None
+
+    def deleted_condition(self, spec: QuerySpec) -> ColumnElement[bool] | None:
+        """The condition that keeps the deleted records out, or in, as `spec` asks."""
+        if self.soft_delete is None or spec.deleted is None:
+            return None
+        column = getattr(self.model, self.soft_delete)
+        return cast(
+            "ColumnElement[bool]",
+            column.is_not(None) if spec.deleted else column.is_(None),
+        )
 
     async def apply_values(
         self, session: SessionAdapter, record: Any, values: Mapping[str, Any]
@@ -500,8 +543,11 @@ class SQLAlchemyRepository(Generic[M]):
         """Apply the search and the filters, which every read shares.
 
         The list, the count, an export and a bulk action all go through
-        here, so they always see the same records.
+        here, so they always see the same records, deleted or not.
         """
+        kept = self.deleted_condition(spec)
+        if kept is not None:
+            statement = statement.where(kept)
         condition = self.search_clause(spec)
         if condition is not None:
             statement = statement.where(condition)

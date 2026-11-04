@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from starlette.requests import Request
 
 from adminsite.exceptions import AdminSiteError
-from adminsite.filters.sql import SQLFilter
+from adminsite.filters.sql import DeletedFilter, SQLFilter
 from adminsite.inspector import SQLAlchemyInspector
 from adminsite.permissions import RequestAction
 from adminsite.query import Sort
@@ -166,18 +166,23 @@ class PageFields(Generic[M]):
 
         A filter on a field this user cannot see on the list is left out,
         since its choices, their counts and the rows it leaves would all
-        give the field's values away.
+        give the field's values away. A view with `soft_delete` ends with
+        the filter that shows its deleted records.
         """
         named = self._view.get_list_filters(request)
         if named is self._view.list_filters:
             built = self._settings.list_filters
         else:
             built = self._settings.filters("get_list_filters", named)
-        return tuple(
+        offered = tuple(
             item
             for item in built
             if self.can_access_path(request, item.path, RequestAction.LIST)
         )
+        if self._settings.soft_delete is None:
+            return offered
+        # Built for each request, so its label is in the reader's language.
+        return (*offered, DeletedFilter(self._settings.soft_delete))
 
     def default_sort(self, request: Request) -> tuple[Sort, ...]:
         """The order the list starts in, checked like the setting.
