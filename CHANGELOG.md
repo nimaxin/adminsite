@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
+
+Two new ways to change what the admin does with records: `list_query` keeps records off the list
+without hiding them, and `save_record` and `delete_record` replace the write of a save or a delete.
+Together they make a soft delete a few lines.
+
+Before upgrading:
+
+- A view that already has a method of its own called `list_query`, `save_record` or
+  `delete_record` should rename it, since adminsite now calls methods by those names.
 
 What changed:
 
@@ -14,6 +23,8 @@ What changed:
   fills in its `deleted_at`. The permission check, the other hooks and the audit log still run
   around it, and every Delete runs `delete_record`: on the record's page, for the ticked rows and
   through the API.
+- A save deletes a file it replaces only once the record no longer holds it, so a write or a
+  `before_save` that keeps the old file keeps it in storage too.
 
 ## 0.6.1
 
