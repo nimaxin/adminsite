@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from sqlalchemy import Connection, Engine, MetaData, Table, create_engine, inspect, text
@@ -80,6 +81,8 @@ def add_missing(connection: Connection, table: Table) -> None:
     quoted = connection.dialect.identifier_preparer.format_table(table)
     for column in table.columns:
         if column.name not in present:
+            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", str(column.name)):
+                raise ValueError(f"Invalid column identifier: {column.name}")
             spec = CreateColumn(column).compile(dialect=connection.dialect)
             connection.execute(text(f"ALTER TABLE {quoted} ADD COLUMN {spec}"))
     for index in table.indexes:
