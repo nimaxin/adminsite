@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
+
+A choice or a link to one record with many options is now a picker on forms, as a choice filter is
+in the filters drawer: a country among 250 or a time zone among 600 is found by typing any part of
+its name.
 
 Before upgrading:
 
