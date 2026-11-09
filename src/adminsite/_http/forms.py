@@ -95,8 +95,7 @@ async def build_rows(
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(current)
-            if item.multiple:
-                row.picked = chosen_in_order(row.choices, row.selected)
+            row.picked = chosen_in_order(row.choices, row.selected)
         elif isinstance(item, RelationField):
             await _fill_relation(admin, session, row, item, current, request)
         elif isinstance(item, JSONField) and path not in readonly:
@@ -182,8 +181,7 @@ async def _fill_relation(
     row.choices = [
         Choice(picker.key_of(found), title_for(admin, item, found)) for found in offered
     ]
-    if item.collection:
-        row.picked = chosen_in_order(row.choices, row.selected)
+    row.picked = chosen_in_order(row.choices, row.selected)
 
 
 async def _picked(
@@ -239,8 +237,7 @@ def rows_for_inputs(
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(item.default)
-            if item.multiple:
-                row.picked = chosen_in_order(row.choices, row.selected)
+            row.picked = chosen_in_order(row.choices, row.selected)
         rows.append(row)
     return rows
 

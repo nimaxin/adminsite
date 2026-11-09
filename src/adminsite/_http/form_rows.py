@@ -9,10 +9,16 @@ from adminsite.fields import BaseField
 from adminsite.i18n import gettext as _
 
 __all__ = [
+    "SEARCHABLE_OVER",
     "Choice",
     "FormRow",
     "chosen_in_order",
 ]
+
+# A choice among more options than this is a picker, which narrows them as
+# you type: on a form rather than a select, and in the filters drawer rather
+# than a list of boxes to tick.
+SEARCHABLE_OVER = 10
 
 
 @dataclass
@@ -90,6 +96,11 @@ class FormRow:
     def picked_pairs(self) -> list[dict[str, str]]:
         """The records already held, as the picker's script reads them."""
         return [{"value": one.value, "label": one.label} for one in self.picked]
+
+    @property
+    def many_choices(self) -> bool:
+        """Whether it offers too many options for a select, so a picker holds them."""
+        return len(self.choices) > SEARCHABLE_OVER
 
     @property
     def widget(self) -> str:

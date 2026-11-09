@@ -7,7 +7,8 @@ import httpx
 from starlette.applications import Starlette
 
 from adminsite import Admin, ModelView
-from adminsite._http.listing import SEARCHABLE_OVER, FilterPanel
+from adminsite._http.form_rows import SEARCHABLE_OVER
+from adminsite._http.listing import FilterPanel
 from adminsite.database import Database
 from adminsite.filters import (
     BooleanFilter,

@@ -402,7 +402,8 @@
   // several, as chips in the order they were chosen. Its list is in the
   // page and narrows as you type, or it comes back from a search. Each time
   // what it holds changes, it says so with a picker-change event, which the
-  // filters drawer applies itself on.
+  // filters drawer applies itself on, and with a change event, as a select
+  // does, which draws a document's part of a form again.
   function recordPicker(config) {
     return {
       open: false,
@@ -552,6 +553,7 @@
       changed() {
         this.$nextTick(() => {
           this.root.dispatchEvent(new CustomEvent("picker-change", { bubbles: true }));
+          this.root.dispatchEvent(new Event("change", { bubbles: true }));
         });
       },
       choose(value, label) {

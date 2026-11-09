@@ -1,9 +1,15 @@
-{#- One option is a plain select. Several are a picker, their options as
-    chips in the order they were chosen. -#}
-{% if row.field.multiple|default(false) %}
-  {%- set picker_multiple = true -%}
+{#- One option among a few is a plain select. One among many is a picker,
+    its options in the page, narrowed as you type. So are several, their
+    options as chips in the order they were chosen. -#}
+{% if row.field.multiple|default(false) or row.many_choices %}
+  {%- set picker_multiple = row.field.multiple|default(false) -%}
   {%- set picker_options = row.choices -%}
-  {%- set picker_hint = _("Search {things}", things=row.label|in_sentence) -%}
+  {%- if picker_multiple -%}
+    {%- set picker_hint = _("Search {things}", things=row.label|in_sentence) -%}
+  {%- else -%}
+    {%- set picker_hint = _("Choose {thing}", thing=row.label|in_sentence) -%}
+    {%- set picker_search = _("Search") -%}
+  {%- endif -%}
   {% include "adminsite/widgets/_picker.html" %}
 {% else %}
   <select class="select w-full {% if row.error %}select-error{% endif %}"

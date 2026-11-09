@@ -19,7 +19,7 @@ page, each labelled with its class.
 | `date` | `DateField` | `Sep 8, 2026` | a date picker |
 | `datetime` | `DateTimeField` | `Sep 8, 2026 14:05` | a date and time picker |
 | `time` | `TimeField` | `14:05` | a time picker |
-| an enum | `EnumField` | `Shipped` | a select |
+| an enum | `EnumField` | `Shipped` | a select, or a picker for more than 10 options |
 | a relationship | `RelationField` | the linked record's name | a picker |
 
 Labels come from the column name, so `created_at` reads "Created at" and `customer_id` reads
@@ -129,13 +129,14 @@ form, the filters and the search are unchanged, and an import reads the text bac
 
 ## Relationships
 
-A relationship shows the linked records' names in the list and a picker in the form. On a table of
-more than 100 records the picker searches as you type, twenty records at a time, so give the other
-model's view a `record_title` that tells its records apart.
+A relationship shows the linked records' names in the list and a picker in the form, a box that
+narrows the records as you type. A link to one record among 10 or fewer is a plain select instead.
+On a table of more than 100 records the picker searches as you type, twenty records at a time, so
+give the other model's view a `record_title` that tells its records apart.
 
 The picker reads through the other model's view, so its `scope_query` and its permissions apply,
-and it searches that view's `searchable_fields`. An `EnumField` with `multiple=True` gets the same
-picker, over its options.
+and it searches that view's `searchable_fields`. An `EnumField` gets the same picker over its
+options when it has more than 10, or with `multiple=True`.
 
 ### Keep a link in order
 
@@ -216,7 +217,7 @@ class ShopView(ModelView[Shop]):
 | `bool` | A switch. |
 | `int`, `float`, `Decimal` | A number input, with limits such as `ge=0` checked. |
 | `str`, `EmailStr`, `HttpUrl`, `date`, `datetime`, `time` | An input of that kind, with lengths and `pattern` checked. |
-| `Literal[...]` or an `Enum` | A select, or the picker for a list of them. |
+| `Literal[...]` or an `Enum` | A select, or the picker for more than 10 options or a list of them. |
 | A list of plain values | A box with one value per line. |
 | A model or a TypedDict inside | Its properties under its title. |
 | A list of models or TypedDicts | A table whose rows can be added and removed. |

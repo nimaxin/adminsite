@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+Before upgrading:
+
+- A project that overrides `base.html`, `widgets/select.html`, `widgets/relation.html` or
+  `widgets/_picker.html` should start its copy again from the new one.
+
+What changed:
+
+- On a form, a choice or a link to one record with more than 10 options is a picker, as a choice
+  filter is: a box that narrows the options as you type, with every option in the page (#119). One
+  of 10 or fewer stays a select, and a link among more than 100 records still searches as you type.
+  The same goes for inline rows, action dialogs, the editor a list cell opens and the form of a
+  JSON document.
+- On a new record, a JSON field whose schema follows the record is drawn again when a picker
+  changes, as it already was when a select changed.
+
 ## 0.7.0
 
 Two new ways to change what the admin does with records: `list_query` keeps records off the list

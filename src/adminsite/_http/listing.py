@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from starlette.requests import Request
 from starlette.responses import Response
 
-from adminsite._http.form_rows import Choice, FormRow
+from adminsite._http.form_rows import SEARCHABLE_OVER, Choice, FormRow
 from adminsite._http.forms import rows_for_actions, title_for
 from adminsite._http.requests import find_view
 from adminsite._http.saved_views import owner_of, saved_for
@@ -36,7 +36,6 @@ __all__ = [
     "COLUMNS_PARAM",
     "FILTER_COUNTS_TRIGGER",
     "KEPT_TOTAL_HEADER",
-    "SEARCHABLE_OVER",
     "SIZE_KEY",
     "SIZE_PARAM",
     "TOTAL_TRIGGER",
@@ -73,9 +72,6 @@ COLUMNS_PARAM = "cols"
 COLUMNS_KEY = "adminsite_columns"
 SIZE_PARAM = "size"
 SIZE_KEY = "adminsite_page_size"
-# A choice filter with more options than this is a picker, which narrows them
-# as you type, rather than a list of boxes to tick.
-SEARCHABLE_OVER = 10
 # The element in the table that asks for the list's total once the rows are
 # on screen. htmx names it in the HX-Trigger header of that request.
 TOTAL_TRIGGER = "records-counter"

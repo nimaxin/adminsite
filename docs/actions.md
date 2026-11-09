@@ -101,7 +101,7 @@ class OrderView(ModelView[Order]):
 | `bool` | a switch |
 | `date`, `datetime`, `time` | a date or time picker |
 | `UUID` | a line of text |
-| an `Enum`, or `Literal["DHL", "UPS"]` | a select |
+| an `Enum`, or `Literal["DHL", "UPS"]` | a select, or a picker for more than 10 options |
 | a `list` of an `Enum` or a `Literal` | a select holding several |
 | a model, such as `Product` | [a record to pick](#another-record) |
 | `list[Product]` | several records |

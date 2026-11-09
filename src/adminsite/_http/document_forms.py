@@ -210,8 +210,7 @@ class _Builder:
             row.choices = [Choice(value, label) for value, label in item.choices]
             chosen = raw if isinstance(raw, list) else ([raw] if raw else [])
             row.selected = tuple(str(one) for one in chosen)
-            if item.multiple:
-                row.picked = chosen_in_order(row.choices, row.selected)
+            row.picked = chosen_in_order(row.choices, row.selected)
         return row
 
     def cell(self, item: Field[Any], name: str) -> FormRow:
