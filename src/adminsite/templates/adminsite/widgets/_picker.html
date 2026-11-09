@@ -78,7 +78,9 @@
            {% endif %}
            {{ field_attrs|default('') }}>
     {% if not picker_multiple %}
-      {% if not row.required %}
+      {#- Cleared where a select would offer Not set: where it may be left
+          empty, as in a blank inline row that may stay unused. -#}
+      {% if not row.required or not row.browser_required|default(true) %}
         <button type="button" class="btn btn-ghost btn-xs btn-square" x-show="picked.length" x-cloak
                 @mousedown.prevent.stop @click="clear()"
                 aria-label="{{ _('Clear {name}', name=row.label) }}">{{ icons.icon("x", 14) }}</button>

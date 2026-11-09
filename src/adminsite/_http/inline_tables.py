@@ -137,8 +137,7 @@ class _CellMaker:
         if isinstance(item, EnumField):
             row.choices = [Choice(value, label) for value, label in item.choices]
             row.selected = item.values_of(current) if sent is None else _picks(sent)
-            if item.multiple:
-                row.picked = chosen_in_order(row.choices, row.selected)
+            row.picked = chosen_in_order(row.choices, row.selected)
         elif isinstance(item, RelationField) and path in self.options:
             self._fill_relation(row, item, self.options[path], current, sent)
         return row
@@ -170,7 +169,7 @@ class _CellMaker:
                     if key in options.named
                 ]
             row.picked_label = row.picked[0].label if row.picked else ""
-        elif item.collection:
+        else:
             row.picked = chosen_in_order(row.choices, row.selected)
 
 

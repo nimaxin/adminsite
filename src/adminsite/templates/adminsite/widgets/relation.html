@@ -1,7 +1,8 @@
 {#- A link to many records is always a picker: its records as chips, in the
-    order they were chosen. So is a link to one record among over a hundred,
-    which has to be searched. A link to one of a few is a plain select. -#}
-{% if row.searchable or row.field.collection %}
+    order they were chosen. So is a link to one record among many: its
+    records in the page, narrowed as you type, or among over a hundred
+    searched. A link to one of a few is a plain select. -#}
+{% if row.searchable or row.field.collection or row.many_choices %}
   {#- The box's placeholder names what it holds, as the other model's view
       calls it, or as the field does where that model has no view. -#}
   {%- set target = admin.views.for_relation(row.field) -%}
